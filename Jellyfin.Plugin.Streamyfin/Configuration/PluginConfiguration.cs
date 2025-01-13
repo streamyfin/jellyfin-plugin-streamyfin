@@ -1,7 +1,10 @@
 #pragma warning disable CA2227
 #pragma warning disable CS0219
 
+using Jellyfin.Data.Enums;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using MediaBrowser.Model.Plugins;
+using MediaBrowser.Model.Querying;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration;
 
@@ -25,112 +28,77 @@ public class PluginConfiguration : BasePluginConfiguration
 
   public PluginConfiguration()
   {
-    var Yaml = @"
-# You can remove any settings you do not need configured.
-
-# Format Example
-# settingName:
-#   locked: true | false # if true, locks the setting from modification in app. Default false.
-#   value: value # Value you want the setting to be. Editor will give you type suggestion for a specific setting.
-
-# Example below shows all supported settings at this time.
-settings:
-  downloadMethod:
-    locked: true
-    value: REMUX
-
-  # # Media Controls
-  # forwardSkipTime:
-  # rewindSkipTime: 
-
-  # # Audio Controls
-  # rememberAudioSelections:
-  
-  # # Subtitles
-  # subtitleMode:
-  # rememberSubtitleSelections:
-  # subtitleSize:
-  
-  # # Other
-  # autoRotate:
-  # defaultVideoOrientation:
-  # safeAreaInControlsEnabled:
-  # showCustomMenuLinks:
-  # hiddenLibraries:
-  # disableHapticFeedback:
-  
-  # # Downloads
-  # downloadMethod:
-  # remuxConcurrentLimit:
-  # autoDownload:
-  # optimizedVersionsServerUrl:
-
-  # # Jellyseerr 
-  # jellyseerrServerUrl:
-  
-  # # Search
-  # searchEngine:
-  # marlinServerUrl:
-
-  # # Popular Lists
-  # usePopularPlugin:
-  # mediaListCollectionIds:
-
-  # # Misc.
-  # libraryOptions:
-";
-
-    Config = _serializationHelper?.Deserialize<Config>(Yaml);
-
-    /*
-    Config = new Config{
-      marlinSearch = new Search{
-        enabled = false,
-        url = ""
-      },
-      home = new Home{
-        sections = new SerializableDictionary<string, Section>
-      {
-         { "Trending collection", new Section{
-            style = SectionStyle.portrait,
-            type = SectionType.carousel,
-            items = new SectionItemResolver 
-              {args = new ItemArgs{
-              parentId = "YOURCOLLECTIONID"
-            } } } ,
-          { "Continue Watching", new Section{
-            style = SectionStyle.portrait,
-            type = SectionType.carousel,
-            items = new SectionItemResolver 
-              {args = new ItemArgs{
-              filters = "YOURCOLLECTIONID"
-            } } },
-          { "Anime", new Section{
-            style = SectionStyle.portrait,
-            type = SectionType.row,
-            items = new SectionItemResolver{ args = new ItemArgs{
-             genres = new List<string>{"Anime"}
-            }
-          } } } }
-      }
-      }
-
-    };
-    */
-    //Yaml
-    /* 
-  SfConfig = "test";
-  Yaml = @"home:
-sections:
-  Trending:
-    style: portrait
-    type: row 
-    source: 
-      resolver: items
-      args: 
-        sortBy: AddedDate
-        sortOrder: Ascending
-        filterByGenre: [""Anime"", ""Comics""]";
-        */
+    Config = DefaultConfig();
   }
+
+  public static Config DefaultConfig() => new()
+  {
+    settings = DefaultSettings()
+  };
+
+  public static Settings.Settings DefaultSettings() => new()
+  {
+    forwardSkipTime = new() { value = 30 },
+    rewindSkipTime = new() { value = 15 },
+    rememberAudioSelections = new() { value = false },
+    subtitleMode = new() { value = SubtitlePlaybackMode.Default },
+    rememberSubtitleSelections = new() { value = false },
+    subtitleSize = new() { value = 80 },
+    autoRotate = new () { value = true },
+    defaultVideoOrientation = new () { value = OrientationLock.Default },
+    safeAreaInControlsEnabled = new () { value = true },
+    showCustomMenuLinks = new () { value = false },
+    hiddenLibraries = new () { value = new[] { "Enter library id(s)" } },
+    disableHapticFeedback = new () { value = false },
+    downloadMethod = new () { value = DownloadMethod.remux },
+    remuxConcurrentLimit = new () { value = RemuxConcurrentLimit.One },
+    autoDownload = new () { value = false },
+    optimizedVersionsServerUrl = new () { value = "Enter optimized server url" },
+    jellyseerrServerUrl = new () { value = "Enter jellyseerr server url" },
+    searchEngine = new () { value = SearchEngine.Jellyfin },
+    marlinServerUrl = new() { value = "Enter marlin server url" },
+    usePopularPlugin = new() { value = false },
+    mediaListCollectionIds = new() { value = new [] { "Enter collection id(s)" } },
+    libraryOptions = new() { value = new LibraryOptions() },
+    home = new()
+    {
+      value = new Home
+      {
+        sections = new SerializableDictionary<string, Section>
+        {
+          {
+            "Items Example",
+            new Section
+            {
+              orientation = SectionOrientation.vertical,
+              items = new()
+              {
+                parentId = "YOURCOLLECTIONID",
+                sortBy = [ItemSortBy.Default],
+                sortOrder = [SortOrder.Ascending],
+                genres = ["Your genres"],
+                filters = [ItemFilter.IsFavorite],
+                includeItemTypes = [BaseItemKind.Episode, BaseItemKind.Movie],
+                limit = 25,
+              }
+            }
+          },
+          {
+            "Next Up Example",
+            new Section
+            {
+              orientation = SectionOrientation.vertical,
+              nextUp = new()
+              {
+                parentId = "YOURCOLLECTIONID",
+                limit = 25,
+                enableResumable = true,
+                enableRewatching = true,
+              }
+            }
+          },
+        }
+      }
+    },
+  };
 }
