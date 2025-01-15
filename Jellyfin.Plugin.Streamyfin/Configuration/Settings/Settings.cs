@@ -27,7 +27,7 @@ public class LibraryOptions
 /// <typeparam name="T"></typeparam>
 public class Lockable<T>
 {
-    public bool? locked { get; set; } = false;
+    public required bool locked { get; set; }
     public required T value { get; set; }
 }
 

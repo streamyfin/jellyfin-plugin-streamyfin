@@ -1,6 +1,9 @@
 <div data-role="page" id="StreamyfinConfigPage" class="page type-interior pluginConfigurationPage fullWidthContent"
-    data-controller="__plugin/Streamyfin.js">
-    <script>
+     data-controller="__plugin/Streamyfin.js">
+    <script type="module">
+        import * as jsYaml from 'https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm'
+        window.jsYaml = jsYaml
+    
         Dashboard.showLoadingMsg();
     </script>
     <div class="content-primary">
@@ -8,29 +11,36 @@
             <div class="sectionTitleContainer">
                 <h2 class="sectionTitle">Streamyfin</h2>
                 <a is="emby-linkbutton" class="raised raised-mini" style="margin-left: 2em;" target="_blank"
-                    href="https://github.com/streamyfin/jellyfin-plugin-streamyfin">
+                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin">
                     <i class="md-icon button-icon button-icon-left secondaryText"></i>
                     <span>Help</span>
                 </a>
                 <a is="emby-linkbutton" class="raised raised-mini" style="margin-left: 0em;" target="_blank"
-                    href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/blob/main/example.yml">
+                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/blob/main/example.yml">
                     <i class="md-icon button-icon button-icon-left secondaryText"></i>
                     <span>Examples</span>
                 </a>
+                <button id="switch-btn" is="emby-button" class="fab submit emby-button" style="margin-right: 0em;">
+                    <span class="material-icons sync_alt" aria-hidden="true"></span>
+                </button>
             </div>
         </div>
+        
+        <div id="config-layout" style="width: 800px; height: 800px; overflow-y: auto">
+            <div id="yaml-editor" style="width: 100%; height: 100%; border: 0px solid grey; display: block">
+            </div>
 
-        <div id="yamleditor" style="width: 800px; height: 500px; border: 0px solid grey"></div>
-
+            <div id="json-editor" style="width: 100%; height: auto; border: 0px solid grey; display: none;">
+            </div>
+        </div>
+        
         <form>
             <button id="saveConfig" is="emby-button" type="submit" class="raised button-submit block">
                 <span>Save</span>
             </button>
         </form>
-
-
     </div>
+    <script async src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
     <script id="hljs" async
         src="https://unpkg.com/@skrashevich/monaco-yaml-prebuilt@1.1.2/dist/monaco-editor.bundle.js"></script>
-
 </div>
