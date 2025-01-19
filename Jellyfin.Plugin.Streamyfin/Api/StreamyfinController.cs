@@ -124,6 +124,17 @@ public class StreamyfinController : ControllerBase
       Value = _serializationHelperService.SerializeToYaml(StreamyfinPlugin.Instance!.Configuration.Config)
     };
   }
+  
+  [HttpGet("config/default")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<ConfigYamlRes> getDefaultConfig()
+  {
+    return new ConfigYamlRes
+    {
+      Value = _serializationHelperService.SerializeToYaml(PluginConfiguration.DefaultConfig())
+    };
+  }
 
   //[HttpGet("config.yaml")]
   //[Authorize]
