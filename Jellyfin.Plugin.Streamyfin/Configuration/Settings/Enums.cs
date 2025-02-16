@@ -86,3 +86,14 @@ public enum RemuxConcurrentLimit
     Three = 3,
     Four = 4,
 }
+
+public enum Bitrates
+{
+    Max = undefined,
+    8Mbps = 8000000,
+    4Mmps = 4000000,
+    2Mbps = 2000000,
+    1Mbps = 1000000,
+    500kbps = 500000,
+    250kbps = 250000,
+}
