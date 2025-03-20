@@ -77,6 +77,7 @@ public class PluginConfiguration : BasePluginConfiguration
     searchEngine = new() { value = SearchEngine.Jellyfin },
     marlinServerUrl = new() { value = "Enter marlin server url" },
     libraryOptions = new() { value = new LibraryOptions() },
+    defaultBitrate = new() { value = Bitrates.2MBps},
     home = new()
     {
       value = new Home

@@ -188,6 +188,10 @@ public class Settings
     [NotNull]
     [Display(Name = "Disable haptic feedback")]
     public Lockable<bool>? disableHapticFeedback { get; set; } // = false;
+    
+    [NotNull]
+    [Display(Name = "Default Quality", Description = "Enter the default quality/bitrate for the streams and downloads")]
+    public Lockable<Bitrates>? Bitrates { get; set; }
 
     // Downloads
     [NotNull]
