@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <!-- Required headers -->
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+    </resheader>
+
+    <!-- region PlaybackStartEvent -->
+    <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>Afspelen gestart</value>
+    </data>
+    <data name="UserWatching" xml:space="preserve">
+        <!-- 0 = Username -->
+        <value>{0} aan het kijken</value>
+    </data>
+    <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <!-- 0 = Name, 1 = Season index number, 2 = Episode index number -->
+        <value>{0}, S{1}E{2}</value>
+    </data>
+    <data name="SeriesSeason" xml:space="preserve">
+        <!-- 0 = Name, 1 = Season index number -->
+        <value>{0}, Seizoen {1}</value>
+    </data>
+    <data name="Series Episode" xml:space="preserve">
+        <!-- 0 = Name, 1 = Episode index number -->
+        <value>{0}, Aflevering {1}</value>
+    </data>
+    <!-- endregion PlaybackStartEvent -->
+    
+    <!-- region SessionStartEvent -->
+    <data name="SessionStartTitle" xml:space="preserve">
+        <value>Sessie gestart</value>
+    </data>
+    <data name="UserNowOnline" xml:space="preserve">
+        <!-- 0 = Username -->
+        <value>{0} is nu online</value>
+    </data>
+    <!-- endregion SessionStartEvent -->
+
+    <!-- region UserLockedOutEvent -->
+    <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>Gebruiker Geblokeerd</value>
+    </data>
+    <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <!-- 0 = Username -->
+        <value>{0} Gebruiker is geblokeerd</value>
+    </data>
+    <!-- endregion SessionStartEvent -->
+
+    <!-- region ItemAddedEvent -->
+    <data name="ItemAddedTitle" xml:space="preserve">
+        <!-- 0 = Media type -->
+        <value>{0} toegevoegd</value>
+    </data>
+    <data name="EpisodeAddedTitle" xml:space="preserve">
+        <!-- 0 = Media type -->
+        <value>Aflevering toegevoegd</value>
+    </data>
+    <data name="EpisodesAddedTitle" xml:space="preserve">
+        <!-- 0 = Media type -->
+        <value>Aflevering toegevoegd</value>
+    </data>
+
+    <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <!-- 0 = Series Name, 1 = Episode index, 2 = Season index -->
+        <value>{0} - Aflevering {1} toegevoegd voor Seizoen {2}</value>
+    </data>
+    <data name="EpisodeAdded" xml:space="preserve">
+        <!-- 0 = Series Name, 1 = Episode index -->
+        <value>{0} - Aflevering {1} toegevoegd</value>
+    </data>
+    <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <!-- 0 = Series Name, 1 = Season index -->
+        <value>{0} - Aflevering toegevoegd voor Seizoen {1}</value>
+    </data>
+    <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <!-- 0 = Series Name, 1 = Episode count, 2 = Season index -->
+        <value>{0} - {1} Afleveringen toegevoegd voor Seizoen {2}</value>
+    </data>
+    <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <!-- 0 = Series Name, 1 = Episode count -->
+        <value>{0} - {1} Afleveringen toegevoegd</value>
+    </data>
+    <!-- endregion ItemAddedEvent -->
+
+    <data name="NameAndYear" xml:space="preserve">
+        <!-- 0 = Name, 1 = Year -->U
+        <value>{0} ({1})</value>
+    </data>
+</root>
