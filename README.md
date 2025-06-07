@@ -18,13 +18,13 @@ With this plugin you allow the streamyfin application to do the following for al
 
 <table>
   <thead>
-    <th>Automatically log in users into <a href="https://github.com/fallenbagel/jellyseerr">jellyseerr</a></th>
+    <th>Automatically log in users into <a href="https://github.com/fallenbagel/Jellyseerr">Jellyseerr</a></th>
     <th>Custom Home screen using <a href="https://github.com/lostb1t/jellyfin-plugin-collection-import">collections</a></th>
     <th><a href="./NOTIFICATIONS.md">Notification</a> support</th>
   </thead>
   <tbody>
     <tr>
-      <td valign="top"><img src="./assets/jellyseerr.png"/></td>
+      <td valign="top"><img src="./assets/Jellyseerr.png"/></td>
       <td valign="top"><img src="./assets/home.jpg"/></td>
       <td valign="top"><img src="./assets/notifications.png"/></td>
     </tr>
@@ -46,16 +46,16 @@ Install Process
 More information
 ------
 
-### Automatically log into jellyseerr
+### Automatically log into Jellyseerr
 
-We currently offer the ability to log in your users into jellyseerr for a seamless jellyseerr integration.<br>
-Currently this is only supported if you use Jellyfin authentication to log into your jellyseerr instance.
+We currently offer the ability to log in your users into Jellyseerr for a seamless Jellyseerr integration.<br>
+Currently this is only supported if you use Jellyfin authentication to log into your Jellyseerr instance.
 
 
 ### Customize home screen
 
-You are able to further customize your home screen beyond jellyfins current limits.
-This can be done alongside using the [collection import](https://github.com/lostb1t/jellyfin-plugin-collection-import) plugin, one can make very dynamic homescreens.
+You are able to further customize your home screen beyond Jellyfin's current limits.
+This can be done alongside using the [collection import](https://github.com/lostb1t/jellyfin-plugin-collection-import) plugin, one can make very dynamic home screens.
 
 Be inspired to create home screens by adding views for collections like 
 `Trending`, `Popular`, `Most viewed`, etc. <br>
@@ -71,12 +71,12 @@ Some notifications that work out the box with almost no configuration are:
 - `Playback started` allows you to see when content is being played from your server
 - `User locked out` allows you to see when a user has been locked out from their account so you can be proactive on resetting if required.
 
-And if thats not enough we also offer a notification end point that you can use to utilize with any other service!
+And if that's not enough we also offer a notification endpoint that you can use to utilize with any other service!
 
 [Read more about notifications](NOTIFICATIONS.md)
 
 ### Using the plugin configuration page
 
-We offer the ability to modify the configuration via yaml or by normal form.
+We offer the ability to modify the configuration via YAML or a standard form.
 
-See [yaml examples](https://github.com/streamyfin/jellyfin-plugin-streamyfin/tree/main/examples)
+See [YAML examples](https://github.com/streamyfin/jellyfin-plugin-streamyfin/tree/main/examples)
