@@ -44,14 +44,14 @@ value: `MediaBrowser Token="{apiKey}"`
     "title": "string",    // Notification title (required)
     "subtitle": "string", // Notification subtitle (Visible only to iOS users)
     "body": "string",     // Notification body (required)
-    "userId": "string",   // Target jellyfin user id this notification is for
-    "username": "string", // Target jellyfin username this notification is for
+    "userId": "string",   // Target Jellyfin user id this notification is for
+    "username": "string", // Target Jellyfin username this notification is for
     "isAdmin": false      // Boolean to determine if notification also targets admins.
   }
 ]
 ```
 
-## Notifying all users
+## Notifying All Users
 To do this, all you have to do is populate the title and body. Other fields are not required.
 
 ---
@@ -66,16 +66,16 @@ You can use the [jellyfin-webhook-plugin](https://github.com/jellyfin/jellyfin-p
 - Webhook URL should be the URL example from above
 - Selected notification type
 
-If we don't directly support an event you'll want to create a separate webhook destination for each event so we can avoid filtering on our end.
+If we don't directly support an event, you'll want to create a separate webhook destination for each event so we can avoid filtering on our end.
 
-**We are currently looking into supporting as many of the jellyfin events so that you don't have to worry about configuring them!**
+**We are currently working on supporting as many Jellyfin events as possible so you don't have to worry about configuring them!**
 
 ### Examples
 
 - [Item Added](#item-added-notification) 
-  - We currently support this on our end with the enhancement of:
-    - reducing spam when multiple episodes are added for a season in a short period of time.
-    - deep link into item page to start playing item from notification
+  - We currently support this on our end with the following enhancements:
+    - Reducing spam when multiple episodes are added for a season in a short period of time
+    - Deep linking to the item page to start playing the item directly from the notification
 
 
 ### Item added notification
@@ -105,7 +105,7 @@ If we don't directly support an event you'll want to create a separate webhook d
 
 ## Jellyseerr
 
-You can go to your jellyseerr instances notification settings to forward events
+You can go to your Jellyseerr instance's notification settings to forward events
 
 - Go to Settings > Notifications > Webhook
 - Check "Enable Agent"
@@ -115,9 +115,9 @@ You can go to your jellyseerr instances notification settings to forward events
 [Template variable help](https://docs.overseerr.dev/using-overseerr/notifications/webhooks#template-variables)
 
 
-## Issues notification 
+## Issues Notification 
 
-- Copy json below and paste in as JSON Payload
+- Copy the JSON below and paste in as JSON Payload
 - Select Notification Types 
   - Issue Reported
   - Issue Commented
