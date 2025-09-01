@@ -1,20 +1,20 @@
-# Streamyfin client notifications
+# Streamyfin Client Notifications
 
-Our plugin can consume any event and forward them to your streamyfin users!
+Our plugin can consume any event and forward them to your Streamyfin users
 
-There are currently a few jellyfin events directly supported by our plugin!
+There are currently a few Jellyfin events directly supported by our plugin
 
 Events:
 - Item Added (Everyone)
 - Session Started (Admin only)
-- User Locked out (Admin + user who was locked out)
-- Playback started (Admin only)
+- User Locked Out (Admin + user who was locked out)
+- Playback Started (Admin only)
 
-These can be enabled/disabled inside our plugins page as a setting!
+These can be enabled or disabled inside the plugin settings page
 
 
-## Custom webhook notifications
-If you want to directly start using the notification endpoint with other services, take a look at our examples on how to do so!
+## Custom Webhook Notifications
+If you want to start using the notification endpoint directly with other services, see our examples below
 
 Custom webhook examples:
 - [Jellyfin](#Jellyfin)
@@ -22,7 +22,7 @@ Custom webhook examples:
 
 ---
 
-# Endpoint (Authorization required)
+# Endpoint (Authorization Required)
 
 `http(s)://server.instance/Streamyfin/notification`
 
@@ -34,8 +34,8 @@ value: `application/json`
 key: `Authorization`<br>
 value: `MediaBrowser Token="{apiKey}"`
 
-**You can generate a jellyfin API Key by going to** 
-`Dashboard -> Advanced (bottom left) -> API Keys -> Click on (+) to genreate a key` 
+**You can generate a Jellyfin API key by going to**  
+`Dashboard -> Advanced (bottom left) -> API Keys -> Click (+) to generate a key` 
 
 ## Template
 ```json
@@ -52,7 +52,7 @@ value: `MediaBrowser Token="{apiKey}"`
 ```
 
 ## Notifying all users
-To do this all you have to do is populate title & body! Other fields are not required!
+To do this, all you have to do is populate the title and body. Other fields are not required.
 
 ---
 
@@ -61,16 +61,16 @@ To do this all you have to do is populate title & body! Other fields are not req
 ## Jellyfin
 You can use the [jellyfin-webhook-plugin](https://github.com/jellyfin/jellyfin-plugin-webhook) to create a notification based on any event they offer.
 
-- Visit the webhooks config page
+- Visit the Webhooks configuration page
 - Click "Add Generic Destination"
-- Webhook Url should be the url example from above
+- Webhook URL should be the URL example from above
 - Selected notification type
 
 If we don't directly support an event you'll want to create a separate webhook destination for each event so we can avoid filtering on our end.
 
 **We are currently looking into supporting as many of the jellyfin events so that you don't have to worry about configuring them!**
 
-### examples
+### Examples
 
 - [Item Added](#item-added-notification) 
   - We currently support this on our end with the enhancement of:
