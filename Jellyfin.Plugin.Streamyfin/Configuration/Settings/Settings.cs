@@ -213,6 +213,24 @@ public class Settings
     [Display(Name = "Default playback quality")]
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
 
+    [NotNull]
+    [Display(Name = "Max auto play episode count")]
+    public Lockable<int> maxAutoPlayEpisodeCount { get; set; } // = 3 ? I think
+
+    // Swipe controls
+
+    [NotNull]
+    [Display(Name = "Horizontal swipe to skip")]
+    public Lockable<bool>? enableHorizontalSwipeSkip { get; set; } // = false ? I hope
+    
+     [NotNull]
+    [Display(Name = "Left side brightness control")]
+    public Lockable<bool>? enableLeftSideBrightnessSwipe { get; set; } // = false ? I hope
+    
+     [NotNull]
+    [Display(Name = "Right side volume control")]
+    public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = false ? I hope
+
     // Downloads
     [NotNull]
     [Display(Name = "Offline download method", Description = "Enter the method you want your users to use when download media for offline usage")]
