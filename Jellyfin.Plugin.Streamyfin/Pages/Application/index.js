@@ -4,6 +4,7 @@ const downloadMethodValue = () => document.getElementById('download-method-value
 const defaultBitRateValue = () => document.getElementById('default-bitrate-value');
 const remuxConcurrentLimitValue = () => document.getElementById('remux-concurrent-limit-value');
 const searchEngineValue = () => document.getElementById('search-engine-value');
+const maxAutoPlayEpisodeCount = () => document.getElementById('max-auto-play-episode-count');
 
 const saveBtn = () => document.getElementById('save-settings-btn');
 
@@ -58,6 +59,10 @@ const setOptions = (schema) => {
 
     searchEngineValue().options.length = 0;
     SearchEngine.enum.forEach(value => searchEngineValue().add(createOption(value)));
+
+    // I don't know if this is correct, but I'm pushing so if it's wrong I can be told
+    maxAutoPlayEpisodeCount().options.length = 0;
+    maxAutoPlayEpisodeCount.enum.forEach(value => maxAutoPlayEpisodeCount().add(createOption(value)));
 }
 
 const updateSettingConfig = (name, config, valueName, value) => ({

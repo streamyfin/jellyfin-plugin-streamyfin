@@ -19,9 +19,11 @@ if [ -z "$REMOTE" ]; then
   exit 1
 else
   if [[ "$REMOTE" =~ ^(true|false)$ ]]; then
-    if [ -z "$USER" ] || [ -z "$HOST" ]; then
-      echo "You must set USER & HOST in env.local if using remote!"
-      exit 1
+    if [[ "$REMOTE" =~ ^true$ ]]; then
+        if [ -z "$USER" ] || [ -z "$HOST" ]; then
+          echo "You must set USER & HOST in env.local if using remote!"
+          exit 1
+        fi;
     fi;
   else
     echo "REMOTE in env.local must be a boolean!"

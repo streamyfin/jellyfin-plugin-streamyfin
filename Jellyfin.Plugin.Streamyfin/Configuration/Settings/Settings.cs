@@ -215,21 +215,21 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Max auto play episode count")]
-    public Lockable<int> maxAutoPlayEpisodeCount { get; set; } // = 3 ? I think
+    public Lockable<int> maxAutoPlayEpisodeCount { get; set; } // = 3 
 
     // Swipe controls
 
     [NotNull]
     [Display(Name = "Horizontal swipe to skip")]
-    public Lockable<bool>? enableHorizontalSwipeSkip { get; set; } // = false ? I hope
+    public Lockable<bool>? enableHorizontalSwipeSkip { get; set; } // = true 
     
      [NotNull]
     [Display(Name = "Left side brightness control")]
-    public Lockable<bool>? enableLeftSideBrightnessSwipe { get; set; } // = false ? I hope
-    
-     [NotNull]
+    public Lockable<bool>? enableLeftSideBrightnessSwipe { get; set; } // = true
+
+    [NotNull]
     [Display(Name = "Right side volume control")]
-    public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = false ? I hope
+    public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = true
 
     // Downloads
     [NotNull]

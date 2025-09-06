@@ -149,7 +149,7 @@
                 <div class="verticalSection">
 
                     <!-- follow device orientation goes here -->
-                    
+
                     <div class="inputContainer">
                         <label class="inputLabel" for="default-orientation-value">Default video orientation</label>
                         <select id="default-orientation-value" data-key-name="defaultVideoOrientation" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
@@ -158,14 +158,14 @@
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="default-orientation-locked" data-key-name="defaultVideoOrientation" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="default-orientation-locked" data-key-name="defaultVideoOrientation" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
-                            <input id="safe-area-value" data-key-name="safeAreaInControlsEnabled" data-prop-name="value" type="checkbox" is="emby-checkbox"/>
+                            <input id="safe-area-value" data-key-name="safeAreaInControlsEnabled" data-prop-name="value" type="checkbox" is="emby-checkbox" />
                             <span class="checkboxLabel">Safe Area in video controls</span>
                         </label>
                         <div class="fieldDescription">Enable the safe area around video controls</div>
@@ -173,14 +173,14 @@
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="safe-area-locked" data-key-name="safeAreaInControlsEnabled" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="safe-area-locked" data-key-name="safeAreaInControlsEnabled" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
-                            <input id="show-custom-menu-value" data-key-name="showCustomMenuLinks" data-prop-name="value" type="checkbox" is="emby-checkbox"/>
+                            <input id="show-custom-menu-value" data-key-name="showCustomMenuLinks" data-prop-name="value" type="checkbox" is="emby-checkbox" />
                             <span class="checkboxLabel">Show custom menu links</span>
                         </label>
                         <div class="fieldDescription">Show custom menu links defined inside your web configuration</div>
@@ -188,7 +188,7 @@
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="show-custom-menu-locked" data-key-name="showCustomMenuLinks" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="show-custom-menu-locked" data-key-name="showCustomMenuLinks" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
@@ -201,34 +201,88 @@
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="default-bitrate-locked" data-key-name="defaultBitrate" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="default-bitrate-locked" data-key-name="defaultBitrate" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="disable-haptics-value" data-key-name="disableHapticFeedback" data-prop-name="value" type="checkbox" is="emby-checkbox"/>
+                            <input id="disable-haptics-value" data-key-name="disableHapticFeedback" data-prop-name="value" type="checkbox" is="emby-checkbox" />
                             <span>Disable haptic feedback</span>
                         </label>
                     </div>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="disable-haptics-locked" data-key-name="disableHapticFeedback" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="disable-haptics-locked" data-key-name="disableHapticFeedback" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="hidden-libraries-value">Hidden libraries</label>
-                        <input id="hidden-libraries-value" data-key-name="hiddenLibraries" data-prop-name="value" data-is-array="true" is="emby-input"/>
+                        <input id="hidden-libraries-value" data-key-name="hiddenLibraries" data-prop-name="value" data-is-array="true" is="emby-input" />
                         <div class="fieldDescription">Hide libraries from the library tab in streamyfin. Enter a comma-separated list of library ids to exclude.</div>
                     </div>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="hidden-libraries-locked" data-key-name="hiddenLibraries" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="hidden-libraries-locked" data-key-name="hiddenLibraries" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
+                            <span>Locked</span>
+                        </label>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="emby-checkbox-label">
+                            Set maximum amount of episodes to autoplay
+                            <input id="max-auto-play-episode-count" data-key-name="maxAutoPlayEpisodeCount" data-prop-name="value" type="number" is="emby-input" />
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-right-side-volume-swipe" data-key-name="maxAutoPlayEpisodeCount" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
+                            <span>Locked</span>
+                        </label>
+                    </div>
+
+                    Swipe controls
+
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-horizontal-swipe-skip" data-key-name="enableHorizontalSwipeSkip" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Enable horizontal swipe to skip</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-horizontal-swipe-skip" data-key-name="enableHorizontalSwipeSkip" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
+                            <span>Locked</span>
+                        </label>
+                    </div>
+
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-left-side-brightness-swipe" data-key-name="enableLeftSideBrightnessSwipe" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Enable left side swipe for brightness control</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-left-side-brightness-swipe" data-key-name="enableLeftSideBrightnessSwipe" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
+                            <span>Locked</span>
+                        </label>
+                    </div>
+
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-right-side-volume-swipe" data-key-name="enableRightSideVolumeSwipe" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Enable right side swipe for volume control</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="enable-right-side-volume-swipe" data-key-name="enableRightSideVolumeSwipe" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
@@ -266,14 +320,6 @@
                             <input id="remux-concurrent-limit-locked" data-key-name="remuxConcurrentLimit" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
-                    </div>
-
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="auto-download-value" data-key-name="autoDownload" data-prop-name="value" type="checkbox" is="emby-checkbox"/>
-                            <span class="checkboxLabel">Optimized auto download</span>
-                        </label>
-                        <div class="fieldDescription">Grant the ability to auto download in the background when using the optimized server</div>
                     </div>
 
                     <div class="checkboxContainer">
