@@ -12,6 +12,18 @@
             border: none;
             border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
+        hr.input-divider {
+            width: 50%;
+            opacity: 0.1;
+            margin-bottom: 1.8em;
+            margin-left: 0;
+            margin-right: auto;
+        }
+        h3.child-section-title {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 0.9em;
+        }
     </style>
     
     <div class="content-primary" style="max-width: 53em; height: 100%">
@@ -39,32 +51,31 @@
             <summary>Video settings</summary>
             <div style="padding: 16px 8px 0px 8px;">
                 <div class="verticalSection">
-
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="forward-skip-value">Forward skip time</label>
                         <input id="forward-skip-value" data-key-name="forwardSkipTime" data-prop-name="value" type="number" is="emby-input" step="5" min="0" max="60"/>
                         <div class="fieldDescription">The amount of time in seconds you want to be able to skip forward during playback</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="forward-skip-locked" data-key-name="forwardSkipTime" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="rewind-skip-value">Rewind skip time</label>
                         <input id="rewind-skip-value" data-key-name="rewindSkipTime" data-prop-name="value" type="number" is="emby-input" step="5" min="0" max="60"/>
                         <div class="fieldDescription">The amount of time in seconds you want to be able to rewind during playback</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="rewind-skip-locked" data-key-name="rewindSkipTime" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
                 </div>
             </div>
         </details>
@@ -81,13 +92,13 @@
                         </label>
                         <div class="fieldDescription">Allows you to set the audio language from the previous played item</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="remember-audio-locked" data-key-name="rememberAudioSelections" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                 </div>
             </div>
@@ -103,13 +114,13 @@
                         <select id="subtitle-playback-value" data-key-name="subtitleMode" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
                         <div class="fieldDescription">Setting to determine when subtitles will automatically play during video playback</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="subtitle-playback-locked" data-key-name="subtitleMode" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
@@ -118,26 +129,26 @@
                         </label>
                         <div class="fieldDescription">Allows you to set the subtitle language based on the previous played item</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="remember-subtitle-locked" data-key-name="rememberSubtitleSelections" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="subtitle-scale-value">Subtitle scale size</label>
                         <input id="subtitle-scale-value" data-key-name="subtitleSize" data-prop-name="value" type="number" is="emby-input" step="5" min="0" max="120"/>
                         <div class="fieldDescription">Adjust the subtitle size during video playback</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="subtitle-scale-locked" data-key-name="subtitleSize" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                 </div>
             </div>
@@ -155,13 +166,13 @@
                         <select id="default-orientation-value" data-key-name="defaultVideoOrientation" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
                         <div class="fieldDescription">Lock orientation during video playback</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="default-orientation-locked" data-key-name="defaultVideoOrientation" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
@@ -170,13 +181,13 @@
                         </label>
                         <div class="fieldDescription">Enable the safe area around video controls</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="safe-area-locked" data-key-name="safeAreaInControlsEnabled" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
@@ -185,26 +196,26 @@
                         </label>
                         <div class="fieldDescription">Show custom menu links defined inside your web configuration</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="show-custom-menu-locked" data-key-name="showCustomMenuLinks" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="inputContainer">
                         <label class="inputLabel" for="remux-concurrent-limit-value">Default playback bitrate</label>
                         <select id="default-bitrate-value" data-key-name="defaultBitrate" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
                         <div class="fieldDescription">The default bitrate at which your media streams at</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="default-bitrate-locked" data-key-name="defaultBitrate" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
@@ -212,32 +223,31 @@
                             <span>Disable haptic feedback</span>
                         </label>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="disable-haptics-locked" data-key-name="disableHapticFeedback" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="hidden-libraries-value">Hidden libraries</label>
                         <input id="hidden-libraries-value" data-key-name="hiddenLibraries" data-prop-name="value" data-is-array="true" is="emby-input" />
                         <div class="fieldDescription">Hide libraries from the library tab in streamyfin. Enter a comma-separated list of library ids to exclude.</div>
                     </div>
-
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="hidden-libraries-locked" data-key-name="hiddenLibraries" data-prop-name="locked" type="checkbox" is="emby-checkbox" />
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="inputContainer">
-                        <label class="emby-checkbox-label">
-                            <input id="max-auto-play-episode-count-value" data-key-name="maxAutoPlayEpisodeCount" data-prop-name="value" type="number" is="emby-input" />
-                            <span>Set maximum amount of episodes to autoplay</span>
-                        </label>
+                        <label class="inputLabel inputLabelUnfocused" for="max-auto-play-episode-count-value">Hidden libraries</label>
+                        <input id="max-auto-play-episode-count-value" data-key-name="maxAutoPlayEpisodeCount" data-prop-name="value" type="number" is="emby-input" />
+                        <div class="fieldDescription">Set maximum amount of episodes to autoplay</div>
                     </div>
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
@@ -246,7 +256,7 @@
                         </label>
                     </div>
 
-                    <h3>Swipe controls</h3>
+                    <h3 class="child-section-title">Swipe controls</h3>
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
                             <input id="enable-horizontal-swipe-skip-value" data-key-name="enableHorizontalSwipeSkip" data-prop-name="value" type="checkbox" is="emby-checkbox" />
@@ -259,6 +269,7 @@
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
@@ -272,6 +283,7 @@
                             <span>Locked</span>
                         </label>
                     </div>
+                    <hr class="input-divider"/>
 
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
