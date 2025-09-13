@@ -96,6 +96,12 @@ export const getElValue = (el) => {
     const isArray = el.getAttribute('data-is-array') === "true";
 
     const valueKey = el.type === 'checkbox' ? 'checked' : el.type === 'number' ? 'valueAsNumber' : 'value';
+
+    // Check any rules set on number input
+    if (el.type === "number" && !el.checkValidity?.()) {
+        return null
+    }
+
     let value = el[valueKey];
 
     if (isArray && value !== undefined && value !== '') {

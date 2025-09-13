@@ -215,7 +215,7 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Max auto play episode count")]
-    public Lockable<int> maxAutoPlayEpisodeCount { get; set; } // = 3 
+    public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3 
 
     // Swipe controls
 
