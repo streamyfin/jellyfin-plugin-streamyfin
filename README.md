@@ -37,7 +37,7 @@ With this plugin you allow the streamyfin application to do the following for al
 Install Process
 ------
 
-1. In jellyfin, go to dashboard -> plugins -> repositories -> copy and paste this link: https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest.json
+1. In jellyfin, go to dashboard -> catalog (in the plugin categories) -> settings icon (next to the "Catalog" title at the top of the page) -> add a new repository -> copy and paste this link in "Repository URL": https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest.json
 2. Go to Catalog and search for Streamyfin
 3. Click on it and install
 4. Restart Jellyfin
