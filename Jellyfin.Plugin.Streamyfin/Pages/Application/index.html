@@ -245,8 +245,16 @@
                     <hr class="input-divider"/>
 
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="max-auto-play-episode-count-value">Hidden libraries</label>
-                        <input id="max-auto-play-episode-count-value" data-key-name="maxAutoPlayEpisodeCount" data-prop-name="value" type="number" is="emby-input" />
+                        <label class="inputLabel inputLabelUnfocused" for="max-auto-play-episode-count-value">Max episodes to autoplay</label>
+                        <input 
+                            id="max-auto-play-episode-count-value"
+                            data-key-name="maxAutoPlayEpisodeCount" 
+                            data-prop-name="value"
+                            min="1"
+                            max="10"
+                            step="1"
+                            type="number" 
+                            is="emby-input" />
                         <div class="fieldDescription">Set maximum amount of episodes to autoplay</div>
                     </div>
                     <div class="checkboxContainer">
