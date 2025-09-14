@@ -72,10 +72,9 @@ export default function (view, params) {
                     checkboxInput.setAttribute("id", folder.ItemId)
                     checkboxInput.setAttribute("type", "checkbox")
                     checkboxInput.setAttribute("is", "emby-checkbox")
-                    checkboxInput.checked = (shared
-                        .getConfig().notifications.itemAdded.enabledLibraries || [])
-                        .includes(folder.ItemId) == true
-
+                    
+                    const libraries = shared.getConfig()?.notifications?.['itemAdded']?.['enabledLibraries'] ?? []
+                    checkboxInput.checked = libraries.includes(folder.ItemId) === true
 
                     shared.keyedEventListener(checkboxInput, 'change', function () {
                         const isEnabled = checkboxInput.checked
