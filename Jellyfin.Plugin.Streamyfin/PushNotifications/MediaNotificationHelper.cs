@@ -26,7 +26,7 @@ static class MediaNotificationHelper
             case Movie movie:
                 // Potentially clean up any BaseItem without any corrected metadata
                 var movieName = Regex.Replace(movie.Name.Escape(), "\\(\\d+\\)", "").Trim();
-                data["id"] = movie.Id.ToString();
+                data["id"] = movie.Id.ToString("N");
 
                 name = localization.GetFormatted(
                     key: "NameAndYear",
@@ -48,12 +48,12 @@ static class MediaNotificationHelper
 
                 if (season.Series?.Id is not null)
                 {
-                    data["seriesId"] = season.Series.Id.ToString();
+                    data["seriesId"] = season.Series.Id.ToString("N");
                 }
 
                 break;
             case Episode episode:
-                data["id"] = episode.Id.ToString();
+                data["id"] = episode.Id.ToString("N");
 
                 name = !string.IsNullOrEmpty(episode.Series?.Name) switch
                 {
@@ -91,7 +91,7 @@ static class MediaNotificationHelper
                     _ => episode.Series?.Name.Escape()
                 };
 
-                data["seriesId"] = episode.SeriesId;
+                data["seriesId"] = episode.SeriesId.ToString("N");
                 data["seasonIndex"] = episode.Season?.IndexNumber;
 
                 break;

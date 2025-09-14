@@ -133,7 +133,7 @@ public class ItemAddedService : BaseEvent, IHostedService
             episode = refreshedEpisode;
 
             title = _localization.GetString("EpisodeAddedTitle");
-            data["id"] = episode.Id; // only provide for a single episode notification
+            data["id"] = episode.Id.ToString("N"); // only provide for a single episode notification
 
             // Both episode & season information is available
             if (episode.IndexNumber != null && episode.Season.IndexNumber != null)
@@ -189,7 +189,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         }
 
         data["seasonIndex"] = refreshedSeason.IndexNumber;
-        data["seriesId"] = refreshedSeason.SeriesId;
+        data["seriesId"] = refreshedSeason.SeriesId.ToString("N");
         data["type"] = episode.GetType().Name.Escape();
 
         var notification = new ExpoNotificationRequest
