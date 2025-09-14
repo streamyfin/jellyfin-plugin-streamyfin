@@ -103,12 +103,6 @@ export default function (view, params) {
 
             shared.keyedEventListener(saveBtn(), 'click', function () {
                 e.preventDefault();
-                const config = shared.getConfig();
-
-                shared.setConfig({
-                    ...config,
-                    ...getValues()
-                });
                 shared.saveConfig()
             })
         })
