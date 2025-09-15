@@ -160,6 +160,9 @@ public class SidebarLink
 
   [Display(Name = "Icon", Description = "Optional icon URL to display for the link")]
   public string? icon { get; set; }
+
+  [Display(Name = "Sections", Description = "Optional content sections to display when this sidebar link is opened (same schema as home.sections)")]
+  public Section[]? sections { get; set; }
 }
 
 /// <summary>

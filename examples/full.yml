@@ -62,10 +62,31 @@ settings:
         type: library
         id: <library id>
         icon: https://example.com/movies.png
+        sections:
+          - title: Recently Added
+            orientation: vertical
+            items:
+              sortBy:
+              - DateCreated
+              sortOrder:
+              - Descending
+              includeItemTypes:
+              - Movie
+              limit: 25
       - name: Netflix
         type: collection
         id: <collection id>
         icon: https://example.com/netflix.png
+        sections:
+          - title: Continue Watching
+            orientation: horizontal
+            items:
+              filters:
+              - IsResumable
+              includeItemTypes:
+              - Episode
+              - Movie
+              limit: 20
 
   # Home
   home:
