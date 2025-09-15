@@ -144,6 +144,24 @@ public class SuggestionsArgs
   public BaseItemKind[]? type { get; set; }
 }
 
+public class SidebarLink
+{
+  [NotNull]
+  [Display(Name = "Name", Description = "Display name for the link in the TV sidebar")]
+  public string name { get; set; } = default!;
+
+  [NotNull]
+  [Display(Name = "Type", Description = "The type of link this is (library or collection)")]
+  public SidebarLinkType type { get; set; }
+
+  [NotNull]
+  [Display(Name = "Id", Description = "The target id for the link (Library or Collection id)")]
+  public string id { get; set; } = default!;
+
+  [Display(Name = "Icon", Description = "Optional icon URL to display for the link")]
+  public string? icon { get; set; }
+}
+
 /// <summary>
 /// Streamyfin application settings
 /// </summary>
@@ -269,6 +287,10 @@ public class Settings
     [NotNull]
     [Display(Name = "Library options", Description = "Customize how you want streamfins library tab to look")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
+
+  [NotNull]
+  [Display(Name = "TV sidebar links", Description = "Custom links to show in the TV app sidebar")]
+  public Lockable<SidebarLink[]?>? tvSidebarLinks { get; set; }
     
     // TODO: These are used outside of settings. Review usages/delete any unused later.
     // public Lockable<bool?>? forceLandscapeInVideoPlayer { get; set; }

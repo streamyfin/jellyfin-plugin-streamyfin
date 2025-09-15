@@ -54,6 +54,19 @@ settings:
       showTitles: boolean
       showStats: boolean
 
+  # TV app sidebar
+  tvSidebarLinks:
+    locked: false
+    value:
+      - name: Movies
+        type: library
+        id: <library id>
+        icon: https://example.com/movies.png
+      - name: Netflix
+        type: collection
+        id: <collection id>
+        icon: https://example.com/netflix.png
+
   # Home
   home:
     locked: true
