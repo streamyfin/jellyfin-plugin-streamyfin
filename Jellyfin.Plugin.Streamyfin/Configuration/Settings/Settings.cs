@@ -142,7 +142,7 @@ public class CustomEndpoint
   [Display(Name = "Endpoint")]
   public string endpoint { get; set; }
   
-  [Display(Name = "Query headers")]
+  [Display(Name = "Request headers")]
   public SerializableDictionary<string, string>? headers { get; set; }
   
   [Display(Name = "Query parameters")]
