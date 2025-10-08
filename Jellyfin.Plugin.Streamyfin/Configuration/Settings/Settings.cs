@@ -62,6 +62,9 @@ public class Section
   [NotNull]
   [Display(Name = "Latest", Description = "Customize the Latest API query")]
   public Latest? latest { get; set; }
+  
+  [Display(Name = "Custom endpoint", Description = "Customize the Custom API query")]
+  public CustomEndpoint? custom { get; set; }
 }
 
 public enum SectionOrientation
@@ -132,6 +135,18 @@ public class Latest
   [Display(Name = "Include item types")]
   public BaseItemKind[]? includeItemTypes { get; set; }
   
+}
+
+public class CustomEndpoint
+{
+  [Display(Name = "Endpoint")]
+  public string endpoint { get; set; }
+  
+  [Display(Name = "Request headers")]
+  public SerializableDictionary<string, string>? headers { get; set; }
+  
+  [Display(Name = "Query parameters")]
+  public SerializableDictionary<string, string>? query { get; set; }
 }
 
 public class SectionSuggestions
