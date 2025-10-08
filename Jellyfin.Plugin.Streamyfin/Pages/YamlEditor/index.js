@@ -109,9 +109,9 @@ export default function (view, params) {
                                     if (idx === -1) return word.startColumn;
                                     let start = idx + 1; // first char after colon
                                     // skip spaces
-                                    while (beforeCursor.charAt(start) === ' ') start++;
+                                    while (start < beforeCursor.length && beforeCursor.charAt(start) === ' ') start++;
                                     // skip optional opening quotes
-                                    while (beforeCursor.charAt(start) === '"' || beforeCursor.charAt(start) === "'") start++;
+                                    while (start < beforeCursor.length && (beforeCursor.charAt(start) === '"' || beforeCursor.charAt(start) === "'")) start++;
                                     // Monaco columns are 1-based
                                     return start + 1;
                                 })();
