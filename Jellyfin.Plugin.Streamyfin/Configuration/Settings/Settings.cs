@@ -143,19 +143,10 @@ public class CustomEndpoint
   public string endpoint { get; set; }
   
   [Display(Name = "Query headers")]
-  public Parameter[]? headers { get; set; }
+  public SerializableDictionary<string, string>? headers { get; set; }
   
   [Display(Name = "Query parameters")]
-  public Parameter[]? query { get; set; }
-}
-
-public class Parameter
-{
-  [Display(Name = "Key")]
-  public string key { get; set; }
-  
-  [Display(Name = "Value")]
-  public string value { get; set; }
+  public SerializableDictionary<string, string>? query { get; set; }
 }
 
 public class SectionSuggestions
