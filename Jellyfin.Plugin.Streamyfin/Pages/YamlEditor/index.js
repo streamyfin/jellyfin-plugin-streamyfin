@@ -48,8 +48,8 @@ export default function (view, params) {
                                 : Promise.resolve(null)
                         ]);
 
-                        const libsJson = libsRes ? await libsRes.json() : { Items: [] };
-                        const colsJson = colRes ? await colRes.json() : { Items: [] };
+                        const libsJson = libsRes ? libsRes : { Items: [] };
+                        const colsJson = colRes ? colRes : { Items: [] };
 
                         // Normalize arrays (Jellyfin usually returns { Items: [...] })
                         const libraries = Array.isArray(libsJson?.Items) ? libsJson.Items : (Array.isArray(libsJson) ? libsJson : []);
