@@ -22,7 +22,6 @@ using MediaBrowser.Model.IO;
 using MediaBrowser.Model.LiveTv;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
-using Jellyfin.Data.Entities;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using System.Security.Cryptography.X509Certificates;
 

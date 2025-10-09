@@ -2,7 +2,6 @@
 #pragma warning disable CS0219
 
 using System.Collections.Generic;
-using Jellyfin.Data.Entities.Libraries;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using MediaBrowser.Model.Plugins;

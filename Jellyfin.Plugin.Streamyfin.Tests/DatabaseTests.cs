@@ -17,7 +17,7 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public class CleanupDatabaseBeforeAndAfter: BeforeAfterTestAttribute
 {
-    private readonly Database db = new(Directory.GetCurrentDirectory());
+    private readonly Storage.Database db = new(Directory.GetCurrentDirectory());
 
     public override void Before(MethodInfo methodUnderTest)
     {
@@ -36,7 +36,7 @@ public class CleanupDatabaseBeforeAndAfter: BeforeAfterTestAttribute
 [CleanupDatabaseBeforeAndAfter]
 public class DatabaseTests(ITestOutputHelper output): IDisposable
 {
-    private readonly Database db = new(Directory.GetCurrentDirectory());
+    private readonly Storage.Database db = new(Directory.GetCurrentDirectory());
 
     /// <summary>
     /// Ensure when adding a device token for a specific device that we delete any previous old token first 
