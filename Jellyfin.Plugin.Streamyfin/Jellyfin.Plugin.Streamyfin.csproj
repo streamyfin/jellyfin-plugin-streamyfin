@@ -12,8 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.0-rc8" />
-    <PackageReference Include="Jellyfin.Model" Version="10.11.0-rc8" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.*-*" />
+    <PackageReference Include="Jellyfin.Model" Version="10.11.*-*" />
     <PackageReference Include="Namotion.Reflection" Version="3.1.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Newtonsoft.Json.Schema" Version="3.0.16" />
