@@ -96,3 +96,22 @@ public enum Bitrate
     _4MB = 4000000,
     _8MB = 8000000,
 };
+
+// These enums were removed from Jellyfin.Data.Enums in Jellyfin 10.11
+// Kept here for backward compatibility
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SubtitlePlaybackMode
+{
+    Default = 0,
+    Always = 1,
+    OnlyForced = 2,
+    None = 3,
+    Smart = 4
+}
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SortOrder
+{
+    Ascending = 0,
+    Descending = 1
+}

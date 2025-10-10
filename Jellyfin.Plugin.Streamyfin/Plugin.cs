@@ -24,11 +24,11 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
-        Database = new Database(applicationPaths.DataPath);
+        Database = new Storage.Database(applicationPaths.DataPath);
         _prefix = GetType().Namespace;
     }
     
-    public Database Database { get; }
+    public Storage.Database Database { get; }
 
     /// <inheritdoc />
     public override string Name => "Streamyfin";
