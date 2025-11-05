@@ -14,6 +14,12 @@
         <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
     </resheader>
 
+    <!-- region MediaTypes -->
+    <data name="MovieMediaType" xml:space="preserve">
+        <value>Film</value>
+    </data>
+    <!-- endregion MediaTypes -->
+
     <!-- region PlaybackStartEvent -->
     <data name="PlaybackStartTitle" xml:space="preserve">
         <value>Lecture Lancé</value>
