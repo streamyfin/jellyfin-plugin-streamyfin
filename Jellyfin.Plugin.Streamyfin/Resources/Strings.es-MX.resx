@@ -93,7 +93,57 @@
     <!-- endregion ItemAddedEvent -->
 
     <data name="NameAndYear" xml:space="preserve">
-        <!-- 0 = Name, 1 = Year -->U
+        <!-- 0 = Name, 1 = Year -->
         <value>{0} ({1})</value>
     </data>
+
+    <!-- region Jellyseerr Events -->
+    <data name="JellyseerrRequestPendingTitle" xml:space="preserve">
+        <value>Nueva Solicitud de Medios</value>
+    </data>
+    <data name="JellyseerrRequestPendingBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>{0} solicitó {1}</value>
+    </data>
+
+    <data name="JellyseerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Solicitud Auto-Aprobada</value>
+    </data>
+    <data name="JellyseerrRequestAutoApprovedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>La solicitud de {0} para {1} fue aprobada automáticamente</value>
+    </data>
+
+    <data name="JellyseerrRequestApprovedTitle" xml:space="preserve">
+        <value>Solicitud Aprobada</value>
+    </data>
+    <data name="JellyseerrRequestApprovedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Tu solicitud para {1} ha sido aprobada</value>
+    </data>
+
+    <data name="JellyseerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Solicitud Rechazada</value>
+    </data>
+    <data name="JellyseerrRequestDeclinedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Tu solicitud para {1} ha sido rechazada</value>
+    </data>
+
+    <data name="JellyseerrRequestAvailableTitle" xml:space="preserve">
+        <value>Medios Disponibles</value>
+    </data>
+    <data name="JellyseerrRequestAvailableBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>{1} ahora está disponible para ver</value>
+    </data>
+
+    <data name="JellyseerrRequestFailedTitle" xml:space="preserve">
+        <value>Error al Procesar Solicitud</value>
+    </data>
+    <data name="JellyseerrRequestFailedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Error al procesar la solicitud de {1} por {0}</value>
+    </data>
+    <!-- endregion Jellyseerr Events -->
 </root>

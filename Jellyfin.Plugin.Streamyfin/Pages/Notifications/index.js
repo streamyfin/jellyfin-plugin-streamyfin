@@ -46,6 +46,10 @@ export default function (view, params) {
             
             document.getElementById("notification-endpoint").innerText = shared.NOTIFICATION_URL
 
+            // Set Jellyseerr endpoint URL
+            const jellyseerrEndpoint = shared.NOTIFICATION_URL.replace('/notification', '/notification/seerr');
+            document.getElementById("jellyseerr-endpoint").innerText = jellyseerrEndpoint
+
             shared.setDomValues(document, shared.getConfig()?.notifications)
             shared.setOnConfigUpdatedListener('notifications', (config) => {
                 console.log("updating dom for notifications")
