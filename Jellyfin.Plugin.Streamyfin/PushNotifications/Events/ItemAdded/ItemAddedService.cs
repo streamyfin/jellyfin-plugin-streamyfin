@@ -66,7 +66,7 @@ public class ItemAddedService : BaseEvent, IHostedService
             case Movie movie:
                 var notification = MediaNotificationHelper.CreateMediaNotification(
                     localization: _localization,
-                    title: _localization.GetFormatted("ItemAddedTitle", args: movie.GetType().Name),
+                    title: _localization.GetFormatted("ItemAddedTitle", args: _localization.GetString("MovieMediaType")),
                     body: [],
                     item: item
                 );
