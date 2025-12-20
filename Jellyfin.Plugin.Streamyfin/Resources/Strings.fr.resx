@@ -22,11 +22,11 @@
 
     <!-- region PlaybackStartEvent -->
     <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Lecture Lancé</value>
+        <value>Lecture démarrée</value>
     </data>
     <data name="UserWatching" xml:space="preserve">
         <!-- 0 = Username -->
-        <value>{0} En visionnage</value>
+        <value>{0} regarde actuellement</value>
     </data>
     <data name="SeriesSeasonAndEpisode" xml:space="preserve">
         <!-- 0 = Name, 1 = Season index number, 2 = Episode index number -->
@@ -38,17 +38,17 @@
     </data>
     <data name="Series Episode" xml:space="preserve">
         <!-- 0 = Name, 1 = Episode index number -->
-        <value>{0}, Episode {1}</value>
+        <value>{0}, Épisode {1}</value>
     </data>
     <!-- endregion PlaybackStartEvent -->
     
     <!-- region SessionStartEvent -->
     <data name="SessionStartTitle" xml:space="preserve">
-        <value>Session lancée</value>
+        <value>Session démarrée</value>
     </data>
     <data name="UserNowOnline" xml:space="preserve">
         <!-- 0 = Username -->
-        <value>{0} Est en ligne</value>
+        <value>{0} est en ligne</value>
     </data>
     <!-- endregion SessionStartEvent -->
 
@@ -58,43 +58,43 @@
     </data>
     <data name="UserHasBeenLockedOut" xml:space="preserve">
         <!-- 0 = Username -->
-        <value> L’utilisateur {0} a été bloquer </value>
+        <value>L’utilisateur {0} a été bloqué</value>
     </data>
     <!-- endregion SessionStartEvent -->
 
     <!-- region ItemAddedEvent -->
     <data name="ItemAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>{0} Ajouté</value>
+        <value>{0} ajouté</value>
     </data>
     <data name="EpisodeAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>Episode ajouté</value>
+        <value>Épisode ajouté</value>
     </data>
     <data name="EpisodesAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>Episode ajouté</value>
+        <value>Épisodes ajoutés</value>
     </data>
 
     <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode index, 2 = Season index -->
-        <value>{0} - Episode {1} ajouté pour la saison {2}</value>
+        <value>{0} - Épisode {1} ajouté pour la saison {2}</value>
     </data>
     <data name="EpisodeAdded" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode index -->
-        <value>{0} - Episode {1} ajouté</value>
+        <value>{0} - Épisode {1} ajouté</value>
     </data>
     <data name="EpisodeAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Season index -->
-        <value>{0} - Aflevering toegevoegd voor Seizoen {1}</value>
+        <value>{0} – Épisode ajouté pour la saison {1}</value>
     </data>
     <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode count, 2 = Season index -->
-        <value>{0} - {1} Episode(s) ajouté pour la saison {1}</value>
+        <value>{0} - {1} épisode(s) ajouté(s) pour la saison {2}</value>
     </data>
     <data name="EpisodesAddedToSeries" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode count -->
-        <value>{0} - {1} épisode(s) ajouté</value>
+        <value>{0} - {1} épisode(s) ajouté(s)</value>
     </data>
     <!-- endregion ItemAddedEvent -->
 
