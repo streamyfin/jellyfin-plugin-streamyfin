@@ -278,6 +278,22 @@ public class Settings
     [Display(Name = "Marlin server URL", Description = "Enter  url for your marlin server")]
     public Lockable<string>? marlinServerUrl { get; set; }
 
+    // Streamystats
+    [NotNull]
+    [Display(Name = "Streamystats Server URL", Description = "Enter the url for your streamystats server")]
+    public Lockable<string>? streamyStatsServerUrl { get; set; }
+    
+    [NotNull]
+    [Display(Name = "Streamystats Movie Recommendations", Description = "Allow streamystats to provide movie recommendations using your watch history")]
+    public Lockable<bool>? streamyStatsMovieRecommendations { get; set; }
+    
+    [NotNull]
+    [Display(Name = "Streamystats Series Recommendations", Description = "Allow streamystats to provide series recommendations using your watch history")]
+    public Lockable<bool>? streamyStatsSeriesRecommendations { get; set; }
+    
+    [NotNull]
+    [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow streamystats to promote watchlists using your watch history")]
+    public Lockable<bool>? streamyStatsPromotedWatchlists { get; set; }
     // endregion Plugins
     
     // Misc.

@@ -18,7 +18,8 @@ public enum DeviceProfile
 public enum SearchEngine
 {
     Marlin,
-    Jellyfin
+    Jellyfin,
+    Streamystats
 };
 
 [JsonConverter(typeof(StringEnumConverter))]
