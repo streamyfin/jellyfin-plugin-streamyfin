@@ -2,8 +2,8 @@
 <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.Streamyfin</RootNamespace>
-    <AssemblyVersion>0.64.0.0</AssemblyVersion>
-    <FileVersion>0.64.0.0</FileVersion>
+    <AssemblyVersion>0.65.0.0</AssemblyVersion>
+    <FileVersion>0.65.0.0</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
