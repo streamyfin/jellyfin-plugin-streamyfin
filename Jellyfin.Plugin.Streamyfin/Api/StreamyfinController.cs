@@ -56,6 +56,7 @@ public class StreamyfinController : ControllerBase
   private readonly IDtoService _dtoService;
   private readonly SerializationHelper _serializationHelperService;
   private readonly NotificationHelper _notificationHelper;
+  private readonly LocalizationHelper _localizationHelper;
 
   public StreamyfinController(
     ILoggerFactory loggerFactory,
@@ -64,7 +65,8 @@ public class StreamyfinController : ControllerBase
     IUserManager userManager,
     ILibraryManager libraryManager,
     SerializationHelper serializationHelper,
-    NotificationHelper notificationHelper
+    NotificationHelper notificationHelper,
+    LocalizationHelper localizationHelper
   )
   {
     _loggerFactory = loggerFactory;
@@ -75,6 +77,7 @@ public class StreamyfinController : ControllerBase
     _libraryManager = libraryManager;
     _serializationHelperService = serializationHelper;
     _notificationHelper = notificationHelper;
+    _localizationHelper = localizationHelper;
 
     _logger.LogInformation("StreamyfinController Loaded");
   }
@@ -152,7 +155,7 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult PostDeviceToken([FromBody, Required] DeviceToken deviceToken)
   {
-    _logger.LogInformation("Posting device token for deviceId: {0}", deviceToken.DeviceId);
+    _logger.LogDebug("Posting device token for deviceId: {0}", deviceToken.DeviceId);
     return new JsonResult(
       _serializationHelperService.ToJson(StreamyfinPlugin.Instance!.Database.AddDeviceToken(deviceToken))
     );
@@ -169,7 +172,7 @@ public class StreamyfinController : ControllerBase
   {
     if (deviceId == null) return BadRequest("Device id is required");
 
-    _logger.LogInformation("Deleting device token for deviceId: {0}", deviceId);
+    _logger.LogDebug("Deleting device token for deviceId: {0}", deviceId);
     StreamyfinPlugin.Instance!.Database.RemoveDeviceToken((Guid) deviceId);
 
     return new OkResult();
@@ -231,7 +234,7 @@ public class StreamyfinController : ControllerBase
           }
           if (userId != null)
           {
-            _logger.LogInformation("Getting device tokens associated to userId: {0}", userId);
+            _logger.LogDebug("Getting device tokens associated to userId: {0}", userId);
             tokens.AddRange(
               db?.GetUserDeviceTokens((Guid) userId)
               ?? []
@@ -241,20 +244,39 @@ public class StreamyfinController : ControllerBase
         // Get all available tokens
         else if (!notification.IsAdmin)
         {
-          _logger.LogInformation("No user target provided. Getting all device tokens...");
+          _logger.LogDebug("No user target provided. Getting all device tokens...");
           allTokens ??= db?.GetAllDeviceTokens() ?? [];
           tokens.AddRange(allTokens);
-          _logger.LogInformation("All known device tokens count: {0}", allTokens.Count);
+          _logger.LogDebug("All known device tokens count: {0}", allTokens.Count);
         }
 
         // Get all available tokens for admins
         if (notification.IsAdmin)
         {
-          _logger.LogInformation("Notification being posted for admins");
-          tokens.AddRange(_userManager.GetAdminDeviceTokens());
+          var adminTokens = _userManager.GetAdminDeviceTokens();
+          var adminUsernames = _userManager.Users
+            .Where(u => u.Permissions.Any(p => p.Kind == Jellyfin.Database.Implementations.Enums.PermissionKind.IsAdministrator && p.Value))
+            .Select(u => u.Username)
+            .ToList();
+
+          _logger.LogDebug(
+            "Notification is for admins - adding {0} admin device tokens from administrators: [{1}]",
+            adminTokens.Count,
+            string.Join(", ", adminUsernames)
+          );
+
+          tokens.AddRange(adminTokens);
         }
 
         expoNotification.To = tokens.Select(t => t.Token).Distinct().ToList();
+
+        _logger.LogDebug(
+          "Notification routing summary - IsAdmin: {0}, TargetUsername: '{1}', TargetUserId: '{2}', Total device tokens: {3}",
+          notification.IsAdmin,
+          notification.Username ?? "N/A",
+          notification.UserId?.ToString() ?? "N/A",
+          expoNotification.To.Count
+        );
 
         return expoNotification;
       })
@@ -268,9 +290,45 @@ public class StreamyfinController : ControllerBase
       return new AcceptedResult();
     }
 
-    _logger.LogInformation("Posting notifications...");
+    _logger.LogDebug("Posting notifications...");
     var task = _notificationHelper.Send(validNotifications);
     task.Wait();
     return new JsonResult(_serializationHelperService.ToJson(task.Result));
+  }
+
+  /// <summary>
+  /// Specialized endpoint for Jellyseerr webhook notifications
+  /// </summary>
+  /// <param name="payload">Jellyseerr webhook payload</param>
+  /// <returns>ActionResult with notification result</returns>
+  [HttpPost("notification/seerr")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status202Accepted)]
+  public ActionResult PostJellyseerrNotification([FromBody, Required] PushNotifications.Models.JellyseerrNotificationPayload payload)
+  {
+    // Log full payload for debugging
+    _logger.LogDebug("Received Jellyseerr notification - Raw payload: {0}", _serializationHelperService.ToJson(payload));
+    _logger.LogDebug("NotificationType={0}, Event={1}, Subject={2}", payload.NotificationType, payload.Event, payload.Subject);
+
+    // Create mapper instance
+    var mapper = new JellyseerrNotificationMapper(
+      _localizationHelper,
+      _loggerFactory.CreateLogger<JellyseerrNotificationMapper>()
+    );
+
+    // Map Jellyseerr payload to Streamyfin notification
+    var notification = mapper.MapToNotification(payload);
+
+    // If notification is null (e.g., issue event), return 202 Accepted
+    if (notification == null)
+    {
+      _logger.LogDebug("Jellyseerr notification ignored");
+      return new AcceptedResult();
+    }
+
+    // Use the existing notification endpoint logic
+    _logger.LogInformation("Processing Jellyseerr notification as Streamyfin notification");
+    return PostNotifications(new List<Notification> { notification });
   }
 }
