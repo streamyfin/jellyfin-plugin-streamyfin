@@ -79,6 +79,13 @@ public enum DownloadQuality
     High
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SidebarLinkType
+{
+    library,
+    collection
+}
+
 // Limit Int range. Don't use Converter for this since we want them to enter int value
 public enum RemuxConcurrentLimit
 {

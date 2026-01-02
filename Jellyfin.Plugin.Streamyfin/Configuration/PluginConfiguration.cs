@@ -80,7 +80,8 @@ public class PluginConfiguration : BasePluginConfiguration
     jellyseerrServerUrl = new() { value = "Enter jellyseerr server url" },
     searchEngine = new() { value = SearchEngine.Jellyfin },
     marlinServerUrl = new() { value = "Enter marlin server url" },
-    libraryOptions = new() { value = new LibraryOptions() },
+  libraryOptions = new() { value = new LibraryOptions() },
+  tvSidebarLinks = new() { value = new SidebarLink[] { } },
     home = new()
     {
       value = new Home
