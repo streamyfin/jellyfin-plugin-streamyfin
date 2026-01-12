@@ -18,7 +18,7 @@ If you want to start using the notification endpoint directly with other service
 
 Custom webhook examples:
 - [Jellyfin](#Jellyfin)
-- [Jellyseerr](#Jellyseerr)
+- [Seerr](#Seerr)
 
 ---
 
@@ -103,16 +103,16 @@ If we don't directly support an event, you'll want to create a separate webhook 
 
 ---
 
-## Jellyseerr
+## Seerr
 
-You can go to your Jellyseerr instance's notification settings to forward events
+You can go to your Seerr instance's notification settings to forward events
 
 - Go to Settings > Notifications > Webhook
 - Check "Enable Agent"
 - Enter notification endpoint as "Webhook URL"
 - Copy an example below
 
-[Template variable help](https://docs.overseerr.dev/using-overseerr/notifications/webhooks#template-variables)
+[Template variable help](https://https://docs.seerr.dev/using-seerr/notifications/webhooks#template-variables)
 
 
 ## Issues Notification 
