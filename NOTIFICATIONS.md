@@ -112,7 +112,7 @@ You can go to your Seerr instance's notification settings to forward events
 - Enter notification endpoint as "Webhook URL"
 - Copy an example below
 
-[Template variable help](https://https://docs.seerr.dev/using-seerr/notifications/webhooks#template-variables)
+[Template variable help](https://docs.seerr.dev/using-seerr/notifications/webhooks#template-variables)
 
 
 ## Issues Notification 

@@ -110,10 +110,10 @@ settings:
     locked: false
     value: "Enter Marlin server URL"  # e.g., https://marlin.example.com
   
-  # StreamyStats (Recommendations & Analytics)
+  # Streamystats (Recommendations & Analytics)
   streamyStatsServerUrl:
     locked: false
-    value: "Enter StreamyStats server URL"  # e.g., https://stats.example.com
+    value: "Enter Streamystats server URL"  # e.g., https://stats.example.com
   
   streamyStatsMovieRecommendations:
     locked: false

@@ -45,7 +45,7 @@ Receive real-time notifications on your mobile device:
 Seamless integration with popular services:
 - **[Seerr](https://github.com/seerr-team/seerr)**: Automatic SSO login for request management
 - **[Marlin](https://github.com/lostb1t/marlin)**: Enhanced search capabilities
-- **[StreamyStats](https://github.com/fredrikburmester/streamyfin-stats)**: Personalized recommendations and promoted watchlists
+- **[Streamystats](https://github.com/fredrikburmester/streamyfin-stats)**: Personalized recommendations and promoted watchlists
 
 ### 🎨 **Customizable Library Options**
 Tailor the library experience:
@@ -148,9 +148,9 @@ Enable automatic authentication for your users:
 2. Ensure Seerr is configured for **Jellyfin authentication**
 3. Users will be automatically logged in when opening Seerr from the app
 
-### StreamyStats Integration
+### Streamystats Integration
 Get personalized recommendations:
-1. Set your StreamyStats server URL
+1. Set your Streamystats server URL
 2. Enable movie and/or series recommendations
 3. Optionally enable promoted watchlists
 
