@@ -53,31 +53,6 @@ public class SerializationTests(ITestOutputHelper output)
                 """
                 , StringComparison.Ordinal)
             );
-        // TODO: Not required, more of a nit...
-        //  Spend time figuring out why converter is not ensuring this enum stays int for schema
-        // Assert.Assrt(
-        //     msg: "RemuxConcurrentLimit enum values are still integers",
-        //     val: schema.ToJson().Contains(
-        //         """
-        //             "RemuxConcurrentLimit": {
-        //               "type": "integer",
-        //               "description": "",
-        //               "x-enumNames": [
-        //                 "One",
-        //                 "Two",
-        //                 "Three",
-        //                 "Four"
-        //               ],
-        //               "enum": [
-        //                 1,
-        //                 2,
-        //                 3,
-        //                 4
-        //               ]
-        //             }
-        //         """
-        //         , StringComparison.Ordinal)
-        // );
     }
 
     /// <summary>
@@ -101,14 +76,6 @@ public class SerializationTests(ITestOutputHelper output)
                     "defaultBitrate": {
                         "locked": true,
                         "value": 250000
-                    },
-                    "downloadMethod": {
-                        "locked": true,
-                        "value": "remux"
-                    },
-                    "remuxConcurrentLimit": {
-                        "locked": true,
-                        "value": 2
                     }
                 }
             }
@@ -131,12 +98,6 @@ public class SerializationTests(ITestOutputHelper output)
                 defaultVideoOrientation:
                     locked: true
                     value: LandscapeLeft
-                downloadMethod:
-                    locked: true
-                    value: remux
-                remuxConcurrentLimit:
-                    locked: true
-                    value: Two
                 defaultBitrate:
                     locked: true
                     value: _250KB
@@ -167,14 +128,6 @@ public class SerializationTests(ITestOutputHelper output)
                 "defaultBitrate": {
                   "locked": false,
                   "value": 250000
-                },
-                "downloadMethod": {
-                  "locked": false,
-                  "value": "remux"
-                },
-                "remuxConcurrentLimit": {
-                  "locked": false,
-                  "value": 2
                 }
               }
             }
@@ -202,12 +155,6 @@ public class SerializationTests(ITestOutputHelper output)
               defaultBitrate:
                 locked: false
                 value: _250KB
-              downloadMethod:
-                locked: false
-                value: remux
-              remuxConcurrentLimit:
-                locked: false
-                value: Two
             """
         );
     }
@@ -252,10 +199,6 @@ public class SerializationTests(ITestOutputHelper output)
         {
             settings = new Settings
             {
-                downloadMethod = new Lockable<DownloadMethod>
-                {
-                    value = DownloadMethod.remux
-                },
                 subtitleMode = new Lockable<SubtitlePlaybackMode>
                 {
                     value = SubtitlePlaybackMode.Default
@@ -263,10 +206,6 @@ public class SerializationTests(ITestOutputHelper output)
                 defaultVideoOrientation = new Lockable<OrientationLock>
                 {
                     value = OrientationLock.LandscapeLeft
-                },
-                remuxConcurrentLimit = new Lockable<RemuxConcurrentLimit>
-                {
-                    value = RemuxConcurrentLimit.Two
                 },
                 defaultBitrate = new Lockable<Bitrate?>
                 {
@@ -308,20 +247,12 @@ public class SerializationTests(ITestOutputHelper output)
         Config config = _serializationHelper.Deserialize<Config>(value);
 
         Assert.Assrt(
-            $"RemuxConcurrentLimit matches: {SubtitlePlaybackMode.Default} == {config.settings?.subtitleMode?.value}",
+            $"SubtitlePlaybackMode matches: {SubtitlePlaybackMode.Default} == {config.settings?.subtitleMode?.value}",
             SubtitlePlaybackMode.Default == config.settings?.subtitleMode?.value
         );
         Assert.Assrt(
             $"OrientationLock matches: {OrientationLock.LandscapeLeft} == {config.settings?.defaultVideoOrientation?.value}",
             OrientationLock.LandscapeLeft == config.settings?.defaultVideoOrientation?.value
-        );
-        Assert.Assrt(
-            $"DownloadMethod matches: {DownloadMethod.remux} == {config.settings?.downloadMethod?.value}",
-            DownloadMethod.remux == config.settings?.downloadMethod?.value
-        );
-        Assert.Assrt(
-            $"RemuxConcurrentLimit matches: {RemuxConcurrentLimit.One} == {config.settings?.remuxConcurrentLimit?.value}",
-            RemuxConcurrentLimit.Two == config.settings?.remuxConcurrentLimit?.value
         );
         Assert.Assrt(
             $"Bitrate matches: {Bitrate._250KB} == {config.settings?.defaultBitrate?.value}",

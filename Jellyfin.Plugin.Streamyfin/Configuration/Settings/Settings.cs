@@ -8,11 +8,6 @@ using System.Collections.ObjectModel;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
-public class DownloadOption
-{
-    public required string label { get; set; }
-    public required DownloadQuality value { get; set; }
-};
 
 public class LibraryOptions
 {
@@ -213,7 +208,7 @@ public class Settings
     public Lockable<bool>? safeAreaInControlsEnabled { get; set; } // = true;
     
     [NotNull]
-    [Display(Name = "Show custom menu links", Description = "Show custom menu links in jellyfins web configuration")]
+    [Display(Name = "Show custom menu links", Description = "Show custom menu links in Jellyfin's web configuration")]
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
@@ -246,28 +241,11 @@ public class Settings
     [Display(Name = "Right side volume control")]
     public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = true
 
-    // Downloads
-    [NotNull]
-    [Display(Name = "Offline download method", Description = "Enter the method you want your users to use when download media for offline usage")]
-    public Lockable<DownloadMethod>? downloadMethod { get; set; }
-    
-    [NotNull]
-    [Display(Name = "Remux concurrent limit", Description = "Restrict the amount of downloads a device can do simultaneously")]
-    public Lockable<RemuxConcurrentLimit>? remuxConcurrentLimit { get; set; }
-
-    [NotNull]
-    [Display(Name = "Optimized auto download", Description = "Grant the ability to auto download in the background when using the optimized server.")]
-    public Lockable<bool>? autoDownload { get; set; } // = false;
-
-    [NotNull]
-    [Display(Name = "Optimized server url", Description = "Enter the url for your optimized server.")]
-    public Lockable<string>? optimizedVersionsServerUrl { get; set; }
-    
     // region Plugins
-    // Jellyseerr
+    // Seerr
     [NotNull]
-    [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
-    public Lockable<string>? jellyseerrServerUrl { get; set; }
+    [Display(Name = "Seerr Server URL", Description = "Enter the URL for your Seerr server. **Jellyfin authentication is required**")]
+    public Lockable<string>? seerrServerUrl { get; set; }
 
     // Marlin Search
     [NotNull]
@@ -275,40 +253,32 @@ public class Settings
     public Lockable<SearchEngine>? searchEngine { get; set; } // = SearchEngine.Jellyfin;
     
     [NotNull]
-    [Display(Name = "Marlin server URL", Description = "Enter  url for your marlin server")]
+    [Display(Name = "Marlin server URL", Description = "Enter the URL for your Marlin server")]
     public Lockable<string>? marlinServerUrl { get; set; }
 
     // Streamystats
     [NotNull]
-    [Display(Name = "Streamystats Server URL", Description = "Enter the url for your streamystats server")]
+    [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server")]
     public Lockable<string>? streamyStatsServerUrl { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Movie Recommendations", Description = "Allow streamystats to provide movie recommendations using your watch history")]
+    [Display(Name = "Streamystats Movie Recommendations", Description = "Allow Streamystats to provide movie recommendations using your watch history")]
     public Lockable<bool>? streamyStatsMovieRecommendations { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Series Recommendations", Description = "Allow streamystats to provide series recommendations using your watch history")]
+    [Display(Name = "Streamystats Series Recommendations", Description = "Allow Streamystats to provide series recommendations using your watch history")]
     public Lockable<bool>? streamyStatsSeriesRecommendations { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow streamystats to promote watchlists using your watch history")]
+    [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow Streamystats to promote watchlists using your watch history")]
     public Lockable<bool>? streamyStatsPromotedWatchlists { get; set; }
     // endregion Plugins
     
     // Misc.
     [NotNull]
-    [Display(Name = "Library options", Description = "Customize how you want streamfins library tab to look")]
+    [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
-    
-    // TODO: These are used outside of settings. Review usages/delete any unused later.
-    // public Lockable<bool?>? forceLandscapeInVideoPlayer { get; set; }
-    // public Lockable<DeviceProfile?>? deviceProfile { get; set; } // = DeviceProfile.Expo;
-    // public Lockable<string[]?>? deviceProfile { get; set; } // = [];
-    // public Lockable<bool?>? openInVLC { get; set; }
-    // public Lockable<DownloadOption?>? downloadQuality { get; set; }
-    // public Lockable<bool?>? playDefaultAudioTrack { get; set; } // = true;
-    // public Lockable<bool?>? showHomeTitles { get; set; } // = true;
+
 }
 
 [XmlRoot("dictionary")]
