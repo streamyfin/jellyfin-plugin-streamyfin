@@ -43,7 +43,7 @@ public class LocalizationHelper
         _resourceManager.GetString(key, cultureInfo ?? GetServerCultureInfo()) ?? key;
 
     private CultureInfo? GetServerCultureInfo() {
-        _logger?.LogInformation("Current Server UI Culture: {0}", _serverConfig.Configuration.UICulture);
+        _logger?.LogDebug("Current Server UI Culture: {0}", _serverConfig.Configuration.UICulture);
         return _serverConfig?.Configuration.UICulture != null
             ? CultureInfo.CreateSpecificCulture(_serverConfig.Configuration.UICulture.Replace("\"", ""))
             : null;
