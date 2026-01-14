@@ -171,6 +171,27 @@ public class Settings
     [NotNull]
     [Display(Name = "Rewind skip time", Description = "The amount of time in seconds you want to be able to rewind during playback")]
     public Lockable<int>? rewindSkipTime { get; set; } // = 10;
+
+    // Media segment skip preferences
+    [NotNull]
+    [Display(Name = "Skip intro", Description = "Automatically skip intros during playback: none, ask, or auto")]
+    public Lockable<SegmentSkipMode>? skipIntro { get; set; } // = ask
+
+    [NotNull]
+    [Display(Name = "Skip outro", Description = "Automatically skip outros/credits during playback: none, ask, or auto")]
+    public Lockable<SegmentSkipMode>? skipOutro { get; set; } // = ask
+
+    [NotNull]
+    [Display(Name = "Skip recap", Description = "Automatically skip recaps during playback: none, ask, or auto")]
+    public Lockable<SegmentSkipMode>? skipRecap { get; set; } // = ask
+
+    [NotNull]
+    [Display(Name = "Skip commercial", Description = "Automatically skip commercials during playback: none, ask, or auto")]
+    public Lockable<SegmentSkipMode>? skipCommercial { get; set; } // = ask
+
+    [NotNull]
+    [Display(Name = "Skip preview", Description = "Automatically skip previews during playback: none, ask, or auto")]
+    public Lockable<SegmentSkipMode>? skipPreview { get; set; } // = ask
     
     // Audio
     [NotNull]
