@@ -92,3 +92,11 @@ public enum SortOrder
     Ascending = 0,
     Descending = 1
 }
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SegmentSkipMode
+{
+    none = 0,
+    ask = 1,
+    auto = 2
+}
