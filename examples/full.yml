@@ -6,6 +6,27 @@
 #   value: value # Value you want the setting to be. Editor will give you type suggestion for a specific setting.
 
 # Example below shows all supported settings at this time.
+
+# Notifications Configuration
+notifications:
+  sessionStarted:
+    enabled: true
+    recentEventThreshold: null
+
+  playbackStarted:
+    enabled: true
+    recentEventThreshold: null
+
+  userLockedOut:
+    enabled: true
+    recentEventThreshold: null
+
+  itemAdded:
+    enabled: true
+    recentEventThreshold: null
+    enabledLibraries: []  # Empty array means all libraries are enabled. Add library IDs here to filter.
+
+
 settings:
   # Media Controls
   forwardSkipTime:
