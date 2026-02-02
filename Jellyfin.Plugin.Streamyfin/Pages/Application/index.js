@@ -1,8 +1,6 @@
 const subtitlePlaybackValue = () => document.getElementById('subtitle-playback-value');
 const defaultOrientationValue = () => document.getElementById('default-orientation-value');
-const downloadMethodValue = () => document.getElementById('download-method-value');
 const defaultBitRateValue = () => document.getElementById('default-bitrate-value');
-const remuxConcurrentLimitValue = () => document.getElementById('remux-concurrent-limit-value');
 const searchEngineValue = () => document.getElementById('search-engine-value');
 
 const saveBtn = () => document.getElementById('save-settings-btn');
@@ -34,8 +32,6 @@ const setOptions = (schema) => {
     const {
         SubtitlePlaybackMode, 
         OrientationLock, 
-        DownloadMethod, 
-        RemuxConcurrentLimit, 
         SearchEngine, 
         Bitrate
     } = schema.definitions;
@@ -46,15 +42,9 @@ const setOptions = (schema) => {
     defaultOrientationValue().options.length = 0;
     OrientationLock.enum.forEach(value => defaultOrientationValue().add(createOption(value)));
     
-    downloadMethodValue().options.length = 0;
-    DownloadMethod.enum.forEach(value => downloadMethodValue().add(createOption(value)));
-
     defaultBitRateValue().options.length = 0;
     defaultBitRateValue().add(new Option("Max", 'null'))
     Bitrate.enum.forEach(value => defaultBitRateValue().add(createOption(value, value.replaceAll("_", ""))));
-
-    remuxConcurrentLimitValue().options.length = 0;
-    RemuxConcurrentLimit.enum.forEach(value => remuxConcurrentLimitValue().add(createOption(value)));
 
     searchEngineValue().options.length = 0;
     SearchEngine.enum.forEach(value => searchEngineValue().add(createOption(value)));

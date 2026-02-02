@@ -18,14 +18,8 @@ public enum DeviceProfile
 public enum SearchEngine
 {
     Marlin,
-    Jellyfin
-};
-
-[JsonConverter(typeof(StringEnumConverter))]
-public enum DownloadMethod
-{
-    optimized,
-    remux
+    Jellyfin,
+    Streamystats
 };
 
 [JsonConverter(typeof(StringEnumConverter))]
@@ -69,23 +63,6 @@ public enum ImageStyle
     poster,
     cover
 };
-
-[JsonConverter(typeof(StringEnumConverter))]
-public enum DownloadQuality
-{
-    Original,
-    Low,
-    High
-}
-
-// Limit Int range. Don't use Converter for this since we want them to enter int value
-public enum RemuxConcurrentLimit
-{
-    One = 1,
-    Two = 2,
-    Three = 3,
-    Four = 4,
-}
 
 public enum Bitrate
 {

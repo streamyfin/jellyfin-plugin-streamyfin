@@ -74,13 +74,9 @@ public class PluginConfiguration : BasePluginConfiguration
     hiddenLibraries = new() { value = new[] { "Enter library id(s)" } },
     disableHapticFeedback = new() { value = false },
     defaultBitrate = new() { value = null },
-    downloadMethod = new() { value = DownloadMethod.remux },
-    remuxConcurrentLimit = new() { value = RemuxConcurrentLimit.One },
-    autoDownload = new() { value = false },
-    optimizedVersionsServerUrl = new() { value = "Enter optimized server url" },
-    jellyseerrServerUrl = new() { value = "Enter jellyseerr server url" },
+    seerrServerUrl = new() { value = "Enter Seerr server URL" },
     searchEngine = new() { value = SearchEngine.Jellyfin },
-    marlinServerUrl = new() { value = "Enter marlin server url" },
+    marlinServerUrl = new() { value = "Enter Marlin server URL" },
     libraryOptions = new() { value = new LibraryOptions() },
     home = new()
     {

@@ -205,7 +205,7 @@
                     <hr class="input-divider"/>
 
                     <div class="inputContainer">
-                        <label class="inputLabel" for="remux-concurrent-limit-value">Default playback bitrate</label>
+                        <label class="inputLabel" for="default-bitrate-value">Default playback bitrate</label>
                         <select id="default-bitrate-value" data-key-name="defaultBitrate" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
                         <div class="fieldDescription">The default bitrate at which your media streams at</div>
                     </div>
@@ -310,81 +310,19 @@
             </div>
         </details>
 
-        <details id="download-settings">
-            <summary>Download settings</summary>
-            <div style="padding: 16px 8px 0px 8px;">
-                <div class="verticalSection">
-
-                    <div class="inputContainer">
-                        <label class="inputLabel" for="download-method-value">Offline download method</label>
-                        <select id="download-method-value" data-key-name="downloadMethod" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
-                        <div class="fieldDescription">Enter the method you want your users to use when download media for offline usage</div>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label class="emby-checkbox-label">
-                            <input id="download-method-locked" data-key-name="downloadMethod" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
-                            <span>Locked</span>
-                        </label>
-                    </div>
-                    <hr class="input-divider"/>
-
-                    <div class="inputContainer">
-                        <label class="inputLabel" for="remux-concurrent-limit-value">Remux concurrent limit</label>
-                        <select id="remux-concurrent-limit-value" data-key-name="remuxConcurrentLimit" data-prop-name="value" is="emby-select" class="emby-select-withcolor emby-select"></select>
-                        <div class="fieldDescription">Restrict the amount of downloads a device can do simultaneously</div>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label class="emby-checkbox-label">
-                            <input id="remux-concurrent-limit-locked" data-key-name="remuxConcurrentLimit" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
-                            <span>Locked</span>
-                        </label>
-                    </div>
-                    <hr class="input-divider"/>
-
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input id="auto-download-value" data-key-name="autoDownload" data-prop-name="value" type="checkbox" is="emby-checkbox" />
-                            <span>Auto download</span>
-                        </label>
-                        <div class="fieldDescription">Allow for auto-downloading media in background</div>
-                    </div>
-                    <div class="checkboxContainer">
-                        <label class="emby-checkbox-label">
-                            <input id="auto-download-locked" data-key-name="autoDownload" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
-                            <span>Locked</span>
-                        </label>
-                    </div>
-                    <hr class="input-divider"/>
-
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="forward-skip-value">Optimized server url</label>
-                        <input id="optimized-server-value" data-key-name="optimizedVersionsServerUrl" data-prop-name="value" type="text" is="emby-input"/>
-                        <div class="fieldDescription">Enter the url for your optimized server</div>
-                    </div>
-
-                    <div class="checkboxContainer">
-                        <label class="emby-checkbox-label">
-                            <input id="optimized-server-locked" data-key-name="optimizedVersionsServerUrl" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
-                            <span>Locked</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </details>
-
         <details id="other-plugin-settings">
             <summary>Other Plugin settings</summary>
             <div style="padding: 16px 8px 0px 8px;">
                 <div class="verticalSection">
                     
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="jellyseerr-server-value">Jellyseerr Server url</label>
-                        <input id="jellyseerr-server-value" data-key-name="jellyseerrServerUrl" data-prop-name="value" type="text" is="emby-input"/>
-                        <div class="fieldDescription">Enter the url for your jellyseerr server.<br><b>**Jellyfin authentication is required**</b></div>
+                        <label class="inputLabel inputLabelUnfocused" for="seerr-server-value">Seerr server URL</label>
+                        <input id="seerr-server-value" data-key-name="seerrServerUrl" data-prop-name="value" type="text" is="emby-input"/>
+                        <div class="fieldDescription">Enter the URL for your Seerr server.<br><b>**Jellyfin authentication is required**</b></div>
                     </div>
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
-                            <input id="jellyseerr-server-locked" data-key-name="jellyseerrServerUrl" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <input id="seerr-server-locked" data-key-name="seerrServerUrl" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
                             <span>Locked</span>
                         </label>
                     </div>
@@ -404,9 +342,9 @@
                     <hr class="input-divider"/>
 
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="marlin-server-value">Marlin server url</label>
+                        <label class="inputLabel inputLabelUnfocused" for="marlin-server-value">Marlin server URL</label>
                         <input id="marlin-server-value" data-key-name="marlinServerUrl" data-prop-name="value" type="text" is="emby-input"/>
-                        <div class="fieldDescription">Enter url for your marlin server</div>
+                        <div class="fieldDescription">Enter the URL for your Marlin server</div>
                     </div>
                     <div class="checkboxContainer">
                         <label class="emby-checkbox-label">
@@ -414,7 +352,65 @@
                             <span>Locked</span>
                         </label>
                     </div>
-                    
+                    <hr class="input-divider"/>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="streamystats-server-value">Streamystats server URL</label>
+                        <input id="streamystats-server-value" data-key-name="streamyStatsServerUrl" data-prop-name="value" type="text" is="emby-input"/>
+                        <div class="fieldDescription">Enter the URL for your Streamystats server</div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-server-locked" data-key-name="streamyStatsServerUrl" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <span>Locked</span>
+                        </label>
+                    </div>
+                    <hr class="input-divider"/>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-movie-value" data-key-name="streamyStatsMovieRecommendations" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Streamystats Movie Recommendations</span>
+                        </label>
+                        <div class="fieldDescription">Allow Streamystats to provide movie recommendations using your watch history</div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-movie-locked" data-key-name="streamyStatsMovieRecommendations" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <span>Locked</span>
+                        </label>
+                    </div>
+                    <hr class="input-divider"/>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-series-value" data-key-name="streamyStatsSeriesRecommendations" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Streamystats Series Recommendations</span>
+                        </label>
+                        <div class="fieldDescription">Allow Streamystats to provide series recommendations using your watch history</div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-series-locked" data-key-name="streamyStatsSeriesRecommendations" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <span>Locked</span>
+                        </label>
+                    </div>
+                    <hr class="input-divider"/>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-promoted-watchlist-value" data-key-name="streamyStatsPromotedWatchlists" data-prop-name="value" type="checkbox" is="emby-checkbox" />
+                            <span>Streamystats Promoted Watchlists</span>
+                        </label>
+                        <div class="fieldDescription">Allow Streamystats to promote watchlists using your watch history</div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label class="emby-checkbox-label">
+                            <input id="streamystats-promoted-watchlist-locked" data-key-name="streamyStatsPromotedWatchlists" data-prop-name="locked" type="checkbox" is="emby-checkbox"/>
+                            <span>Locked</span>
+                        </label>
+                    </div>
+
                 </div>
             </div>
         </details>
