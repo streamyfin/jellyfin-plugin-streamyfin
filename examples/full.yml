@@ -134,14 +134,9 @@ settings:
       sections:
         # Continue Watching Section
         - title: Continue Watching
-          orientation: vertical  # Options: vertical, horizontal
-          items:
-            filters:
-              - IsResumable  # Show resumable content only
-            includeItemTypes:
-              - Episode
-              - Movie
-            limit: 25  # Max items to display
+          orientation: horizontal # Options: vertical, horizontal
+          custom:
+            endpoint: /UserItems/Resume
 
         # Next Up Section (TV Shows)
         - title: Next Up
