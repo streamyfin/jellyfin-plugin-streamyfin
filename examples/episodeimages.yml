@@ -1,0 +1,237 @@
+# Full Configuration Example for Streamyfin Plugin
+# You can remove any settings you do not need configured.
+
+# Format:
+# settingName:
+#   locked: true | false  # If true, prevents user modification in app. Default: false
+#   value: <value>        # The value you want to set. Editor provides type suggestions.
+
+# This example shows ALL supported settings.
+
+settings:
+  # ==================== Media Playback Controls ====================
+  forwardSkipTime:
+    locked: false
+    value: 15  # Seconds to skip forward (0-60)
+  
+  rewindSkipTime:
+    locked: false
+    value: 15  # Seconds to skip backward (0-60)
+  
+  defaultBitrate:
+    locked: false
+    value: null  # null = Max quality, or specify bitrate (e.g., 250000, 500000, 1000000, 2000000)
+  
+  maxAutoPlayEpisodeCount:
+    locked: false
+    value: 3  # Maximum episodes to autoplay (1-10)
+
+  # ==================== Audio Settings ====================
+  rememberAudioSelections:
+    locked: false
+    value: false  # Remember audio language from previous playback
+
+  # ==================== Subtitle Settings ====================
+  subtitleMode:
+    locked: false
+    value: Default  # Options: Default, Always, OnlyForced, None, Smart
+  
+  rememberSubtitleSelections:
+    locked: false
+    value: false  # Remember subtitle language from previous playback
+  
+  subtitleSize:
+    locked: false
+    value: 80  # Subtitle size percentage (0-120)
+
+  # ==================== Video Orientation ====================
+  autoRotate:
+    locked: false
+    value: true  # Allow auto-rotation during playback
+  
+  defaultVideoOrientation:
+    locked: false
+    value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
+
+  # ==================== UI & Controls ====================
+  safeAreaInControlsEnabled:
+    locked: false
+    value: true  # Enable safe area for video controls
+  
+  showCustomMenuLinks:
+    locked: false
+    value: false  # Show custom menu links from Jellyfin web configuration
+  
+  disableHapticFeedback:
+    locked: false
+    value: false  # Disable haptic/vibration feedback
+
+  # ==================== Swipe Gesture Controls ====================
+  enableHorizontalSwipeSkip:
+    locked: false
+    value: true  # Enable swipe left/right to skip
+  
+  enableLeftSideBrightnessSwipe:
+    locked: false
+    value: true  # Enable left side swipe for brightness control
+  
+  enableRightSideVolumeSwipe:
+    locked: false
+    value: true  # Enable right side swipe for volume control
+
+  # ==================== Library Management ====================
+  hiddenLibraries:
+    locked: false
+    value:
+      - "Enter library id(s)"  # Array of library IDs to hide from users
+  
+  libraryOptions:
+    locked: false
+    value:
+      display: list  # Options: list, row
+      cardStyle: detailed  # Options: detailed, compact
+      imageStyle: cover  # Options: cover, poster
+      showTitles: true
+      showStats: true
+
+  # ==================== Third-Party Integrations ====================
+  
+  # Seerr (Media Request Management)
+  seerrServerUrl:
+    locked: false
+    value: "Enter Seerr server URL"  # e.g., https://seerr.example.com
+  
+  # Marlin (Enhanced Search)
+  searchEngine:
+    locked: false
+    value: Jellyfin  # Options: Jellyfin, Marlin, Streamystats
+  
+  marlinServerUrl:
+    locked: false
+    value: "Enter Marlin server URL"  # e.g., https://marlin.example.com
+  
+  # Streamystats (Recommendations & Analytics)
+  streamyStatsServerUrl:
+    locked: false
+    value: "Enter Streamystats server URL"  # e.g., https://stats.example.com
+  
+  streamyStatsMovieRecommendations:
+    locked: false
+    value: false  # Enable movie recommendations
+  
+  streamyStatsSeriesRecommendations:
+    locked: false
+    value: false  # Enable series recommendations
+  
+  streamyStatsPromotedWatchlists:
+    locked: false
+    value: false  # Enable promoted watchlists
+
+  # ==================== Custom Home Screen ====================
+  home:
+    locked: false
+    value:
+      sections:
+        # Continue Watching Section
+        - title: Continue Watching
+          orientation: horizontal
+          custom:
+            endpoint: /UserItems/Resume
+            query:
+              enableImageTypes: Art
+
+        - title: Nextup
+          orientation: horizontal
+          custom:
+            endpoint: /Shows/NextUp
+            query:
+              enableImageTypes: Art
+              enableResumable: false
+
+        # Recently Added Section
+        - title: Recently Added
+          orientation: vertical
+          items:
+            sortBy:
+              - DateCreated
+            sortOrder:
+              - Descending
+            includeItemTypes:
+              - Series
+              - Movie
+            limit: 25
+
+        # Latest Episodes (Grouped)
+        - title: Latest Episodes
+          orientation: horizontal
+          latest:
+            limit: 25
+            groupItems: true  # Groups episodes by series
+            includeItemTypes:
+              - Episode
+
+        # Favorites Section
+        - title: Favorites
+          orientation: vertical
+          items:
+            sortBy:
+              - SortName
+            sortOrder:
+              - Ascending
+            filters:
+              - IsFavorite
+            includeItemTypes:
+              - Series
+              - Movie
+            limit: 25
+
+        # Collection Example
+        # Use with https://github.com/lostb1t/jellyfin-plugin-collection-import
+        - title: My Collection
+          orientation: horizontal
+          items:
+            parentId: "your-collection-id-here"  # Find in web UI collection URL
+            includeItemTypes:
+              - Movie
+              - Series
+            limit: 20
+
+        # Genre Filter Example
+        - title: Action Movies
+          orientation: vertical
+          items:
+            genres:
+              - Action
+            includeItemTypes:
+              - Movie
+            sortBy:
+              - CommunityRating
+            sortOrder:
+              - Descending
+            limit: 30
+
+        # Custom Endpoint Example (Advanced)
+        # - title: Custom Data
+        #   custom:
+        #     endpoint: "/Users/{UserId}/Items"
+        #     query:
+        #       Limit: "20"
+        #       Recursive: "true"
+        #     headers:
+        #       X-Custom-Header: "value"
+
+# ==================== Notifications Configuration ====================
+# Configure push notification settings
+notifications:
+  SessionStarted:
+    Enabled: true  # Notify when users start sessions (admin only)
+  
+  PlaybackStarted:
+    Enabled: true  # Notify when playback starts (admin only)
+  
+  UserLockedOut:
+    Enabled: true  # Notify on account lockouts
+  
+  ItemAdded:
+    Enabled: true  # Notify when new content is added
+    # Episodes are automatically grouped by season to reduce spam
