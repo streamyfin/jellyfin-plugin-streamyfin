@@ -44,8 +44,8 @@ Receive real-time notifications on your mobile device:
 ### 🔗 **Third-Party Integrations**
 Seamless integration with popular services:
 - **[Seerr](https://github.com/seerr-team/seerr)**: Automatic SSO login for request management
-- **[Marlin](https://github.com/lostb1t/marlin)**: Enhanced search capabilities
-- **[Streamystats](https://github.com/fredrikburmester/streamyfin-stats)**: Personalized recommendations and promoted watchlists
+- **[Marlin](https://github.com/fredrikburmester/marlin-search)**: Enhanced search capabilities
+- **[Streamystats](https://github.com/fredrikburmester/streamystats)**: Personalized recommendations and promoted watchlists
 
 ### 🎨 **Customizable Library Options**
 Tailor the library experience:
