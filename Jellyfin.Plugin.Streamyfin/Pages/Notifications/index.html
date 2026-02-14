@@ -111,6 +111,52 @@
             </div>
         </fieldset>
 
+        <hr style="margin: 2em 0; border: 1px solid #444;">
+
+        <div class="verticalSection">
+            <div class="sectionTitleContainer">
+                <h2 class="sectionTitle">Jellyseerr Integration</h2>
+            </div>
+        </div>
+
+        <p>
+            <strong>Jellyseerr Webhook Endpoint:</strong><br>
+            <code style="font-size: 1.25em" id="jellyseerr-endpoint"></code>
+            <br><br>
+
+            <span style="color: #2196F3; font-weight: bold;">📋 Jellyseerr Webhook Configuration:</span>
+            <ul style="margin-top: 8px;">
+                <li><strong>Webhook URL:</strong> Use the endpoint shown above</li>
+                <li><strong>Notification Types:</strong> Enable all types <strong>EXCEPT</strong> issue-related events</li>
+                <li><strong>JSON Payload:</strong> Use the <strong>DEFAULT</strong> template (do not customize)</li>
+            </ul>
+            <br>
+
+            <span style="color: #4CAF50; font-weight: bold;">✅ Supported Notification Types:</span>
+            <ul style="margin-top: 8px;">
+                <li><strong>MEDIA_PENDING</strong> - New media request (sent to admins)</li>
+                <li><strong>MEDIA_AUTO_APPROVED</strong> - Request auto-approved (sent to admins)</li>
+                <li><strong>MEDIA_FAILED</strong> - Request processing failed (sent to admins)</li>
+                <li><strong>MEDIA_APPROVED</strong> - Request approved (sent to requesting user)</li>
+                <li><strong>MEDIA_DECLINED</strong> - Request declined (sent to requesting user)</li>
+                <li><strong>MEDIA_AVAILABLE</strong> - Media now available (sent to requesting user)</li>
+            </ul>
+            <br>
+
+            <span style="color: orange; font-weight: bold;">⚠️ Important Notes:</span>
+            <ul style="margin-top: 8px;">
+                <li><strong>Jellyseerr Only</strong> - This endpoint is specifically designed for Jellyseerr webhooks</li>
+                <li><strong>Issue Events Not Supported</strong> - All issue-related notification types will be automatically ignored</li>
+                <li><strong>Notification Routing is Fixed</strong> - Routing logic is hardcoded and cannot be configured:
+                    <ul style="margin-top: 8px; margin-left: 20px;">
+                        <li>Admin notifications: MEDIA_PENDING, MEDIA_AUTO_APPROVED, MEDIA_FAILED</li>
+                        <li>User notifications: MEDIA_APPROVED, MEDIA_DECLINED, MEDIA_AVAILABLE</li>
+                    </ul>
+                </li>
+                <li><strong>Localization Support</strong> - Notification content is automatically localized based on server UI culture (supports English, Chinese, French, Spanish, Dutch)</li>
+            </ul>
+        </p>
+
         <div id="config-layout">
             <button id="save-notification-btn" is="emby-button" type="submit" class="raised button-submit block">
                 <span>Save</span>

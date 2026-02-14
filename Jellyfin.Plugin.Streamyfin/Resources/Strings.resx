@@ -102,4 +102,54 @@
         <!-- 0 = Name, 1 = Year -->
         <value>{0} ({1})</value>
     </data>
+
+    <!-- region Jellyseerr Events -->
+    <data name="JellyseerrRequestPendingTitle" xml:space="preserve">
+        <value>New Media Request</value>
+    </data>
+    <data name="JellyseerrRequestPendingBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>{0} requested {1}</value>
+    </data>
+
+    <data name="JellyseerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Request Auto-Approved</value>
+    </data>
+    <data name="JellyseerrRequestAutoApprovedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>{0}'s request for {1} was automatically approved</value>
+    </data>
+
+    <data name="JellyseerrRequestApprovedTitle" xml:space="preserve">
+        <value>Request Approved</value>
+    </data>
+    <data name="JellyseerrRequestApprovedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Your request for {1} has been approved</value>
+    </data>
+
+    <data name="JellyseerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Request Declined</value>
+    </data>
+    <data name="JellyseerrRequestDeclinedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Your request for {1} has been declined</value>
+    </data>
+
+    <data name="JellyseerrRequestAvailableTitle" xml:space="preserve">
+        <value>Media Available</value>
+    </data>
+    <data name="JellyseerrRequestAvailableBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>{1} is now available to watch</value>
+    </data>
+
+    <data name="JellyseerrRequestFailedTitle" xml:space="preserve">
+        <value>Request Processing Failed</value>
+    </data>
+    <data name="JellyseerrRequestFailedBody" xml:space="preserve">
+        <!-- 0 = Username, 1 = Media name -->
+        <value>Failed to process request for {1} by {0}</value>
+    </data>
+    <!-- endregion Jellyseerr Events -->
 </root>
