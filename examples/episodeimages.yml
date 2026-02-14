@@ -138,14 +138,14 @@ settings:
           custom:
             endpoint: /UserItems/Resume
             query:
-              enableImageTypes: Art
+              enableImageTypes: Thumb
 
         - title: Nextup
           orientation: horizontal
           custom:
             endpoint: /Shows/NextUp
             query:
-              enableImageTypes: Art
+              enableImageTypes: Primary
               enableResumable: false
 
         # Recently Added Section
