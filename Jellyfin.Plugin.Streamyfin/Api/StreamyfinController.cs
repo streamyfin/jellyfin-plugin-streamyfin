@@ -200,7 +200,7 @@ public class StreamyfinController : ControllerBase
       {
         var title = n.Title ?? "";
         var body = n.Body ?? "";
-        
+
         // Title and body are both valid
         if (!title.IsNullOrNonWord() && !body.IsNullOrNonWord())
         {
@@ -227,7 +227,7 @@ public class StreamyfinController : ControllerBase
           } 
           else if (notification.Username != null)
           {
-            userId = _userManager.Users.ToList().Find(u => u.Username == notification.Username)?.Id;
+            userId = _userManager.GetUsers().ToList().Find(u => u.Username == notification.Username)?.Id;
           }
           if (userId != null)
           {
