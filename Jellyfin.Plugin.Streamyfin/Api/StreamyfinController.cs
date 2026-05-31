@@ -227,7 +227,7 @@ public class StreamyfinController : ControllerBase
           } 
           else if (notification.Username != null)
           {
-            userId = _userManager.Users.ToList().Find(u => u.Username == notification.Username)?.Id;
+            userId = _userManager.GetUsers().ToList().Find(u => u.Username == notification.Username)?.Id;
           }
           if (userId != null)
           {
