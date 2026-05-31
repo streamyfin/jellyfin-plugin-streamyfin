@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.Streamyfin.Extensions;
 public static class UserManagerExtensions
 {
     public static List<DeviceToken> GetAdminDeviceTokens(this IUserManager? manager) => (
-        manager?.Users
+        manager?.GetUsers()
             .Where(u => u.Permissions.Any(p => p.Kind == PermissionKind.IsAdministrator && p.Value))
             .SelectMany(u =>
                 StreamyfinPlugin.Instance?.Database.GetUserDeviceTokens(u.Id) ?? Enumerable.Empty<DeviceToken>()) 
