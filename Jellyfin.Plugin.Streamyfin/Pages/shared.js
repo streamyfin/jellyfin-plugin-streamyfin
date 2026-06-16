@@ -104,12 +104,18 @@ export const getElValue = (el) => {
 
     let value = el[valueKey];
 
-    if (isArray && value !== undefined && value !== '') {
-        value = value.split(',').map(v => v.trim());
-    }
-
-    if (value === '' || value === 'null') {
-        value = null
+    if (isArray) {
+        if (value !== undefined && value !== '') {
+            value = value.split(',').map(v => v.trim());
+        } else {
+            // For array fields, preserve empty arrays instead of converting to null
+            value = [];
+        }
+    } else {
+        // For non-array fields, convert empty strings to null
+        if (value === '' || value === 'null') {
+            value = null
+        }
     }
 
     if (typeof value === 'number' && isNaN(value)) {

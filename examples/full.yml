@@ -231,5 +231,7 @@ notifications:
     Enabled: true  # Notify on account lockouts
   
   ItemAdded:
-    Enabled: true  # Notify when new content is added
+    Enabled: true
+    recentEventThreshold: null
+    enabledLibraries: []    # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam

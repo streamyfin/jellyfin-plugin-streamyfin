@@ -54,7 +54,8 @@ public class PluginConfiguration : BasePluginConfiguration
     },
     ItemAdded = new()
     {
-      Enabled = true
+      Enabled = true,
+      EnabledLibraries = []
     }
   };
 
