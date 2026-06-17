@@ -210,7 +210,7 @@ settings:
               - Descending
             limit: 30
 
-         - title: Movie Watchlist
+        - title: Movie Watchlist
           orientation: vertical
           items:
             sortBy:
@@ -221,7 +221,6 @@ settings:
               - Likes
             includeItemTypes:
               - Movie
-
         - title: Series Watchlist
           orientation: vertical
           items:
