@@ -67,7 +67,6 @@ public class PluginConfiguration : BasePluginConfiguration
     subtitleMode = new() { value = SubtitlePlaybackMode.Default },
     rememberSubtitleSelections = new() { value = false },
     subtitleSize = new() { value = 80 },
-    autoRotate = new() { value = true },
     defaultVideoOrientation = new() { value = OrientationLock.Default },
     safeAreaInControlsEnabled = new() { value = true },
     showCustomMenuLinks = new() { value = false },

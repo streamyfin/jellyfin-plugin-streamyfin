@@ -45,10 +45,6 @@ settings:
     value: 80  # Subtitle size percentage (0-120)
 
   # ==================== Video Orientation ====================
-  autoRotate:
-    locked: false
-    value: true  # Allow auto-rotation during playback
-  
   defaultVideoOrientation:
     locked: false
     value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
@@ -78,6 +74,14 @@ settings:
   enableRightSideVolumeSwipe:
     locked: false
     value: true  # Enable right side swipe for volume control
+
+  hideVolumeSlider:
+    locked: false
+    value: false  # Hide the volume slider in the video controls
+
+  hideBrightnessSlider:
+    locked: false
+    value: false  # Hide the brightness slider in the video controls
 
   # ==================== Library Management ====================
   hiddenLibraries:
@@ -126,6 +130,40 @@ settings:
   streamyStatsPromotedWatchlists:
     locked: false
     value: false  # Enable promoted watchlists
+
+  hideWatchlistsTab:
+    locked: false
+    value: false  # Hide the Streamystats watchlists tab in the app
+
+  # KefinTweaks
+  useKefinTweaks:
+    locked: false
+    value: false  # Enable the KefinTweaks watchlist integration
+
+  # ==================== Playback & Audio ====================
+  autoPlayNextEpisode:
+    locked: false
+    value: true  # Automatically start the next episode when one finishes
+
+  defaultPlaybackSpeed:
+    locked: false
+    value: 1.0  # Default video playback speed multiplier
+
+  preferLocalAudio:
+    locked: false
+    value: true  # Prefer downloaded audio over streaming when available
+
+  audioLookaheadEnabled:
+    locked: false
+    value: true  # Pre-cache upcoming tracks for gapless music playback
+
+  audioLookaheadCount:
+    locked: false
+    value: 1  # How many upcoming tracks to pre-cache
+
+  audioMaxCacheSizeMB:
+    locked: false
+    value: 500  # Maximum disk space (MB) for audio look-ahead caching
 
   # ==================== Custom Home Screen ====================
   home:

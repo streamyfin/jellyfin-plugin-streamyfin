@@ -176,6 +176,22 @@ public class Settings
     [NotNull]
     [Display(Name = "Remember audio selection", Description = "Allows you to set the audio language from the previous played item")]
     public Lockable<bool>? rememberAudioSelections { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Prefer local audio", Description = "Prefer downloaded audio over streaming when it is available")]
+    public Lockable<bool>? preferLocalAudio { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Audio look-ahead caching", Description = "Pre-cache upcoming tracks for gapless music playback")]
+    public Lockable<bool>? audioLookaheadEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
+    public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
+
+    [NotNull]
+    [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
+    public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
     // TODO create type converter for CultureDto
     //  Currently fails since it doesnt have a parameterless constructor
     // public Lockable<CultureDto?>? defaultAudioLanguage { get; set; }
@@ -195,10 +211,6 @@ public class Settings
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     // Other
-    [NotNull]
-    [Display(Name = "Auto rotate", Description = "Grant ability to auto rotate during video playback")]
-    public Lockable<bool>? autoRotate { get; set; } // true
-    
     [NotNull]
     [Display(Name = "Default video orientation", Description = "Lock orientation during video playback")]
     public Lockable<OrientationLock>? defaultVideoOrientation { get; set; }
@@ -225,7 +237,15 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Max auto play episode count")]
-    public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3 
+    public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3
+
+    [NotNull]
+    [Display(Name = "Auto play next episode", Description = "Automatically start the next episode when one finishes")]
+    public Lockable<bool>? autoPlayNextEpisode { get; set; } // = true
+
+    [NotNull]
+    [Display(Name = "Default playback speed", Description = "The default video playback speed multiplier")]
+    public Lockable<double>? defaultPlaybackSpeed { get; set; } // = 1.0
 
     // Swipe controls
 
@@ -240,6 +260,14 @@ public class Settings
     [NotNull]
     [Display(Name = "Right side volume control")]
     public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = true
+
+    [NotNull]
+    [Display(Name = "Hide volume slider", Description = "Hide the volume slider in the video controls")]
+    public Lockable<bool>? hideVolumeSlider { get; set; } // = false
+
+    [NotNull]
+    [Display(Name = "Hide brightness slider", Description = "Hide the brightness slider in the video controls")]
+    public Lockable<bool>? hideBrightnessSlider { get; set; } // = false
 
     // region Plugins
     // Seerr
@@ -272,6 +300,15 @@ public class Settings
     [NotNull]
     [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow Streamystats to promote watchlists using your watch history")]
     public Lockable<bool>? streamyStatsPromotedWatchlists { get; set; }
+
+    [NotNull]
+    [Display(Name = "Hide watchlists tab", Description = "Hide the Streamystats watchlists tab in the app")]
+    public Lockable<bool>? hideWatchlistsTab { get; set; }
+
+    // KefinTweaks
+    [NotNull]
+    [Display(Name = "KefinTweaks watchlist integration", Description = "Enable the KefinTweaks watchlist integration")]
+    public Lockable<bool>? useKefinTweaks { get; set; }
     // endregion Plugins
     
     // Misc.
