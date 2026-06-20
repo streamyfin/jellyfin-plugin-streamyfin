@@ -14,19 +14,13 @@
         <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
     </resheader>
 
-    <!-- region MediaTypes -->
-    <data name="MovieMediaType" xml:space="preserve">
-        <value>Film</value>
-    </data>
-    <!-- endregion MediaTypes -->
-
     <!-- region PlaybackStartEvent -->
     <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Afspelen gestart</value>
+        <value>开始播放</value>
     </data>
     <data name="UserWatching" xml:space="preserve">
         <!-- 0 = Username -->
-        <value>{0} aan het kijken</value>
+        <value>{0} 正在观看</value>
     </data>
     <data name="SeriesSeasonAndEpisode" xml:space="preserve">
         <!-- 0 = Name, 1 = Season index number, 2 = Episode index number -->
@@ -34,67 +28,67 @@
     </data>
     <data name="SeriesSeason" xml:space="preserve">
         <!-- 0 = Name, 1 = Season index number -->
-        <value>{0}, Seizoen {1}</value>
+        <value>{0}, 第 {1} 季</value>
     </data>
     <data name="Series Episode" xml:space="preserve">
         <!-- 0 = Name, 1 = Episode index number -->
-        <value>{0}, Aflevering {1}</value>
+        <value>{0}, 第 {1} 集</value>
     </data>
     <!-- endregion PlaybackStartEvent -->
-    
+
     <!-- region SessionStartEvent -->
     <data name="SessionStartTitle" xml:space="preserve">
-        <value>Sessie gestart</value>
+        <value>会话已开始</value>
     </data>
     <data name="UserNowOnline" xml:space="preserve">
         <!-- 0 = Username -->
-        <value>{0} is nu online</value>
+        <value>{0} 现已上线</value>
     </data>
     <!-- endregion SessionStartEvent -->
 
     <!-- region UserLockedOutEvent -->
     <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker Geblokeerd</value>
+        <value>用户已锁定</value>
     </data>
     <data name="UserHasBeenLockedOut" xml:space="preserve">
         <!-- 0 = Username -->
-        <value>{0} Gebruiker is geblokeerd</value>
+        <value>{0} 已被锁定</value>
     </data>
     <!-- endregion SessionStartEvent -->
 
     <!-- region ItemAddedEvent -->
     <data name="ItemAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>{0} toegevoegd</value>
+        <value>{0} 已添加</value>
     </data>
     <data name="EpisodeAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>Aflevering toegevoegd</value>
+        <value>剧集已添加</value>
     </data>
     <data name="EpisodesAddedTitle" xml:space="preserve">
         <!-- 0 = Media type -->
-        <value>Aflevering toegevoegd</value>
+        <value>多个剧集已添加</value>
     </data>
 
     <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode index, 2 = Season index -->
-        <value>{0} - Aflevering {1} toegevoegd voor Seizoen {2}</value>
+        <value>{0} - 第 {2} 季第 {1} 集已添加</value>
     </data>
     <data name="EpisodeAdded" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode index -->
-        <value>{0} - Aflevering {1} toegevoegd</value>
+        <value>{0} - 第 {1} 集已添加</value>
     </data>
     <data name="EpisodeAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Season index -->
-        <value>{0} - Aflevering toegevoegd voor Seizoen {1}</value>
+        <value>{0} - 第 {1} 季的剧集已添加</value>
     </data>
     <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode count, 2 = Season index -->
-        <value>{0} - {1} Afleveringen toegevoegd voor Seizoen {2}</value>
+        <value>{0} - 第 {2} 季添加了 {1} 集</value>
     </data>
     <data name="EpisodesAddedToSeries" xml:space="preserve">
         <!-- 0 = Series Name, 1 = Episode count -->
-        <value>{0} - {1} Afleveringen toegevoegd</value>
+        <value>{0} - 已添加 {1} 集</value>
     </data>
     <!-- endregion ItemAddedEvent -->
 
@@ -105,51 +99,51 @@
 
     <!-- region Jellyseerr Events -->
     <data name="JellyseerrRequestPendingTitle" xml:space="preserve">
-        <value>Nieuwe Mediaverzoek</value>
+        <value>新媒体请求</value>
     </data>
     <data name="JellyseerrRequestPendingBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>{0} heeft {1} aangevraagd</value>
+        <value>{0} 请求了 {1}</value>
     </data>
 
     <data name="JellyseerrRequestAutoApprovedTitle" xml:space="preserve">
-        <value>Verzoek Automatisch Goedgekeurd</value>
+        <value>请求已自动批准</value>
     </data>
     <data name="JellyseerrRequestAutoApprovedBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>Het verzoek van {0} voor {1} is automatisch goedgekeurd</value>
+        <value>{0} 对 {1} 的请求已自动批准</value>
     </data>
 
     <data name="JellyseerrRequestApprovedTitle" xml:space="preserve">
-        <value>Verzoek Goedgekeurd</value>
+        <value>请求已批准</value>
     </data>
     <data name="JellyseerrRequestApprovedBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>Uw verzoek voor {1} is goedgekeurd</value>
+        <value>你对 {1} 的请求已被批准</value>
     </data>
 
     <data name="JellyseerrRequestDeclinedTitle" xml:space="preserve">
-        <value>Verzoek Afgewezen</value>
+        <value>请求已拒绝</value>
     </data>
     <data name="JellyseerrRequestDeclinedBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>Uw verzoek voor {1} is afgewezen</value>
+        <value>你对 {1} 的请求已被拒绝</value>
     </data>
 
     <data name="JellyseerrRequestAvailableTitle" xml:space="preserve">
-        <value>Media Beschikbaar</value>
+        <value>媒体已可用</value>
     </data>
     <data name="JellyseerrRequestAvailableBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>{1} is nu beschikbaar om te kijken</value>
+        <value>{1} 现在可以观看了</value>
     </data>
 
     <data name="JellyseerrRequestFailedTitle" xml:space="preserve">
-        <value>Verwerking Verzoek Mislukt</value>
+        <value>请求处理失败</value>
     </data>
     <data name="JellyseerrRequestFailedBody" xml:space="preserve">
         <!-- 0 = Username, 1 = Media name -->
-        <value>Kan verzoek voor {1} door {0} niet verwerken</value>
+        <value>处理 {0} 对 {1} 的请求时失败</value>
     </data>
     <!-- endregion Jellyseerr Events -->
 </root>
