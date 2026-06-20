@@ -96,10 +96,10 @@ settings:
 
   # ==================== Third-Party Integrations ====================
   
-  # Seerr (Media Request Management)
-  seerrServerUrl:
+  # Jellyseerr (Media Request Management)
+  jellyseerrServerUrl:
     locked: false
-    value: "Enter Seerr server URL"  # e.g., https://seerr.example.com
+    value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
   
   # Marlin (Enhanced Search)
   searchEngine:
