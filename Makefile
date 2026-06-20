@@ -1,4 +1,7 @@
-export VERSION := $(shell git describe --tags --abbrev=0 | awk -F. -v OFS=. '{ $$2 = $$2 + 1; $$3 = 0; $$4 = 0; print }')
+export VERSION := $(shell node scripts/next-version.js)
+ifeq ($(VERSION),)
+$(error Failed to compute VERSION via scripts/next-version.js)
+endif
 export GITHUB_REPO := streamyfin/jellyfin-plugin-streamyfin
 export FILE := streamyfin-${VERSION}.zip
 

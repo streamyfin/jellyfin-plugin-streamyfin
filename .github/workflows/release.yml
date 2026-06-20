@@ -29,8 +29,8 @@ jobs:
 
       - name: build and release application
         run: |
-          git config --global user.name 'lostb1t'
-          git config --global user.email 'coding-mosses0z@icloud.com'
+          git config --global user.name 'streamyfin'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           make release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
