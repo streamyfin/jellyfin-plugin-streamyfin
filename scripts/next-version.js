@@ -1,57 +1,59 @@
 const { execFileSync } = require('child_process');
 
-function getLastTag() {
-    try {
-        return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { encoding: 'utf8' }).trim();
-    } catch {
-        return null;
-    }
+// Only consider real version tags (e.g. 1.2.3 or 1.2.3.4); ignore backup/* and
+// other non-version tags so they can never pollute the computed version.
+const VERSION_TAG_GLOB = '[0-9]*.[0-9]*';
+
+const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
+
+function lastVersionTag() {
+  try {
+    return git(['describe', '--tags', '--abbrev=0', '--match', VERSION_TAG_GLOB]).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
-function getCommitsSince(tag) {
-    try {
-        const range = tag ? `${tag}..HEAD` : 'HEAD';
-        const raw = execFileSync('git', ['log', range, '--format=%B%x00'], { encoding: 'utf8' });
-        return raw.split('\x00').map(s => s.trim()).filter(Boolean);
-    } catch {
-        return [];
-    }
+function commitsSince(tag) {
+  try {
+    const range = tag ? `${tag}..HEAD` : 'HEAD';
+    return git(['log', range, '--format=%B%x00'])
+      .split('\0').map((s) => s.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 function determineBump(commits) {
-    let bump = 'patch';
-    for (const msg of commits) {
-        const subject = msg.split('\n')[0];
-        const body = msg.split('\n').slice(1).join('\n');
-
-        if (/^(\w+)(\([^)]*\))?!:/.test(subject) || /BREAKING(?: |-)CHANGE:/.test(body)) {
-            return 'major';
-        }
-        if (/^feat(\([^)]*\))?:/.test(subject) && bump !== 'major') {
-            bump = 'minor';
-        }
-    }
-    return bump;
+  let bump = 'patch';
+  for (const msg of commits) {
+    const subject = msg.split('\n', 1)[0];
+    if (/^\w+(\([^)]*\))?!:/.test(subject) || /BREAKING[ -]CHANGE:/.test(msg)) return 'major';
+    if (/^feat(\([^)]*\))?:/.test(subject)) bump = 'minor';
+  }
+  return bump;
 }
 
 function parseVersion(tag) {
-    const parts = tag.replace(/^v/, '').split('.').map(Number);
-    if (parts.some(n => !Number.isFinite(n) || n < 0)) {
-        throw new Error(`Invalid version tag: ${tag}`);
-    }
-    while (parts.length < 4) parts.push(0);
-    return parts.slice(0, 4);
+  const parts = tag.replace(/^v/, '').split('.').map(Number);
+  if (!parts.length || parts.some((n) => !Number.isInteger(n) || n < 0)) {
+    throw new Error(`Invalid version tag: ${tag}`);
+  }
+  while (parts.length < 4) parts.push(0);
+  return parts.slice(0, 4);
 }
 
 function applyBump([major, minor, patch], bump) {
-    if (bump === 'major') return [major + 1, 0, 0, 0];
-    if (bump === 'minor') return [major, minor + 1, 0, 0];
-    return [major, minor, patch + 1, 0];
+  if (bump === 'major') return [major + 1, 0, 0, 0];
+  if (bump === 'minor') return [major, minor + 1, 0, 0];
+  return [major, minor, patch + 1, 0];
 }
 
-const lastTag = getLastTag();
-const commits = getCommitsSince(lastTag);
-const bump = commits.length > 0 ? determineBump(commits) : 'patch';
-const current = lastTag ? parseVersion(lastTag) : [0, 0, 0, 0];
+const tag = lastVersionTag();
+const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
+const next = applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
 
-process.stdout.write(applyBump(current, bump).join('.') + '\n');
+if (next.some((n) => !Number.isInteger(n) || n < 0)) {
+  throw new Error(`Computed invalid version: ${next.join('.')}`);
+}
+process.stdout.write(next.join('.') + '\n');
