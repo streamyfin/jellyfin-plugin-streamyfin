@@ -291,10 +291,10 @@ public class Settings
     public Lockable<bool>? hideBrightnessSlider { get; set; } // = false
 
     // region Plugins
-    // Seerr
+    // Jellyseerr
     [NotNull]
-    [Display(Name = "Seerr Server URL", Description = "Enter the URL for your Seerr server. **Jellyfin authentication is required**")]
-    public Lockable<string>? seerrServerUrl { get; set; }
+    [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
+    public Lockable<string>? jellyseerrServerUrl { get; set; }
 
     // Marlin Search
     [NotNull]

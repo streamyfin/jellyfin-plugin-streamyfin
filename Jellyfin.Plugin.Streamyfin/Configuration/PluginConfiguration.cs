@@ -73,7 +73,7 @@ public class PluginConfiguration : BasePluginConfiguration
     hiddenLibraries = new() { value = new[] { "Enter library id(s)" } },
     disableHapticFeedback = new() { value = false },
     defaultBitrate = new() { value = null },
-    seerrServerUrl = new() { value = "Enter Seerr server URL" },
+    jellyseerrServerUrl = new() { value = "Enter jellyseerr server url" },
     searchEngine = new() { value = SearchEngine.Jellyfin },
     marlinServerUrl = new() { value = "Enter Marlin server URL" },
     libraryOptions = new() { value = new LibraryOptions() },

@@ -142,11 +142,11 @@ rewindSkipTime:
 
 ## 🤝 Integration Guides
 
-### Seerr Integration
+### Jellyseerr Integration
 Enable automatic authentication for your users:
-1. Set your Seerr server URL in plugin settings
-2. Ensure Seerr is configured for **Jellyfin authentication**
-3. Users will be automatically logged in when opening Seerr from the app
+1. Set your Jellyseerr server URL in plugin settings
+2. Ensure Jellyseerr is configured for **Jellyfin authentication**
+3. Users will be automatically logged in when opening Jellyseerr from the app
 
 ### Streamystats Integration
 Get personalized recommendations:
