@@ -3,6 +3,9 @@ const { execFileSync } = require('child_process');
 // Only consider real version tags (e.g. 1.2.3 or 1.2.3.4); ignore backup/* and
 // other non-version tags so they can never pollute the computed version.
 const VERSION_TAG_GLOB = '[0-9]*.[0-9]*';
+// Strict shape check: optional `v`, then 2 to 4 numeric segments. Rejects
+// malformed tags like `1..2` or `1.2.` that `Number()` would coerce to 0.
+const VERSION_TAG_RE = /^v?\d+(?:\.\d+){1,3}$/;
 
 const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
 
@@ -35,10 +38,10 @@ function determineBump(commits) {
 }
 
 function parseVersion(tag) {
-  const parts = tag.replace(/^v/, '').split('.').map(Number);
-  if (!parts.length || parts.some((n) => !Number.isInteger(n) || n < 0)) {
+  if (!VERSION_TAG_RE.test(tag)) {
     throw new Error(`Invalid version tag: ${tag}`);
   }
+  const parts = tag.replace(/^v/, '').split('.').map(Number);
   while (parts.length < 4) parts.push(0);
   return parts.slice(0, 4);
 }
