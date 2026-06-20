@@ -1,8 +1,8 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 function getLastTag() {
     try {
-        return execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
+        return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { encoding: 'utf8' }).trim();
     } catch {
         return null;
     }
@@ -11,7 +11,7 @@ function getLastTag() {
 function getCommitsSince(tag) {
     try {
         const range = tag ? `${tag}..HEAD` : 'HEAD';
-        const raw = execSync(`git log ${range} --format=%B%x00`, { encoding: 'utf8' });
+        const raw = execFileSync('git', ['log', range, '--format=%B%x00'], { encoding: 'utf8' });
         return raw.split('\x00').map(s => s.trim()).filter(Boolean);
     } catch {
         return [];
@@ -24,7 +24,7 @@ function determineBump(commits) {
         const subject = msg.split('\n')[0];
         const body = msg.split('\n').slice(1).join('\n');
 
-        if (/^(\w+)(\([^)]*\))?!:/.test(subject) || /BREAKING CHANGE/.test(body)) {
+        if (/^(\w+)(\([^)]*\))?!:/.test(subject) || /BREAKING(?: |-)CHANGE:/.test(body)) {
             return 'major';
         }
         if (/^feat(\([^)]*\))?:/.test(subject) && bump !== 'major') {
@@ -36,6 +36,9 @@ function determineBump(commits) {
 
 function parseVersion(tag) {
     const parts = tag.replace(/^v/, '').split('.').map(Number);
+    if (parts.some(n => !Number.isFinite(n) || n < 0)) {
+        throw new Error(`Invalid version tag: ${tag}`);
+    }
     while (parts.length < 4) parts.push(0);
     return parts.slice(0, 4);
 }
