@@ -18,7 +18,7 @@ If you want to start using the notification endpoint directly with other service
 
 Custom webhook examples:
 - [Jellyfin](#Jellyfin)
-- [Jellyseerr](#Jellyseerr)
+- [Jellyseerr](#jellyseerr)
 
 ---
 
