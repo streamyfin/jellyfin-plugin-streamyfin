@@ -66,6 +66,8 @@ public class PluginConfiguration : BasePluginConfiguration
     rememberAudioSelections = new() { value = false },
     subtitleMode = new() { value = SubtitlePlaybackMode.Default },
     rememberSubtitleSelections = new() { value = false },
+    autoSubtitlesOnMute = new() { value = true },
+    autoSubtitlesOnMuteAllowRestart = new() { value = false },
     subtitleSize = new() { value = 80 },
     defaultVideoOrientation = new() { value = OrientationLock.Default },
     safeAreaInControlsEnabled = new() { value = true },
