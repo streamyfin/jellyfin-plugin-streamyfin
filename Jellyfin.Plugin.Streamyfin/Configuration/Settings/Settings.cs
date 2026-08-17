@@ -296,6 +296,10 @@ public class Settings
     [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
     public Lockable<string>? jellyseerrServerUrl { get; set; }
 
+    [NotNull]
+    [Display(Name = "Jellyseerr API Key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API — only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
+    public Lockable<string>? jellyseerrApiKey { get; set; }
+
     // Marlin Search
     [NotNull]
     [Display(Name = "Default search engine", Description = "Enter the search engine you want to use in streamyfin")]

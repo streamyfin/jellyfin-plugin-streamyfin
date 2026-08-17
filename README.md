@@ -148,6 +148,8 @@ Enable automatic authentication for your users:
 2. Ensure Jellyseerr is configured for **Jellyfin authentication**
 3. Users will be automatically logged in when opening Jellyseerr from the app
 
+Optionally set the **Jellyseerr API Key** (Seerr Settings > General) to let Streamyfin sign users in without a password — this also covers Quick Connect and OIDC logins, which have no password. **Warning:** every authenticated Jellyfin user can read this key and it grants full admin access to the Seerr API, so only set it on servers where you trust all users. Requires a Seerr version with the `/user/jellyfin/{id}` route and a Streamyfin version with API-key sign-in.
+
 ### Streamystats Integration
 Get personalized recommendations:
 1. Set your Streamystats server URL
