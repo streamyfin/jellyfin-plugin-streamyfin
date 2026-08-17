@@ -104,6 +104,13 @@ settings:
   jellyseerrServerUrl:
     locked: false
     value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
+  # Optional: Seerr admin API key (Seerr Settings > General). Lets Streamyfin
+  # sign each user in to Seerr without a password (works with Quick Connect).
+  # WARNING: every authenticated Jellyfin user can read this key and it grants
+  # full admin access to the Seerr API. Only set it if you trust all users.
+  # jellyseerrApiKey:
+  #   locked: true
+  #   value: "your-seerr-api-key"
   
   # Marlin (Enhanced Search)
   searchEngine:
