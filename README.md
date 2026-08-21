@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/streamyfin/.github/refs/heads/main/streamyfin-github-banner.png" alt="Streamyfin" width="100%">
+
 # Streamyfin Companion Plugin
 
 **Centralized configuration management for the Streamyfin mobile application**
@@ -16,23 +18,24 @@ Configure and synchronize app settings, customize the user experience, and manag
 
 ### 🔧 **Centralized Configuration Management**
 Control and lock app settings for all your users from a single location:
-- **Video Settings**: Skip times, default playback bitrate, orientation lock
+- **Video Settings**: Skip times, default playback bitrate, orientation lock, segment skip (intro/credits)
 - **Audio Settings**: Remember audio selections, default language
 - **Subtitle Settings**: Playback mode, size scaling, remember selections
 - **Swipe Controls**: Configure brightness, volume, and skip gestures
 - **Library Management**: Hide specific libraries, customize library appearance
+- **App-side lock sync**: Locked settings sync directly with the Streamyfin app UI
 
 ### 🏠 **Custom Home Screen**
 Create dynamic, personalized home screens with customizable sections:
 - **Continue Watching**: Resumable content at your fingertips
 - **Next Up**: TV show episodes ready to watch
 - **Latest Media**: Newly added content
-- **Custom Sections**: Create any view using Jellyfin's API
+- **Custom Sections**: Create any view using Jellyfin's API, including custom endpoints for sections
 - **Collection Integration**: Works seamlessly with the [Collection Import plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import)
 
-### 🔔 **Push Notifications** 
+### 🔔 **Push Notifications**
 Receive real-time notifications on your mobile device:
-- **Item Added**: New movies, episodes, and seasons
+- **Item Added**: New movies, episodes, and seasons (filterable by library)
 - **Session Started**: Track active user sessions (admin only)
 - **Playback Started**: Monitor content playback (admin only)
 - **User Locked Out**: Security alerts for account issues
@@ -43,7 +46,7 @@ Receive real-time notifications on your mobile device:
 
 ### 🔗 **Third-Party Integrations**
 Seamless integration with popular services:
-- **[Seerr](https://github.com/seerr-team/seerr)**: Automatic SSO login for request management
+- **[Seerr](https://github.com/seerr-team/seerr)** (formerly Jellyseerr): Automatic SSO login for request management
 - **[Marlin](https://github.com/fredrikburmester/marlin-search)**: Enhanced search capabilities
 - **[Streamystats](https://github.com/fredrikburmester/streamystats)**: Personalized recommendations and promoted watchlists
 
@@ -61,7 +64,7 @@ Tailor the library experience:
 - Control menu link visibility
 
 ### ⚙️ **Advanced Configuration**
-- **YAML Editor**: Full configuration via YAML
+- **YAML Editor**: Full configuration via YAML, with dynamic autocomplete for parentId/id values
 - **Form-Based UI**: User-friendly interface for common settings
 - **Default Presets**: Sensible defaults out of the box
 
@@ -90,6 +93,8 @@ Tailor the library experience:
    - **Windows**: `%AppData%\Jellyfin\Server\plugins\Streamyfin\`
    - **Docker**: `/config/plugins/Streamyfin/`
 3. **Restart Jellyfin**
+
+> Requires .NET 9 / Jellyfin 10.11 or newer (as of plugin 0.64.0.0).
 
 ---
 
@@ -142,13 +147,15 @@ rewindSkipTime:
 
 ## 🤝 Integration Guides
 
-### Jellyseerr Integration
+### Seerr Integration (formerly Jellyseerr)
 Enable automatic authentication for your users:
-1. Set your Jellyseerr server URL in plugin settings
-2. Ensure Jellyseerr is configured for **Jellyfin authentication**
-3. Users will be automatically logged in when opening Jellyseerr from the app
+1. Set your Seerr server URL in plugin settings
+2. Ensure Seerr is configured for **Jellyfin authentication**
+3. Users will be automatically logged in when opening Seerr from the app
 
-Optionally set the **Jellyseerr API Key** (Seerr Settings > General) to let Streamyfin sign users in without a password — this also covers Quick Connect and OIDC logins, which have no password. **Warning:** every authenticated Jellyfin user can read this key and it grants full admin access to the Seerr API, so only set it on servers where you trust all users. Requires a Seerr version with the `/user/jellyfin/{id}` route and a Streamyfin version with API-key sign-in.
+Optionally set the **Seerr API Key** (Seerr Settings > General) to let Streamyfin sign users in without a password. This also covers Quick Connect and OIDC logins, which have no password.
+
+**Warning:** every authenticated Jellyfin user can read this key, and it grants full admin access to the Seerr API. Only set it on servers where you trust all users. Requires a Seerr version with the `/user/jellyfin/{id}` route and a Streamyfin version with API-key sign-in.
 
 ### Streamystats Integration
 Get personalized recommendations:
@@ -169,7 +176,7 @@ Enhanced search capabilities:
 ### Configuration Options
 The plugin exposes comprehensive configuration options including:
 - Media playback controls
-- Subtitle and audio preferences  
+- Subtitle and audio preferences
 - UI customization
 - Third-party service integration
 - Push notification settings
@@ -185,7 +192,7 @@ All settings can be managed via YAML for infrastructure-as-code workflows.
 
 - **[Notification Setup Guide](NOTIFICATIONS.md)** - Complete notification configuration
 - **[YAML Examples](examples/)** - Sample configurations
-- **[Streamyfin App](https://github.com/fredrikburmester/streamyfin)** - The mobile application
+- **[Streamyfin App](https://github.com/streamyfin/streamyfin)** - The mobile application
 
 ---
 
