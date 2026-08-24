@@ -21,12 +21,12 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      # Both targets always report. Knowing only that jf10 broke, while jf12 was
+      # Both targets always report. Knowing only that jf11 broke, while jf12 was
       # cancelled, means running the whole thing again to learn the other half.
       fail-fast: false
       matrix:
         include:
-          - target: jf10
+          - target: jf11
             dotnet: 9.0.x
           - target: jf12
             dotnet: 10.0.x
