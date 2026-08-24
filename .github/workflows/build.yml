@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+# A new push supersedes the one before it on the same ref.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Both targets always report. Knowing only that jf11 broke, while jf12 was
+      # cancelled, means running the whole thing again to learn the other half.
+      fail-fast: false
+      matrix:
+        include:
+          - target: jf11
+            dotnet: 9.0.x
+          - target: jf12
+            dotnet: 10.0.x
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+
+      # JellyfinTarget picks the framework and the package versions, so every
+      # command needs it. Leave it off one of them and that step silently works
+      # on the default target instead.
+      - name: Restore
+        run: dotnet restore -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Test
+        run: dotnet test Jellyfin.Plugin.Streamyfin.Tests --configuration Release --no-build -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jellyfin.Plugin.Streamyfin-${{ matrix.target }}
+          path: Jellyfin.Plugin.Streamyfin/bin/Release/*/Jellyfin.Plugin.Streamyfin.dll
+          if-no-files-found: error
+          retention-days: 7
