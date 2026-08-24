@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using Jellyfin.Plugin.Streamyfin.Storage;
+using Microsoft.Data.Sqlite;
 using Jellyfin.Plugin.Streamyfin.Storage.Models;
 using Xunit;
 using Xunit.Abstractions;
@@ -103,6 +104,20 @@ public class DatabaseTests(ITestOutputHelper output): IDisposable
     public void Dispose()
     {
         output.WriteLine($"Deleting database {db.DbFilePath}");
-        File.Delete(db.DbFilePath);
+
+        // Microsoft.Data.Sqlite pools connections, so closing one is not enough:
+        // the pooled handle keeps the file open. Linux happily unlinks an open
+        // file, Windows throws IOException, which is why these tests only ever
+        // passed on CI. Drain the pool before deleting.
+        db.Dispose();
+        SqliteConnection.ClearAllPools();
+
+        foreach (var path in new[] { db.DbFilePath, db.DbFilePath + "-wal", db.DbFilePath + "-shm" })
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
     }
 }
