@@ -93,6 +93,56 @@ Diagnosed all sixteen open issues against the code, in
   just calls them `BoxSet` and nothing documents the legal values. That single
   issue is the argument for P3.1.
 
+### P0 finished, in four larger pull requests
+
+CodeRabbit gives two included reviews an hour, and one pull request per sub part
+was saturating it permanently, so the rest of P0 landed in four pieces instead of
+ten.
+
+**#125, P0.3 to P0.5.** `Storage/` deleted, EF Core in its place. The three could
+not land apart: the hand written store cannot go until its data has moved, and
+its data cannot move until there is somewhere to move it to. Device tokens are
+imported once from `streamyfin_plugin.db`, read only, in one transaction with a
+marker row, and the old file is never written to or deleted, so a downgrade still
+finds it. CodeRabbit caught a real regression on the first pass: the replacement
+of a device token used two `SaveChanges` calls, which is two transactions, and a
+failure between them left the device with no token. Fixed by updating in place.
+
+**#126, P0.6 to P0.9.** The release chain assumed a single artifact. The zip path
+was hardcoded on `net9.0` twice, `targetAbi` was hardcoded to 10.11.11, and
+nothing removed an existing entry before adding one. Now: one tag, one release,
+both zips, and a manifest per Jellyfin line with the `targetAbi` its own build
+was compiled against. The `Makefile` gave up tagging and pushing to `main`, which
+never belonged to it.
+
+The part that matters more than the fixes: **packaging now runs on every pull
+request**, in dry run. The release chain being exercised only by a release is how
+a zip path pinned to `net9.0` survived unnoticed in the first place.
+
+**#127, P0.12 and P0.13.** The warning policy. Five rules turned off in
+`.editorconfig` with the reason written next to each, everything else fixed, and
+`TreatWarningsAsErrors` turned on. Both targets now build at 0 warnings and 0
+errors. Turning it on immediately promoted a NuGet advisory on a transitive
+`SQLitePCLRaw` to an error, which is the policy working on its first day.
+
+P0.13 was the three `CS4014`. Jellyfin's event handlers are synchronous, so a
+notification send cannot be awaited from one, and the exception landed in a task
+nobody observed. A failing send looked exactly like a working one. They now go
+through `SendDetached`, which logs the failure.
+
+**P0.10, SignPath artifact signing, is not done.** It was optional, it needs an
+account and an application to the free open source programme, and it is the
+maintainer's call rather than a code change.
+
+### Not verified yet
+
+The plugin has not been loaded on a real server since the EF Core change. The
+evidence says `Microsoft.EntityFrameworkCore.Sqlite` is present on both Jellyfin
+lines, since intro-skipper ships nothing but its own dll against the same
+dependency, but that deserves a load test before a release goes out. The beta
+server is stopped and the workstation is off the network, so it is deferred
+rather than skipped. See `project_plugin_test_servers` for the access details.
+
 ### Pull request triage
 
 The three pull requests that were already open, diagnosed in
