@@ -15,29 +15,33 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </summary>
 public class CompatBoundaryTests
 {
+    // Matches NET<n>_0 rather than the two current monikers, and spells out
+    // _OR_GREATER: a word boundary after NET10_0 does not stop at
+    // NET10_0_OR_GREATER, since the underscore is a word character, so that
+    // spelling slipped straight through.
     private static readonly Regex VersionDirective = new(
-        @"^[^\S\r\n]*#[^\S\r\n]*(?:if|elif)\b[^\r\n]*\b(?:JF10|JF12|NET9_0|NET10_0)\b",
+        @"^[^\S\r\n]*#[^\S\r\n]*(?:if|elif)\b[^\r\n]*\b(?:JF11|JF12|NET\d+_0(?:_OR_GREATER)?)\b",
         RegexOptions.Compiled | RegexOptions.Multiline);
 
     [Fact]
     public void VersionSpecificCodeStaysInTheCompatFolder()
     {
-        var projectRoot = PluginProjectRoot();
+        var repositoryRoot = RepositoryRoot();
         Assert.True(
-            Directory.Exists(projectRoot),
-            $"Plugin sources not found at '{projectRoot}'. This test reads the checkout it was compiled from.");
+            Directory.Exists(repositoryRoot),
+            $"Sources not found at '{repositoryRoot}'. This test reads the checkout it was compiled from.");
 
-        var compatRoot = Path.Combine(projectRoot, "Compat") + Path.DirectorySeparatorChar;
+        var compatRoot = Path.Combine(repositoryRoot, "Jellyfin.Plugin.Streamyfin", "Compat") + Path.DirectorySeparatorChar;
 
         var offenders = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(projectRoot, "*.cs", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(repositoryRoot, "*.cs", SearchOption.AllDirectories))
         {
-            if (file.StartsWith(compatRoot, StringComparison.OrdinalIgnoreCase) || IsBuildOutput(file, projectRoot))
+            if (file.StartsWith(compatRoot, StringComparison.OrdinalIgnoreCase) || IsBuildOutput(file, repositoryRoot))
             {
                 continue;
             }
 
-            var relative = Path.GetRelativePath(projectRoot, file);
+            var relative = Path.GetRelativePath(repositoryRoot, file);
             offenders.AddRange(
                 VersionDirective.Matches(File.ReadAllText(file))
                     .Select(match => $"{relative}: {match.Value.Trim()}"));
@@ -51,18 +55,18 @@ public class CompatBoundaryTests
             + string.Join(Environment.NewLine, offenders));
     }
 
-    private static bool IsBuildOutput(string file, string projectRoot)
+    private static bool IsBuildOutput(string file, string repositoryRoot)
     {
-        var relative = Path.GetRelativePath(projectRoot, file);
-        var first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
-        return first.Equals("bin", StringComparison.OrdinalIgnoreCase)
-            || first.Equals("obj", StringComparison.OrdinalIgnoreCase);
+        var relative = Path.GetRelativePath(repositoryRoot, file);
+        var segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return segments.Any(segment =>
+            segment.Equals("bin", StringComparison.OrdinalIgnoreCase)
+            || segment.Equals("obj", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string PluginProjectRoot([CallerFilePath] string testFilePath = "")
+    private static string RepositoryRoot([CallerFilePath] string testFilePath = "")
     {
         var testsDirectory = Path.GetDirectoryName(testFilePath)!;
-        var repositoryRoot = Path.GetDirectoryName(testsDirectory)!;
-        return Path.Combine(repositoryRoot, "Jellyfin.Plugin.Streamyfin");
+        return Path.GetDirectoryName(testsDirectory)!;
     }
 }

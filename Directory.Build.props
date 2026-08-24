@@ -4,17 +4,17 @@
     Build target selector. The same source produces two artifacts, one per
     Jellyfin runtime, never a single DLL for both:
 
-      JellyfinTarget=jf10  -> Jellyfin 10.11, .NET 9
+      JellyfinTarget=jf11  -> Jellyfin 10.11, .NET 9
       JellyfinTarget=jf12  -> Jellyfin 12,    .NET 10
 
     Build the other target with: dotnet build -p:JellyfinTarget=jf12
 
-    The default stays jf10 while 12 is a release candidate. Flip it the day 12
-    goes stable, and drop the jf10 block entirely the day 10.11 support ends.
+    The default stays jf11 while 12 is a release candidate. Flip it the day 12
+    goes stable, and drop the jf11 block entirely the day 10.11 support ends.
     See Jellyfin.Plugin.Streamyfin/Compat/README.md for the removal procedure.
   -->
   <PropertyGroup>
-    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf10</JellyfinTarget>
+    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf11</JellyfinTarget>
   </PropertyGroup>
 
   <!--
@@ -29,13 +29,13 @@
     through 10.11.8 as well. Those servers should update. This is still wider
     than the current manifest, which demands 10.11.11.
   -->
-  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf10'">
+  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf11'">
     <TargetFramework>net9.0</TargetFramework>
     <JellyfinVersion>10.11.9</JellyfinVersion>
     <JellyfinAbi>10.11.9.0</JellyfinAbi>
     <RuntimeJsonVersion>9.0.0</RuntimeJsonVersion>
     <RuntimeSqliteVersion>9.0.1</RuntimeSqliteVersion>
-    <DefineConstants>$(DefineConstants);JF10</DefineConstants>
+    <DefineConstants>$(DefineConstants);JF11</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf12'">
