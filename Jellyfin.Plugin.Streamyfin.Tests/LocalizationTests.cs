@@ -41,6 +41,10 @@ public class LocalizationTests
     [Fact]
     public void TestStringFormatLocalization()
     {
+        // No culture given: the helper resolves to the invariant culture, which
+        // serves the neutral English resource. Before, it deferred to
+        // CultureInfo.CurrentUICulture and this assertion failed on any machine
+        // whose locale had a translated resx, French for instance.
         Assert.Equal(
             expected: "Test watching",
             actual: _helper.GetFormatted("UserWatching", args: "Test")

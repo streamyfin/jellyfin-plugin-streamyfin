@@ -1,5 +1,6 @@
 #pragma warning disable CA1869
 
+using System;
 using System.Globalization;
 using System.Resources;
 using MediaBrowser.Controller.Configuration;
@@ -42,11 +43,17 @@ public class LocalizationHelper
     public string GetString(string key, CultureInfo? cultureInfo = null) => 
         _resourceManager.GetString(key, cultureInfo ?? GetServerCultureInfo()) ?? key;
 
-    private CultureInfo? GetServerCultureInfo() {
-        _logger?.LogInformation("Current Server UI Culture: {0}", _serverConfig.Configuration.UICulture);
+    /// <summary>
+    /// Falls back to the invariant culture rather than to the ambient one.
+    /// Returning null hands the choice to CultureInfo.CurrentUICulture, so the
+    /// strings a server produced depended on the locale of the machine it ran
+    /// on instead of on its configured UICulture.
+    /// </summary>
+    private CultureInfo GetServerCultureInfo() {
+        _logger?.LogInformation("Current Server UI Culture: {0}", _serverConfig?.Configuration.UICulture);
         return _serverConfig?.Configuration.UICulture != null
-            ? CultureInfo.CreateSpecificCulture(_serverConfig.Configuration.UICulture.Replace("\"", ""))
-            : null;
+            ? CultureInfo.CreateSpecificCulture(_serverConfig.Configuration.UICulture.Replace("\"", "", StringComparison.Ordinal))
+            : CultureInfo.InvariantCulture;
     }
 
     /// <summary>
