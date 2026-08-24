@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Database.Implementations.Enums;
-using Jellyfin.Plugin.Streamyfin.Storage.Models;
+using Jellyfin.Plugin.Streamyfin.Db;
 using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.Streamyfin.Extensions;

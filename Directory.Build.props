@@ -33,8 +33,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <JellyfinVersion>10.11.9</JellyfinVersion>
     <JellyfinAbi>10.11.9.0</JellyfinAbi>
-    <RuntimeJsonVersion>9.0.0</RuntimeJsonVersion>
-    <RuntimeSqliteVersion>9.0.1</RuntimeSqliteVersion>
+    <EfCoreVersion>9.0.11</EfCoreVersion>
     <DefineConstants>$(DefineConstants);JF11</DefineConstants>
   </PropertyGroup>
 
@@ -42,8 +41,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <JellyfinVersion>12.0.0-rc5</JellyfinVersion>
     <JellyfinAbi>12.0.0.0</JellyfinAbi>
-    <RuntimeJsonVersion>10.0.11</RuntimeJsonVersion>
-    <RuntimeSqliteVersion>10.0.11</RuntimeSqliteVersion>
+    <EfCoreVersion>10.0.10</EfCoreVersion>
     <DefineConstants>$(DefineConstants);JF12</DefineConstants>
   </PropertyGroup>
 
