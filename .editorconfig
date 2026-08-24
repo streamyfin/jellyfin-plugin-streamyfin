@@ -45,3 +45,13 @@ dotnet_diagnostic.CA1051.severity = none
 # SerializationHelper.Options is the option bag for the type that contains it and
 # has no meaning outside it. Nesting is the point.
 dotnet_diagnostic.CA1034.severity = none
+
+# CA1873: avoid evaluating an argument that may be expensive when logging is off
+#
+# Added by .NET 10, so it fires on the jf12 target only. Twenty call sites, and
+# almost all of them pass a value that already exists: a session key, a count, a
+# threshold. Guarding those behind IsEnabled would add a branch around a log line
+# to save nothing. Kept as a suggestion rather than silenced, because the handful
+# that call Escape() on a media name do allocate, and the notification pipeline
+# they live in is rebuilt in P4. Fix them there, with the code around them.
+dotnet_diagnostic.CA1873.severity = suggestion
