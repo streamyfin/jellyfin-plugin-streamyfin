@@ -1,6 +1,7 @@
 using System;
-using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Newtonsoft.Json;
+
+namespace Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 
 public class Notification
 {

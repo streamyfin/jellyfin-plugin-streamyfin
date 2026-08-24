@@ -44,7 +44,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         var item = itemChangeEventArgs.Item;
         var enabledLibraries = Config.notifications.ItemAdded.EnabledLibraries;
         var virtualFolder = _libraryManager.GetVirtualFolders()
-            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location) == true));
+            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
 
         if (
             virtualFolder != null &&
@@ -73,7 +73,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
                 if (notification != null)
                 {
-                    _notificationHelper.SendToAll(notification);
+                    SendDetached(_notificationHelper.SendToAll(notification), "item added");
                 }
                 break;
             case Episode episode:

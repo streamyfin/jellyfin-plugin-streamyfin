@@ -63,7 +63,7 @@ public class LocalizationHelper
     /// <param name="cultureInfo"></param>
     /// <param name="args"></param>
     /// <returns></returns>
-    public string GetFormatted(string key, CultureInfo? cultureInfo = null, params object[] args) {
+    public string GetFormatted(string key, CultureInfo? cultureInfo = null, params object?[] args) {
         var culture = cultureInfo ?? GetServerCultureInfo();
         
         var resource = _resourceManager.GetString(key, culture);
