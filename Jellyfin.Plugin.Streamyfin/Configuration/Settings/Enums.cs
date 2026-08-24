@@ -34,6 +34,10 @@ public enum OrientationLock {
      */
     PortraitUp = 3,
     /**
+     * Both landscape directions, letting the device rotate between them.
+     */
+    Landscape = 5,
+    /**
      * Left landscape only.
      */
     LandscapeLeft = 6,
