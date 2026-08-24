@@ -110,17 +110,28 @@ public class PluginDatabase
 
         using var context = CreateContext();
 
+        var timestamp = DateTime.UtcNow.ToFileTime();
         var existing = context.DeviceTokens.FirstOrDefault(t => t.DeviceId == token.DeviceId);
+
+        // Updated in place rather than removed and re-added. Two SaveChanges calls
+        // are two transactions, and a failure between them would leave the device
+        // with no token at all, which the hand written store avoided by doing both
+        // inside one transaction.
         if (existing is not null)
         {
-            context.DeviceTokens.Remove(existing);
-            context.SaveChanges();
+            existing.Token = token.Token;
+            existing.UserId = token.UserId;
+            existing.Timestamp = timestamp;
+        }
+        else
+        {
+            token.Timestamp = timestamp;
+            context.DeviceTokens.Add(token);
         }
 
-        token.Timestamp = DateTime.UtcNow.ToFileTime();
-        context.DeviceTokens.Add(token);
         context.SaveChanges();
 
+        token.Timestamp = timestamp;
         return token;
     }
 
