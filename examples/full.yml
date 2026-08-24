@@ -26,6 +26,28 @@ settings:
     locked: false
     value: 3  # Maximum episodes to autoplay (1-10)
 
+  # ==================== Media Segment Skip ====================
+  # Every type takes: none (never skip), ask (show a skip button), auto (skip on its own)
+  skipIntro:
+    locked: false
+    value: ask  # Intro segments
+
+  skipOutro:
+    locked: false
+    value: ask  # Outro / credits segments
+
+  skipRecap:
+    locked: false
+    value: ask  # Recap segments
+
+  skipCommercial:
+    locked: false
+    value: ask  # Commercial segments
+
+  skipPreview:
+    locked: false
+    value: ask  # Preview segments
+
   # ==================== Audio Settings ====================
   rememberAudioSelections:
     locked: false
