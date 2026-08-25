@@ -106,13 +106,22 @@ public class StreamyfinController : ControllerBase
     return new ConfigSaveResponse { Error = false };
   }
 
+  /// <summary>
+  /// The configuration, as the calling user should receive it.
+  /// </summary>
+  /// <returns>The configuration.</returns>
+  /// <remarks>
+  /// An administrator gets it untouched. Anyone else gets their settings resolved
+  /// across the three targeting levels, with credentials removed and the server side
+  /// blocks left out. Until P1.4 this served the whole configuration, Seerr admin key
+  /// included, to every account on the server.
+  /// </remarks>
   [HttpGet("config")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult getConfig()
   {
-    var config = StreamyfinPlugin.Instance!.Configuration.Config;
-    return new JsonStringResult(_serializationHelperService.SerializeToJson(config));
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(ConfigForCaller()));
   }
 
   [HttpGet("config/schema")]
@@ -123,6 +132,10 @@ public class StreamyfinController : ControllerBase
     return new JsonStringResult(SerializationHelper.GetJsonSchema<Config>());
   }
 
+  /// <summary>
+  /// The configuration as YAML, filtered the same way as the JSON.
+  /// </summary>
+  /// <returns>The configuration.</returns>
   [HttpGet("config/yaml")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -130,7 +143,7 @@ public class StreamyfinController : ControllerBase
   {
     return new ConfigYamlRes
     {
-      Value = _serializationHelperService.SerializeToYaml(StreamyfinPlugin.Instance!.Configuration.Config)
+      Value = _serializationHelperService.SerializeToYaml(ConfigForCaller())
     };
   }
   
@@ -512,6 +525,22 @@ public class StreamyfinController : ControllerBase
   // Through the same tolerant read the resolution uses. Nothing validates the JSON
   // on the way in, and a group whose settings cannot be read has to still appear in
   // the list, or an administrator cannot see it to repair it.
+  /// <summary>
+  /// The configuration the caller is allowed to see, with their levels resolved.
+  /// </summary>
+  /// <returns>The configuration.</returns>
+  private Configuration.Config ConfigForCaller()
+  {
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return Resolution.ForCaller(
+      StreamyfinPlugin.Instance!.Configuration.Config,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId),
+      CallerIsApiKey || _userManager.IsAdministrator(callerId));
+  }
+
   private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()
   {
     Id = group.Id,

@@ -55,6 +55,48 @@ public sealed class SettingsResolutionService(
     }
 
     /// <summary>
+    /// The configuration as one caller should receive it.
+    /// </summary>
+    /// <param name="config">The server's configuration.</param>
+    /// <param name="groups">The caller's groups, least specific first.</param>
+    /// <param name="userOverride">Anything targeted at the caller alone.</param>
+    /// <param name="isElevated">Whether the caller administers this server.</param>
+    /// <returns>
+    /// For an administrator, the configuration untouched: they have to see and edit
+    /// every part of it. For anyone else, the settings resolved for them with the
+    /// credentials removed, and nothing else.
+    /// </returns>
+    /// <remarks>
+    /// This is the fix for the finding at the top of
+    /// <c>docs/rewrite/state-of-the-plugin.md</c>: <c>GET config</c> handed the whole
+    /// configuration, Seerr admin key included, to every account on the server.
+    ///
+    /// <para>
+    /// The notification configuration and the admin's landing page go with it. They are
+    /// server side settings, they cannot be resolved for a caller because they are not
+    /// per user, and the app reads neither: it takes <c>data.settings</c> and nothing
+    /// else. Serving a user the list of accounts that receive notifications is the same
+    /// kind of leak as serving them the key, just quieter.
+    /// </para>
+    /// </remarks>
+    public Config ForCaller(
+        Config? config,
+        IEnumerable<SettingsGroup>? groups,
+        UserSettingsOverride? userOverride,
+        bool isElevated)
+    {
+        if (isElevated)
+        {
+            return config ?? new Config();
+        }
+
+        return new Config
+        {
+            settings = SettingsResolver.Redact(Resolve(config?.settings, groups, userOverride))
+        };
+    }
+
+    /// <summary>
     /// Reads one stored level, tolerating a level that cannot be read.
     /// </summary>
     /// <param name="json">The stored JSON.</param>
