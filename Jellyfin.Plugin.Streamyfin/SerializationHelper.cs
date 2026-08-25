@@ -146,6 +146,23 @@ public class SerializationHelper
     /// </summary>
     public T Deserialize<T>(string value) => _deserializer.Deserialize<T>(value);
 
+    /// <summary>
+    /// Deserialize Json, with the same options <see cref="SerializeToJson{T}"/> writes it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Deserialize{T}"/> goes through YamlDotNet, and YAML is a superset of
+    /// JSON, so it reads most of it. It does not read all of it: the converters
+    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c> and
+    /// <c>SubtitlePlaybackMode</c> as numbers, and YamlDotNet expects the member name.
+    /// Anything stored with <see cref="SerializeToJson{T}"/> has to come back through
+    /// this, or those three settings do not survive the round trip.
+    /// </remarks>
+    /// <typeparam name="T">What to read it as.</typeparam>
+    /// <param name="value">The JSON.</param>
+    /// <returns>The value, or <c>null</c> for a JSON null.</returns>
+    public T? DeserializeJson<T>(string value) =>
+        JsonSerializer.Deserialize<T>(value, GetJsonSerializerOptions());
+
     public static ICollection<ITypeMapper> HTMLFormTypeMappers() => new Collection<ITypeMapper>(new List<ITypeMapper>
         {
             new PrimitiveTypeMapper(

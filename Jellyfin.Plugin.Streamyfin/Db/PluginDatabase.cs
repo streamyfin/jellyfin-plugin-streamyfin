@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -170,6 +171,201 @@ public class PluginDatabase
     {
         using var context = CreateContext();
         context.DeviceTokens.RemoveRange(context.DeviceTokens);
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Gets every settings group.
+    /// </summary>
+    /// <returns>The groups, in layer order.</returns>
+    public List<SettingsGroup> GetSettingsGroups()
+    {
+        using var context = CreateContext();
+        return SettingsResolver.InLayerOrder(context.SettingsGroups.AsNoTracking().ToList()).ToList();
+    }
+
+    /// <summary>
+    /// Gets one settings group.
+    /// </summary>
+    /// <param name="id">The group id.</param>
+    /// <returns>The group, or <c>null</c> when there is no such group.</returns>
+    public SettingsGroup? GetSettingsGroup(Guid id)
+    {
+        using var context = CreateContext();
+        return context.SettingsGroups.AsNoTracking().FirstOrDefault(g => g.Id == id);
+    }
+
+    /// <summary>
+    /// Creates or updates a settings group.
+    /// </summary>
+    /// <param name="group">The group. An empty id means create.</param>
+    /// <returns>The stored group, with its id.</returns>
+    public SettingsGroup SaveSettingsGroup(SettingsGroup group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+
+        using var context = CreateContext();
+
+        if (group.Id == Guid.Empty)
+        {
+            group.Id = Guid.NewGuid();
+            context.SettingsGroups.Add(group);
+        }
+        else
+        {
+            var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == group.Id);
+            if (existing is null)
+            {
+                context.SettingsGroups.Add(group);
+            }
+            else
+            {
+                existing.Name = group.Name;
+                existing.Priority = group.Priority;
+                existing.SettingsJson = group.SettingsJson;
+            }
+        }
+
+        context.SaveChanges();
+        return group;
+    }
+
+    /// <summary>
+    /// Deletes a settings group and everyone's membership of it.
+    /// </summary>
+    /// <param name="id">The group id.</param>
+    /// <remarks>
+    /// Both in one transaction. A group deleted while its memberships survive would
+    /// leave rows that resolve to nothing and reappear if the id were ever reused.
+    /// </remarks>
+    public void RemoveSettingsGroup(Guid id)
+    {
+        using var context = CreateContext();
+
+        var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == id);
+        if (existing is null)
+        {
+            return;
+        }
+
+        context.SettingsGroupMembers.RemoveRange(
+            context.SettingsGroupMembers.Where(m => m.GroupId == id));
+        context.SettingsGroups.Remove(existing);
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Gets the members of a group.
+    /// </summary>
+    /// <param name="groupId">The group id.</param>
+    /// <returns>The Jellyfin user ids.</returns>
+    public List<Guid> GetGroupMembers(Guid groupId)
+    {
+        using var context = CreateContext();
+        return context.SettingsGroupMembers.AsNoTracking()
+            .Where(m => m.GroupId == groupId)
+            .Select(m => m.UserId)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Replaces the membership of a group.
+    /// </summary>
+    /// <param name="groupId">The group id.</param>
+    /// <param name="userIds">Who should be in it afterwards.</param>
+    public void SetGroupMembers(Guid groupId, IEnumerable<Guid> userIds)
+    {
+        using var context = CreateContext();
+
+        context.SettingsGroupMembers.RemoveRange(
+            context.SettingsGroupMembers.Where(m => m.GroupId == groupId));
+
+        foreach (var userId in (userIds ?? []).Distinct())
+        {
+            context.SettingsGroupMembers.Add(new SettingsGroupMember
+            {
+                GroupId = groupId,
+                UserId = userId
+            });
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Gets the groups a user belongs to.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <returns>The groups, least specific first.</returns>
+    public List<SettingsGroup> GetGroupsForUser(Guid userId)
+    {
+        using var context = CreateContext();
+
+        var groups = context.SettingsGroupMembers.AsNoTracking()
+            .Where(m => m.UserId == userId)
+            .Join(
+                context.SettingsGroups.AsNoTracking(),
+                m => m.GroupId,
+                g => g.Id,
+                (_, g) => g)
+            .ToList();
+
+        return SettingsResolver.InLayerOrder(groups).ToList();
+    }
+
+    /// <summary>
+    /// Gets the settings targeted at one user.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <returns>The override, or <c>null</c> when there is none.</returns>
+    public UserSettingsOverride? GetUserSettingsOverride(Guid userId)
+    {
+        using var context = CreateContext();
+        return context.UserSettingsOverrides.AsNoTracking()
+            .FirstOrDefault(o => o.UserId == userId);
+    }
+
+    /// <summary>
+    /// Sets the settings targeted at one user.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="settingsJson">A partial set of settings, as JSON.</param>
+    public void SaveUserSettingsOverride(Guid userId, string settingsJson)
+    {
+        using var context = CreateContext();
+
+        var existing = context.UserSettingsOverrides.FirstOrDefault(o => o.UserId == userId);
+        if (existing is null)
+        {
+            context.UserSettingsOverrides.Add(new UserSettingsOverride
+            {
+                UserId = userId,
+                SettingsJson = settingsJson
+            });
+        }
+        else
+        {
+            existing.SettingsJson = settingsJson;
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Clears the settings targeted at one user.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    public void RemoveUserSettingsOverride(Guid userId)
+    {
+        using var context = CreateContext();
+
+        var existing = context.UserSettingsOverrides.FirstOrDefault(o => o.UserId == userId);
+        if (existing is null)
+        {
+            return;
+        }
+
+        context.UserSettingsOverrides.Remove(existing);
         context.SaveChanges();
     }
 
