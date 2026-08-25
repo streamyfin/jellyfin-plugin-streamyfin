@@ -83,26 +83,39 @@ public class ApiSurfaceTests
     }
 
     /// <summary>
-    /// A shim goes on the same action as the route it stands in for, never on a second
-    /// method that delegates. Two methods drift: one gets a fix, the other does not, and
-    /// the shim quietly stops behaving like the thing it shims.
+    /// A shim goes on the same action as the route it stands in for, and that action
+    /// answers the same path under the prefix. Asserting only that the action has some
+    /// versioned route would pass for an action carrying an unrelated one.
     /// </summary>
+    /// <remarks>
+    /// Same action rather than a second method that delegates. Two methods drift: one
+    /// gets a fix, the other does not, and the shim quietly stops behaving like the
+    /// thing it shims.
+    /// </remarks>
     [Fact]
-    public void AShimSharesTheActionItStandsInFor()
+    public void AShimAnswersTheSamePathUnderThePrefix()
     {
+        var routes = Routes().ToList();
+
         foreach (var legacy in _legacyRoutes)
         {
-            var methods = Routes()
+            var actions = routes
                 .Where(r => r.Template == legacy)
                 .Select(r => r.Method)
                 .Distinct()
                 .ToArray();
 
-            Assert.All(
-                methods,
-                method => Assert.Contains(
-                    Routes().Where(r => r.Method == method),
-                    r => r.Template.StartsWith("v1/", StringComparison.Ordinal)));
+            Assert.NotEmpty(actions);
+
+            foreach (var action in actions)
+            {
+                var templates = routes
+                    .Where(r => r.Method == action)
+                    .Select(r => r.Template)
+                    .ToArray();
+
+                Assert.Contains($"v1/{legacy}", templates);
+            }
         }
     }
 
