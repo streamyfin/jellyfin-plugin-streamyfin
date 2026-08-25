@@ -40,6 +40,47 @@ the plugin's own database in `/config/data/`. The linuxserver image puts plugins
 under `/config/data/plugins/`. Getting that wrong looks exactly like a plugin
 that fails to load, with nothing in the log to say why.
 
+### P1 is complete
+
+**#132, P1.5.** The part the plan wrote as "one time migration of the old XML
+config", assuming the earlier parts had replaced the config model. They had not.
+So the question was whether there was anything to migrate at all, and the answer
+turned out to be yes, but not the thing anyone had written down.
+
+The server level now lives in the plugin's database with the other two, so all
+three targeting levels are in one store and can be read inside one transaction.
+The XML is read once and then left alone, byte for byte, as the way back, which is
+the same rollback path the device token import took in P0.4.
+
+**Jellyfin has been dropping settings silently.** The XML deserializer discards an
+element it has no property for, before anything in the plugin sees it. An
+administrator who set a key that was later removed or renamed has been running
+with a value that does nothing and no way to find out. A real server's file,
+checked while writing this, still carries three: `downloadMethod`,
+`remuxConcurrentLimit` and `autoDownload`. The import now reads the file directly
+and names them. It reports rather than guesses: a removed setting has no new home,
+and inventing one would be worse than saying the value is unused. #109 renamed two
+keys, so this was about to happen again.
+
+**#133, P1.6.** The surface grew a route at a time with no version at all, so
+renaming any of them would have broken every app in the field at once. Every route
+now answers under `v1/` as well as at the path it has always had. The shims are
+extra attributes on the same action, never a second method that delegates: two
+methods drift, one gets a fix and the other does not, and the shim quietly stops
+behaving like the route it stands in for.
+
+`ApiSurfaceTests` is what makes that a mechanism rather than a promise. Removing an
+entry from the list in it is now how a route stops being supported, which should
+take a deliberate edit and a note about which app versions are being cut off.
+
+**Noted and not changed:** `GET config/schema` has no authorization attribute and
+answers 200 to anyone. It carries no server data, being generated from the C#
+types and identical on every install, and the same content sits in
+`examples/full.yml` in a public repository. Closing it breaks the admin page,
+which fetches it with a bare `fetch` and hands the URL to Monaco to fetch again,
+and that JavaScript needs a browser signed in to the dashboard to verify. Worth a
+separate change rather than a blind one.
+
 ### P1.2 to P1.4, and the finding at the top of the dossier is closed
 
 Three parts on `develop`. A hundred tests, still 0 warnings and 0 errors on both
