@@ -28,6 +28,7 @@ public class StreamyfinDbContext : DbContext
         SettingsGroups = Set<SettingsGroup>();
         SettingsGroupMembers = Set<SettingsGroupMember>();
         UserSettingsOverrides = Set<UserSettingsOverride>();
+        GlobalConfigurations = Set<GlobalConfiguration>();
     }
 
     /// <summary>
@@ -43,6 +44,7 @@ public class StreamyfinDbContext : DbContext
         SettingsGroups = Set<SettingsGroup>();
         SettingsGroupMembers = Set<SettingsGroupMember>();
         UserSettingsOverrides = Set<UserSettingsOverride>();
+        GlobalConfigurations = Set<GlobalConfiguration>();
     }
 
     /// <summary>
@@ -69,6 +71,11 @@ public class StreamyfinDbContext : DbContext
     /// Gets or sets the settings targeted at a single user.
     /// </summary>
     public DbSet<UserSettingsOverride> UserSettingsOverrides { get; set; }
+
+    /// <summary>
+    /// Gets or sets the configuration the server declares for everyone. One row.
+    /// </summary>
+    public DbSet<GlobalConfiguration> GlobalConfigurations { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -119,6 +126,13 @@ public class StreamyfinDbContext : DbContext
             entity.ToTable("UserSettingsOverrides");
             entity.HasKey(o => o.UserId);
             entity.Property(o => o.SettingsJson).IsRequired();
+        });
+
+        modelBuilder.Entity<GlobalConfiguration>(entity =>
+        {
+            entity.ToTable("GlobalConfigurations");
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.ConfigJson).IsRequired();
         });
 
         base.OnModelCreating(modelBuilder);

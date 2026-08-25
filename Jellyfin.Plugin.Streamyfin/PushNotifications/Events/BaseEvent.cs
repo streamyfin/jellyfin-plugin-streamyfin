@@ -15,7 +15,7 @@ public abstract class BaseEvent
     private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
 
-    protected static Config? Config => StreamyfinPlugin.Instance?.Configuration.Config;
+    protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;
     
     protected readonly ILogger _logger;
     protected readonly LocalizationHelper _localization;
