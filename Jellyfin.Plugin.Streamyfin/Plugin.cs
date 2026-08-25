@@ -102,37 +102,82 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
     ];
 
+    /// <summary>
+    /// The label the dashboard shows for the plugin's entry.
+    /// </summary>
+    internal const string MenuDisplayName = "Streamyfin";
+
+    /// <summary>
+    /// The dashboard's icon for that entry.
+    /// </summary>
+    /// <remarks>
+    /// It has to be a Material ligature and cannot be the plugin's own logo.
+    /// <c>PluginDrawerSection.tsx</c> in the web client renders it as
+    /// <c>&lt;Icon&gt;{pageInfo.MenuIcon}&lt;/Icon&gt;</c>, which is the MUI icon font
+    /// component, so anything that is not a glyph name comes out as literal text.
+    /// The logo still shows where an image is allowed, on the plugin catalogue entry,
+    /// through <c>imageUrl</c> in the manifest.
+    ///
+    /// <para>
+    /// <c>smart_display</c> is the closest the font gets: a rounded rectangle with a
+    /// play triangle inside it, which is the logo's silhouette.
+    /// </para>
+    /// </remarks>
+    internal const string MenuIcon = "smart_display";
+
+    /// <summary>
+    /// The plugin's pages, the admin's landing page first.
+    /// </summary>
+    /// <returns>The pages, ordered.</returns>
+    /// <remarks>
+    /// The <c>Other.HomePage</c> setting names the page an administrator wants to land
+    /// on. It has to come first because the dashboard opens the plugin on the first
+    /// page it is given.
+    /// </remarks>
+    internal static List<PluginPageInfo> OrderedPages(List<PluginPageInfo> pages, string? homePageName)
+    {
+        ArgumentNullException.ThrowIfNull(pages);
+
+        if (string.IsNullOrWhiteSpace(homePageName))
+        {
+            return pages;
+        }
+
+        var homePage = pages.Find(page => string.Equals(page.Name, homePageName, StringComparison.Ordinal));
+
+        if (homePage is null)
+        {
+            // A page name that no longer exists, from a renamed page or a typo in the
+            // YAML. Serving the pages in their declared order beats serving none.
+            return pages;
+        }
+
+        List<PluginPageInfo> ordered = [homePage];
+        ordered.AddRange(pages.Where(page => page.Name != homePage.Name));
+
+        return ordered;
+    }
+
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        if (Instance?.Configuration?.Config?.Other?.HomePage != null)
-        {
-            var homePage = _pages().FirstOrDefault(page => string.Equals(page.Name, Instance.Configuration.Config.Other.HomePage, StringComparison.Ordinal));
+        var pages = OrderedPages(_pages(), Instance?.Configuration?.Config?.Other?.HomePage);
 
-            if (homePage != null)
-            {
-                List<PluginPageInfo> pages = [homePage];
-                pages.AddRange(_pages().Where(p => p.Name != homePage.Name));
+        // The dashboard renders one entry per page that asks for one, so only the
+        // landing page asks. Marking every page would put four Streamyfin entries in
+        // the drawer, and marking a fixed one would ignore the home page setting.
+        var landing = pages.Count > 0 ? pages[0] : null;
 
-                foreach (var pluginPageInfo in pages)
-                {
-                    yield return pluginPageInfo;
-                }
-            }
-            else
-            {
-                foreach (var pluginPageInfo in _pages())
-                {
-                    yield return pluginPageInfo;
-                }
-            }
-        }
-        else
+        foreach (var pluginPageInfo in pages)
         {
-            foreach (var pluginPageInfo in _pages())
+            if (ReferenceEquals(pluginPageInfo, landing))
             {
-                yield return pluginPageInfo;
+                pluginPageInfo.DisplayName = MenuDisplayName;
+                pluginPageInfo.EnableInMainMenu = true;
+                pluginPageInfo.MenuIcon = MenuIcon;
             }
+
+            yield return pluginPageInfo;
         }
 
         // region pages
