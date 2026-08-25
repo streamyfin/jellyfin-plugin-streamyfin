@@ -211,8 +211,12 @@ names kept as aliases, which closes #95 without breaking every existing YAML.
 
 ## Progress
 
-| Sub part | Pull request |
-|---|---|
-| P0.1 | [#115](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/115) |
-| P0.2 | [#117](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/117) |
-| P0.11 | [#116](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/116) |
+| Sub part | Pull request | State |
+|---|---|---|
+| P0.1 | [#115](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/115) | merged |
+| P0.2 | [#117](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/117) | merged |
+| P0.11 | [#116](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/116) | merged |
+| P0.3, P0.4, P0.5 | [#125](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/125) | open |
+| P0.6 to P0.9 | [#126](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/126) | open |
+| P0.12, P0.13 | [#127](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/127) | open |
+| P0.10 | none | not started, optional, needs a SignPath application |
