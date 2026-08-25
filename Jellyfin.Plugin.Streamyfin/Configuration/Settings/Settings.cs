@@ -40,7 +40,7 @@ public class Home
 public class Section
 {  
   [NotNull]
-  public string title { get; set; }
+  public string title { get; set; } = string.Empty;
 
   [NotNull]
   [Display(Name = "Media poster orientation")]
@@ -135,7 +135,7 @@ public class Latest
 public class CustomEndpoint
 {
   [Display(Name = "Endpoint")]
-  public string endpoint { get; set; }
+  public string endpoint { get; set; } = string.Empty;
   
   [Display(Name = "Request headers")]
   public SerializableDictionary<string, string>? headers { get; set; }
@@ -346,9 +346,10 @@ public class Settings
 [XmlRoot("dictionary")]
 public class SerializableDictionary<TKey, TValue>
        : Dictionary<TKey, TValue>, IXmlSerializable
+  where TKey : notnull
 {
   #region IXmlSerializable Members
-  public System.Xml.Schema.XmlSchema GetSchema()
+  public System.Xml.Schema.XmlSchema? GetSchema()
   {
     return null;
   }
@@ -369,14 +370,19 @@ public class SerializableDictionary<TKey, TValue>
       reader.ReadStartElement("item");
 
       reader.ReadStartElement("key");
-      TKey key = (TKey)keySerializer.Deserialize(reader);
+      var key = (TKey?)keySerializer.Deserialize(reader);
       reader.ReadEndElement();
 
       reader.ReadStartElement("value");
-      TValue value = (TValue)valueSerializer.Deserialize(reader);
+      var value = (TValue?)valueSerializer.Deserialize(reader);
       reader.ReadEndElement();
 
-      this.Add(key, value);
+      // A pair the serializer could not read is skipped rather than added as a
+      // null key, which Dictionary rejects at runtime anyway.
+      if (key is not null && value is not null)
+      {
+        Add(key, value);
+      }
 
       reader.ReadEndElement();
       reader.MoveToContent();

@@ -15,17 +15,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration;
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
 {
-  //public string Yaml { get; set; }
   public Config Config { get; set; }
-  private readonly SerializationHelper _serializationHelper;
-
-  public PluginConfiguration(
-    SerializationHelper serializationHelper
-  )
-  {
-    _serializationHelper = serializationHelper;
-  }
-
 
   public PluginConfiguration()
   {

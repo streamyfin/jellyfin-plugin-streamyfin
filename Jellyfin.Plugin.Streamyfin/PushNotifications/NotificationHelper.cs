@@ -31,8 +31,8 @@ public class NotificationHelper
     /// <summary>
     /// Ability to send a batch of notifications directly to jellyfin admins
     /// </summary>
-    /// <param name="notification"></param>
-    /// <returns></returns>
+    /// <param name="notifications">The notifications to send.</param>
+    /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToAdmins(params Notification[] notifications)
     {
         var adminTokens = _userManager.GetAdminTokens();

@@ -65,15 +65,17 @@ public class PlaybackStartEvent(
                 )
             )
             .OfType<ExpoNotificationRequest>()
-            .Where(notification => !HasRecentlyProcessed(notification.Body))
+            .Where(notification => !HasRecentlyProcessed(notification.Body ?? string.Empty))
             .ToArray();
 
         if (notifications.Length > 0)
         {
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
-                notifications: notifications
-            );
+            SendDetached(
+                _notificationHelper.SendToAdmins(
+                    excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
+                    notifications: notifications
+                ),
+                "playback started");
         }
         else _logger.LogInformation("There are no valid notifications to send.");
     }
