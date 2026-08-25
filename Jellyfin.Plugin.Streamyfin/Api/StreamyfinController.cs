@@ -99,9 +99,7 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = e.ToString() };
     }
 
-    var c = StreamyfinPlugin.Instance!.Configuration;
-    c.Config = p;
-    StreamyfinPlugin.Instance!.UpdateConfiguration(c);
+    StreamyfinPlugin.Instance!.Settings.Save(p);
 
     return new ConfigSaveResponse { Error = false };
   }
@@ -510,7 +508,7 @@ public class StreamyfinController : ControllerBase
     var database = StreamyfinPlugin.Instance!.Database;
 
     var resolved = Resolution.Resolve(
-      StreamyfinPlugin.Instance!.Configuration.Config?.settings,
+      StreamyfinPlugin.Instance!.Settings.Current.settings,
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId));
 
@@ -535,7 +533,7 @@ public class StreamyfinController : ControllerBase
     var database = StreamyfinPlugin.Instance!.Database;
 
     return Resolution.ForCaller(
-      StreamyfinPlugin.Instance!.Configuration.Config,
+      StreamyfinPlugin.Instance!.Settings.Current,
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId),
       CallerIsApiKey || _userManager.IsAdministrator(callerId));

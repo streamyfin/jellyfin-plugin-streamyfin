@@ -30,6 +30,16 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
         Instance = this;
         Database = new PluginDatabase(applicationPaths.DataPath, loggerFactory.CreateLogger<PluginDatabase>());
+
+        Settings = new GlobalConfigurationStore(
+            Database,
+            new SerializationHelper(),
+            loggerFactory.CreateLogger<GlobalConfigurationStore>());
+
+        // Reading base.Configuration here is what makes Jellyfin parse the old XML, so
+        // this is the last point at which its contents are available to carry over.
+        Settings.Import(Configuration?.Config, applicationPaths.PluginConfigurationsPath);
+
         _prefix = GetType().Namespace;
     }
 
@@ -37,6 +47,16 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the plugin's database.
     /// </summary>
     public PluginDatabase Database { get; }
+
+    /// <summary>
+    /// Gets the configuration the server declares for everyone.
+    /// </summary>
+    /// <remarks>
+    /// Reads and writes go here rather than to <c>Configuration</c>, which is Jellyfin's
+    /// XML backed property and stopped being the source of truth in P1.5. The file is
+    /// still on disk, untouched, as the way back.
+    /// </remarks>
+    public GlobalConfigurationStore Settings { get; }
 
     /// <inheritdoc />
     public override string Name => "Streamyfin";
@@ -185,7 +205,7 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 return null;
             }
 
-            var pages = OrderedPages(Instance._pages(), Instance.Configuration?.Config?.Other?.HomePage);
+            var pages = OrderedPages(Instance._pages(), Instance.Settings.Current.Other?.HomePage);
 
             return pages.Count > 0 ? pages[0].Name : null;
         }
@@ -194,7 +214,7 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        var pages = OrderedPages(_pages(), Instance?.Configuration?.Config?.Other?.HomePage);
+        var pages = OrderedPages(_pages(), Instance?.Settings.Current.Other?.HomePage);
 
         // The dashboard renders one entry per page that asks for one, so only the
         // landing page asks. Marking every page would put four Streamyfin entries in

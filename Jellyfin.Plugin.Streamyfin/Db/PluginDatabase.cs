@@ -175,6 +175,81 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Reads the configuration the server declares for everyone.
+    /// </summary>
+    /// <returns>The stored JSON, or <c>null</c> before anything has been written.</returns>
+    public string? GetGlobalConfigJson()
+    {
+        using var context = CreateContext();
+        return context.GlobalConfigurations.AsNoTracking()
+            .FirstOrDefault(c => c.Id == GlobalConfiguration.Current)?.ConfigJson;
+    }
+
+    /// <summary>
+    /// Writes the configuration the server declares for everyone.
+    /// </summary>
+    /// <param name="configJson">The configuration, as JSON.</param>
+    public void SaveGlobalConfigJson(string configJson)
+    {
+        using var context = CreateContext();
+
+        var existing = context.GlobalConfigurations
+            .FirstOrDefault(c => c.Id == GlobalConfiguration.Current);
+
+        if (existing is null)
+        {
+            context.GlobalConfigurations.Add(new GlobalConfiguration
+            {
+                Id = GlobalConfiguration.Current,
+                ConfigJson = configJson
+            });
+        }
+        else
+        {
+            existing.ConfigJson = configJson;
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Carries the configuration over from Jellyfin's plugin XML, once.
+    /// </summary>
+    /// <param name="configJson">The configuration as it stands in the XML, as JSON.</param>
+    /// <returns>True when this call performed the import.</returns>
+    /// <remarks>
+    /// Same shape as the device token import: a marker written in the same transaction
+    /// as the row, so a failure leaves neither and the next start retries. The XML file
+    /// is never written to and never deleted, so downgrading to a build that reads it
+    /// finds it exactly as it was left.
+    /// </remarks>
+    public bool ImportGlobalConfiguration(string configJson)
+    {
+        using var context = CreateContext();
+
+        if (context.ImportMarkers.Any(m => m.Name == ImportMarker.LegacyGlobalConfig))
+        {
+            return false;
+        }
+
+        context.GlobalConfigurations.Add(new GlobalConfiguration
+        {
+            Id = GlobalConfiguration.Current,
+            ConfigJson = configJson
+        });
+
+        context.ImportMarkers.Add(new ImportMarker
+        {
+            Name = ImportMarker.LegacyGlobalConfig,
+            ImportedAt = DateTimeOffset.UtcNow,
+            RowsImported = 1
+        });
+
+        context.SaveChanges();
+        return true;
+    }
+
+    /// <summary>
     /// Gets every settings group.
     /// </summary>
     /// <returns>The groups, in layer order.</returns>

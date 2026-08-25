@@ -17,6 +17,11 @@ public class ImportMarker
     public const string LegacyDeviceTokens = "legacy-device-tokens";
 
     /// <summary>
+    /// The import of the configuration from Jellyfin's plugin XML.
+    /// </summary>
+    public const string LegacyGlobalConfig = "legacy-global-config";
+
+    /// <summary>
     /// Gets or sets the name of the import.
     /// </summary>
     public string Name { get; set; } = string.Empty;
