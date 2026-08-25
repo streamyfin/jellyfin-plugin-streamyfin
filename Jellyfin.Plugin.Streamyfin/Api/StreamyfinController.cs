@@ -44,8 +44,32 @@ public class ConfigSaveResponse
 //}
 
 /// <summary>
-/// CollectionImportController.
+/// The plugin's HTTP surface.
 /// </summary>
+/// <remarks>
+/// Every route exists twice: once under <c>v1/</c>, which is canonical, and once at
+/// the path it has always had. The unversioned ones are shims and nothing new should
+/// use them.
+///
+/// <para>
+/// They are extra attributes on the same action rather than separate methods that
+/// delegate. Two methods drift: one gets a fix, the other does not, and the shim
+/// quietly stops behaving like the route it stands in for.
+/// </para>
+///
+/// <para>
+/// The prefix is what makes the next change to this surface a choice rather than a
+/// breaking one. Every app in the field calls the unversioned paths, and until now
+/// renaming any of them would have broken every installed copy at once. That is also
+/// why <c>device</c> and <c>notification</c> keep working alongside the plural names
+/// they should have had.
+/// </para>
+///
+/// <para>
+/// <c>ApiSurfaceTests</c> is what keeps this true, since a route dropped from a shim
+/// is not a failure anything else would notice until an old client hits a 404.
+/// </para>
+/// </remarks>
 [ApiController]
 [Route("streamyfin")]
 public class StreamyfinController : ControllerBase
@@ -81,6 +105,8 @@ public class StreamyfinController : ControllerBase
     _logger.LogInformation("StreamyfinController Loaded");
   }
 
+  [HttpPost("v1/config/yaml")]
+
   [HttpPost("config/yaml")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -114,6 +140,7 @@ public class StreamyfinController : ControllerBase
   /// blocks left out. Until P1.4 this served the whole configuration, Seerr admin key
   /// included, to every account on the server.
   /// </remarks>
+  [HttpGet("v1/config")]
   [HttpGet("config")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -121,6 +148,8 @@ public class StreamyfinController : ControllerBase
   {
     return new JsonStringResult(_serializationHelperService.SerializeToJson(ConfigForCaller()));
   }
+
+  [HttpGet("v1/config/schema")]
 
   [HttpGet("config/schema")]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -134,6 +163,7 @@ public class StreamyfinController : ControllerBase
   /// The configuration as YAML, filtered the same way as the JSON.
   /// </summary>
   /// <returns>The configuration.</returns>
+  [HttpGet("v1/config/yaml")]
   [HttpGet("config/yaml")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -144,6 +174,8 @@ public class StreamyfinController : ControllerBase
       Value = _serializationHelperService.SerializeToYaml(ConfigForCaller())
     };
   }
+  
+  [HttpGet("v1/config/default")]
   
   [HttpGet("config/default")]
   [Authorize]
@@ -160,6 +192,8 @@ public class StreamyfinController : ControllerBase
   /// Post expo push tokens for a specific user and device
   /// </summary>
   /// <param name="deviceToken"></param>
+  [HttpPost("v1/devices")]
+  [HttpPost("v1/device")]
   [HttpPost("device")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -175,6 +209,8 @@ public class StreamyfinController : ControllerBase
   /// Delete expo push tokens for a specific device 
   /// </summary>
   /// <param name="deviceId"></param>
+  [HttpDelete("v1/devices/{deviceId}")]
+  [HttpDelete("v1/device/{deviceId}")]
   [HttpDelete("device/{deviceId}")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -193,6 +229,8 @@ public class StreamyfinController : ControllerBase
   /// </summary>
   /// <param name="notifications"></param>
   /// <returns></returns>
+  [HttpPost("v1/notifications")]
+  [HttpPost("v1/notification")]
   [HttpPost("notification")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -314,6 +352,7 @@ public class StreamyfinController : ControllerBase
   /// Lists the settings groups.
   /// </summary>
   /// <returns>The groups, least specific first, each with its members.</returns>
+  [HttpGet("v1/groups")]
   [HttpGet("groups")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -331,6 +370,7 @@ public class StreamyfinController : ControllerBase
   /// </summary>
   /// <param name="request">The group to create. Its id is ignored.</param>
   /// <returns>The created group.</returns>
+  [HttpPost("v1/groups")]
   [HttpPost("groups")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -365,6 +405,7 @@ public class StreamyfinController : ControllerBase
   /// <param name="id">The group id.</param>
   /// <param name="request">What it should become. Members are left alone.</param>
   /// <returns>The updated group.</returns>
+  [HttpPut("v1/groups/{id}")]
   [HttpPut("groups/{id}")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -404,6 +445,7 @@ public class StreamyfinController : ControllerBase
   /// </summary>
   /// <param name="id">The group id.</param>
   /// <returns>No content.</returns>
+  [HttpDelete("v1/groups/{id}")]
   [HttpDelete("groups/{id}")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -419,6 +461,7 @@ public class StreamyfinController : ControllerBase
   /// <param name="id">The group id.</param>
   /// <param name="request">Who should be in it afterwards.</param>
   /// <returns>The group, with its new members.</returns>
+  [HttpPut("v1/groups/{id}/members")]
   [HttpPut("groups/{id}/members")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -447,6 +490,7 @@ public class StreamyfinController : ControllerBase
   /// <param name="userId">The Jellyfin user id.</param>
   /// <param name="request">The settings. Send an empty body to clear them.</param>
   /// <returns>No content.</returns>
+  [HttpPut("v1/users/{userId}/settings")]
   [HttpPut("users/{userId}/settings")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -473,6 +517,7 @@ public class StreamyfinController : ControllerBase
   /// </summary>
   /// <param name="userId">The Jellyfin user id.</param>
   /// <returns>No content.</returns>
+  [HttpDelete("v1/users/{userId}/settings")]
   [HttpDelete("users/{userId}/settings")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -499,6 +544,7 @@ public class StreamyfinController : ControllerBase
   /// as elevated here too rather than as an anonymous caller.
   /// </para>
   /// </remarks>
+  [HttpGet("v1/config/resolved")]
   [HttpGet("config/resolved")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
