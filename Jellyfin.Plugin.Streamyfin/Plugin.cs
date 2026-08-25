@@ -167,6 +167,30 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         return ordered;
     }
 
+    /// <summary>
+    /// The page the drawer row points at, which is the page the dashboard opens.
+    /// </summary>
+    /// <remarks>
+    /// Read by <see cref="GetPages"/> to decide which page asks for a menu row, and by
+    /// <c>DrawerLogoPatch</c> to build a selector for that row. Two answers to the same
+    /// question would mean a stylesheet aimed at a row that is not there, which is a
+    /// silent failure: the logo simply never appears.
+    /// </remarks>
+    internal static string? LandingPageName
+    {
+        get
+        {
+            if (Instance is null)
+            {
+                return null;
+            }
+
+            var pages = OrderedPages(Instance._pages(), Instance.Configuration?.Config?.Other?.HomePage);
+
+            return pages.Count > 0 ? pages[0].Name : null;
+        }
+    }
+
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {

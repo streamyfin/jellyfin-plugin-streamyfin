@@ -12,6 +12,8 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </summary>
 public class DrawerLogoPatchTests
 {
+    private const string LandingPage = "Application";
+
     private const string Document = "<html><head><title>Jellyfin</title></head><body></body></html>";
 
     /// <summary>
@@ -20,7 +22,7 @@ public class DrawerLogoPatchTests
     [Fact]
     public void TheStyleGoesInsideTheHead()
     {
-        var patched = DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = Document });
+        var patched = DrawerLogoPatch.Inject(Document, LandingPage);
 
         var style = patched.IndexOf("<style id=\"streamyfin-drawer-logo\"", System.StringComparison.Ordinal);
         var headClose = patched.IndexOf("</head>", System.StringComparison.Ordinal);
@@ -37,8 +39,8 @@ public class DrawerLogoPatchTests
     [Fact]
     public void PatchingTwiceIsTheSameAsPatchingOnce()
     {
-        var once = DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = Document });
-        var twice = DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = once });
+        var once = DrawerLogoPatch.Inject(Document, LandingPage);
+        var twice = DrawerLogoPatch.Inject(once, LandingPage);
 
         Assert.Equal(once, twice);
     }
@@ -50,7 +52,7 @@ public class DrawerLogoPatchTests
     [Fact]
     public void TheRulePointsAtThePluginsOwnImage()
     {
-        var patched = DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = Document });
+        var patched = DrawerLogoPatch.Inject(Document, LandingPage);
 
         var version = typeof(StreamyfinPlugin).Assembly.GetName().Version!.ToString();
 
@@ -58,16 +60,46 @@ public class DrawerLogoPatchTests
     }
 
     /// <summary>
-    /// The rule targets the drawer row for the landing page, which is the row that asks
-    /// for a menu entry.
+    /// The rule targets the drawer row for the landing page, and only inside the drawer's
+    /// plugin list. The page name follows <c>Other.HomePage</c>, so it is read from the
+    /// same place the menu entry is decided rather than written down twice.
     /// </summary>
     [Fact]
     public void TheRuleTargetsTheDrawerRow()
     {
-        var patched = DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = Document });
+        var patched = DrawerLogoPatch.Inject(Document, LandingPage);
 
-        Assert.Contains("configurationpage?name=Application", patched, System.StringComparison.Ordinal);
+        Assert.Contains(
+            $"configurationpage?name={LandingPage}",
+            patched,
+            System.StringComparison.Ordinal);
+        Assert.Contains("[aria-labelledby=\"plugins-subheader\"]", patched, System.StringComparison.Ordinal);
         Assert.Contains(".MuiIcon-root", patched, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The rule follows the home page setting rather than a fixed page. An administrator
+    /// who lands on the YAML editor gets the row they actually have.
+    /// </summary>
+    [Fact]
+    public void TheRuleFollowsTheHomePageSetting()
+    {
+        var patched = DrawerLogoPatch.Inject(Document, "Yaml");
+
+        Assert.Contains("configurationpage?name=Yaml", patched, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("configurationpage?name=Application", patched, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// With no row to aim at, nothing is injected rather than a rule aimed at nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void NoLandingPageMeansNoInjection(string? landingPage)
+    {
+        Assert.Equal(Document, DrawerLogoPatch.Inject(Document, landingPage));
     }
 
     /// <summary>
@@ -79,7 +111,7 @@ public class DrawerLogoPatchTests
     [InlineData("")]
     public void NothingToPatchIsNotAFailure(string? contents)
     {
-        Assert.Equal(string.Empty, DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = contents }));
+        Assert.Equal(string.Empty, DrawerLogoPatch.Inject(contents, LandingPage));
     }
 
     /// <summary>
@@ -90,6 +122,6 @@ public class DrawerLogoPatchTests
     {
         const string Fragment = "<html><body>no head here</body></html>";
 
-        Assert.Equal(Fragment, DrawerLogoPatch.IndexHtml(new FileTransformationPayload { Contents = Fragment }));
+        Assert.Equal(Fragment, DrawerLogoPatch.Inject(Fragment, LandingPage));
     }
 }

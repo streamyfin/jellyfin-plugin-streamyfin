@@ -83,7 +83,20 @@ public class DrawerLogoRegistration : IScheduledTask
             ["callbackMethod"] = nameof(DrawerLogoPatch.IndexHtml)
         };
 
-        pluginInterface.GetMethod(RegisterMethod)?.Invoke(null, [payload]);
+        var register = pluginInterface.GetMethod(RegisterMethod);
+
+        if (register is null)
+        {
+            // The plugin is installed but does not expose what its README documents,
+            // which means it changed under us. Worth a warning rather than the silence
+            // of a null conditional, since the outcome looks exactly like success.
+            _logger.LogWarning(
+                "File Transformation is installed but has no {Method}, so the drawer keeps the Material icon",
+                RegisterMethod);
+            return Task.CompletedTask;
+        }
+
+        register.Invoke(null, [payload]);
         _logger.LogInformation("Registered the drawer logo with File Transformation");
 
         return Task.CompletedTask;
