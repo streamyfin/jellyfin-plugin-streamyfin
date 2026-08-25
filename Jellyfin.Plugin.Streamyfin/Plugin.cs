@@ -119,11 +119,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// through <c>imageUrl</c> in the manifest.
     ///
     /// <para>
-    /// <c>smart_display</c> is the closest the font gets: a rounded rectangle with a
-    /// play triangle inside it, which is the logo's silhouette.
+    /// <c>devices</c> rather than something closer to the logo's play triangle: every
+    /// glyph of that family reads as the YouTube mark, which this plugin is not. It
+    /// also says what the plugin is for, configuring the Streamyfin app on a user's
+    /// devices, which is more use in a drawer than a decorative shape.
     /// </para>
     /// </remarks>
-    internal const string MenuIcon = "smart_display";
+    internal const string MenuIcon = "devices";
 
     /// <summary>
     /// The plugin's pages, the admin's landing page first.
