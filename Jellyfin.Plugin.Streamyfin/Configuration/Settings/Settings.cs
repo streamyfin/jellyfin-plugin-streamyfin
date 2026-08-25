@@ -40,7 +40,7 @@ public class Home
 public class Section
 {  
   [NotNull]
-  public string title { get; set; }
+  public string title { get; set; } = string.Empty;
 
   [NotNull]
   [Display(Name = "Media poster orientation")]
@@ -135,7 +135,7 @@ public class Latest
 public class CustomEndpoint
 {
   [Display(Name = "Endpoint")]
-  public string endpoint { get; set; }
+  public string endpoint { get; set; } = string.Empty;
   
   [Display(Name = "Request headers")]
   public SerializableDictionary<string, string>? headers { get; set; }
@@ -304,6 +304,10 @@ public class Settings
     [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
     public Lockable<string>? jellyseerrServerUrl { get; set; }
 
+    [NotNull]
+    [Display(Name = "Jellyseerr API Key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API — only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
+    public Lockable<string>? jellyseerrApiKey { get; set; }
+
     // Marlin Search
     [NotNull]
     [Display(Name = "Default search engine", Description = "Enter the search engine you want to use in streamyfin")]
@@ -350,9 +354,10 @@ public class Settings
 [XmlRoot("dictionary")]
 public class SerializableDictionary<TKey, TValue>
        : Dictionary<TKey, TValue>, IXmlSerializable
+  where TKey : notnull
 {
   #region IXmlSerializable Members
-  public System.Xml.Schema.XmlSchema GetSchema()
+  public System.Xml.Schema.XmlSchema? GetSchema()
   {
     return null;
   }
@@ -373,14 +378,19 @@ public class SerializableDictionary<TKey, TValue>
       reader.ReadStartElement("item");
 
       reader.ReadStartElement("key");
-      TKey key = (TKey)keySerializer.Deserialize(reader);
+      var key = (TKey?)keySerializer.Deserialize(reader);
       reader.ReadEndElement();
 
       reader.ReadStartElement("value");
-      TValue value = (TValue)valueSerializer.Deserialize(reader);
+      var value = (TValue?)valueSerializer.Deserialize(reader);
       reader.ReadEndElement();
 
-      this.Add(key, value);
+      // A pair the serializer could not read is skipped rather than added as a
+      // null key, which Dictionary rejects at runtime anyway.
+      if (key is not null && value is not null)
+      {
+        Add(key, value);
+      }
 
       reader.ReadEndElement();
       reader.MoveToContent();

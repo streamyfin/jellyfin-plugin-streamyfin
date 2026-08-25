@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using MediaBrowser.Controller;
 using Microsoft.Extensions.Logging;
@@ -30,6 +32,28 @@ public abstract class BaseEvent
         _localization = localization;
         _applicationHost = applicationHost;
         _notificationHelper = notificationHelper;
+    }
+
+    /// <summary>
+    /// Starts a send the caller cannot await, and logs the failure instead of
+    /// letting it disappear.
+    /// </summary>
+    /// <param name="send">The send in progress.</param>
+    /// <param name="what">What is being sent, for the log line.</param>
+    /// <remarks>
+    /// Jellyfin's event handlers are synchronous, so a send cannot be awaited from
+    /// one. Before this the exception landed in a task nobody observed, which is
+    /// why a failing send looked exactly like a working one.
+    /// </remarks>
+    protected void SendDetached(Task send, string what)
+    {
+        ArgumentNullException.ThrowIfNull(send);
+
+        _ = send.ContinueWith(
+            task => _logger.LogError(task.Exception, "Failed to send the {What} notification", what),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
     }
 
     /// <summary>

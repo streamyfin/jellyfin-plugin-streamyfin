@@ -5,7 +5,8 @@ using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
-using Jellyfin.Plugin.Streamyfin.Storage.Models;
+using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
@@ -144,7 +145,7 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Post expo push tokens for a specific user & device 
+  /// Post expo push tokens for a specific user and device
   /// </summary>
   /// <param name="deviceToken"></param>
   [HttpPost("device")]

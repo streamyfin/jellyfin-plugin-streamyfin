@@ -33,6 +33,23 @@ public class ItemAddedService : BaseEvent, IHostedService
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
     }
 
+    /// <summary>
+    /// Whether notifications are enabled for the library an item was added to.
+    /// </summary>
+    /// <param name="enabledLibraries">
+    /// The configured library ids. Absent or empty means every library is enabled, so a
+    /// configuration that never mentions <c>enabledLibraries</c> notifies for everything.
+    /// </param>
+    /// <param name="libraryItemId">The id of the library the item was found in.</param>
+    /// <returns><c>true</c> when the library should produce notifications.</returns>
+    public static bool IsLibraryEnabled(string[]? enabledLibraries, string? libraryItemId)
+    {
+        if (enabledLibraries is not { Length: > 0 }) return true;
+
+        return libraryItemId is not null
+               && enabledLibraries.Contains(libraryItemId, StringComparer.Ordinal);
+    }
+
     private void ItemAddedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
     {
         if (
@@ -44,13 +61,9 @@ public class ItemAddedService : BaseEvent, IHostedService
         var item = itemChangeEventArgs.Item;
         var enabledLibraries = Config.notifications.ItemAdded.EnabledLibraries;
         var virtualFolder = _libraryManager.GetVirtualFolders()
-            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location) == true));
+            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
 
-        if (
-            virtualFolder != null &&
-            enabledLibraries.Length > 0 &&
-            !enabledLibraries.Contains(virtualFolder.ItemId)
-        )
+        if (virtualFolder != null && !IsLibraryEnabled(enabledLibraries, virtualFolder.ItemId))
         {
             _logger.LogInformation(
                 "Failed to notify about item {0} - {1}. Library {2} currently not enabled for notifications.",
@@ -73,7 +86,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
                 if (notification != null)
                 {
-                    _notificationHelper.SendToAll(notification);
+                    SendDetached(_notificationHelper.SendToAll(notification), "item added");
                 }
                 break;
             case Episode episode:

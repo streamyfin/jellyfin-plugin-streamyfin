@@ -5,6 +5,7 @@ using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using Microsoft.Extensions.Logging;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 

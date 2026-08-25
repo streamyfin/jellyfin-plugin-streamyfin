@@ -14,7 +14,7 @@ public class ExpoNotificationRequest
     /// An array of Expo push tokens specifying the recipient(s) of this message.
     /// </summary>
     [JsonProperty("to", DefaultValueHandling = DefaultValueHandling.Ignore)]
-    public List<string> To { get; set; }
+    public List<string> To { get; set; } = [];
 
     /// <summary>
     /// iOS Only
@@ -48,7 +48,7 @@ public class ExpoNotificationRequest
     /// Maps to AndroidNotification.body and aps.alert.body.
     /// </summary>
     [JsonProperty(PropertyName = "body")]
-    public string Body { get; set; }
+    public string? Body { get; set; }
 
     /// <summary>
     /// The number of seconds for which the message may be kept around for redelivery if it hasn't been delivered yet.

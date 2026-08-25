@@ -8,29 +8,118 @@ permissions:
   contents: write
 
 jobs:
-  main:
-    name: Create release
+  # The version is computed once and handed to every other job. Computing it per
+  # job would let two jobs disagree if a commit landed between them.
+  version:
+    name: Compute version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
 
-      - name: build and release application
+      - id: compute
+        run: echo "version=$(node scripts/next-version.js)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [jf11, jf12]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Stamp the version into the assembly
+        run: make update-version
+
+      - name: Test
+        run: make test JELLYFIN_TARGET=${{ matrix.target }}
+
+      - name: Build and package
         run: |
-          git config --global user.name 'streamyfin'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          make release
+          make build JELLYFIN_TARGET=${{ matrix.target }}
+          make zip JELLYFIN_TARGET=${{ matrix.target }}
+          make print JELLYFIN_TARGET=${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: streamyfin-${{ matrix.target }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Show what will be published
+        run: ls -l dist
+
+      # One tag and one release carrying both artifacts. Two releases would mean
+      # two changelogs for the same commit and two things for a user to choose
+      # between without knowing which server line they are on.
+      - name: Tag and release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'streamyfin'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          make update-version
+          git commit -m "new release: ${VERSION}" Jellyfin.Plugin.Streamyfin/Jellyfin.Plugin.Streamyfin.csproj
+          git tag "${VERSION}"
+          git push origin HEAD:main --tags
+          gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
+
+      # Each manifest gets its own entry, with the targetAbi the matching build
+      # was compiled against. The checksum is verified against the uploaded file
+      # before the manifest is written, so a failed upload cannot be published.
+      - name: Update both manifests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make update-manifest JELLYFIN_TARGET=jf11
+          make update-manifest JELLYFIN_TARGET=jf12
+          git commit -m "new release: ${VERSION} manifests" manifest.json manifest-jf12.json
+          git push origin HEAD:main

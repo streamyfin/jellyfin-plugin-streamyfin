@@ -1,27 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
 <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.Streamyfin</RootNamespace>
-    <AssemblyVersion>0.67.0.0</AssemblyVersion>
-    <FileVersion>0.67.0.0</FileVersion>
+    <AssemblyVersion>0.68.1.0</AssemblyVersion>
+    <FileVersion>0.68.1.0</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <CodeAnalysisRuleSet>../jellyfin.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.*-*" />
-    <PackageReference Include="Jellyfin.Model" Version="10.11.*-*" />
+    <PackageReference Include="Jellyfin.Controller" Version="$(JellyfinVersion)" />
+    <PackageReference Include="Jellyfin.Model" Version="$(JellyfinVersion)" />
     <PackageReference Include="Namotion.Reflection" Version="3.1.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Newtonsoft.Json.Schema" Version="3.0.16" />
     <PackageReference Include="NJsonSchema" Version="11.0.2" />
-    <PackageReference Include="System.Net.Http.Json" Version="9.0.0" />
-    <PackageReference Include="System.Security.Claims" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="16.0.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EfCoreVersion)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" PrivateAssets="All" />
+    <!--
+      Pinned past the transitive 2.1.11, which carries GHSA-2m69-gcr7-jv3q. The
+      plugin does not ship this package, the server does, so this only keeps our
+      own build audit clean rather than changing what runs. Drop the pin once EF
+      Core resolves a patched version on its own.
+    -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.Streamyfin.Tests" />
   </ItemGroup>
 
   <ItemGroup>

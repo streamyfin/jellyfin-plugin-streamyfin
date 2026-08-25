@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  auto_review:
+    # The default branch is always included. The rewrite lands on develop, and
+    # stacked pull requests target the branch below them, so both need to be
+    # listed or CodeRabbit skips every pull request in the stack.
+    base_branches:
+      - "develop"
+      - "refonte/.*"

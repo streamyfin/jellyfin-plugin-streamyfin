@@ -26,6 +26,28 @@ settings:
     locked: false
     value: 3  # Maximum episodes to autoplay (1-10)
 
+  # ==================== Media Segment Skip ====================
+  # Every type takes: none (never skip), ask (show a skip button), auto (skip on its own)
+  skipIntro:
+    locked: false
+    value: ask  # Intro segments
+
+  skipOutro:
+    locked: false
+    value: ask  # Outro / credits segments
+
+  skipRecap:
+    locked: false
+    value: ask  # Recap segments
+
+  skipCommercial:
+    locked: false
+    value: ask  # Commercial segments
+
+  skipPreview:
+    locked: false
+    value: ask  # Preview segments
+
   # ==================== Audio Settings ====================
   rememberAudioSelections:
     locked: false
@@ -55,7 +77,7 @@ settings:
   # ==================== Video Orientation ====================
   defaultVideoOrientation:
     locked: false
-    value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
+    value: Default  # Options: Default, PortraitUp, Landscape, LandscapeLeft, LandscapeRight
 
   # ==================== UI & Controls ====================
   safeAreaInControlsEnabled:
@@ -112,6 +134,13 @@ settings:
   jellyseerrServerUrl:
     locked: false
     value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
+  # Optional: Seerr admin API key (Seerr Settings > General). Lets Streamyfin
+  # sign each user in to Seerr without a password (works with Quick Connect).
+  # WARNING: every authenticated Jellyfin user can read this key and it grants
+  # full admin access to the Seerr API. Only set it if you trust all users.
+  # jellyseerrApiKey:
+  #   locked: true
+  #   value: "your-seerr-api-key"
   
   # Marlin (Enhanced Search)
   searchEngine:
@@ -200,6 +229,14 @@ settings:
               - DateCreated
             sortOrder:
               - Descending
+            # Jellyfin's own item kind names, not the words used in the UI.
+            # A collection is a BoxSet, a folder is a Folder, a music album is a
+            # MusicAlbum. Common values: Movie, Series, Season, Episode, BoxSet,
+            # Playlist, MusicAlbum, MusicArtist, Audio, Book, Photo, PhotoAlbum,
+            # LiveTvChannel, LiveTvProgram, Folder, CollectionFolder.
+            # A name that is not one of these is ignored rather than reported,
+            # so the section simply comes back with the wrong contents.
+            # The full list is served at GET /streamyfin/config/schema.
             includeItemTypes:
               - Series
               - Movie
