@@ -17,8 +17,7 @@ request rather than deleting it.
 | Tolerate a server still on the old format | plan P2.3 | with P2.1 |
 | Remove the hidden Streamystats rule | plan P2.4 | any time |
 | Offer Landscape Auto in the settings screen | issue #110 | any time, small |
-| Grey out the mute subtitle switch when locked | PR #109 | any time, small |
-| Decide on an allow restart setting | PR #109 | before that plugin key |
+| Audit every settings screen for a missing `disabled` binding | PR #109 | any time, small |
 | Seerr integration on tvOS | issue #108 | with P6 |
 | Seerr authentication by user token | issue #82, seerr#2244 | with P6 |
 
@@ -48,35 +47,17 @@ Add `ScreenOrientation.OrientationLock.LANDSCAPE` and its entry in the local
 in `ScreenOrientationEnum` in `utils/atoms/settings.ts`, so nothing else is
 needed.
 
-### Grey out the mute subtitle switch when locked
+### Audit every settings screen for a missing `disabled` binding
 
-`components/settings/SubtitleToggles.tsx:442` renders the `subtitlesOnMute` switch
-with no `disabled` binding. A locked value is still enforced, on read through
-`effectiveSettingsAtom` and on write through `updateSettings`, so the setting
-cannot be changed. The switch just gives no sign of it, and the user is left
-wondering why it snaps back.
+The mute subtitle switch had none, so a locked value was enforced centrally on
+read and on write while the control gave no sign of it: the user toggled it and
+watched it snap back with no explanation. Fixed on `feat/subtitles-on-mute`, along
+with the allow restart switch and both TV equivalents.
 
-`components/settings/OtherSettings.tsx` shows the pattern to copy: it reads
-`pluginSettings?.defaultVideoOrientation?.locked` and disables accordingly.
-
-The same audit is worth running across every settings screen. This one was found
-by accident while triaging a plugin pull request, which suggests there are others.
-
-### Decide on an allow restart setting
-
-Plugin pull request [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109)
-declares `autoSubtitlesOnMuteAllowRestart`, described as allowing subtitle formats
-that need the server to re-process the stream. Nothing in the app implements or
-reads it.
-
-Either the app grows the setting and the plugin declares it afterwards, or the
-plugin drops the key. Declaring a lockable key for behaviour that does not exist
-is how the plugin ends up with settings nobody can explain.
-
-Note also that the app's `subtitlesOnMute` is iOS only and not TV
-(`SubtitleToggles.tsx:439`) and lives in the native player
-(`providers/NativePlayerProvider.tsx:1039`). A plugin setting that silently does
-nothing on Android or on TV needs to say so in its description.
+It was found by accident while triaging a plugin pull request, which is the part
+worth acting on. `components/settings/OtherSettings.tsx` shows the pattern, reading
+`pluginSettings?.defaultVideoOrientation?.locked`. Every lockable setting needs the
+same, and nothing checks that today.
 
 ### Consume the server resolved effective set
 
@@ -141,4 +122,10 @@ disappear.
 
 ## Done
 
-Nothing yet.
+### Subtitles when muted, and the allow restart switch
+
+`feat/subtitles-on-mute` adds `subtitlesOnMuteAllowRestart`, wires the `disabled`
+bindings on both switches on phone and on TV, and sets the defaults to `true` and
+`false`. The plugin side landed in #109 declaring the same two keys with the same
+defaults. **Not pushed yet**, so the app's published `develop` still has neither
+the second key nor the bindings.

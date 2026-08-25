@@ -9,7 +9,7 @@ and in [plan.md](plan.md), not here.
 
 | PR | Age | State | Verdict |
 |---|---|---|---|
-| [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109) | opened 2026-07-30 | clean | Right feature, wrong keys. Settle the names, the allow restart setting and the default before merging. |
+| [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109) | opened 2026-07-30 | **merged 2026-08-25** | All three points settled. See below. |
 | [#81](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/81) | opened 2025-11-18 | clean, never reviewed | Real feature, collides with P4.4. Decide, do not leave it rotting. |
 | [#71](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/71) | opened 2025-09-16 | conflicting | Close. |
 
@@ -35,24 +35,30 @@ Neither `autoSubtitlesOnMute` nor anything resembling an allow restart setting
 exists anywhere in the app. Merged as it stands, this pull request ships two keys
 nothing reads, and the lock it is meant to enable still does nothing.
 
-Three things to settle before it merges:
+Three things had to be settled, and all three were, on 2026-08-25.
 
-1. **Rename** `autoSubtitlesOnMute` to `subtitlesOnMute`, so the key the plugin
-   pushes is the key the app resolves.
-2. **The second key does not exist yet.** Either drop it, or add the setting to
-   the app first and land the plugin side after. Declaring it now is the same
-   mistake in the other direction.
-3. **The default disagrees.** The pull request defaults it to on, the app defaults
-   `subtitlesOnMute` to `false`. An unlocked plugin value is applied once as a
-   default, so merging as is turns the feature on for every user who has not
-   already chosen. That may well be the intent, but it should be a decision.
+1. **Renamed.** `autoSubtitlesOnMute` and `autoSubtitlesOnMuteAllowRestart` became
+   `subtitlesOnMute` and `subtitlesOnMuteAllowRestart`, which are the keys the app
+   resolves.
+2. **The second key exists now.** The app branch `feat/subtitles-on-mute` adds
+   `subtitlesOnMuteAllowRestart` at `utils/atoms/settings.ts:384`, reads it in both
+   players (`app/(auth)/player/direct-player.tsx:1359` and
+   `providers/NativePlayerProvider.tsx:1120`), and offers it on phone and on TV. So
+   the note above about the setting being native player and iOS only no longer
+   holds either.
+3. **The defaults agree.** `utils/atoms/settings.ts:558-559` is `true` and `false`,
+   which is what the plugin now declares. Three tests in the plugin pin the key
+   names, the defaults, and the fact that neither ships locked, so this cannot
+   drift back quietly.
 
-One more thing the description assumes and the code does not do: the switch in
-`SubtitleToggles.tsx` has no `disabled` binding, unlike the orientation control in
-`OtherSettings.tsx` which reads `pluginSettings?.defaultVideoOrientation?.locked`.
-A locked value is still enforced centrally on read and on write, so locking works,
-but the switch will not grey out until that binding is added. Listed in
-[app-side-work.md](app-side-work.md).
+The `disabled` binding the description assumed is on the same app branch, at
+`components/settings/SubtitleToggles.tsx:442` and `:459`, and on the TV screen at
+`app/(auth)/(tabs)/(home)/settings.tv.tsx:1022` and `:1031`.
+
+**That branch is not pushed yet.** On the app's published `develop`, only
+`subtitlesOnMute` exists and the switch still has no `disabled` binding. The plugin
+side is safe to be ahead: the defaults it declares match the app's, so an app that
+has not moved sees no change. The feature is usable once both are out.
 
 ## #81, Seerr webhook notifications
 

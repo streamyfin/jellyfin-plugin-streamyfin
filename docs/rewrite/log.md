@@ -40,6 +40,75 @@ the plugin's own database in `/config/data/`. The linuxserver image puts plugins
 under `/config/data/plugins/`. Getting that wrong looks exactly like a plugin
 that fails to load, with nothing in the log to say why.
 
+### P1.1, and #109 finally answered
+
+Two more on `develop`. Fifty one tests now, still 0 warnings and 0 errors on both
+targets.
+
+**#128, P1.1.** `SettingsSchema` reads `Settings.cs` once and hands back a
+descriptor per key: the type unwrapped from `Lockable`, whether it locks, whether
+it holds a credential, and the label the property already carries. P1.3 resolving
+a value across three levels, P1.4 deciding what leaves the config endpoint, and
+P3.1 rendering a form all need to walk the settings, and without this each of them
+keeps its own property list. The first one to drift is the one that leaks a key
+nobody remembered to add.
+
+Secrecy is an attribute on the property rather than a third field on `Lockable`,
+because it belongs to the key and not to the value an admin writes. So an admin
+cannot mark the Seerr key public by editing their YAML, and the file format every
+installation already writes is unchanged. The generated schema carries it as
+`x-secret` **on the property**, not on the shared `LockableOfString` definition
+that three plain URLs also point at. There is a test for that, because it is the
+mistake the design exists to avoid.
+
+**#109.** Open since 30 July, and the triage was right about all three of its
+problems. The keys were renamed to the ones the app actually resolves, the app
+grew the second key and the `disabled` bindings on `feat/subtitles-on-mute`, and
+the defaults now agree at `true` and `false`. Three tests pin the names, the
+defaults, and the fact that neither ships locked, in the same spirit as the
+orientation tests pinning the Expo contract. Rebased from `main` onto `develop`
+and merged with no conflicts.
+
+### Seerr authentication, decided
+
+Not to be proxied through the plugin. Recorded here because it is the kind of
+decision that otherwise lives in one comment thread.
+
+The mechanism today is worse than the finding suggests.
+`hooks/useJellyseerr.ts:263` does not sign a user in: `loginWithApiKey` calls
+`GET /user/jellyfin/{id}` to *resolve* the Seerr account, and every call after
+that goes out with the admin key. The app's own comment says it, at line 159:
+"API-key calls act as the key's owner, so requests must carry the Seerr id of the
+signed-in user to be attributed to them." Attribution is a parameter the client
+chooses. So any user who reads the key can request as anyone, and approve. The key
+is also held on every device and sent over the network on every session.
+
+A server side proxy cannot be small, which is what settles it. Seerr has no
+endpoint that mints a scoped session for another user, which is exactly what
+[seerr#2244](https://github.com/seerr-team/seerr/pull/2244) adds and that pull
+request is still open. So the plugin could not hand out a per user token; it would
+have to relay every Seerr call, injecting the key and the `actAsUserId` itself.
+That makes the plugin a Seerr client, and it becomes dead code the day #2244
+lands.
+
+Jellyfin 12 does not force the issue either. What is `[Obsolete]` on `master` is
+`AuthenticateUser`, the one taking a user id and a password, plus three `*Legacy`
+update endpoints. `POST /Users/AuthenticateByName` and `GET /Users/Me` are
+untouched, and those are the two Seerr needs, for its current login and for
+validating a token under #2244.
+
+And the break is smaller than the triage assumed.
+`components/settings/Jellyseerr.tsx:91-113` falls back to the classic password
+login when no key is present. Filtering the key for non administrators costs the
+passwordless convenience, not the integration.
+
+So P1.4 filters it like any other secret, and the passwordless path returns with
+#2244, using the user's own token rather than an admin key. One thing not to
+forget when that lands: `Jellyseerr.tsx:118` persists the key into each device's
+own settings storage, so filtering it server side does not remove it from the
+devices that already connected. **The Seerr key has to be rotated** or the fix is
+cosmetic for existing installations.
+
 ### P0 landed on `develop`
 
 The six open pull requests merged in the order #121 gave: #122, #123, #124, #125,
