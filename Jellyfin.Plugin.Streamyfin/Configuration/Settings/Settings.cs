@@ -229,11 +229,11 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Subtitles when muted", Description = "Turn subtitles on automatically while the sound is off, and turn them back off when it returns")]
-    public Lockable<bool>? autoSubtitlesOnMute { get; set; } // = true;
+    public Lockable<bool>? subtitlesOnMute { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
-    public Lockable<bool>? autoSubtitlesOnMuteAllowRestart { get; set; } // = false;
+    public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
