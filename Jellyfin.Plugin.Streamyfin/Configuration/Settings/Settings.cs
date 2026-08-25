@@ -226,7 +226,15 @@ public class Settings
     [NotNull]
     [Display(Name = "Remember subtitle selection", Description = "Allows you to set the subtitle language from the previous played item")]
     public Lockable<bool>? rememberSubtitleSelections { get; set; } // = true;
-    
+
+    [NotNull]
+    [Display(Name = "Subtitles when muted", Description = "Turn subtitles on automatically while the sound is off, and turn them back off when it returns")]
+    public Lockable<bool>? subtitlesOnMute { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
+    public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
+
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     public Lockable<int>? subtitleSize { get; set; } // = 80;

@@ -62,6 +62,14 @@ settings:
     locked: false
     value: false  # Remember subtitle language from previous playback
   
+  subtitlesOnMute:
+    locked: false
+    value: true  # Turn subtitles on automatically while the sound is off
+  
+  subtitlesOnMuteAllowRestart:
+    locked: false
+    value: false  # Allow subtitle formats that need the server to re-process the stream
+  
   subtitleSize:
     locked: false
     value: 80  # Subtitle size percentage (0-120)
