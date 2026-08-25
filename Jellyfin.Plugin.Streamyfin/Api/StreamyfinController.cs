@@ -5,6 +5,7 @@ using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Common.Api;
@@ -274,4 +275,251 @@ public class StreamyfinController : ControllerBase
     task.Wait();
     return new JsonResult(_serializationHelperService.ToJson(task.Result));
   }
+
+  // region Settings groups
+  //
+  // The three targeting levels of P1: what the server declares for everyone, the
+  // groups an administrator defines, and anything aimed at one user. Everything
+  // that writes is elevation only. The one route that reads is the caller's own
+  // resolved set.
+
+  private const string UserIdClaim = "Jellyfin-UserId";
+  private const string IsApiKeyClaim = "Jellyfin-IsApiKey";
+
+  private Guid CallerId =>
+    Guid.TryParse(User?.FindFirst(UserIdClaim)?.Value, out var id) ? id : Guid.Empty;
+
+  // An API key is granted by an administrator and carries no user, which is why
+  // Jellyfin's own RequiresElevation accepts one. Treated the same here, or the
+  // routes an admin can call with their account would answer differently to the
+  // key they created for a script.
+  private bool CallerIsApiKey =>
+    bool.TryParse(User?.FindFirst(IsApiKeyClaim)?.Value, out var isApiKey) && isApiKey;
+
+  private SettingsResolutionService Resolution =>
+    new(_serializationHelperService, _loggerFactory.CreateLogger<SettingsResolutionService>());
+
+  /// <summary>
+  /// Lists the settings groups.
+  /// </summary>
+  /// <returns>The groups, least specific first, each with its members.</returns>
+  [HttpGet("groups")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<List<SettingsGroupDto>> GetSettingsGroups()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return database.GetSettingsGroups()
+      .Select(group => ToDto(group, database.GetGroupMembers(group.Id)))
+      .ToList();
+  }
+
+  /// <summary>
+  /// Creates a settings group.
+  /// </summary>
+  /// <param name="request">The group to create. Its id is ignored.</param>
+  /// <returns>The created group.</returns>
+  [HttpPost("groups")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public ActionResult<SettingsGroupDto> CreateSettingsGroup([FromBody, Required] SettingsGroupDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+      return BadRequest("A group needs a name");
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    var stored = database.SaveSettingsGroup(new SettingsGroup
+    {
+      Id = Guid.Empty,
+      Name = request.Name,
+      Priority = request.Priority,
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+    });
+
+    database.SetGroupMembers(stored.Id, request.UserIds);
+
+    return ToDto(stored, database.GetGroupMembers(stored.Id));
+  }
+
+  /// <summary>
+  /// Updates a settings group.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <param name="request">What it should become. Members are left alone.</param>
+  /// <returns>The updated group.</returns>
+  [HttpPut("groups/{id}")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public ActionResult<SettingsGroupDto> UpdateSettingsGroup(
+    [FromRoute, Required] Guid id,
+    [FromBody, Required] SettingsGroupDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+      return BadRequest("A group needs a name");
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    if (database.GetSettingsGroup(id) is null)
+    {
+      return NotFound();
+    }
+
+    var stored = database.SaveSettingsGroup(new SettingsGroup
+    {
+      Id = id,
+      Name = request.Name,
+      Priority = request.Priority,
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+    });
+
+    return ToDto(stored, database.GetGroupMembers(id));
+  }
+
+  /// <summary>
+  /// Deletes a settings group and everyone's membership of it.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <returns>No content.</returns>
+  [HttpDelete("groups/{id}")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public ActionResult DeleteSettingsGroup([FromRoute, Required] Guid id)
+  {
+    StreamyfinPlugin.Instance!.Database.RemoveSettingsGroup(id);
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Replaces the membership of a group.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <param name="request">Who should be in it afterwards.</param>
+  /// <returns>The group, with its new members.</returns>
+  [HttpPut("groups/{id}/members")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public ActionResult<SettingsGroupDto> SetSettingsGroupMembers(
+    [FromRoute, Required] Guid id,
+    [FromBody, Required] SettingsGroupMembersDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    var database = StreamyfinPlugin.Instance!.Database;
+    var group = database.GetSettingsGroup(id);
+
+    if (group is null)
+    {
+      return NotFound();
+    }
+
+    database.SetGroupMembers(id, request.UserIds);
+    return ToDto(group, database.GetGroupMembers(id));
+  }
+
+  /// <summary>
+  /// Sets the settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <param name="request">The settings. Send an empty body to clear them.</param>
+  /// <returns>No content.</returns>
+  [HttpPut("users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public ActionResult SetUserSettingsOverride(
+    [FromRoute, Required] Guid userId,
+    [FromBody, Required] UserSettingsOverrideDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    if (request.Settings is null)
+    {
+      database.RemoveUserSettingsOverride(userId);
+      return NoContent();
+    }
+
+    database.SaveUserSettingsOverride(userId, _serializationHelperService.SerializeToJson(request.Settings));
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Clears the settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <returns>No content.</returns>
+  [HttpDelete("users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public ActionResult ClearUserSettingsOverride([FromRoute, Required] Guid userId)
+  {
+    StreamyfinPlugin.Instance!.Database.RemoveUserSettingsOverride(userId);
+    return NoContent();
+  }
+
+  /// <summary>
+  /// The settings the calling user actually gets, with the three levels resolved.
+  /// </summary>
+  /// <returns>The resolved settings.</returns>
+  /// <remarks>
+  /// Credentials are stripped unless the caller administers the server. That is not
+  /// P1.4, which is about retiring the behaviour of <c>GET config</c> and dealing
+  /// with what the app does about it. It is this route not being a second way to
+  /// read the Seerr key.
+  ///
+  /// <para>
+  /// A caller authenticating with an API key has no user, so there is nothing to
+  /// resolve beyond what the server declares for everyone. The key is granted by an
+  /// administrator, and Jellyfin's own elevation policy accepts one, so it is treated
+  /// as elevated here too rather than as an anonymous caller.
+  /// </para>
+  /// </remarks>
+  [HttpGet("config/resolved")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult GetResolvedSettings()
+  {
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    var resolved = Resolution.Resolve(
+      StreamyfinPlugin.Instance!.Configuration.Config?.settings,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId));
+
+    if (!CallerIsApiKey && !_userManager.IsAdministrator(callerId))
+    {
+      resolved = SettingsResolver.Redact(resolved);
+    }
+
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(resolved));
+  }
+
+  // Through the same tolerant read the resolution uses. Nothing validates the JSON
+  // on the way in, and a group whose settings cannot be read has to still appear in
+  // the list, or an administrator cannot see it to repair it.
+  private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()
+  {
+    Id = group.Id,
+    Name = group.Name,
+    Priority = group.Priority,
+    Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Name}"),
+    UserIds = members
+  };
+
+  // endregion Settings groups
 }

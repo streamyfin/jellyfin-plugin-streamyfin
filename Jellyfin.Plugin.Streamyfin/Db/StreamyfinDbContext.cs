@@ -25,6 +25,9 @@ public class StreamyfinDbContext : DbContext
         _dbPath = dbPath;
         DeviceTokens = Set<DeviceToken>();
         ImportMarkers = Set<ImportMarker>();
+        SettingsGroups = Set<SettingsGroup>();
+        SettingsGroupMembers = Set<SettingsGroupMember>();
+        UserSettingsOverrides = Set<UserSettingsOverride>();
     }
 
     /// <summary>
@@ -37,6 +40,9 @@ public class StreamyfinDbContext : DbContext
         _dbPath = null;
         DeviceTokens = Set<DeviceToken>();
         ImportMarkers = Set<ImportMarker>();
+        SettingsGroups = Set<SettingsGroup>();
+        SettingsGroupMembers = Set<SettingsGroupMember>();
+        UserSettingsOverrides = Set<UserSettingsOverride>();
     }
 
     /// <summary>
@@ -48,6 +54,21 @@ public class StreamyfinDbContext : DbContext
     /// Gets or sets the record of one time imports that have already run.
     /// </summary>
     public DbSet<ImportMarker> ImportMarkers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the groups an administrator can target settings at.
+    /// </summary>
+    public DbSet<SettingsGroup> SettingsGroups { get; set; }
+
+    /// <summary>
+    /// Gets or sets which users belong to which group.
+    /// </summary>
+    public DbSet<SettingsGroupMember> SettingsGroupMembers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the settings targeted at a single user.
+    /// </summary>
+    public DbSet<UserSettingsOverride> UserSettingsOverrides { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -74,6 +95,30 @@ public class StreamyfinDbContext : DbContext
         {
             entity.ToTable("ImportMarkers");
             entity.HasKey(m => m.Name);
+        });
+
+        modelBuilder.Entity<SettingsGroup>(entity =>
+        {
+            entity.ToTable("SettingsGroups");
+            entity.HasKey(g => g.Id);
+            entity.Property(g => g.Name).IsRequired();
+            entity.Property(g => g.SettingsJson).IsRequired();
+            // Two groups with the same name are two groups an admin cannot tell apart.
+            entity.HasIndex(g => g.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<SettingsGroupMember>(entity =>
+        {
+            entity.ToTable("SettingsGroupMembers");
+            entity.HasKey(m => new { m.GroupId, m.UserId });
+            entity.HasIndex(m => m.UserId);
+        });
+
+        modelBuilder.Entity<UserSettingsOverride>(entity =>
+        {
+            entity.ToTable("UserSettingsOverrides");
+            entity.HasKey(o => o.UserId);
+            entity.Property(o => o.SettingsJson).IsRequired();
         });
 
         base.OnModelCreating(modelBuilder);
