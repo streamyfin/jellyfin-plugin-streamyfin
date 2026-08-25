@@ -494,14 +494,15 @@ public class StreamyfinController : ControllerBase
     return new JsonStringResult(_serializationHelperService.SerializeToJson(resolved));
   }
 
+  // Through the same tolerant read the resolution uses. Nothing validates the JSON
+  // on the way in, and a group whose settings cannot be read has to still appear in
+  // the list, or an administrator cannot see it to repair it.
   private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()
   {
     Id = group.Id,
     Name = group.Name,
     Priority = group.Priority,
-    Settings = string.IsNullOrWhiteSpace(group.SettingsJson)
-      ? null
-      : _serializationHelperService.DeserializeJson<Configuration.Settings.Settings>(group.SettingsJson),
+    Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Name}"),
     UserIds = members
   };
 

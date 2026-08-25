@@ -43,18 +43,33 @@ public sealed class SettingsResolutionService(
 
         foreach (var group in SettingsResolver.InLayerOrder(groups ?? []))
         {
-            levels.Add(Read(group.SettingsJson, $"group {group.Name}"));
+            levels.Add(ReadLevel(group.SettingsJson, $"group {group.Name}"));
         }
 
         if (userOverride is not null)
         {
-            levels.Add(Read(userOverride.SettingsJson, $"user {userOverride.UserId}"));
+            levels.Add(ReadLevel(userOverride.SettingsJson, $"user {userOverride.UserId}"));
         }
 
         return SettingsResolver.Resolve([.. levels]);
     }
 
-    private Settings? Read(string json, string what)
+    /// <summary>
+    /// Reads one stored level, tolerating a level that cannot be read.
+    /// </summary>
+    /// <param name="json">The stored JSON.</param>
+    /// <param name="what">What it belongs to, for the log line.</param>
+    /// <returns>The settings, or <c>null</c> when there are none or they are unreadable.</returns>
+    /// <remarks>
+    /// Every path that reads a stored level goes through here, resolution and the
+    /// administration API alike. Nothing validates the JSON on the way in, so a row
+    /// edited outside the plugin, or a partial write, can leave one that does not
+    /// parse. Throwing would cost far more than the level itself: on the resolution
+    /// path it would break the settings endpoint for everyone in the group, and on
+    /// the administration path it would make <c>GET groups</c> fail as a whole, so an
+    /// administrator could no longer list or repair the group that caused it.
+    /// </remarks>
+    public Settings? ReadLevel(string? json, string what)
     {
         if (string.IsNullOrWhiteSpace(json))
         {

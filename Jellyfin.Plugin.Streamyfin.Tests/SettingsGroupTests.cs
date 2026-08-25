@@ -219,17 +219,56 @@ public class SettingsGroupTests : IDisposable
     }
 
     /// <summary>
-    /// Clearing a user's override leaves them on their groups.
+    /// Clearing a user's override leaves them on their groups. The two levels are
+    /// stored apart and have to stay apart: taking a targeted setting back from
+    /// someone should not quietly drop them out of every group they are in.
     /// </summary>
     [Fact]
     public void ClearingAUserOverrideLeavesTheirGroups()
     {
         var userId = Guid.NewGuid();
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "Staff" });
+        _db.SetGroupMembers(group.Id, [userId]);
         _db.SaveUserSettingsOverride(userId, "{}");
 
         _db.RemoveUserSettingsOverride(userId);
 
         Assert.Null(_db.GetUserSettingsOverride(userId));
+        Assert.Equal(["Staff"], _db.GetGroupsForUser(userId).Select(g => g.Name));
+    }
+
+    /// <summary>
+    /// A stored level that cannot be read comes back as nothing rather than throwing,
+    /// on every path that reads one.
+    /// </summary>
+    /// <remarks>
+    /// Nothing validates the JSON on the way in, so a row edited outside the plugin
+    /// or a partial write can leave one that does not parse. Resolution skipping it
+    /// is not enough on its own: the administration API reads the same rows to list
+    /// the groups, and throwing there would make <c>GET groups</c> fail as a whole,
+    /// so an administrator could no longer see the group in order to repair it.
+    /// </remarks>
+    [Theory]
+    [InlineData("{ this is not json")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AnUnreadableLevelReadsAsNothing(string stored)
+    {
+        Assert.Null(_resolution.ReadLevel(stored, "a test"));
+    }
+
+    /// <summary>
+    /// A readable level still comes back through the same call.
+    /// </summary>
+    [Fact]
+    public void AReadableLevelComesBack()
+    {
+        var stored = _serialization.SerializeToJson(new Settings
+        {
+            subtitleSize = new Lockable<int> { locked = true, value = 42 }
+        });
+
+        Assert.Equal(42, _resolution.ReadLevel(stored, "a test")?.subtitleSize?.value);
     }
 
     /// <inheritdoc/>
