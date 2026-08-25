@@ -44,7 +44,14 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private static string? _prefix;
 
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("1e9e5d38-6e67-4615-8719-e98a5c34f004");
+    public override Guid Id => PluginId;
+
+    /// <summary>
+    /// The plugin's id, as a constant. Jellyfin serves the logo at
+    /// <c>/Plugins/{id}/{version}/Image</c>, and the drawer stylesheet needs it before
+    /// there is an instance to ask.
+    /// </summary>
+    internal static readonly Guid PluginId = Guid.Parse("1e9e5d38-6e67-4615-8719-e98a5c34f004");
 
     /// <summary>
     /// Gets the current plugin instance.
