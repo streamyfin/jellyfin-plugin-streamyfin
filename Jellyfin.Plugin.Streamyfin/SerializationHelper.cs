@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using Jellyfin.Data.Enums;
 using Jellyfin.Extensions.Json;
 using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Newtonsoft.Json;
 using NJsonSchema;
 using NJsonSchema.Generation;
@@ -72,7 +73,49 @@ public class SerializationHelper
         settings.SerializerOptions.WriteIndented = true;
 #endif
         settings.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        return JsonSchemaGenerator.FromType<T>(settings).ToJson();
+
+        var schema = JsonSchemaGenerator.FromType<T>(settings);
+        MarkSecrets(schema);
+        return schema.ToJson();
+    }
+
+    /// <summary>
+    /// Flags the settings that hold a credential, as <c>x-secret</c>.
+    /// </summary>
+    /// <remarks>
+    /// A generated form has no other way to know that a field is a password rather
+    /// than a string. It goes on the property rather than on the shared
+    /// <c>LockableOfString</c> definition, which several plain URLs also point at.
+    /// The set comes from <see cref="SettingsSchema"/>, so marking a new key is one
+    /// attribute and nothing here changes.
+    /// </remarks>
+    private static void MarkSecrets(JsonSchema schema)
+    {
+        foreach (var candidate in SchemasCarryingSettings(schema))
+        {
+            foreach (var secret in SettingsSchema.Secrets)
+            {
+                if (!candidate.Properties.TryGetValue(secret.Key, out var property))
+                {
+                    continue;
+                }
+
+                property.ExtensionData ??= new Dictionary<string, object?>();
+                property.ExtensionData["x-secret"] = true;
+            }
+        }
+    }
+
+    private static IEnumerable<JsonSchema> SchemasCarryingSettings(JsonSchema schema)
+    {
+        // The root when the schema was generated from Settings itself, and the
+        // definition when it was generated from Config, which is the live case.
+        yield return schema;
+
+        if (schema.Definitions.TryGetValue(typeof(Configuration.Settings.Settings).Name, out var settings))
+        {
+            yield return settings;
+        }
     }
 
     /// <summary>
