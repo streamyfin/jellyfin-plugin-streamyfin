@@ -132,8 +132,12 @@ access token ([seerr#2244](https://github.com/seerr-team/seerr/pull/2244)).
 
 That is the same admin key that every authenticated user can currently read from
 `GET /streamyfin/config`, see finding 1 in
-[state-of-the-plugin.md](state-of-the-plugin.md). Once the app authenticates by
-user token, the key setting can become optional and then disappear.
+[state-of-the-plugin.md](state-of-the-plugin.md). Authenticating by user token
+does not close that on its own. The endpoint still hands the whole configuration
+to any account on the server, so the key stays readable until the server filters
+what it serves, which is P1.4. Treat P1.4 as the prerequisite for this item
+rather than a follow up: with it, the key setting can become optional and then
+disappear.
 
 ## Done
 

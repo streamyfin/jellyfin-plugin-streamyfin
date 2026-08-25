@@ -59,7 +59,7 @@ demands 10.11.11 by accident rather than by choice.
 
 ### The dossier
 
-#119 added [state-of-the-plugin.md](state-of-the-plugin.md),
+Pull request #119 added [state-of-the-plugin.md](state-of-the-plugin.md),
 [issue-triage.md](issue-triage.md) and [plan.md](plan.md). Reading the code to
 write the first one turned up three things that were not in anyone's head:
 

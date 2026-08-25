@@ -36,8 +36,8 @@ When a pull request merges, in the same sitting:
 
 1. Tick its box in issue #114 and update the Progress table there.
 2. Add its row to the table in #121.
-3. Add an entry to [log.md](log.md) if it changed a decision or turned something
-   up, not for routine work.
+3. Add an entry to [log.md](log.md). Same rule as the file states: whenever
+   something lands or a decision is taken.
 4. Move the item in [app-side-work.md](app-side-work.md) from Open to Done if it
    was one.
 

@@ -9,7 +9,7 @@ and in [plan.md](plan.md), not here.
 
 | PR | Age | State | Verdict |
 |---|---|---|---|
-| [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109) | opened 2026-07-30 | clean | Right feature, wrong keys. Rename before merging. |
+| [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109) | opened 2026-07-30 | clean | Right feature, wrong keys. Settle the names, the allow restart setting and the default before merging. |
 | [#81](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/81) | opened 2025-11-18 | clean, never reviewed | Real feature, collides with P4.4. Decide, do not leave it rotting. |
 | [#71](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/71) | opened 2025-09-16 | conflicting | Close. |
 
@@ -80,12 +80,17 @@ The feature is real and users want it. What has to be settled:
   user, so this only works if the admin sets an authorization header in the Seerr
   webhook agent. That works, but it is undocumented in the pull request and it is
   the first thing anyone configuring it will hit.
-- **It logs the full payload at debug level**, which includes requester details.
+- **It logs the full payload at debug level**, which includes the requester's
+  username and email. `StreamyfinController.cs` serialises the whole webhook body
+  into a debug line, so turning debug logging on writes other people's contact
+  details into the server log.
 
-Recommendation: take the feature, on the current shape, with the renaming, and
-accept that P4.4 will reshape it. Nine months of silence is worse for the project
-than a migration cost we already signed up for. But say so on the pull request
-rather than leaving it open for another nine months.
+Recommendation: take the feature, with the renaming, and accept that P4.4 will
+reshape it. Nine months of silence is worse for the project than a migration cost
+we already signed up for. The payload logging is not part of that cost: log the
+notification type and the subject, not the body, before this merges. That is a
+one line change and it is not something to inherit deliberately. Say all of this
+on the pull request rather than leaving it open for another nine months.
 
 ## #71, TV sidebar links
 
