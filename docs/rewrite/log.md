@@ -8,6 +8,42 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-08-25
+
+### P0 landed on `develop`
+
+The six open pull requests merged in the order #121 gave: #122, #123, #124, #125,
+#127, #126. `develop` is now eleven commits ahead of `main` and P0 is complete
+apart from P0.10.
+
+**The squash bit back, exactly where it was expected to.** The repository allows
+squash merging only, so merging #125 put its work on `develop` as a new commit
+with a different hash from the one #127 was carrying. #127 went from clean to
+conflicting the moment its base moved to `develop`. Both conflicts were additions
+git could not place rather than disagreements about content, the `SQLitePCLRaw`
+pin in the csproj and a `using` in `StreamyfinController.cs`, and keeping the
+branch side resolved them. Worth stating plainly for the next stacked pair: a
+squash merge breaks the parent link, so the child always has to be brought back
+onto the branch by hand.
+
+**What was verified before merging**, on both targets, from a clean tree:
+`--configuration Release` builds with 0 errors and 0 warnings on the plugin, the
+7 remaining warnings are the `xUnit1031` calls in the test project that P0.12
+deliberately left out of the policy, 37 tests pass on `jf11` and on `jf12`, and
+the packaging chain runs, `make zip` plus `make update-manifest DRY_RUN=1` for
+both manifests.
+
+**Two pull requests merged without a CodeRabbit review.** The free tier gives two
+reviews an hour and the queue was saturated all day, so #126 and #127 carry a
+`Validate PR title` and a build, and nothing else. Their diffs were read by hand
+instead. #121 will get the cumulative review when it comes out of draft, which is
+the right place for it anyway, but the gap is worth knowing rather than assuming
+every merged part was bot reviewed.
+
+**The issues those fixes close are still open.** GitHub only closes an issue when
+the `Fixes` keyword reaches the default branch, and these merged onto `develop`.
+#74, #110 and #88 close when #121 lands on `main`, or by hand before then.
+
 ## 2026-08-24
 
 ### The chantier opened
