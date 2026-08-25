@@ -5,7 +5,7 @@ using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
-using Jellyfin.Plugin.Streamyfin.Storage.Models;
+using Jellyfin.Plugin.Streamyfin.Db;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;

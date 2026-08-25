@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
-using Jellyfin.Plugin.Streamyfin.Storage;
+using Jellyfin.Plugin.Streamyfin.Db;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Streamyfin;
 
@@ -20,15 +21,22 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// </summary>
     /// <param name="applicationPaths">Instance of the <see cref="IApplicationPaths"/> interface.</param>
     /// <param name="xmlSerializer">Instance of the <see cref="IXmlSerializer"/> interface.</param>
-    public StreamyfinPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
+    /// <param name="loggerFactory">Instance of the <see cref="ILoggerFactory"/> interface.</param>
+    public StreamyfinPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILoggerFactory loggerFactory)
         : base(applicationPaths, xmlSerializer)
     {
+        ArgumentNullException.ThrowIfNull(applicationPaths);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+
         Instance = this;
-        Database = new Storage.Database(applicationPaths.DataPath);
+        Database = new PluginDatabase(applicationPaths.DataPath, loggerFactory.CreateLogger<PluginDatabase>());
         _prefix = GetType().Namespace;
     }
-    
-    public Storage.Database Database { get; }
+
+    /// <summary>
+    /// Gets the plugin's database.
+    /// </summary>
+    public PluginDatabase Database { get; }
 
     /// <inheritdoc />
     public override string Name => "Streamyfin";

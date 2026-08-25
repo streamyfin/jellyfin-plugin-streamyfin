@@ -17,10 +17,13 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Newtonsoft.Json.Schema" Version="3.0.16" />
     <PackageReference Include="NJsonSchema" Version="11.0.2" />
-    <PackageReference Include="System.Net.Http.Json" Version="$(RuntimeJsonVersion)" />
-    <PackageReference Include="System.Security.Claims" Version="4.3.0" />
     <PackageReference Include="YamlDotNet" Version="16.0.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="$(RuntimeSqliteVersion)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EfCoreVersion)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.Streamyfin.Tests" />
   </ItemGroup>
 
   <ItemGroup>
