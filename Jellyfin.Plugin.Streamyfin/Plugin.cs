@@ -44,7 +44,14 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private static string? _prefix;
 
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("1e9e5d38-6e67-4615-8719-e98a5c34f004");
+    public override Guid Id => PluginId;
+
+    /// <summary>
+    /// The plugin's id, as a constant. Jellyfin serves the logo at
+    /// <c>/Plugins/{id}/{version}/Image</c>, and the drawer stylesheet needs it before
+    /// there is an instance to ask.
+    /// </summary>
+    internal static readonly Guid PluginId = Guid.Parse("1e9e5d38-6e67-4615-8719-e98a5c34f004");
 
     /// <summary>
     /// Gets the current plugin instance.
@@ -102,37 +109,108 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
     ];
 
+    /// <summary>
+    /// The label the dashboard shows for the plugin's entry.
+    /// </summary>
+    internal const string MenuDisplayName = "Streamyfin";
+
+    /// <summary>
+    /// The dashboard's icon for that entry.
+    /// </summary>
+    /// <remarks>
+    /// It has to be a Material ligature and cannot be the plugin's own logo.
+    /// <c>PluginDrawerSection.tsx</c> in the web client renders it as
+    /// <c>&lt;Icon&gt;{pageInfo.MenuIcon}&lt;/Icon&gt;</c>, which is the MUI icon font
+    /// component, so anything that is not a glyph name comes out as literal text.
+    /// The logo still shows where an image is allowed, on the plugin catalogue entry,
+    /// through <c>imageUrl</c> in the manifest.
+    ///
+    /// <para>
+    /// <c>devices</c> rather than something closer to the logo's play triangle: every
+    /// glyph of that family reads as the YouTube mark, which this plugin is not. It
+    /// also says what the plugin is for, configuring the Streamyfin app on a user's
+    /// devices, which is more use in a drawer than a decorative shape.
+    /// </para>
+    /// </remarks>
+    internal const string MenuIcon = "devices";
+
+    /// <summary>
+    /// The plugin's pages, the admin's landing page first.
+    /// </summary>
+    /// <returns>The pages, ordered.</returns>
+    /// <remarks>
+    /// The <c>Other.HomePage</c> setting names the page an administrator wants to land
+    /// on. It has to come first because the dashboard opens the plugin on the first
+    /// page it is given.
+    /// </remarks>
+    internal static List<PluginPageInfo> OrderedPages(List<PluginPageInfo> pages, string? homePageName)
+    {
+        ArgumentNullException.ThrowIfNull(pages);
+
+        if (string.IsNullOrWhiteSpace(homePageName))
+        {
+            return pages;
+        }
+
+        var homePage = pages.Find(page => string.Equals(page.Name, homePageName, StringComparison.Ordinal));
+
+        if (homePage is null)
+        {
+            // A page name that no longer exists, from a renamed page or a typo in the
+            // YAML. Serving the pages in their declared order beats serving none.
+            return pages;
+        }
+
+        List<PluginPageInfo> ordered = [homePage];
+        ordered.AddRange(pages.Where(page => page.Name != homePage.Name));
+
+        return ordered;
+    }
+
+    /// <summary>
+    /// The page the drawer row points at, which is the page the dashboard opens.
+    /// </summary>
+    /// <remarks>
+    /// Read by <see cref="GetPages"/> to decide which page asks for a menu row, and by
+    /// <c>DrawerLogoPatch</c> to build a selector for that row. Two answers to the same
+    /// question would mean a stylesheet aimed at a row that is not there, which is a
+    /// silent failure: the logo simply never appears.
+    /// </remarks>
+    internal static string? LandingPageName
+    {
+        get
+        {
+            if (Instance is null)
+            {
+                return null;
+            }
+
+            var pages = OrderedPages(Instance._pages(), Instance.Configuration?.Config?.Other?.HomePage);
+
+            return pages.Count > 0 ? pages[0].Name : null;
+        }
+    }
+
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        if (Instance?.Configuration?.Config?.Other?.HomePage != null)
-        {
-            var homePage = _pages().FirstOrDefault(page => string.Equals(page.Name, Instance.Configuration.Config.Other.HomePage, StringComparison.Ordinal));
+        var pages = OrderedPages(_pages(), Instance?.Configuration?.Config?.Other?.HomePage);
 
-            if (homePage != null)
-            {
-                List<PluginPageInfo> pages = [homePage];
-                pages.AddRange(_pages().Where(p => p.Name != homePage.Name));
+        // The dashboard renders one entry per page that asks for one, so only the
+        // landing page asks. Marking every page would put four Streamyfin entries in
+        // the drawer, and marking a fixed one would ignore the home page setting.
+        var landing = pages.Count > 0 ? pages[0] : null;
 
-                foreach (var pluginPageInfo in pages)
-                {
-                    yield return pluginPageInfo;
-                }
-            }
-            else
-            {
-                foreach (var pluginPageInfo in _pages())
-                {
-                    yield return pluginPageInfo;
-                }
-            }
-        }
-        else
+        foreach (var pluginPageInfo in pages)
         {
-            foreach (var pluginPageInfo in _pages())
+            if (ReferenceEquals(pluginPageInfo, landing))
             {
-                yield return pluginPageInfo;
+                pluginPageInfo.DisplayName = MenuDisplayName;
+                pluginPageInfo.EnableInMainMenu = true;
+                pluginPageInfo.MenuIcon = MenuIcon;
             }
+
+            yield return pluginPageInfo;
         }
 
         // region pages
