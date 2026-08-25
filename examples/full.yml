@@ -69,7 +69,7 @@ settings:
   # ==================== Video Orientation ====================
   defaultVideoOrientation:
     locked: false
-    value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
+    value: Default  # Options: Default, PortraitUp, Landscape, LandscapeLeft, LandscapeRight
 
   # ==================== UI & Controls ====================
   safeAreaInControlsEnabled:
