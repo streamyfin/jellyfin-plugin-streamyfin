@@ -40,6 +40,63 @@ the plugin's own database in `/config/data/`. The linuxserver image puts plugins
 under `/config/data/plugins/`. Getting that wrong looks exactly like a plugin
 that fails to load, with nothing in the log to say why.
 
+### P1.2 to P1.4, and the finding at the top of the dossier is closed
+
+Three parts on `develop`. A hundred tests, still 0 warnings and 0 errors on both
+targets.
+
+**#129, P1.2 and P1.3.** Three targeting levels, each a `Settings` with only the
+keys it means to speak about filled in, which works because every property on it
+is nullable. Groups, memberships and per user overrides in three tables, the
+overrides stored as JSON rather than as forty one columns so adding a setting is
+not a migration.
+
+The rule is that **the most specific level wins, including the lock**. That was
+worth getting wrong once: the obvious reading is that the most restrictive lock
+should win, and issue #29, which `plan.md` quotes as evidence the design was not
+imposed from outside, has an override setting `lock: false` to hand a setting back
+to named users. A resolver that could only tighten would make the design it
+implements impossible.
+
+Two things checked rather than assumed, and both mean no `Compat` entry:
+`TaskTriggerInfo` is identical on 10.11 and on 12, and the review found that
+`SerializationHelper` had a `SerializeToJson` with no matching reader.
+`Deserialize` goes through YamlDotNet, which reads most JSON but not the three
+settings this plugin deliberately writes as numbers.
+
+**#130, the drawer.** The plugin was reachable from the plugin list and a direct
+URL and nowhere else. Three fields on `PluginPageInfo` it never set fix that. The
+icon can only be a Material ligature, since the web client renders it through
+MUI's icon **font** component, so the real logo needs File Transformation, which
+is now wired as a soft dependency. Worth writing down: **that plugin has no
+Jellyfin 12 release**. Its `v12` branch rewrites it around an `IStartupFilter`
+middleware and bumps to 3.0.0, but the published manifest serves ABI 10 only, so
+the logo cannot appear on a 12 server today. The code is correct and dormant.
+
+**#131, P1.4.** `GET config` was guarded by `Authorize` alone, so every account on
+the server received the entire configuration. `examples/full.yml` has warned in
+capitals for months that the Seerr admin key is readable by anyone with an
+account. It is not a warning any more.
+
+An administrator still gets it untouched, and gets the **raw** set rather than
+their own resolved view, because the admin pages save what they load: a resolved
+set would write their own group's overrides into the global configuration on the
+next save. Everyone else gets their settings resolved, with credentials removed
+**last**, so no level can hand a key back out.
+
+The notification block goes with the key. It is not per user, so it cannot be
+resolved for a caller, and the app never reads it:
+`refreshStreamyfinPluginSettings` takes `data.settings` and nothing else. Serving
+a user the list of accounts that receive notifications is the same kind of leak,
+just quieter.
+
+**The cost, taken deliberately.** A non administrator no longer receives
+`jellyseerrApiKey`, so the passwordless Seerr sign-in falls back to the password
+login the app already has. ⚠️ **The Seerr key has to be rotated.**
+`Jellyseerr.tsx:118` persists it into each device's own storage, so filtering it
+server side does not remove it from the devices that already connected. Without a
+rotation this part is cosmetic for existing installations.
+
 ### P1.1, and #109 finally answered
 
 Two more on `develop`. Fifty one tests now, still 0 warnings and 0 errors on both

@@ -19,7 +19,8 @@ request rather than deleting it.
 | Offer Landscape Auto in the settings screen | issue #110 | any time, small |
 | Audit every settings screen for a missing `disabled` binding | PR #109 | any time, small |
 | Seerr integration on tvOS | issue #108 | with P6 |
-| Seerr authentication by user token | issue #82, seerr#2244 | with P6 |
+| Seerr authentication by user token | issue #82, seerr#2244 | **now urgent**, P1.4 landed |
+| Rotate the Seerr admin key | P1.4 | once P1.4 ships |
 
 ## Details
 
@@ -119,6 +120,23 @@ to any account on the server, so the key stays readable until the server filters
 what it serves, which is P1.4. Treat P1.4 as the prerequisite for this item
 rather than a follow up: with it, the key setting can become optional and then
 disappear.
+
+### Rotate the Seerr admin key
+
+P1.4 stopped serving `jellyseerrApiKey` to anyone who is not an administrator.
+That does not take it back from the devices that already have it:
+`components/settings/Jellyseerr.tsx:118` persists it into each device's own
+settings storage on a successful connection.
+
+So the key on those devices keeps working against Seerr until it is rotated, and
+until then the part is cosmetic for existing installations. Rotate it in Seerr,
+then set the new one in the plugin.
+
+While it is being rotated, non administrators lose the passwordless sign-in and
+fall back to the password login at `Jellyseerr.tsx:91-113`. That path already
+exists and is the default when no key is present, so nothing needs building for
+the fallback itself. It comes back properly with seerr#2244, using the user's own
+Jellyfin token rather than an admin key, and that pull request is still open.
 
 ## Done
 
