@@ -284,9 +284,17 @@ public class StreamyfinController : ControllerBase
   // resolved set.
 
   private const string UserIdClaim = "Jellyfin-UserId";
+  private const string IsApiKeyClaim = "Jellyfin-IsApiKey";
 
   private Guid CallerId =>
     Guid.TryParse(User?.FindFirst(UserIdClaim)?.Value, out var id) ? id : Guid.Empty;
+
+  // An API key is granted by an administrator and carries no user, which is why
+  // Jellyfin's own RequiresElevation accepts one. Treated the same here, or the
+  // routes an admin can call with their account would answer differently to the
+  // key they created for a script.
+  private bool CallerIsApiKey =>
+    bool.TryParse(User?.FindFirst(IsApiKeyClaim)?.Value, out var isApiKey) && isApiKey;
 
   private SettingsResolutionService Resolution =>
     new(_serializationHelperService, _loggerFactory.CreateLogger<SettingsResolutionService>());
@@ -472,6 +480,13 @@ public class StreamyfinController : ControllerBase
   /// P1.4, which is about retiring the behaviour of <c>GET config</c> and dealing
   /// with what the app does about it. It is this route not being a second way to
   /// read the Seerr key.
+  ///
+  /// <para>
+  /// A caller authenticating with an API key has no user, so there is nothing to
+  /// resolve beyond what the server declares for everyone. The key is granted by an
+  /// administrator, and Jellyfin's own elevation policy accepts one, so it is treated
+  /// as elevated here too rather than as an anonymous caller.
+  /// </para>
   /// </remarks>
   [HttpGet("config/resolved")]
   [Authorize]
@@ -486,7 +501,7 @@ public class StreamyfinController : ControllerBase
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId));
 
-    if (!_userManager.IsAdministrator(callerId))
+    if (!CallerIsApiKey && !_userManager.IsAdministrator(callerId))
     {
       resolved = SettingsResolver.Redact(resolved);
     }
