@@ -10,6 +10,36 @@ lives only in a comment thread is a decision nobody will find.
 
 ## 2026-08-25
 
+### The load test that P0.3 was waiting on
+
+Done, on both lines, and it passes. The plugin was loaded on a throwaway
+`jellyfin/jellyfin:10.11.11` and on `jellyfin/jellyfin:12.0-rc5`, each with a
+handwritten `streamyfin_plugin.db` carrying three device tokens in
+`applicationPaths.DataPath`, which is where the old store wrote it.
+
+Both servers log `Loaded plugin: Streamyfin 0.68.1.0`, then
+`Imported 3 device token(s) from /config/data/streamyfin_plugin.db`. The new
+database comes out with `DeviceTokens` at three rows, one `ImportMarkers` row
+recording the count, and `__EFMigrationsHistory` holding `InitialCreate` stamped
+`9.0.11` on 10.11 and `10.0.10` on 12. The old file's md5 is identical before and
+after, and a second start does not import again. `GET /streamyfin/config` answers
+401 rather than 404 on both, so the controller is routed, and the embedded admin
+page serves 200. No error in either log.
+
+So the question the pull request left open is answered:
+**`Microsoft.EntityFrameworkCore.Sqlite` is provided by the server on both
+lines**, and the plugin does not need to ship it. The versions line up rather
+than merely coexist: every 10.11 patch from the declared floor 10.11.9 through
+10.11.11 pins EF Core 9.0.11, which is exactly what `jf11` compiles against, and
+12 pins 10.0.11 against the plugin's 10.0.10, so the server is the newer of the
+two and satisfies the reference.
+
+Worth writing down for whoever repeats this: the official `jellyfin/jellyfin`
+image sets `JELLYFIN_DATA_DIR=/config`, so plugins live in `/config/plugins/` and
+the plugin's own database in `/config/data/`. The linuxserver image puts plugins
+under `/config/data/plugins/`. Getting that wrong looks exactly like a plugin
+that fails to load, with nothing in the log to say why.
+
 ### P0 landed on `develop`
 
 The six open pull requests merged in the order #121 gave: #122, #123, #124, #125,
