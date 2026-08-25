@@ -51,6 +51,22 @@ jobs:
       - name: Test
         run: dotnet test Jellyfin.Plugin.Streamyfin.Tests --configuration Release --no-build -p:JellyfinTarget=${{ matrix.target }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      # The release chain used to be exercised only by cutting a release. That is
+      # how a zip path pinned to net9.0 survived unnoticed: nothing ever built the
+      # other target's package. Packaging now runs on every pull request, with a
+      # placeholder version since a pull request checkout has no tags.
+      - name: Package
+        env:
+          VERSION: 0.0.0.0
+        run: |
+          make zip JELLYFIN_TARGET=${{ matrix.target }}
+          make update-manifest JELLYFIN_TARGET=${{ matrix.target }} DRY_RUN=1
+
       - name: Upload plugin
         uses: actions/upload-artifact@v4
         with:
