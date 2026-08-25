@@ -306,6 +306,7 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Jellyseerr API Key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API — only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
+    [Secret]
     public Lockable<string>? jellyseerrApiKey { get; set; }
 
     // Marlin Search
