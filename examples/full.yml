@@ -69,7 +69,7 @@ settings:
   # ==================== Video Orientation ====================
   defaultVideoOrientation:
     locked: false
-    value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
+    value: Default  # Options: Default, PortraitUp, Landscape, LandscapeLeft, LandscapeRight
 
   # ==================== UI & Controls ====================
   safeAreaInControlsEnabled:
@@ -221,6 +221,14 @@ settings:
               - DateCreated
             sortOrder:
               - Descending
+            # Jellyfin's own item kind names, not the words used in the UI.
+            # A collection is a BoxSet, a folder is a Folder, a music album is a
+            # MusicAlbum. Common values: Movie, Series, Season, Episode, BoxSet,
+            # Playlist, MusicAlbum, MusicArtist, Audio, Book, Photo, PhotoAlbum,
+            # LiveTvChannel, LiveTvProgram, Folder, CollectionFolder.
+            # A name that is not one of these is ignored rather than reported,
+            # so the section simply comes back with the wrong contents.
+            # The full list is served at GET /streamyfin/config/schema.
             includeItemTypes:
               - Series
               - Movie
