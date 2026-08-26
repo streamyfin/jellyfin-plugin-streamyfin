@@ -73,6 +73,38 @@ settings:
   subtitleSize:
     locked: false
     value: 100  # Subtitle size percentage (0-120)
+  
+  subtitleFont:
+    locked: false
+    value: System  # Font family used to render subtitles
+  
+  subtitleColor:
+    locked: false
+    value: "#FFFFFF"  # Subtitle text colour
+  
+  subtitleBackground:
+    locked: false
+    value: false  # Draw a box behind the subtitles
+  
+  subtitleBackgroundOpacity:
+    locked: false
+    value: 60  # 0 to 100
+  
+  subtitleBackgroundPadding:
+    locked: false
+    value: 8
+  
+  subtitleMarginY:
+    locked: false
+    value: 25  # Distance from the edge of the video
+  
+  subtitleAlignX:
+    locked: false
+    value: center  # left, center or right
+  
+  subtitleAlignY:
+    locked: false
+    value: bottom  # top, center or bottom
 
   # ==================== Video Orientation ====================
   defaultVideoOrientation:

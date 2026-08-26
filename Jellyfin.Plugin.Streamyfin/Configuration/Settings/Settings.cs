@@ -239,6 +239,38 @@ public class Settings
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
+    [NotNull]
+    [Display(Name = "Subtitle font", Description = "Font family used to render subtitles")]
+    public Lockable<string>? subtitleFont { get; set; } // = "System";
+
+    [NotNull]
+    [Display(Name = "Subtitle colour", Description = "Subtitle text colour, as a hex value such as #FFFFFF")]
+    public Lockable<string>? subtitleColor { get; set; } // = "#FFFFFF";
+
+    [NotNull]
+    [Display(Name = "Subtitle background", Description = "Draw a box behind the subtitles")]
+    public Lockable<bool>? subtitleBackground { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
+    public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
+
+    [NotNull]
+    [Display(Name = "Subtitle background padding", Description = "Space between the subtitle text and the edge of its background")]
+    public Lockable<int>? subtitleBackgroundPadding { get; set; } // = 8;
+
+    [NotNull]
+    [Display(Name = "Subtitle vertical margin", Description = "Distance between the subtitles and the edge of the video")]
+    public Lockable<int>? subtitleMarginY { get; set; } // = 25;
+
+    [NotNull]
+    [Display(Name = "Subtitle horizontal alignment", Description = "left, center or right")]
+    public Lockable<SubtitleAlignX>? subtitleAlignX { get; set; } // = center;
+
+    [NotNull]
+    [Display(Name = "Subtitle vertical alignment", Description = "top, center or bottom")]
+    public Lockable<SubtitleAlignY>? subtitleAlignY { get; set; } // = bottom;
+
     // Other
     [NotNull]
     [Display(Name = "Default video orientation", Description = "Lock orientation during video playback")]
