@@ -335,6 +335,32 @@ public class SettingsParityTests
         Assert.Equal(expected, written);
     }
 
+    /// <summary>
+    /// The two enums the app compares as numbers are written as numbers.
+    /// </summary>
+    /// <remarks>
+    /// Same reason <c>OrientationLock</c>, <c>Bitrate</c> and <c>SubtitlePlaybackMode</c>
+    /// already have a number converter registered. The default is the member name, and a
+    /// name where the app switches on a number matches nothing.
+    /// </remarks>
+    [Theory]
+    [InlineData(VideoPlayer.MPV, "0")]
+    [InlineData(VideoPlayer.ExoPlayer, "1")]
+    [InlineData(VideoPlayer.Native, "2")]
+    [InlineData(InactivityTimeout.Disabled, "0")]
+    [InlineData(InactivityTimeout.OneMinute, "60000")]
+    [InlineData(InactivityTimeout.FiveMinutes, "300000")]
+    [InlineData(InactivityTimeout.TwentyFourHours, "86400000")]
+    public void AnEnumTheAppComparesAsANumberIsWrittenAsANumber(object member, string expected)
+    {
+        var written = JsonSerializer.Serialize(
+            member,
+            member.GetType(),
+            new SerializationHelper().GetJsonSerializerOptions());
+
+        Assert.Equal(expected, written);
+    }
+
     // Through the serializer both sides use. Comparing CLR values would pass for an
     // enum written as a number where the app expects its name.
     private static bool Equivalent(string written, JsonElement expected) =>

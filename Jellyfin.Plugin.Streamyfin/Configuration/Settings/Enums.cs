@@ -234,3 +234,28 @@ public enum SubtitleAlignY
     [JsonStringEnumMemberName("bottom")]
     Bottom
 };
+
+/// <summary>
+/// Which video player the app uses. Compared as a number by the app.
+/// </summary>
+public enum VideoPlayer
+{
+    MPV = 0,
+    ExoPlayer = 1,
+    Native = 2
+};
+
+/// <summary>
+/// How long the TV app waits before signing out, in milliseconds.
+/// </summary>
+public enum InactivityTimeout
+{
+    Disabled = 0,
+    OneMinute = 60000,
+    FiveMinutes = 300000,
+    FifteenMinutes = 900000,
+    ThirtyMinutes = 1800000,
+    OneHour = 3600000,
+    FourHours = 14400000,
+    TwentyFourHours = 86400000
+};

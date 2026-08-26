@@ -61,6 +61,8 @@ public class SerializationHelper
         options.Converters.Insert(0, new JsonNumberEnumConverter<SubtitlePlaybackMode>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<OrientationLock>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<Bitrate>());
+        options.Converters.Insert(0, new JsonNumberEnumConverter<VideoPlayer>());
+        options.Converters.Insert(0, new JsonNumberEnumConverter<InactivityTimeout>());
 
 #if DEBUG
         options.WriteIndented = true;
@@ -160,8 +162,9 @@ public class SerializationHelper
     /// <remarks>
     /// <see cref="Deserialize{T}"/> goes through YamlDotNet, and YAML is a superset of
     /// JSON, so it reads most of it. It does not read all of it: the converters
-    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c> and
-    /// <c>SubtitlePlaybackMode</c> as numbers, and YamlDotNet expects the member name.
+    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c>,
+    /// <c>SubtitlePlaybackMode</c>, <c>VideoPlayer</c> and <c>InactivityTimeout</c> as
+    /// numbers, and YamlDotNet expects the member name.
     /// Anything stored with <see cref="SerializeToJson{T}"/> has to come back through
     /// this, or those three settings do not survive the round trip.
     /// </remarks>
