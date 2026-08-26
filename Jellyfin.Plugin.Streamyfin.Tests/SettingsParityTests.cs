@@ -30,30 +30,27 @@ public class SettingsParityTests
     /// </remarks>
     private static readonly Dictionary<string, string> NotDeclared = new(StringComparer.Ordinal)
     {
-        ["autoLoginJellyseerr"] = "not yet declared",
         ["defaultAudioLanguage"] = "not yet declared",
         ["defaultSubtitleLanguage"] = "not yet declared",
         ["deviceProfile"] = "not yet declared",
-        ["downloadQuality"] = "not yet declared",
-        ["enableH265ForChromecast"] = "not yet declared",
-        ["mediaListCollectionIds"] = "not yet declared",
+        ["downloadQuality"] =
+            "Declared once the app can read it back. The app types it as DownloadOption, "
+            + "which is { label, value }, and the generic fallback in normalizePluginValue "
+            + "only rebuilds { key, value }, so a value declared today would arrive in a "
+            + "shape the app cannot use. Either the plugin sends the scalar and the app "
+            + "gains a normalizer case, or DownloadOption gains a key.",
         ["mpvCacheEnabled"] = "not yet declared",
         ["mpvCacheSeconds"] = "not yet declared",
         ["mpvDemuxerMaxBackBytes"] = "not yet declared",
         ["mpvDemuxerMaxBytes"] = "not yet declared",
         ["mpvVoDriver"] = "not yet declared",
         ["openSubtitlesApiKey"] = "not yet declared",
-        ["openSubtitlesEnabled"] = "not yet declared",
         ["playbackSpeedPerMedia"] =
             "Not a setting. A map the player writes by itself, keyed by item id, so "
             + "there is nothing an administrator could put in it.",
         ["playbackSpeedPerShow"] =
             "Not a setting. A map the player writes by itself, keyed by series id.",
-        ["preferedLanguage"] = "not yet declared",
         ["sentryEnabled"] = "not yet declared",
-        ["showDownloadLiveActivity"] = "not yet declared",
-        ["usePopularPlugin"] = "not yet declared",
-        ["wikidataAwardsEnabled"] = "not yet declared",
     };
 
     /// <summary>

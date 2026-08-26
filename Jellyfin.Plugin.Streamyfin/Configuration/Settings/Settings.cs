@@ -442,6 +442,41 @@ public class Settings
     [NotNull]
     [Display(Name = "KefinTweaks watchlist integration", Description = "Enable the KefinTweaks watchlist integration")]
     public Lockable<bool>? useKefinTweaks { get; set; }
+
+    [NotNull]
+    [Display(Name = "Popular lists", Description = "Show popular lists from the Popular Lists plugin")]
+    public Lockable<bool>? usePopularPlugin { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Awards from Wikidata", Description = "Show awards fetched from Wikidata on a title's page")]
+    public Lockable<bool>? wikidataAwardsEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "OpenSubtitles", Description = "Allow searching OpenSubtitles for subtitles during playback")]
+    public Lockable<bool>? openSubtitlesEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Sign in to Jellyseerr automatically", Description = "Sign the user in to Jellyseerr without asking, when the server allows it")]
+    public Lockable<bool>? autoLoginJellyseerr { get; set; } // = true;
+
+    // No default. The app leaves this undefined and follows the device language until
+    // the user picks one, so shipping a value would impose a language on everyone who
+    // never chose.
+    [NotNull]
+    [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
+    public Lockable<string>? preferedLanguage { get; set; }
+
+    [NotNull]
+    [Display(Name = "Media list collections", Description = "Collection ids to offer as media lists in the app")]
+    public Lockable<string[]>? mediaListCollectionIds { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
+    public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "HEVC for Chromecast", Description = "Offer HEVC to a Chromecast, which only some models decode")]
+    public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
     // endregion Plugins
     
     // Misc.

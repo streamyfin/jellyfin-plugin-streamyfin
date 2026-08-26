@@ -242,6 +242,40 @@ settings:
     locked: false
     value: false  # Enable the KefinTweaks watchlist integration
 
+  usePopularPlugin:
+    locked: false
+    value: true  # Popular Lists plugin
+  
+  wikidataAwardsEnabled:
+    locked: false
+    value: true
+  
+  openSubtitlesEnabled:
+    locked: false
+    value: true
+  
+  autoLoginJellyseerr:
+    locked: false
+    value: true
+  
+  # No default is shipped. The app follows the device language until the user
+  # picks one, so setting this imposes a language on everyone who never chose.
+  preferedLanguage:
+    locked: false
+    value: en
+  
+  mediaListCollectionIds:
+    locked: false
+    value: []  # Collection ids
+  
+  showDownloadLiveActivity:
+    locked: false
+    value: true
+  
+  enableH265ForChromecast:
+    locked: false
+    value: false  # Only some Chromecast models decode HEVC
+
   # ==================== TV and player ====================
   tvTypographyScale:
     locked: false
