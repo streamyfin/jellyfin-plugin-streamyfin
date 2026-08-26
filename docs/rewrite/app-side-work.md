@@ -145,5 +145,10 @@ Jellyfin token rather than an admin key, and that pull request is still open.
 `feat/subtitles-on-mute` adds `subtitlesOnMuteAllowRestart`, wires the `disabled`
 bindings on both switches on phone and on TV, and sets the defaults to `true` and
 `false`. The plugin side landed in #109 declaring the same two keys with the same
-defaults. **Not pushed yet**, so the app's published `develop` still has neither
-the second key nor the bindings.
+defaults.
+
+The branch is pushed and open as
+[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900), every check
+green, waiting on a review. Until it merges the app's published `develop` still has
+neither the second key nor the bindings, so the plugin stays harmlessly ahead: the
+defaults it declares match the app's, and an app that has not moved sees no change.

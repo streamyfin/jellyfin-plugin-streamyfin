@@ -55,10 +55,12 @@ The `disabled` binding the description assumed is on the same app branch, at
 `components/settings/SubtitleToggles.tsx:442` and `:459`, and on the TV screen at
 `app/(auth)/(tabs)/(home)/settings.tv.tsx:1022` and `:1031`.
 
-**That branch is not pushed yet.** On the app's published `develop`, only
-`subtitlesOnMute` exists and the switch still has no `disabled` binding. The plugin
-side is safe to be ahead: the defaults it declares match the app's, so an app that
-has not moved sees no change. The feature is usable once both are out.
+**That branch is now open as
+[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900)**, every check
+green, waiting on a review. Until it merges, the app's published `develop` has only
+`subtitlesOnMute` and the switch still has no `disabled` binding. The plugin side is
+safe to be ahead: the defaults it declares match the app's, so an app that has not
+moved sees no change. The feature is usable once both are out.
 
 ## #81, Seerr webhook notifications
 
