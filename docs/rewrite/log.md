@@ -8,6 +8,78 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-08-26
+
+### P1.7, settings parity, and seven defaults that were lying
+
+The plugin declared 43 of the 94 settings the app reads. More than half of what
+the app offers was outside an administrator's reach: every subtitle appearance
+control, the player gestures, the mpv tuning, the TV options, the choice of
+video player. It now declares 92. The decision about each key, and the rules a
+declaration follows, are in [settings-parity.md](settings-parity.md).
+
+Nothing else was needed to make them work. P1.1 built `SettingsSchema` to read
+`Settings.cs` by reflection and P1.3 resolves whatever that schema reports, and
+neither holds a list of its own, so declaring the property was the whole change.
+That is the part of P1 paying off rather than a new mechanism.
+
+**The count was wrong twice before the manifest existed.** One grep matched two
+properties that were commented out, so the plugin looked like it declared 45.
+One awk missed a key whose declaration sat outside the range it scanned, so the
+app looked like it had 93. Both numbers went into the dossier before
+`AppSettingsManifest.json` was generated from the app source, and both were
+wrong in opposite directions. The file is now the count.
+
+**Seven shipped defaults contradicted the app, and three of those were help
+text.** `hiddenLibraries` held `["Enter library id(s)"]`, `jellyseerrServerUrl`
+held `"Enter jellyseerr server url"` and `marlinServerUrl` held `"Enter Marlin
+server URL"`. `hasMeaningfulSettingValue` accepts any non-empty string, so
+`pendingPluginDefaults` seeded each one once into every user's settings: a fresh
+install handed the app a sentence where it expected a server address. The other
+four turned off remembering the audio and subtitle track, rewound 15 seconds
+instead of 10, and shrank subtitles to 80 per cent. All seven now match the app.
+
+None of that was found by looking. The manifest was written, the test compared
+it against `DefaultSettings()`, and it printed them.
+
+**Two exceptions are written down rather than fixed.** `subtitlesOnMute` stays
+`true`, which is the app branch of streamyfin/streamyfin#1900 rather than the
+app's published `false`, because #109 was deliberately aligned with that branch.
+`subtitlesOnMuteAllowRestart` is declared ahead of the same branch. Both name the
+pull request that removes them, and a fourth test refuses an excuse that outlives
+the setting it names.
+
+**Three keys reach the app in a different shape than they are stored in**,
+because `normalizePluginValue` reshapes them: `subtitleSize` is divided by 100,
+and `maxAutoPlayEpisodeCount` and `defaultBitrate` are rebuilt from a scalar into
+`{ key, value }`. The manifest records the wire form for those, since it is a
+contract and not a disagreement.
+
+**Three keys stay out.** `playbackSpeedPerMedia` and `playbackSpeedPerShow` are
+not settings, they are maps the player writes by itself keyed by item and series
+id. `downloadQuality` is typed `{ label, value }` in the app while the generic
+fallback in `normalizePluginValue` only rebuilds `{ key, value }`, so its app
+side has to move first.
+
+**Two settings that had sat commented out since before the rewrite are back.**
+`defaultAudioLanguage` and `defaultSubtitleLanguage` carried a TODO saying
+Jellyfin's `CultureDto` has no parameterless constructor, so the schema generator
+fails on it. The app reads exactly two of its fields, so the plugin declares its
+own small type carrying those two.
+
+**Verified on the beta**, Jellyfin 12 at `10.0.20.132`: the schema serves **92**
+settings, up from the 43 measured on 2026-08-25, and `openSubtitlesApiKey`
+carries `x-secret`. The resolved endpoint still answers 18 keys, which is the
+right answer: a declared setting is not a pushed one, and the stored
+configuration predates them all. The build it is running is backed up at
+`/seedbox/jellyfin/streamyfin-backup-2026-08-26-pre-parity.dll`, outside the
+plugin folder, and `autoUpdate` is still `false`.
+
+**Noticed, not fixed:** `make update-manifest DRY_RUN=1` writes the manifest
+before it decides to skip anything. `DRY_RUN` only skips the remote checksum
+verification, so running it locally leaves a version entry for a release that
+does not exist in the working tree.
+
 ## 2026-08-25
 
 ### The load test that P0.3 was waiting on
