@@ -36,16 +36,12 @@ public class SettingsParityTests
         ["deviceProfile"] = "not yet declared",
         ["downloadQuality"] = "not yet declared",
         ["enableH265ForChromecast"] = "not yet declared",
-        ["hideRemoteSessionButton"] = "not yet declared",
-        ["inactivityTimeout"] = "not yet declared",
         ["mediaListCollectionIds"] = "not yet declared",
         ["mpvCacheEnabled"] = "not yet declared",
         ["mpvCacheSeconds"] = "not yet declared",
         ["mpvDemuxerMaxBackBytes"] = "not yet declared",
         ["mpvDemuxerMaxBytes"] = "not yet declared",
         ["mpvVoDriver"] = "not yet declared",
-        ["nativeVideoPlayerAndroidTV"] = "not yet declared",
-        ["nativeVideoPlayerTV"] = "not yet declared",
         ["openSubtitlesApiKey"] = "not yet declared",
         ["openSubtitlesEnabled"] = "not yet declared",
         ["playbackSpeedPerMedia"] =
@@ -56,10 +52,7 @@ public class SettingsParityTests
         ["preferedLanguage"] = "not yet declared",
         ["sentryEnabled"] = "not yet declared",
         ["showDownloadLiveActivity"] = "not yet declared",
-        ["tvThemeMusicEnabled"] = "not yet declared",
-        ["tvTypographyScale"] = "not yet declared",
         ["usePopularPlugin"] = "not yet declared",
-        ["videoPlayer"] = "not yet declared",
         ["wikidataAwardsEnabled"] = "not yet declared",
     };
 

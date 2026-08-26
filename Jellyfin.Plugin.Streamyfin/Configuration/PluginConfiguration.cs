@@ -93,6 +93,12 @@ public class PluginConfiguration : BasePluginConfiguration
     searchEngine = new() { value = SearchEngine.Jellyfin },
     marlinServerUrl = new() { value = "" },
     libraryOptions = new() { value = new LibraryOptions() },
+    tvTypographyScale = new() { value = TVTypographyScale.Default },
+    tvThemeMusicEnabled = new() { value = true },
+    hideRemoteSessionButton = new() { value = false },
+    inactivityTimeout = new() { value = InactivityTimeout.Disabled },
+    nativeVideoPlayerTV = new() { value = true },
+    nativeVideoPlayerAndroidTV = new() { value = false },
     home = new()
     {
       value = new Home

@@ -242,6 +242,38 @@ settings:
     locked: false
     value: false  # Enable the KefinTweaks watchlist integration
 
+  # ==================== TV and player ====================
+  tvTypographyScale:
+    locked: false
+    value: default  # small, default, large or extraLarge
+  
+  tvThemeMusicEnabled:
+    locked: false
+    value: true
+  
+  hideRemoteSessionButton:
+    locked: false
+    value: false
+  
+  inactivityTimeout:
+    locked: false
+    value: 0  # Milliseconds. 0 never signs out
+  
+  nativeVideoPlayerTV:
+    locked: false
+    value: true  # Apple TV
+  
+  nativeVideoPlayerAndroidTV:
+    locked: false
+    value: false
+  
+  # No default is shipped for this one. The app picks a player at runtime so an
+  # existing install keeps what it has been using. Set it only to decide for
+  # everyone, including devices that never chose.
+  videoPlayer:
+    locked: false
+    value: 0  # 0 mpv, 1 ExoPlayer (Android TV only), 2 native
+
   # ==================== Playback & Audio ====================
   autoPlayNextEpisode:
     locked: false

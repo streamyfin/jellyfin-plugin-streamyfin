@@ -449,6 +449,38 @@ public class Settings
     [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
 
+    // TV
+    [NotNull]
+    [Display(Name = "TV typography scale", Description = "Text size on the TV app: small, default, large or extraLarge")]
+    public Lockable<TVTypographyScale>? tvTypographyScale { get; set; } // = default;
+
+    [NotNull]
+    [Display(Name = "TV theme music", Description = "Play a series theme music while browsing it on TV")]
+    public Lockable<bool>? tvThemeMusicEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Hide the remote session button")]
+    public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
+    public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
+
+    [NotNull]
+    [Display(Name = "Native player on Apple TV")]
+    public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Native player on Android TV")]
+    public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
+
+    // No default on purpose. The app resolves this at runtime through
+    // getActiveVideoPlayer() so an existing install keeps the player it has been
+    // using. A default here would choose for every device that never has.
+    [NotNull]
+    [Display(Name = "Video player", Description = "0 for mpv, 1 for ExoPlayer, which is Android TV only, 2 for the native player")]
+    public Lockable<VideoPlayer>? videoPlayer { get; set; }
+
 }
 
 [XmlRoot("dictionary")]
