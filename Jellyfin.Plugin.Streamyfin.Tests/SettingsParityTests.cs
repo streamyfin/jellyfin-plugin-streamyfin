@@ -161,67 +161,94 @@ public class SettingsParityTests
     [Fact]
     public void ADeclaredDefaultEqualsTheAppsOwn()
     {
-        var settings = PluginConfiguration.DefaultSettings();
-        var options = new SerializationHelper().GetJsonSerializerOptions();
-        var properties = typeof(Settings).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-        var disagreements = new List<string>();
-
-        foreach (var entry in Manifest())
-        {
-            if (KnownDisagreements.ContainsKey(entry.Key))
-            {
-                continue;
-            }
-
-            var property = Array.Find(properties, candidate => candidate.Name == entry.Key);
-            if (property is null)
-            {
-                continue;
-            }
-
-            var declared = property.GetValue(settings);
-            if (declared is null)
-            {
-                // Declaring no default is always allowed. It means the plugin proposes
-                // nothing and the app keeps its own, which is the quiet option.
-                continue;
-            }
-
-            if (entry.NoDefaultReason == "platform")
-            {
-                // The app has more than one default for this, chosen by platform. One
-                // number here would be pushed to every device and flatten a difference
-                // the app makes deliberately.
-                disagreements.Add(
-                    $"{entry.Key}: the app's default varies by platform, so the plugin must declare none");
-                continue;
-            }
-
-            if (!entry.HasDefault)
-            {
-                // The app ships nothing, so there is nothing to disagree with and an
-                // administrator's starting value is welcome.
-                continue;
-            }
-
-            var value = declared.GetType().GetProperty("value")!.GetValue(declared);
-            var written = JsonSerializer.Serialize(value, options);
-
-            // normalizePluginValue reshapes a few keys on the way into the app, so for
-            // those the plugin has to send the wire form rather than the stored one.
-            var expected = entry.WireNote is null ? entry.Default : entry.WireDefault;
-
-            if (!Equivalent(written, expected))
-            {
-                var because = entry.WireNote is null ? string.Empty : $" ({entry.WireNote})";
-                disagreements.Add($"{entry.Key}: app {expected}, plugin {written}{because}");
-            }
-        }
+        var disagreements = Manifest()
+            .Where(entry => !KnownDisagreements.ContainsKey(entry.Key))
+            .Select(Disagreement)
+            .OfType<string>()
+            .ToArray();
 
         Assert.True(
-            disagreements.Count == 0,
+            disagreements.Length == 0,
             "Defaults that disagree with the app:\n  " + string.Join("\n  ", disagreements));
+    }
+
+    /// <summary>
+    /// An excused disagreement still disagrees.
+    /// </summary>
+    /// <remarks>
+    /// The excuse skips the comparison for its key, so one left behind after the app
+    /// caught up would disable that check quietly and for good. This is the half of
+    /// "an excuse must not outlive its reason" that checking the key alone misses: the
+    /// key is still there, it is the reason that expired.
+    /// </remarks>
+    [Fact]
+    public void AnExcusedDisagreementStillDisagrees()
+    {
+        var settled = KnownDisagreements.Keys
+            .Where(key => Manifest().Any(entry => entry.Key == key))
+            .Where(key => Disagreement(Manifest().Single(entry => entry.Key == key)) is null)
+            .ToArray();
+
+        Assert.True(
+            settled.Length == 0,
+            "Excused, but the app and the plugin now agree. Delete the entry:\n  "
+            + string.Join("\n  ", settled));
+    }
+
+    /// <summary>
+    /// How one declared default differs from the app's, or <c>null</c> when it does not.
+    /// </summary>
+    private static string? Disagreement(ManifestEntry entry)
+    {
+        var settings = PluginConfiguration.DefaultSettings();
+        var options = new SerializationHelper().GetJsonSerializerOptions();
+
+        var property = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(candidate => candidate.Name == entry.Key);
+
+        if (property is null)
+        {
+            return null;
+        }
+
+        var declared = property.GetValue(settings);
+        if (declared is null)
+        {
+            // Declaring no default is always allowed. It means the plugin proposes
+            // nothing and the app keeps its own, which is the quiet option.
+            return null;
+        }
+
+        if (entry.NoDefaultReason == "platform")
+        {
+            // The app has more than one default for this, chosen by platform. One number
+            // here would be pushed to every device and flatten a difference the app
+            // makes deliberately.
+            return $"{entry.Key}: the app's default varies by platform, so the plugin must declare none";
+        }
+
+        if (!entry.HasDefault)
+        {
+            // The app ships nothing, so there is nothing to disagree with and an
+            // administrator's starting value is welcome.
+            return null;
+        }
+
+        var value = declared.GetType().GetProperty("value")!.GetValue(declared);
+        var written = JsonSerializer.Serialize(value, options);
+
+        // normalizePluginValue reshapes a few keys on the way into the app, so for those
+        // the plugin has to send the wire form rather than the stored one.
+        var expected = entry.WireNote is null ? entry.Default : entry.WireDefault;
+
+        if (Equivalent(written, expected))
+        {
+            return null;
+        }
+
+        var because = entry.WireNote is null ? string.Empty : $" ({entry.WireNote})";
+        return $"{entry.Key}: app {expected}, plugin {written}{because}";
     }
 
     /// <summary>
@@ -241,7 +268,9 @@ public class SettingsParityTests
         var stale = NotDeclared.Keys
             .Concat(KnownDisagreements.Keys)
             .Where(key => !known.Contains(key))
-            .Concat(DeclaredAheadOfTheApp.Keys.Where(key => !declared.Contains(key)))
+            // Both directions for an ahead-of-the-app key: the plugin dropped it, or the
+            // app caught up and it is no longer ahead of anything.
+            .Concat(DeclaredAheadOfTheApp.Keys.Where(key => !declared.Contains(key) || known.Contains(key)))
             .ToArray();
 
         Assert.True(
