@@ -211,12 +211,26 @@ names kept as aliases, which closes #95 without breaking every existing YAML.
 
 ## Progress
 
+Everything merged below is on `develop`, which reaches `main` through
+[#121](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/121).
+
 | Sub part | Pull request | State |
 |---|---|---|
 | P0.1 | [#115](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/115) | merged |
 | P0.2 | [#117](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/117) | merged |
 | P0.11 | [#116](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/116) | merged |
-| P0.3, P0.4, P0.5 | [#125](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/125) | open |
-| P0.6 to P0.9 | [#126](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/126) | open |
-| P0.12, P0.13 | [#127](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/127) | open |
+| P0.3, P0.4, P0.5 | [#125](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/125) | merged |
+| P0.6 to P0.9 | [#126](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/126) | merged |
+| P0.12, P0.13 | [#127](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/127) | merged |
 | P0.10 | none | not started, optional, needs a SignPath application |
+| P1.1 | [#128](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/128) | merged |
+| P1.2, P1.3 | [#129](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/129) | merged |
+| P1.4 | [#131](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/131) | merged |
+| P1.5 | [#132](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/132) | merged |
+| P1.6 | [#133](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/133) | merged |
+
+Not a numbered sub part, landed alongside P1:
+[#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the
+plugin's entry in the dashboard's left menu, and
+[#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109), the
+two lockable mute subtitle keys that came out of the pull request triage.
