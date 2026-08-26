@@ -365,6 +365,38 @@ public class Settings
     [Display(Name = "Hide brightness slider", Description = "Hide the brightness slider in the video controls")]
     public Lockable<bool>? hideBrightnessSlider { get; set; } // = false
 
+    [NotNull]
+    [Display(Name = "Double tap to seek")]
+    public Lockable<bool>? enableDoubleTapToSeek { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Hold to speed up")]
+    public Lockable<bool>? enableHoldToSpeed { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
+    public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
+
+    [NotNull]
+    [Display(Name = "Pinch to zoom")]
+    public Lockable<bool>? enablePinchToZoom { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Ask before resuming", Description = "Ask whether to resume or start over instead of resuming straight away")]
+    public Lockable<bool>? showResumeDialog { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Auto play episode count", Description = "How many episodes have played automatically so far. 0 starts the count over")]
+    public Lockable<int>? autoPlayEpisodeCount { get; set; } // = 0;
+
+    [NotNull]
+    [Display(Name = "Play the default audio track", Description = "Play the track the server marks as default rather than the last one chosen")]
+    public Lockable<bool>? playDefaultAudioTrack { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Audio transcoding mode", Description = "How surround audio is handled: auto, stereo, 5.1 or passthrough")]
+    public Lockable<AudioTranscodeMode>? audioTranscodeMode { get; set; } // = auto;
+
     // region Plugins
     // Jellyseerr
     [NotNull]

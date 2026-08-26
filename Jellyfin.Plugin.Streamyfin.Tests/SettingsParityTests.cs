@@ -30,19 +30,13 @@ public class SettingsParityTests
     /// </remarks>
     private static readonly Dictionary<string, string> NotDeclared = new(StringComparer.Ordinal)
     {
-        ["audioTranscodeMode"] = "not yet declared",
         ["autoLoginJellyseerr"] = "not yet declared",
-        ["autoPlayEpisodeCount"] = "not yet declared",
         ["defaultAudioLanguage"] = "not yet declared",
         ["defaultSubtitleLanguage"] = "not yet declared",
         ["deviceProfile"] = "not yet declared",
         ["downloadQuality"] = "not yet declared",
-        ["enableDoubleTapToSeek"] = "not yet declared",
         ["enableH265ForChromecast"] = "not yet declared",
-        ["enableHoldToSpeed"] = "not yet declared",
-        ["enablePinchToZoom"] = "not yet declared",
         ["hideRemoteSessionButton"] = "not yet declared",
-        ["holdToSpeedRate"] = "not yet declared",
         ["inactivityTimeout"] = "not yet declared",
         ["mediaListCollectionIds"] = "not yet declared",
         ["mpvCacheEnabled"] = "not yet declared",
@@ -54,7 +48,6 @@ public class SettingsParityTests
         ["nativeVideoPlayerTV"] = "not yet declared",
         ["openSubtitlesApiKey"] = "not yet declared",
         ["openSubtitlesEnabled"] = "not yet declared",
-        ["playDefaultAudioTrack"] = "not yet declared",
         ["playbackSpeedPerMedia"] =
             "Not a setting. A map the player writes by itself, keyed by item id, so "
             + "there is nothing an administrator could put in it.",
@@ -63,7 +56,6 @@ public class SettingsParityTests
         ["preferedLanguage"] = "not yet declared",
         ["sentryEnabled"] = "not yet declared",
         ["showDownloadLiveActivity"] = "not yet declared",
-        ["showResumeDialog"] = "not yet declared",
         ["tvThemeMusicEnabled"] = "not yet declared",
         ["tvTypographyScale"] = "not yet declared",
         ["usePopularPlugin"] = "not yet declared",
@@ -347,7 +339,18 @@ public class SettingsParityTests
 
     // Through the serializer both sides use. Comparing CLR values would pass for an
     // enum written as a number where the app expects its name.
-    private static bool Equivalent(string written, JsonElement expected) =>
-        JsonSerializer.Serialize(JsonDocument.Parse(written).RootElement)
-        == JsonSerializer.Serialize(expected);
+    private static bool Equivalent(string written, JsonElement expected)
+    {
+        using var document = JsonDocument.Parse(written);
+        var actual = document.RootElement;
+
+        // 2 and 2.0 are the same JSON number and the app parses JSON, so comparing the
+        // text would fail on a C# double that happens to serialize without a fraction.
+        if (actual.ValueKind == JsonValueKind.Number && expected.ValueKind == JsonValueKind.Number)
+        {
+            return actual.GetDouble() == expected.GetDouble();
+        }
+
+        return JsonSerializer.Serialize(actual) == JsonSerializer.Serialize(expected);
+    }
 }

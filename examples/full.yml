@@ -144,6 +144,39 @@ settings:
   hideBrightnessSlider:
     locked: false
     value: false  # Hide the brightness slider in the video controls
+  
+  enableDoubleTapToSeek:
+    locked: false
+    value: false
+  
+  enableHoldToSpeed:
+    locked: false
+    value: true
+  
+  holdToSpeedRate:
+    locked: false
+    value: 2.0  # Speed multiplier while the screen is held
+  
+  enablePinchToZoom:
+    locked: false
+    value: true
+  
+  showResumeDialog:
+    locked: false
+    value: false  # Ask resume or start over
+  
+  autoPlayEpisodeCount:
+    locked: false
+    value: 0
+  
+  playDefaultAudioTrack:
+    locked: false
+    value: true
+  
+  audioTranscodeMode:
+    locked: false
+    value: auto  # auto, stereo, 5.1 or passthrough
+  # Hide the brightness slider in the video controls
 
   # ==================== Library Management ====================
   hiddenLibraries:
