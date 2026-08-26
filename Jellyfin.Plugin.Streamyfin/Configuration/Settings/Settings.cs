@@ -19,6 +19,25 @@ public class LibraryOptions
 };
 
 /// <summary>
+/// A language the app can be pointed at.
+/// </summary>
+/// <remarks>
+/// Deliberately not Jellyfin's <c>CultureDto</c>. That type has no parameterless
+/// constructor, so the schema generator cannot describe it, which is why these two
+/// settings sat commented out with a TODO. The app reads exactly two of its fields,
+/// <c>ThreeLetterISOLanguageName</c> to match on and <c>DisplayName</c> to show, so
+/// those two are what this carries.
+/// </remarks>
+public class LanguagePreference
+{
+    /// <summary>The ISO 639-2 code, which is what the app matches on.</summary>
+    public string ThreeLetterISOLanguageName { get; set; } = string.Empty;
+
+    /// <summary>What the language picker shows.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Assign a lock to given type value 
 /// </summary>
 /// <typeparam name="T"></typeparam>
@@ -248,12 +267,16 @@ public class Settings
     [NotNull]
     [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
-    // TODO create type converter for CultureDto
-    //  Currently fails since it doesnt have a parameterless constructor
-    // public Lockable<CultureDto?>? defaultAudioLanguage { get; set; }
-    
+    // No default for either. The app leaves both null and follows what the server or the
+    // media offers until the user picks one, so a value here would choose for everyone.
+    [NotNull]
+    [Display(Name = "Default audio language", Description = "Language to pick automatically when a title offers it")]
+    public Lockable<LanguagePreference>? defaultAudioLanguage { get; set; }
+
     // Subtitles
-    // public Lockable<CultureDto?>? defaultSubtitleLanguage { get; set; }
+    [NotNull]
+    [Display(Name = "Default subtitle language", Description = "Subtitle language to pick automatically when a title offers it")]
+    public Lockable<LanguagePreference>? defaultSubtitleLanguage { get; set; }
     [NotNull]
     [Display(Name = "Subtitle playback mode", Description = "Setting to determine when subtitles will automatically play during video playback")]
     public Lockable<SubtitlePlaybackMode>? subtitleMode { get; set; }

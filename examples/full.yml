@@ -74,6 +74,20 @@ settings:
     locked: false
     value: 100  # Subtitle size percentage (0-120)
   
+  # No default is shipped for either. The app follows what the server or the media
+  # offers until the user picks a language, so setting one chooses for everyone.
+  defaultAudioLanguage:
+    locked: false
+    value:
+      ThreeLetterISOLanguageName: fra
+      DisplayName: French
+  
+  defaultSubtitleLanguage:
+    locked: false
+    value:
+      ThreeLetterISOLanguageName: fra
+      DisplayName: French
+  
   subtitleFont:
     locked: false
     value: System  # Font family used to render subtitles

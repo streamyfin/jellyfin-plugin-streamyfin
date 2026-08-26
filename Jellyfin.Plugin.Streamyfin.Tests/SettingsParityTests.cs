@@ -30,8 +30,6 @@ public class SettingsParityTests
     /// </remarks>
     private static readonly Dictionary<string, string> NotDeclared = new(StringComparer.Ordinal)
     {
-        ["defaultAudioLanguage"] = "not yet declared",
-        ["defaultSubtitleLanguage"] = "not yet declared",
         ["downloadQuality"] =
             "Declared once the app can read it back. The app types it as DownloadOption, "
             + "which is { label, value }, and the generic fallback in normalizePluginValue "
