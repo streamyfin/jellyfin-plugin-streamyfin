@@ -11,15 +11,20 @@ Measured on `develop` and on the app's `develop`, 2026-08-26:
 | | |
 |---|---|
 | Settings the app reads | 93 |
-| Settings the plugin declares | 45 |
-| In common | 44 |
-| **In the app, undeclared** | **49** |
+| Settings the plugin declares | 43 |
+| In common | 42 |
+| **In the app, undeclared** | **51** |
 | Declared but absent from the app | 1, `subtitlesOnMuteAllowRestart`, which lives on the app branch of [#1900](https://github.com/streamyfin/streamyfin/pull/1900) |
 
 So more than half of what the app offers is outside an administrator's reach:
 every subtitle appearance control, the player gestures, the mpv tuning, the TV
-options, the choice of video player. This document is the decision about those 49
+options, the choice of video player. This document is the decision about those 51
 and the mechanism that stops the gap reopening.
+
+Two of the 51 are declared in `Settings.cs` but commented out, with a note saying
+`CultureDto` has no parameterless constructor so the schema generator fails on it.
+`defaultAudioLanguage` and `defaultSubtitleLanguage` therefore count as
+undeclared, because a commented property is not one.
 
 It is part P1 work finishing rather than a new part: P1.1 built `SettingsSchema`
 to read `Settings.cs` by reflection, and P1.3 resolves every key that schema
@@ -29,7 +34,7 @@ all pick it up with no further change.
 
 ## What gets declared
 
-**47 of the 49 are decided as declarable.** Two are not. One of the 47,
+**49 of the 51 are decided as declarable.** Two are not. One of the 49,
 `downloadQuality`, needs a matching app change before it can land, for the reason
 given under the type rules below.
 
@@ -39,7 +44,7 @@ keyed by item and by series id, so there is nothing an administrator could
 usefully put in them. Declaring them would also put a field nobody can fill into
 the generated admin forms of P3.
 
-Six of the 47 were weighed rather than waved through, and are declared with the
+Six of the 49 were weighed rather than waved through, and are declared with the
 caveat written next to them in `examples/full.yml`:
 
 - **The five mpv keys** (`mpvCacheEnabled`, `mpvCacheSeconds`, `mpvDemuxerMaxBytes`,
@@ -66,8 +71,29 @@ to enable still did nothing.
 value is applied exactly once as a default, through `pendingPluginDefaults` and
 the `PLUGIN_APPLIED_DEFAULTS` registry. A default that disagrees with the app
 therefore does not sit there harmlessly: it silently flips the setting for every
-user who has not already chosen one. Across 47 keys at once, care is not a
+user who has not already chosen one. Across 49 keys at once, care is not a
 mechanism, which is why the test below exists.
+
+Writing the manifest found five keys where the plugin already disagrees with the
+app, and they are not theoretical: `PluginConfiguration()` fills its config from
+`DefaultSettings()` on first start, `GET config` serves it, and the app applies an
+unlocked value once. Installing the plugin and configuring nothing is enough.
+
+| Key | Plugin | App | What it does to a user who never chose |
+|---|---|---|---|
+| `rememberAudioSelections` | `false` | `true` | turns off remembering the audio track |
+| `rememberSubtitleSelections` | `false` | `true` | turns off remembering the subtitle track |
+| `rewindSkipTime` | `15` | `10` | rewinds 15 seconds instead of 10 |
+| `subtitleSize` | `80`, normalised to `0.8` | `1.0` | subtitles at 80 per cent of the intended size |
+| `subtitlesOnMute` | `true` | `false` | turns the feature on for everyone |
+
+The first four predate the rewrite and are corrected to the app's values here.
+Nothing changes for an existing device: `PLUGIN_APPLIED_DEFAULTS` has already
+recorded the old value, so only a device that has never seen one gets the new.
+
+`subtitlesOnMute` is left alone and carries a written exception in the test. Its
+`true` is not a mistake: it matches the app branch of #1900, which #109 was
+deliberately aligned with. The exception disappears the day that branch merges.
 
 **A setting whose app default varies by platform is declared without a default.**
 Two of them do:
@@ -86,7 +112,7 @@ plugin proposes nothing. `videoPlayer`, `preferedLanguage` and
 has no default for them either.
 
 **The type is the app's type, and it has to survive the round trip.** Most of the
-47 are booleans, numbers and strings, and land on `Lockable<bool>`,
+49 are booleans, numbers and strings, and land on `Lockable<bool>`,
 `Lockable<int>` and `Lockable<string>` unchanged. Two shapes need care:
 
 - **Enumerations.** `audioTranscodeMode`, `inactivityTimeout`, `mpvCacheEnabled`,
@@ -103,6 +129,14 @@ has no default for them either.
   declares the scalar `DownloadQuality` and the app gains a normalizer case, or
   the app's `DownloadOption` gains a `key`. That is an app-side change, so it is
   the one key in this part that cannot land alone.
+
+- **The two language keys need a type of their own.** `defaultAudioLanguage` and
+  `defaultSubtitleLanguage` are `CultureDto | null` in the app, and the existing
+  commented-out declaration says why they were left alone: Jellyfin's `CultureDto`
+  has no parameterless constructor, so the schema generator fails on it. The app
+  reads exactly two of its fields, `ThreeLetterISOLanguageName` and `DisplayName`,
+  so the plugin declares its own small type carrying those two rather than
+  borrowing Jellyfin's.
 
 Three keys are plain arrays, `hiddenHomeHeroSections`, `hiddenHomeHeroMediaTypes`
 and `mediaListCollectionIds`, and follow `Home.sections`, which is already an
