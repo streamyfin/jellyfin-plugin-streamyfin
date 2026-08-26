@@ -477,6 +477,47 @@ public class Settings
     [NotNull]
     [Display(Name = "HEVC for Chromecast", Description = "Offer HEVC to a Chromecast, which only some models decode")]
     public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
+
+    // The five mpv settings and deviceProfile describe what a device can do rather than
+    // what a user prefers. An administrator running a homogeneous fleet has a real
+    // reason to fix them; one who locks a value chosen for a phone also applies it to a
+    // TV box with less memory to spare.
+    [NotNull]
+    [Display(Name = "mpv cache", Description = "Whether mpv caches ahead: auto, yes or no")]
+    public Lockable<MpvCacheMode>? mpvCacheEnabled { get; set; } // = auto;
+
+    [NotNull]
+    [Display(Name = "mpv cache seconds", Description = "How many seconds mpv caches ahead")]
+    public Lockable<int>? mpvCacheSeconds { get; set; } // = 10;
+
+    // No default on purpose: the app's own default is not one number. It is 150 MB on a
+    // phone and 75 MB on Android TV, which has less memory to spare. Shipping either
+    // number would push it to both and flatten a distinction the app makes deliberately.
+    [NotNull]
+    [Display(Name = "mpv demuxer buffer (MB)", Description = "Read-ahead buffer size. The app defaults to 150 MB on a phone and 75 MB on Android TV, so one number here applies to both")]
+    public Lockable<int>? mpvDemuxerMaxBytes { get; set; }
+
+    // No default, same reason: 50 MB on a phone, 30 MB on Android TV.
+    [NotNull]
+    [Display(Name = "mpv back buffer (MB)", Description = "How much already-played data mpv keeps. The app defaults to 50 MB on a phone and 30 MB on Android TV")]
+    public Lockable<int>? mpvDemuxerMaxBackBytes { get; set; }
+
+    [NotNull]
+    [Display(Name = "mpv video output driver", Description = "gpu-next or gpu. gpu is the fallback for devices where gpu-next misbehaves")]
+    public Lockable<MpvVoDriver>? mpvVoDriver { get; set; } // = gpu-next;
+
+    [NotNull]
+    [Display(Name = "Device profile", Description = "Which playback profile the app reports: Expo, Native or Old")]
+    public Lockable<DeviceProfile>? deviceProfile { get; set; } // = Expo;
+
+    [NotNull]
+    [Display(Name = "Crash reporting", Description = "Whether the app sends crash reports. Turning it off for everyone is a reasonable policy; turning it on takes a consent decision away from the user")]
+    public Lockable<bool>? sentryEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "OpenSubtitles API key", Description = "An OpenSubtitles key for every user on this server. Setting it overwrites the key a user entered themselves, which may be one they pay for")]
+    [Secret]
+    public Lockable<string>? openSubtitlesApiKey { get; set; }
     // endregion Plugins
     
     // Misc.

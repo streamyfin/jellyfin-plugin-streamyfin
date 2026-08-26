@@ -276,6 +276,48 @@ settings:
     locked: false
     value: false  # Only some Chromecast models decode HEVC
 
+  # ==================== Device-bound and consent ====================
+  # The five mpv settings and deviceProfile describe what a device can do rather
+  # than what a user prefers. Locking a value chosen for a phone also applies it
+  # to a TV box with less memory to spare.
+  mpvCacheEnabled:
+    locked: false
+    value: auto  # auto, yes or no
+  
+  mpvCacheSeconds:
+    locked: false
+    value: 10
+  
+  # No default is shipped. The app uses 150 MB on a phone and 75 MB on Android TV,
+  # so one number here applies to both.
+  mpvDemuxerMaxBytes:
+    locked: false
+    value: 150
+  
+  # No default is shipped. The app uses 50 MB on a phone and 30 MB on Android TV.
+  mpvDemuxerMaxBackBytes:
+    locked: false
+    value: 50
+  
+  mpvVoDriver:
+    locked: false
+    value: gpu-next  # gpu-next or gpu
+  
+  deviceProfile:
+    locked: false
+    value: Expo  # Expo, Native or Old
+  
+  # Turning crash reporting off for everyone is a policy. Turning it on takes a
+  # consent decision away from the user.
+  sentryEnabled:
+    locked: false
+    value: true
+  
+  # Overwrites the key a user entered themselves, which may be one they pay for.
+  openSubtitlesApiKey:
+    locked: false
+    value: ""
+
   # ==================== TV and player ====================
   tvTypographyScale:
     locked: false

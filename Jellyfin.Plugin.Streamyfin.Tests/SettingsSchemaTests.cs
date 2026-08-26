@@ -38,16 +38,17 @@ public class SettingsSchemaTests
     }
 
     /// <summary>
-    /// The Seerr admin key is the only credential in the settings today. This pins the set:
-    /// adding another one has to be a decision rather than an accident, because P1.4 filters
-    /// exactly what is listed here out of the response served to a non administrator.
+    /// The credentials in the settings, all of them. This pins the set: adding another one
+    /// has to be a decision rather than an accident, because P1.4 filters exactly what is
+    /// listed here out of the response served to a non administrator. A key that reaches
+    /// this list late has been served to every account in the meantime.
     /// </summary>
     [Fact]
-    public void TheSeerrAdminKeyIsTheOnlySecret()
+    public void TheCredentialsAreTheOnesListedHere()
     {
         Assert.Equal(
-            new[] { "jellyseerrApiKey" },
-            SettingsSchema.Secrets.Select(s => s.Key).ToArray());
+            new[] { "jellyseerrApiKey", "openSubtitlesApiKey" },
+            SettingsSchema.Secrets.Select(s => s.Key).OrderBy(k => k, System.StringComparer.Ordinal).ToArray());
     }
 
     /// <summary>
