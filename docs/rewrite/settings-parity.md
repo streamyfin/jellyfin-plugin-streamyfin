@@ -112,8 +112,10 @@ array property.
 
 `Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json` lists what the app
 reads: every key, its type, and its default, with an explicit marker for the keys
-that have none. It is generated once from the app's `utils/atoms/settings.ts` and
-committed. It is the same device as `ApiSurfaceTests._legacyRoutes`, where a
+that have none. It is generated once from the app's `utils/atoms/settings.ts`,
+committed, and embedded in the test assembly rather than copied to the output
+directory, so reading it does not depend on which directory `dotnet test` was
+invoked from. It is the same device as `ApiSurfaceTests._legacyRoutes`, where a
 checked-in list turns a promise into something a build can fail on, and editing
 the list is the deliberate act.
 
