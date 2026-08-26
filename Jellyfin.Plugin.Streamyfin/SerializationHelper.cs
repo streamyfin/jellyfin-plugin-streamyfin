@@ -46,7 +46,15 @@ public class SerializationHelper
         _jsonSerializer = NewtonsoftJsonSerializer.CreateDefault();
     }
 
-    private JsonSerializerOptions GetJsonSerializerOptions()
+    /// <summary>
+    /// The options every JSON the app receives is written with.
+    /// </summary>
+    /// <remarks>
+    /// Public because the parity test compares a declared default against what the app
+    /// reads, and it has to compare the written form. Comparing CLR values would pass
+    /// for an enum written as a number where the app expects its name.
+    /// </remarks>
+    public JsonSerializerOptions GetJsonSerializerOptions()
     {
         var options = new JsonSerializerOptions(JsonDefaults.Options);
         // Prioritize these first since other converters & defaults change expected behavior

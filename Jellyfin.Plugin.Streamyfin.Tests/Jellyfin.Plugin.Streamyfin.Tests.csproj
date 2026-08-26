@@ -13,6 +13,13 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Embedded rather than copied to the output directory: the parity test then
+             reads it through the assembly and does not depend on which directory
+             dotnet test was invoked from. -->
+        <EmbeddedResource Include="AppSettingsManifest.json" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\Jellyfin.Plugin.Streamyfin\Jellyfin.Plugin.Streamyfin.csproj" />
     </ItemGroup>
 </Project>

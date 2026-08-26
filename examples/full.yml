@@ -16,7 +16,7 @@ settings:
   
   rewindSkipTime:
     locked: false
-    value: 15  # Seconds to skip backward (0-60)
+    value: 10  # Seconds to skip backward (0-60)
   
   defaultBitrate:
     locked: false
@@ -51,7 +51,7 @@ settings:
   # ==================== Audio Settings ====================
   rememberAudioSelections:
     locked: false
-    value: false  # Remember audio language from previous playback
+    value: true  # Remember audio language from previous playback
 
   # ==================== Subtitle Settings ====================
   subtitleMode:
@@ -60,7 +60,7 @@ settings:
   
   rememberSubtitleSelections:
     locked: false
-    value: false  # Remember subtitle language from previous playback
+    value: true  # Remember subtitle language from previous playback
   
   subtitlesOnMute:
     locked: false
@@ -72,7 +72,7 @@ settings:
   
   subtitleSize:
     locked: false
-    value: 80  # Subtitle size percentage (0-120)
+    value: 100  # Subtitle size percentage (0-120)
 
   # ==================== Video Orientation ====================
   defaultVideoOrientation:
@@ -117,7 +117,7 @@ settings:
   hiddenLibraries:
     locked: false
     value:
-      - "Enter library id(s)"  # Array of library IDs to hide from users
+      []  # Array of library IDs to hide from users
   
   libraryOptions:
     locked: false
@@ -133,7 +133,7 @@ settings:
   # Jellyseerr (Media Request Management)
   jellyseerrServerUrl:
     locked: false
-    value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
+    value: ""  # e.g., https://jellyseerr.example.com
   # Optional: Seerr admin API key (Seerr Settings > General). Lets Streamyfin
   # sign each user in to Seerr without a password (works with Quick Connect).
   # WARNING: every authenticated Jellyfin user can read this key and it grants
@@ -149,7 +149,7 @@ settings:
   
   marlinServerUrl:
     locked: false
-    value: "Enter Marlin server URL"  # e.g., https://marlin.example.com
+    value: ""  # e.g., https://marlin.example.com
   
   # Streamystats (Recommendations & Analytics)
   streamyStatsServerUrl:

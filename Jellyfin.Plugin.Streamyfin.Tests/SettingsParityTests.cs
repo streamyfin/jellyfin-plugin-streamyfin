@@ -1,0 +1,301 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+using Xunit;
+
+namespace Jellyfin.Plugin.Streamyfin.Tests;
+
+/// <summary>
+/// The plugin declares what the app reads, and nothing else.
+///
+/// A key the plugin does not declare resolves <c>locked</c> to <c>undefined</c> in the
+/// app, so the lock never fires and no value is ever pushed. A key the plugin declares
+/// under a name the app does not read is worse, because it looks like it works. Both
+/// have shipped, which is what <c>docs/rewrite/settings-parity.md</c> records.
+/// </summary>
+public class SettingsParityTests
+{
+    /// <summary>
+    /// Keys the app reads that the plugin deliberately does not declare, and why.
+    /// </summary>
+    /// <remarks>
+    /// Deleting an entry from here is how a setting comes under administrator control.
+    /// A key in neither this list nor <see cref="Settings"/> fails the first test, so
+    /// no key can arrive without someone deciding about it.
+    /// </remarks>
+    private static readonly Dictionary<string, string> NotDeclared = new(StringComparer.Ordinal)
+    {
+        ["audioTranscodeMode"] = "not yet declared",
+        ["autoLoginJellyseerr"] = "not yet declared",
+        ["autoPlayEpisodeCount"] = "not yet declared",
+        ["defaultAudioLanguage"] = "not yet declared",
+        ["defaultSubtitleLanguage"] = "not yet declared",
+        ["deviceProfile"] = "not yet declared",
+        ["downloadQuality"] = "not yet declared",
+        ["enableDoubleTapToSeek"] = "not yet declared",
+        ["enableH265ForChromecast"] = "not yet declared",
+        ["enableHoldToSpeed"] = "not yet declared",
+        ["enablePinchToZoom"] = "not yet declared",
+        ["hiddenHomeHeroMediaTypes"] = "not yet declared",
+        ["hiddenHomeHeroSections"] = "not yet declared",
+        ["hideRemoteSessionButton"] = "not yet declared",
+        ["holdToSpeedRate"] = "not yet declared",
+        ["inactivityTimeout"] = "not yet declared",
+        ["mediaListCollectionIds"] = "not yet declared",
+        ["mergeNextUpAndContinueWatching"] = "not yet declared",
+        ["mpvCacheEnabled"] = "not yet declared",
+        ["mpvCacheSeconds"] = "not yet declared",
+        ["mpvDemuxerMaxBackBytes"] = "not yet declared",
+        ["mpvDemuxerMaxBytes"] = "not yet declared",
+        ["mpvVoDriver"] = "not yet declared",
+        ["nativeVideoPlayerAndroidTV"] = "not yet declared",
+        ["nativeVideoPlayerTV"] = "not yet declared",
+        ["openSubtitlesApiKey"] = "not yet declared",
+        ["openSubtitlesEnabled"] = "not yet declared",
+        ["playDefaultAudioTrack"] = "not yet declared",
+        ["playbackSpeedPerMedia"] =
+            "Not a setting. A map the player writes by itself, keyed by item id, so "
+            + "there is nothing an administrator could put in it.",
+        ["playbackSpeedPerShow"] =
+            "Not a setting. A map the player writes by itself, keyed by series id.",
+        ["preferedLanguage"] = "not yet declared",
+        ["sentryEnabled"] = "not yet declared",
+        ["showDownloadLiveActivity"] = "not yet declared",
+        ["showHeroCarousel"] = "not yet declared",
+        ["showHomeBackdrop"] = "not yet declared",
+        ["showHomeTitles"] = "not yet declared",
+        ["showResumeDialog"] = "not yet declared",
+        ["showSeriesPosterOnEpisode"] = "not yet declared",
+        ["subtitleAlignX"] = "not yet declared",
+        ["subtitleAlignY"] = "not yet declared",
+        ["subtitleBackground"] = "not yet declared",
+        ["subtitleBackgroundOpacity"] = "not yet declared",
+        ["subtitleBackgroundPadding"] = "not yet declared",
+        ["subtitleColor"] = "not yet declared",
+        ["subtitleFont"] = "not yet declared",
+        ["subtitleMarginY"] = "not yet declared",
+        ["tvThemeMusicEnabled"] = "not yet declared",
+        ["tvTypographyScale"] = "not yet declared",
+        ["useEpisodeImagesForNextUp"] = "not yet declared",
+        ["usePopularPlugin"] = "not yet declared",
+        ["videoPlayer"] = "not yet declared",
+        ["wikidataAwardsEnabled"] = "not yet declared",
+    };
+
+    /// <summary>
+    /// Declared defaults that knowingly differ from the app's, and why.
+    /// </summary>
+    /// <remarks>
+    /// This list should stay empty or nearly so. An entry is a promise that someone
+    /// weighed the difference, not a place to put a default that turned out to be
+    /// inconvenient to fix.
+    /// </remarks>
+    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal)
+    {
+        ["subtitlesOnMute"] =
+            "The app's published develop still defaults this to false. The true here "
+            + "matches the branch of streamyfin/streamyfin#1900, which pull request #109 "
+            + "was deliberately aligned with. Delete this entry the day that branch merges."
+    };
+
+    /// <summary>
+    /// Keys the plugin declares that the app's published branch does not read yet, and
+    /// why that is deliberate rather than the mistake of pull request #109.
+    /// </summary>
+    /// <remarks>
+    /// An entry here is a bet that the app change lands. It is safe only while the
+    /// plugin ships no default for the key, or ships one the app agrees with once it
+    /// catches up, since an unlocked default is applied whether the app understands the
+    /// key or not.
+    /// </remarks>
+    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
+    {
+        ["subtitlesOnMuteAllowRestart"] =
+            "Lives on the branch of streamyfin/streamyfin#1900, which is open and "
+            + "mergeable. Declared by pull request #109 on purpose so the two halves "
+            + "could land in either order. Delete this entry once that branch merges "
+            + "and the manifest is regenerated."
+    };
+
+    private sealed record ManifestEntry(
+        string Key,
+        string Type,
+        JsonElement Default,
+        bool HasDefault,
+        string? NoDefaultReason,
+        JsonElement WireDefault,
+        string? WireNote);
+
+    private static IReadOnlyList<ManifestEntry> Manifest()
+    {
+        var assembly = typeof(SettingsParityTests).Assembly;
+        var resource = assembly
+            .GetManifestResourceNames()
+            .Single(name => name.EndsWith("AppSettingsManifest.json", StringComparison.Ordinal));
+
+        using var stream = assembly.GetManifestResourceStream(resource)!;
+        using var reader = new StreamReader(stream);
+
+        return JsonSerializer.Deserialize<List<ManifestEntry>>(
+            reader.ReadToEnd(),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    private static HashSet<string> DeclaredKeys() =>
+        typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => property.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Every setting the app reads has been decided about: declared, or listed as
+    /// deliberately not declared with the reason written down.
+    /// </summary>
+    [Fact]
+    public void EverySettingTheAppReadsHasBeenDecidedAbout()
+    {
+        var declared = DeclaredKeys();
+
+        var undecided = Manifest()
+            .Select(entry => entry.Key)
+            .Where(key => !declared.Contains(key) && !NotDeclared.ContainsKey(key))
+            .ToArray();
+
+        Assert.True(
+            undecided.Length == 0,
+            "Neither declared nor excused:\n  " + string.Join("\n  ", undecided));
+    }
+
+    /// <summary>
+    /// Every key the plugin declares is one the app actually reads.
+    /// </summary>
+    /// <remarks>
+    /// This is the one that catches the mistake in pull request #109, where the plugin
+    /// declared <c>autoSubtitlesOnMute</c> while the app read <c>subtitlesOnMute</c>. It
+    /// shipped two properties nothing reads, and the lock they existed to enable still
+    /// did nothing.
+    /// </remarks>
+    [Fact]
+    public void EveryKeyThePluginDeclaresIsOneTheAppReads()
+    {
+        var known = Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
+
+        var unknown = DeclaredKeys()
+            .Where(key => !known.Contains(key) && !DeclaredAheadOfTheApp.ContainsKey(key))
+            .ToArray();
+
+        Assert.True(
+            unknown.Length == 0,
+            "Declared, but the app reads no such key:\n  " + string.Join("\n  ", unknown));
+    }
+
+    /// <summary>
+    /// A declared default equals the app's own.
+    /// </summary>
+    /// <remarks>
+    /// An unlocked plugin value is applied exactly once as a default, so a disagreement
+    /// here does not sit there harmlessly: it silently flips the setting for every user
+    /// who has not already chosen one.
+    /// </remarks>
+    [Fact]
+    public void ADeclaredDefaultEqualsTheAppsOwn()
+    {
+        var settings = PluginConfiguration.DefaultSettings();
+        var options = new SerializationHelper().GetJsonSerializerOptions();
+        var properties = typeof(Settings).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        var disagreements = new List<string>();
+
+        foreach (var entry in Manifest())
+        {
+            if (KnownDisagreements.ContainsKey(entry.Key))
+            {
+                continue;
+            }
+
+            var property = Array.Find(properties, candidate => candidate.Name == entry.Key);
+            if (property is null)
+            {
+                continue;
+            }
+
+            var declared = property.GetValue(settings);
+            if (declared is null)
+            {
+                // Declaring no default is always allowed. It means the plugin proposes
+                // nothing and the app keeps its own, which is the quiet option.
+                continue;
+            }
+
+            if (entry.NoDefaultReason == "platform")
+            {
+                // The app has more than one default for this, chosen by platform. One
+                // number here would be pushed to every device and flatten a difference
+                // the app makes deliberately.
+                disagreements.Add(
+                    $"{entry.Key}: the app's default varies by platform, so the plugin must declare none");
+                continue;
+            }
+
+            if (!entry.HasDefault)
+            {
+                // The app ships nothing, so there is nothing to disagree with and an
+                // administrator's starting value is welcome.
+                continue;
+            }
+
+            var value = declared.GetType().GetProperty("value")!.GetValue(declared);
+            var written = JsonSerializer.Serialize(value, options);
+
+            // normalizePluginValue reshapes a few keys on the way into the app, so for
+            // those the plugin has to send the wire form rather than the stored one.
+            var expected = entry.WireNote is null ? entry.Default : entry.WireDefault;
+
+            if (!Equivalent(written, expected))
+            {
+                var because = entry.WireNote is null ? string.Empty : $" ({entry.WireNote})";
+                disagreements.Add($"{entry.Key}: app {expected}, plugin {written}{because}");
+            }
+        }
+
+        Assert.True(
+            disagreements.Count == 0,
+            "Defaults that disagree with the app:\n  " + string.Join("\n  ", disagreements));
+    }
+
+    /// <summary>
+    /// A disagreement is only excused while the key it names still exists.
+    /// </summary>
+    /// <remarks>
+    /// Without this, an excuse outlives the property it was written for and the next
+    /// person reads a reason for something that is no longer there.
+    /// </remarks>
+    [Fact]
+    public void EveryExcusedDisagreementNamesASettingThatExists()
+    {
+        var known = Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
+
+        var declared = DeclaredKeys();
+
+        var stale = NotDeclared.Keys
+            .Concat(KnownDisagreements.Keys)
+            .Where(key => !known.Contains(key))
+            .Concat(DeclaredAheadOfTheApp.Keys.Where(key => !declared.Contains(key)))
+            .ToArray();
+
+        Assert.True(
+            stale.Length == 0,
+            "Excused, but no such setting exists:\n  " + string.Join("\n  ", stale));
+    }
+
+    // Through the serializer both sides use. Comparing CLR values would pass for an
+    // enum written as a number where the app expects its name.
+    private static bool Equivalent(string written, JsonElement expected) =>
+        JsonSerializer.Serialize(JsonDocument.Parse(written).RootElement)
+        == JsonSerializer.Serialize(expected);
+}
