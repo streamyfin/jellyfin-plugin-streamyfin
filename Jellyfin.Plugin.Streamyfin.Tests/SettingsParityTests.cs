@@ -293,6 +293,48 @@ public class SettingsParityTests
             "Excused, but no such setting exists:\n  " + string.Join("\n  ", stale));
     }
 
+    /// <summary>
+    /// An enum reaches the app under the string the app compares against.
+    /// </summary>
+    /// <remarks>
+    /// Three of these cannot be spelled as a C# member name: <c>5.1</c> and
+    /// <c>gpu-next</c> are not identifiers, and <c>default</c> is a keyword. Renaming a
+    /// member to something legal without saying so on the wire is silent: the build
+    /// passes, the app receives a string it has no case for, and the setting does
+    /// nothing.
+    /// </remarks>
+    [Theory]
+    [InlineData(AudioTranscodeMode.Auto, "\"auto\"")]
+    [InlineData(AudioTranscodeMode.ForceStereo, "\"stereo\"")]
+    [InlineData(AudioTranscodeMode.Allow51, "\"5.1\"")]
+    [InlineData(AudioTranscodeMode.AllowAll, "\"passthrough\"")]
+    [InlineData(MpvVoDriver.GpuNext, "\"gpu-next\"")]
+    [InlineData(MpvVoDriver.Gpu, "\"gpu\"")]
+    [InlineData(MpvCacheMode.Auto, "\"auto\"")]
+    [InlineData(MpvCacheMode.Yes, "\"yes\"")]
+    [InlineData(MpvCacheMode.No, "\"no\"")]
+    [InlineData(TVTypographyScale.Small, "\"small\"")]
+    [InlineData(TVTypographyScale.Default, "\"default\"")]
+    [InlineData(TVTypographyScale.Large, "\"large\"")]
+    [InlineData(TVTypographyScale.ExtraLarge, "\"extraLarge\"")]
+    [InlineData(DownloadQuality.Original, "\"original\"")]
+    [InlineData(DownloadQuality.High, "\"high\"")]
+    [InlineData(DownloadQuality.Low, "\"low\"")]
+    [InlineData(SubtitleAlignX.Left, "\"left\"")]
+    [InlineData(SubtitleAlignX.Center, "\"center\"")]
+    [InlineData(SubtitleAlignY.Bottom, "\"bottom\"")]
+    [InlineData(SubtitleAlignY.Top, "\"top\"")]
+    [InlineData(DeviceProfile.Expo, "\"Expo\"")]
+    public void AnEnumReachesTheAppUnderTheStringTheAppCompares(object member, string expected)
+    {
+        var written = JsonSerializer.Serialize(
+            member,
+            member.GetType(),
+            new SerializationHelper().GetJsonSerializerOptions());
+
+        Assert.Equal(expected, written);
+    }
+
     // Through the serializer both sides use. Comparing CLR values would pass for an
     // enum written as a number where the app expects its name.
     private static bool Equivalent(string written, JsonElement expected) =>
