@@ -234,6 +234,39 @@ settings:
     locked: false
     value: 500  # Maximum disk space (MB) for audio look-ahead caching
 
+  # ==================== Home Screen Composition ====================
+  showHomeTitles:
+    locked: false
+    value: true  # Show the title under each card
+  
+  showHomeBackdrop:
+    locked: false
+    value: true
+  
+  showHeroCarousel:
+    locked: false
+    value: true  # The large rotating carousel at the top
+  
+  hiddenHomeHeroSections:
+    locked: false
+    value: []  # continueWatching, nextUp, recentlyAdded
+  
+  hiddenHomeHeroMediaTypes:
+    locked: false
+    value: []  # movie, tv
+  
+  mergeNextUpAndContinueWatching:
+    locked: false
+    value: false  # One row instead of two
+  
+  useEpisodeImagesForNextUp:
+    locked: false
+    value: false  # Episode image rather than series poster
+  
+  showSeriesPosterOnEpisode:
+    locked: false
+    value: false
+
   # ==================== Custom Home Screen ====================
   home:
     locked: false

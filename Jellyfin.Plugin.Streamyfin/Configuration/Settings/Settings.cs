@@ -163,6 +163,41 @@ public class Settings
     [Display(Name = "Home view", Description = "Customize the appearance of the apps home page")]
     public Lockable<Home>? home { get; set; }
 
+    [NotNull]
+    [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
+    public Lockable<bool>? showHomeTitles { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Show the home backdrop", Description = "Show a backdrop image behind the home screen")]
+    public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Show the hero carousel", Description = "Show the large rotating carousel at the top of the home screen")]
+    public Lockable<bool>? showHeroCarousel { get; set; } // = true;
+
+    // string[] rather than an array of a declared enum, following hiddenLibraries. An
+    // enum would validate the members, and would also make an administrator's YAML
+    // fail to load the day the app adds a section name the plugin does not know yet.
+    [NotNull]
+    [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
+    public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
+    public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Merge Next Up and Continue Watching", Description = "Show both in a single row instead of two")]
+    public Lockable<bool>? mergeNextUpAndContinueWatching { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Use episode images in Next Up", Description = "Show the episode's own image rather than the series poster")]
+    public Lockable<bool>? useEpisodeImagesForNextUp { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Show the series poster on an episode", Description = "Use the series poster rather than the episode image on an episode page")]
+    public Lockable<bool>? showSeriesPosterOnEpisode { get; set; } // = false;
+
     // Media Controls
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
