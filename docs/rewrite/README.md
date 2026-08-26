@@ -14,6 +14,7 @@ goes in one of these files instead.
 | [issue-triage.md](issue-triage.md) | Every open issue, diagnosed and mapped onto the plan. |
 | [pull-request-triage.md](pull-request-triage.md) | The pull requests that were open when the rewrite started. |
 | [app-side-work.md](app-side-work.md) | What the app repository has to do, and what it is waiting on. |
+| [settings-parity.md](settings-parity.md) | Which of the app's settings the plugin declares, and the manifest that keeps the two from drifting. |
 
 ## How the work is organised
 
