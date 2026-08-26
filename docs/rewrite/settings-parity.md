@@ -10,18 +10,22 @@ Measured on `develop` and on the app's `develop`, 2026-08-26:
 
 | | |
 |---|---|
-| Settings the app reads | 93 |
+| Settings the app reads | 94 |
 | Settings the plugin declares | 43 |
 | In common | 42 |
-| **In the app, undeclared** | **51** |
+| **In the app, undeclared** | **52** |
+
+These come from `AppSettingsManifest.json`, which is generated from the app's
+`utils/atoms/settings.ts` rather than counted by hand. Two hand counts before it
+were both wrong, in opposite directions.
 | Declared but absent from the app | 1, `subtitlesOnMuteAllowRestart`, which lives on the app branch of [#1900](https://github.com/streamyfin/streamyfin/pull/1900) |
 
 So more than half of what the app offers is outside an administrator's reach:
 every subtitle appearance control, the player gestures, the mpv tuning, the TV
-options, the choice of video player. This document is the decision about those 51
+options, the choice of video player. This document is the decision about those 52
 and the mechanism that stops the gap reopening.
 
-Two of the 51 are declared in `Settings.cs` but commented out, with a note saying
+Two of the 52 are declared in `Settings.cs` but commented out, with a note saying
 `CultureDto` has no parameterless constructor so the schema generator fails on it.
 `defaultAudioLanguage` and `defaultSubtitleLanguage` therefore count as
 undeclared, because a commented property is not one.
@@ -34,7 +38,7 @@ all pick it up with no further change.
 
 ## What gets declared
 
-**49 of the 51 are decided as declarable.** Two are not. One of the 49,
+**50 of the 52 are decided as declarable.** Two are not. One of the 50,
 `downloadQuality`, needs a matching app change before it can land, for the reason
 given under the type rules below.
 
@@ -44,7 +48,7 @@ keyed by item and by series id, so there is nothing an administrator could
 usefully put in them. Declaring them would also put a field nobody can fill into
 the generated admin forms of P3.
 
-Six of the 49 were weighed rather than waved through, and are declared with the
+Six of the 50 were weighed rather than waved through, and are declared with the
 caveat written next to them in `examples/full.yml`:
 
 - **The five mpv keys** (`mpvCacheEnabled`, `mpvCacheSeconds`, `mpvDemuxerMaxBytes`,
@@ -71,7 +75,7 @@ to enable still did nothing.
 value is applied exactly once as a default, through `pendingPluginDefaults` and
 the `PLUGIN_APPLIED_DEFAULTS` registry. A default that disagrees with the app
 therefore does not sit there harmlessly: it silently flips the setting for every
-user who has not already chosen one. Across 49 keys at once, care is not a
+user who has not already chosen one. Across 50 keys at once, care is not a
 mechanism, which is why the test below exists.
 
 Writing the manifest found five keys where the plugin already disagrees with the
@@ -112,7 +116,7 @@ plugin proposes nothing. `videoPlayer`, `preferedLanguage` and
 has no default for them either.
 
 **The type is the app's type, and it has to survive the round trip.** Most of the
-49 are booleans, numbers and strings, and land on `Lockable<bool>`,
+50 are booleans, numbers and strings, and land on `Lockable<bool>`,
 `Lockable<int>` and `Lockable<string>` unchanged. Two shapes need care:
 
 - **Enumerations.** `audioTranscodeMode`, `inactivityTimeout`, `mpvCacheEnabled`,
