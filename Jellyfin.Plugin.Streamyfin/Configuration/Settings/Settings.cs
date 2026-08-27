@@ -19,6 +19,25 @@ public class LibraryOptions
 };
 
 /// <summary>
+/// A language the app can be pointed at.
+/// </summary>
+/// <remarks>
+/// Deliberately not Jellyfin's <c>CultureDto</c>. That type has no parameterless
+/// constructor, so the schema generator cannot describe it, which is why these two
+/// settings sat commented out with a TODO. The app reads exactly two of its fields,
+/// <c>ThreeLetterISOLanguageName</c> to match on and <c>DisplayName</c> to show, so
+/// those two are what this carries.
+/// </remarks>
+public class LanguagePreference
+{
+    /// <summary>The ISO 639-2 code, which is what the app matches on.</summary>
+    public string ThreeLetterISOLanguageName { get; set; } = string.Empty;
+
+    /// <summary>What the language picker shows.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Assign a lock to given type value 
 /// </summary>
 /// <typeparam name="T"></typeparam>
@@ -163,6 +182,41 @@ public class Settings
     [Display(Name = "Home view", Description = "Customize the appearance of the apps home page")]
     public Lockable<Home>? home { get; set; }
 
+    [NotNull]
+    [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
+    public Lockable<bool>? showHomeTitles { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Show the home backdrop", Description = "Show a backdrop image behind the home screen")]
+    public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Show the hero carousel", Description = "Show the large rotating carousel at the top of the home screen")]
+    public Lockable<bool>? showHeroCarousel { get; set; } // = true;
+
+    // string[] rather than an array of a declared enum, following hiddenLibraries. An
+    // enum would validate the members, and would also make an administrator's YAML
+    // fail to load the day the app adds a section name the plugin does not know yet.
+    [NotNull]
+    [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
+    public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
+    public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Merge Next Up and Continue Watching", Description = "Show both in a single row instead of two")]
+    public Lockable<bool>? mergeNextUpAndContinueWatching { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Use episode images in Next Up", Description = "Show the episode's own image rather than the series poster")]
+    public Lockable<bool>? useEpisodeImagesForNextUp { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Show the series poster on an episode", Description = "Use the series poster rather than the episode image on an episode page")]
+    public Lockable<bool>? showSeriesPosterOnEpisode { get; set; } // = false;
+
     // Media Controls
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
@@ -213,12 +267,16 @@ public class Settings
     [NotNull]
     [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
-    // TODO create type converter for CultureDto
-    //  Currently fails since it doesnt have a parameterless constructor
-    // public Lockable<CultureDto?>? defaultAudioLanguage { get; set; }
-    
+    // No default for either. The app leaves both null and follows what the server or the
+    // media offers until the user picks one, so a value here would choose for everyone.
+    [NotNull]
+    [Display(Name = "Default audio language", Description = "Language to pick automatically when a title offers it")]
+    public Lockable<LanguagePreference>? defaultAudioLanguage { get; set; }
+
     // Subtitles
-    // public Lockable<CultureDto?>? defaultSubtitleLanguage { get; set; }
+    [NotNull]
+    [Display(Name = "Default subtitle language", Description = "Subtitle language to pick automatically when a title offers it")]
+    public Lockable<LanguagePreference>? defaultSubtitleLanguage { get; set; }
     [NotNull]
     [Display(Name = "Subtitle playback mode", Description = "Setting to determine when subtitles will automatically play during video playback")]
     public Lockable<SubtitlePlaybackMode>? subtitleMode { get; set; }
@@ -238,6 +296,38 @@ public class Settings
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
+
+    [NotNull]
+    [Display(Name = "Subtitle font", Description = "Font family used to render subtitles")]
+    public Lockable<string>? subtitleFont { get; set; } // = "System";
+
+    [NotNull]
+    [Display(Name = "Subtitle colour", Description = "Subtitle text colour, as a hex value such as #FFFFFF")]
+    public Lockable<string>? subtitleColor { get; set; } // = "#FFFFFF";
+
+    [NotNull]
+    [Display(Name = "Subtitle background", Description = "Draw a box behind the subtitles")]
+    public Lockable<bool>? subtitleBackground { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
+    public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
+
+    [NotNull]
+    [Display(Name = "Subtitle background padding", Description = "Space between the subtitle text and the edge of its background")]
+    public Lockable<int>? subtitleBackgroundPadding { get; set; } // = 8;
+
+    [NotNull]
+    [Display(Name = "Subtitle vertical margin", Description = "Distance between the subtitles and the edge of the video")]
+    public Lockable<int>? subtitleMarginY { get; set; } // = 25;
+
+    [NotNull]
+    [Display(Name = "Subtitle horizontal alignment", Description = "left, center or right")]
+    public Lockable<SubtitleAlignX>? subtitleAlignX { get; set; } // = center;
+
+    [NotNull]
+    [Display(Name = "Subtitle vertical alignment", Description = "top, center or bottom")]
+    public Lockable<SubtitleAlignY>? subtitleAlignY { get; set; } // = bottom;
 
     // Other
     [NotNull]
@@ -298,6 +388,38 @@ public class Settings
     [Display(Name = "Hide brightness slider", Description = "Hide the brightness slider in the video controls")]
     public Lockable<bool>? hideBrightnessSlider { get; set; } // = false
 
+    [NotNull]
+    [Display(Name = "Double tap to seek")]
+    public Lockable<bool>? enableDoubleTapToSeek { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Hold to speed up")]
+    public Lockable<bool>? enableHoldToSpeed { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
+    public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
+
+    [NotNull]
+    [Display(Name = "Pinch to zoom")]
+    public Lockable<bool>? enablePinchToZoom { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Ask before resuming", Description = "Ask whether to resume or start over instead of resuming straight away")]
+    public Lockable<bool>? showResumeDialog { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Auto play episode count", Description = "How many episodes have played automatically so far. 0 starts the count over")]
+    public Lockable<int>? autoPlayEpisodeCount { get; set; } // = 0;
+
+    [NotNull]
+    [Display(Name = "Play the default audio track", Description = "Play the track the server marks as default rather than the last one chosen")]
+    public Lockable<bool>? playDefaultAudioTrack { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Audio transcoding mode", Description = "How surround audio is handled: auto, stereo, 5.1 or passthrough")]
+    public Lockable<AudioTranscodeMode>? audioTranscodeMode { get; set; } // = auto;
+
     // region Plugins
     // Jellyseerr
     [NotNull]
@@ -343,12 +465,120 @@ public class Settings
     [NotNull]
     [Display(Name = "KefinTweaks watchlist integration", Description = "Enable the KefinTweaks watchlist integration")]
     public Lockable<bool>? useKefinTweaks { get; set; }
+
+    [NotNull]
+    [Display(Name = "Popular lists", Description = "Show popular lists from the Popular Lists plugin")]
+    public Lockable<bool>? usePopularPlugin { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Awards from Wikidata", Description = "Show awards fetched from Wikidata on a title's page")]
+    public Lockable<bool>? wikidataAwardsEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "OpenSubtitles", Description = "Allow searching OpenSubtitles for subtitles during playback")]
+    public Lockable<bool>? openSubtitlesEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Sign in to Jellyseerr automatically", Description = "Sign the user in to Jellyseerr without asking, when the server allows it")]
+    public Lockable<bool>? autoLoginJellyseerr { get; set; } // = true;
+
+    // No default. The app leaves this undefined and follows the device language until
+    // the user picks one, so shipping a value would impose a language on everyone who
+    // never chose.
+    [NotNull]
+    [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
+    public Lockable<string>? preferedLanguage { get; set; }
+
+    [NotNull]
+    [Display(Name = "Media list collections", Description = "Collection ids to offer as media lists in the app")]
+    public Lockable<string[]>? mediaListCollectionIds { get; set; } // = [];
+
+    [NotNull]
+    [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
+    public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "HEVC for Chromecast", Description = "Offer HEVC to a Chromecast, which only some models decode")]
+    public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
+
+    // The five mpv settings and deviceProfile describe what a device can do rather than
+    // what a user prefers. An administrator running a homogeneous fleet has a real
+    // reason to fix them; one who locks a value chosen for a phone also applies it to a
+    // TV box with less memory to spare.
+    [NotNull]
+    [Display(Name = "mpv cache", Description = "Whether mpv caches ahead: auto, yes or no")]
+    public Lockable<MpvCacheMode>? mpvCacheEnabled { get; set; } // = auto;
+
+    [NotNull]
+    [Display(Name = "mpv cache seconds", Description = "How many seconds mpv caches ahead")]
+    public Lockable<int>? mpvCacheSeconds { get; set; } // = 10;
+
+    // No default on purpose: the app's own default is not one number. It is 150 MB on a
+    // phone and 75 MB on Android TV, which has less memory to spare. Shipping either
+    // number would push it to both and flatten a distinction the app makes deliberately.
+    [NotNull]
+    [Display(Name = "mpv demuxer buffer (MB)", Description = "Read-ahead buffer size. The app defaults to 150 MB on a phone and 75 MB on Android TV, so one number here applies to both")]
+    public Lockable<int>? mpvDemuxerMaxBytes { get; set; }
+
+    // No default, same reason: 50 MB on a phone, 30 MB on Android TV.
+    [NotNull]
+    [Display(Name = "mpv back buffer (MB)", Description = "How much already-played data mpv keeps. The app defaults to 50 MB on a phone and 30 MB on Android TV")]
+    public Lockable<int>? mpvDemuxerMaxBackBytes { get; set; }
+
+    [NotNull]
+    [Display(Name = "mpv video output driver", Description = "gpu-next or gpu. gpu is the fallback for devices where gpu-next misbehaves")]
+    public Lockable<MpvVoDriver>? mpvVoDriver { get; set; } // = gpu-next;
+
+    [NotNull]
+    [Display(Name = "Device profile", Description = "Which playback profile the app reports: Expo, Native or Old")]
+    public Lockable<DeviceProfile>? deviceProfile { get; set; } // = Expo;
+
+    [NotNull]
+    [Display(Name = "Crash reporting", Description = "Whether the app sends crash reports. Turning it off for everyone is a reasonable policy; turning it on takes a consent decision away from the user")]
+    public Lockable<bool>? sentryEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "OpenSubtitles API key", Description = "An OpenSubtitles key for every user on this server. Setting it overwrites the key a user entered themselves, which may be one they pay for")]
+    [Secret]
+    public Lockable<string>? openSubtitlesApiKey { get; set; }
     // endregion Plugins
     
     // Misc.
     [NotNull]
     [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
+
+    // TV
+    [NotNull]
+    [Display(Name = "TV typography scale", Description = "Text size on the TV app: small, default, large or extraLarge")]
+    public Lockable<TVTypographyScale>? tvTypographyScale { get; set; } // = default;
+
+    [NotNull]
+    [Display(Name = "TV theme music", Description = "Play a series theme music while browsing it on TV")]
+    public Lockable<bool>? tvThemeMusicEnabled { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Hide the remote session button")]
+    public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
+    public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
+
+    [NotNull]
+    [Display(Name = "Native player on Apple TV")]
+    public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Native player on Android TV")]
+    public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
+
+    // No default on purpose. The app resolves this at runtime through
+    // getActiveVideoPlayer() so an existing install keeps the player it has been
+    // using. A default here would choose for every device that never has.
+    [NotNull]
+    [Display(Name = "Video player", Description = "0 for mpv, 1 for ExoPlayer, which is Android TV only, 2 for the native player")]
+    public Lockable<VideoPlayer>? videoPlayer { get; set; }
 
 }
 

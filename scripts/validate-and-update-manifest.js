@@ -58,8 +58,21 @@ async function updateManifest() {
 
     jsonData[0].versions.unshift(newVersion);
 
+    const updated = JSON.stringify(jsonData, null, 4);
+
+    // Everything above still runs on a dry run: the version, the checksum of the zip
+    // that was just built, dropping any entry for this version, and serializing the
+    // result. Only the write is skipped. The manifest is a tracked file, so writing it
+    // leaves the working tree carrying a version entry for a release that does not
+    // exist, and on a pull request the version is the 0.0.0.0 placeholder.
+    if (dryRun) {
+        console.log(`DRY_RUN set, ${manifestPath} not written. It would have gained:`);
+        console.log(JSON.stringify(newVersion, null, 4));
+        process.exit(0);
+    }
+
     // Write the updated manifest to file if validation is successful
-    fs.writeFileSync(manifestPath, JSON.stringify(jsonData, null, 4));
+    fs.writeFileSync(manifestPath, updated);
     console.log('Manifest updated successfully.');
     process.exit(0); // Exit with no error
 }
@@ -69,7 +82,8 @@ async function validVersion(version) {
 
     // On a pull request the release does not exist yet, so there is nothing to
     // download and compare against. Everything else still runs, which is the
-    // point: the packaging path gets exercised outside of a real release.
+    // point: the packaging path gets exercised outside of a real release. The
+    // write itself is skipped further down, in updateManifest.
     if (dryRun) {
         console.log('DRY_RUN set, skipping the remote checksum verification.');
         return;

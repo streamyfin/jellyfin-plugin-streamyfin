@@ -21,6 +21,7 @@ request rather than deleting it.
 | Seerr integration on tvOS | issue #108 | with P6 |
 | Seerr authentication by user token | issue #82, seerr#2244 | **now urgent**, P1.4 landed |
 | Rotate the Seerr admin key | P1.4 | once P1.4 ships |
+| Give `downloadQuality` a shape the plugin can send | P1.7 | any time, small |
 
 ## Details
 
@@ -59,6 +60,24 @@ It was found by accident while triaging a plugin pull request, which is the part
 worth acting on. `components/settings/OtherSettings.tsx` shows the pattern, reading
 `pluginSettings?.defaultVideoOrientation?.locked`. Every lockable setting needs the
 same, and nothing checks that today.
+
+### Give `downloadQuality` a shape the plugin can send
+
+P1.7 declared 92 of the app's settings and left this one out. The app types it as
+`DownloadOption`, which is `{ label, value }`, while the generic fallback in
+`normalizePluginValue` only rebuilds `{ key, value }`. A value the plugin sends
+today would arrive in a shape the app cannot use, so the plugin keeps it in its
+`NotDeclared` list with that as the written reason.
+
+Either fix works and both are small. The app can gain a normalizer case for
+`downloadQuality`, the way `defaultBitrate` already has one, or `DownloadOption`
+can gain a `key` alongside its `label` and fall into the generic path. The second
+is fewer moving parts. Whichever lands, the plugin then deletes one line.
+
+Worth knowing while looking at this: `utils/jellyfin/userConfiguration.ts` already
+maps six Streamyfin settings onto Jellyfin's own `UserConfiguration`, in the app to
+server direction. Anything that ends up wiring the app to what jellyfin-web writes
+starts from there rather than from nothing.
 
 ### Consume the server resolved effective set
 
@@ -147,8 +166,9 @@ bindings on both switches on phone and on TV, and sets the defaults to `true` an
 `false`. The plugin side landed in #109 declaring the same two keys with the same
 defaults.
 
-The branch is pushed and open as
-[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900), every check
-green, waiting on a review. Until it merges the app's published `develop` still has
-neither the second key nor the bindings, so the plugin stays harmlessly ahead: the
-defaults it declares match the app's, and an app that has not moved sees no change.
+It merged on 2026-08-27 as
+[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900). The app's
+published `develop` now carries both keys and both bindings, so the plugin is level
+with it rather than ahead: the parity test compares `subtitlesOnMuteAllowRestart`
+against the manifest like any other key, and the two exceptions written for that
+branch are deleted.

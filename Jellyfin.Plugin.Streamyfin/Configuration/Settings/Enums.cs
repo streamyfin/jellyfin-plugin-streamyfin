@@ -1,7 +1,12 @@
 #pragma warning disable CA1008
 
+using System.Runtime.Serialization;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
+
+// Aliased rather than imported whole: System.Text.Json.Serialization also declares a
+// JsonConverter attribute, and every enum below already carries Newtonsoft's.
+using JsonStringEnumMemberName = System.Text.Json.Serialization.JsonStringEnumMemberNameAttribute;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration;
 
@@ -104,3 +109,153 @@ public enum SegmentSkipMode
     ask = 1,
     auto = 2
 }
+
+// Two attributes per member and not one. EnumMember is what Newtonsoft's
+// StringEnumConverter reads, for the YAML and the generated JSON schema.
+// JsonStringEnumMemberName is what System.Text.Json reads, for what the app
+// receives. A member carrying only one of the two is written differently by the
+// two paths, and the difference is invisible until a device gets the wrong string.
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum AudioTranscodeMode
+{
+    [EnumMember(Value = "auto")]
+    [JsonStringEnumMemberName("auto")]
+    Auto,
+
+    [EnumMember(Value = "stereo")]
+    [JsonStringEnumMemberName("stereo")]
+    ForceStereo,
+
+    // "5.1" is not a C# identifier, so the member name and the wire value differ.
+    [EnumMember(Value = "5.1")]
+    [JsonStringEnumMemberName("5.1")]
+    Allow51,
+
+    [EnumMember(Value = "passthrough")]
+    [JsonStringEnumMemberName("passthrough")]
+    AllowAll
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum MpvCacheMode
+{
+    [EnumMember(Value = "auto")]
+    [JsonStringEnumMemberName("auto")]
+    Auto,
+
+    [EnumMember(Value = "yes")]
+    [JsonStringEnumMemberName("yes")]
+    Yes,
+
+    [EnumMember(Value = "no")]
+    [JsonStringEnumMemberName("no")]
+    No
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum MpvVoDriver
+{
+    // "gpu-next" is not a C# identifier.
+    [EnumMember(Value = "gpu-next")]
+    [JsonStringEnumMemberName("gpu-next")]
+    GpuNext,
+
+    [EnumMember(Value = "gpu")]
+    [JsonStringEnumMemberName("gpu")]
+    Gpu
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum TVTypographyScale
+{
+    [EnumMember(Value = "small")]
+    [JsonStringEnumMemberName("small")]
+    Small,
+
+    // "default" is a C# keyword, so the member is Default and the wire value is not.
+    [EnumMember(Value = "default")]
+    [JsonStringEnumMemberName("default")]
+    Default,
+
+    [EnumMember(Value = "large")]
+    [JsonStringEnumMemberName("large")]
+    Large,
+
+    [EnumMember(Value = "extraLarge")]
+    [JsonStringEnumMemberName("extraLarge")]
+    ExtraLarge
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum DownloadQuality
+{
+    [EnumMember(Value = "original")]
+    [JsonStringEnumMemberName("original")]
+    Original,
+
+    [EnumMember(Value = "high")]
+    [JsonStringEnumMemberName("high")]
+    High,
+
+    [EnumMember(Value = "low")]
+    [JsonStringEnumMemberName("low")]
+    Low
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SubtitleAlignX
+{
+    [EnumMember(Value = "left")]
+    [JsonStringEnumMemberName("left")]
+    Left,
+
+    [EnumMember(Value = "center")]
+    [JsonStringEnumMemberName("center")]
+    Center,
+
+    [EnumMember(Value = "right")]
+    [JsonStringEnumMemberName("right")]
+    Right
+};
+
+[JsonConverter(typeof(StringEnumConverter))]
+public enum SubtitleAlignY
+{
+    [EnumMember(Value = "top")]
+    [JsonStringEnumMemberName("top")]
+    Top,
+
+    [EnumMember(Value = "center")]
+    [JsonStringEnumMemberName("center")]
+    Center,
+
+    [EnumMember(Value = "bottom")]
+    [JsonStringEnumMemberName("bottom")]
+    Bottom
+};
+
+/// <summary>
+/// Which video player the app uses. Compared as a number by the app.
+/// </summary>
+public enum VideoPlayer
+{
+    MPV = 0,
+    ExoPlayer = 1,
+    Native = 2
+};
+
+/// <summary>
+/// How long the TV app waits before signing out, in milliseconds.
+/// </summary>
+public enum InactivityTimeout
+{
+    Disabled = 0,
+    OneMinute = 60000,
+    FiveMinutes = 300000,
+    FifteenMinutes = 900000,
+    ThirtyMinutes = 1800000,
+    OneHour = 3600000,
+    FourHours = 14400000,
+    TwentyFourHours = 86400000
+};
