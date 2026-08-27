@@ -166,8 +166,9 @@ bindings on both switches on phone and on TV, and sets the defaults to `true` an
 `false`. The plugin side landed in #109 declaring the same two keys with the same
 defaults.
 
-The branch is pushed and open as
-[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900), every check
-green, waiting on a review. Until it merges the app's published `develop` still has
-neither the second key nor the bindings, so the plugin stays harmlessly ahead: the
-defaults it declares match the app's, and an app that has not moved sees no change.
+It merged on 2026-08-27 as
+[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900). The app's
+published `develop` now carries both keys and both bindings, so the plugin is level
+with it rather than ahead: the parity test compares `subtitlesOnMuteAllowRestart`
+against the manifest like any other key, and the two exceptions written for that
+branch are deleted.

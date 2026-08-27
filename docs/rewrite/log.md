@@ -8,6 +8,34 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-08-27
+
+### #1900 merged, and both written exceptions are gone
+
+[streamyfin#1900](https://github.com/streamyfin/streamyfin/pull/1900) merged into
+the app's `develop`, so the two exceptions P1.7 wrote down rather than fixed both
+expired on the same day. `AppSettingsManifest.json` was regenerated from the app
+source: `subtitlesOnMute` defaults to `true` there now, and
+`subtitlesOnMuteAllowRestart` exists, which takes the manifest from 94 keys to 95.
+`KnownDisagreements` and `DeclaredAheadOfTheApp` are both empty.
+
+Nothing in `Settings.cs` or `DefaultSettings()` moved. The defaults #109 declared
+were that branch's defaults all along, which is the whole reason the exceptions
+were safe to write. The plugin declares 92 of the 95, and the three it does not
+are the three that carry a written reason: `downloadQuality`,
+`playbackSpeedPerMedia` and `playbackSpeedPerShow`.
+
+**Checked that the comparison bites rather than passing by absence.** Emptying
+`KnownDisagreements` means `subtitlesOnMute` is compared for the first time, so
+its manifest default was flipped back to `false` and the test failed with
+`subtitlesOnMute: app False, plugin true` before the manifest was restored. 148
+tests green on jf11 and jf12.
+
+Regenerating the manifest is the review step
+[settings-parity.md](settings-parity.md) asks for on any app pull request that
+touches `utils/atoms/settings.ts`. This was the first time it was owed, and the
+only key that moved was the one the exception named.
+
 ## 2026-08-26
 
 ### P1.7, settings parity, and seven defaults that were lying
@@ -75,10 +103,12 @@ configuration predates them all. The build it is running is backed up at
 `/seedbox/jellyfin/streamyfin-backup-2026-08-26-pre-parity.dll`, outside the
 plugin folder, and `autoUpdate` is still `false`.
 
-**Noticed, not fixed:** `make update-manifest DRY_RUN=1` writes the manifest
-before it decides to skip anything. `DRY_RUN` only skips the remote checksum
-verification, so running it locally leaves a version entry for a release that
-does not exist in the working tree.
+**Noticed, then fixed in the same pull request:** `make update-manifest
+DRY_RUN=1` wrote the manifest before it decided to skip anything. `DRY_RUN` was
+only skipping the remote checksum verification, so running it locally left a
+version entry for a release that does not exist. The write now sits behind the
+same early return, everything else the dry run exercises still runs, and the
+entry it would have written is printed instead.
 
 ## 2026-08-25
 

@@ -6,19 +6,18 @@ does. It can only do that for a setting it declares: an undeclared key resolves
 pushed. That is the finding behind [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109),
 recorded in [pull-request-triage.md](pull-request-triage.md).
 
-Measured on `develop` and on the app's `develop`, 2026-08-26:
+Measured on `develop` and on the app's `develop`, 2026-08-27:
 
 | | |
 |---|---|
-| Settings the app reads | 94 |
+| Settings the app reads | 95 |
 | Settings the plugin declares | 43 |
-| In common | 42 |
+| In common | 43 |
 | **In the app, undeclared** | **52** |
 
 These come from `AppSettingsManifest.json`, which is generated from the app's
 `utils/atoms/settings.ts` rather than counted by hand. Two hand counts before it
 were both wrong, in opposite directions.
-| Declared but absent from the app | 1, `subtitlesOnMuteAllowRestart`, which lives on the app branch of [#1900](https://github.com/streamyfin/streamyfin/pull/1900) |
 
 So more than half of what the app offers is outside an administrator's reach:
 every subtitle appearance control, the player gestures, the mpv tuning, the TV
@@ -78,8 +77,8 @@ therefore does not sit there harmlessly: it silently flips the setting for every
 user who has not already chosen one. Across 50 keys at once, care is not a
 mechanism, which is why the test below exists.
 
-Writing the manifest found five keys where the plugin already disagrees with the
-app, and they are not theoretical: `PluginConfiguration()` fills its config from
+Writing the manifest found five keys where the plugin disagreed with the app, and
+they were not theoretical: `PluginConfiguration()` fills its config from
 `DefaultSettings()` on first start, `GET config` serves it, and the app applies an
 unlocked value once. Installing the plugin and configuring nothing is enough.
 
@@ -89,15 +88,16 @@ unlocked value once. Installing the plugin and configuring nothing is enough.
 | `rememberSubtitleSelections` | `false` | `true` | turns off remembering the subtitle track |
 | `rewindSkipTime` | `15` | `10` | rewinds 15 seconds instead of 10 |
 | `subtitleSize` | `80`, normalised to `0.8` | `1.0` | subtitles at 80 per cent of the intended size |
-| `subtitlesOnMute` | `true` | `false` | turns the feature on for everyone |
 
-The first four predate the rewrite and are corrected to the app's values here.
+Those four predate the rewrite and are corrected to the app's values here.
 Nothing changes for an existing device: `PLUGIN_APPLIED_DEFAULTS` has already
 recorded the old value, so only a device that has never seen one gets the new.
 
-`subtitlesOnMute` is left alone and carries a written exception in the test. Its
-`true` is not a mistake: it matches the app branch of #1900, which #109 was
-deliberately aligned with. The exception disappears the day that branch merges.
+The fifth was `subtitlesOnMute`. The plugin's `true` was never a mistake, it
+matched the app branch of [#1900](https://github.com/streamyfin/streamyfin/pull/1900),
+which #109 was deliberately aligned with, while the app's published default was
+still `false`. That branch merged on 2026-08-27, so the app defaults to `true`
+too and the written exception the test carried for it is gone.
 
 **A setting whose app default varies by platform is declared without a default.**
 Two of them do:
@@ -150,14 +150,15 @@ array property.
 
 `Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json` lists what the app
 reads: every key, its type, and its default, with an explicit marker for the keys
-that have none. It is generated once from the app's `utils/atoms/settings.ts`,
+that have none. It is generated from the app's `utils/atoms/settings.ts`,
 committed, and embedded in the test assembly rather than copied to the output
 directory, so reading it does not depend on which directory `dotnet test` was
 invoked from. It is the same device as `ApiSurfaceTests._legacyRoutes`, where a
 checked-in list turns a promise into something a build can fail on, and editing
 the list is the deliberate act.
 
-One test reads it and asserts three things.
+Three rules read it, and two further tests refuse an excuse that has outlived
+either the setting it names or the reason it was written for.
 
 1. **Every key in the manifest is either declared in `Settings.cs` or named in an
    explicit `NotDeclared` set with its reason.** Silence is not an option: a key

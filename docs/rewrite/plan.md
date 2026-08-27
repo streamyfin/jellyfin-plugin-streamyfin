@@ -211,11 +211,16 @@ names kept as aliases, which closes #95 without breaking every existing YAML.
 
 ## P1.7. Settings parity
 
-The plugin declares 45 of the 93 settings the app reads, so more than half of
+The plugin declares 43 of the 95 settings the app reads, so more than half of
 what the app offers is outside an administrator's reach. P1.1 and P1.3 hold no
 list of their own, so declaring a property is the whole of the work.
 
-The decision about the 49 undeclared keys, the rules a declaration follows, and
+Those two numbers come from `AppSettingsManifest.json` rather than a grep. The
+hand counts that stood here first said 45 and 93, and were wrong in opposite
+directions: the grep matched two properties that were commented out, and the awk
+missed a key declared outside the range it scanned.
+
+The decision about the 52 undeclared keys, the rules a declaration follows, and
 the manifest that stops the gap reopening are in
 [settings-parity.md](settings-parity.md).
 
@@ -238,6 +243,7 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.4 | [#131](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/131) | merged |
 | P1.5 | [#132](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/132) | merged |
 | P1.6 | [#133](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/133) | merged |
+| P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134) | open |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the
