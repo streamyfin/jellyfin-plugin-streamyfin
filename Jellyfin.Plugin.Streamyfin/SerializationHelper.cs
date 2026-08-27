@@ -166,7 +166,7 @@ public class SerializationHelper
     /// <c>SubtitlePlaybackMode</c>, <c>VideoPlayer</c> and <c>InactivityTimeout</c> as
     /// numbers, and YamlDotNet expects the member name.
     /// Anything stored with <see cref="SerializeToJson{T}"/> has to come back through
-    /// this, or those three settings do not survive the round trip.
+    /// this, or those five settings do not survive the round trip.
     /// </remarks>
     /// <typeparam name="T">What to read it as.</typeparam>
     /// <param name="value">The JSON.</param>

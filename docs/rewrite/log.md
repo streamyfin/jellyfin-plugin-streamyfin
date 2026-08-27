@@ -302,8 +302,8 @@ And the break is smaller than the triage assumed.
 login when no key is present. Filtering the key for non administrators costs the
 passwordless convenience, not the integration.
 
-So P1.4 filters it like any other secret, and the passwordless path returns with
-#2244, using the user's own token rather than an admin key. One thing not to
+So P1.4 filters it like any other secret, and the passwordless path returns
+with #2244, using the user's own token rather than an admin key. One thing not to
 forget when that lands: `Jellyseerr.tsx:118` persists the key into each device's
 own settings storage, so filtering it server side does not remove it from the
 devices that already connected. **The Seerr key has to be rotated** or the fix is
@@ -311,9 +311,9 @@ cosmetic for existing installations.
 
 ### P0 landed on `develop`
 
-The six open pull requests merged in the order #121 gave: #122, #123, #124, #125,
-#127, #126. `develop` is now eleven commits ahead of `main` and P0 is complete
-apart from P0.10.
+The six open pull requests merged in the order #121 gave: #122, #123, #124, and
+after those #125, #127, #126. `develop` is now eleven commits ahead of `main`
+and P0 is complete apart from P0.10.
 
 **The squash bit back, exactly where it was expected to.** The repository allows
 squash merging only, so merging #125 put its work on `develop` as a new commit
@@ -340,8 +340,9 @@ the right place for it anyway, but the gap is worth knowing rather than assuming
 every merged part was bot reviewed.
 
 **The issues those fixes close are still open.** GitHub only closes an issue when
-the `Fixes` keyword reaches the default branch, and these merged onto `develop`.
-#74, #110 and #88 close when #121 lands on `main`, or by hand before then.
+the `Fixes` keyword reaches the default branch, and these merged onto
+`develop`. #74, #110 and #88 close when #121 lands on `main`, or by hand before
+then.
 
 ## 2026-08-24
 

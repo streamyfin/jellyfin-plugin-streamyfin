@@ -65,8 +65,8 @@ caveat written next to them in `examples/full.yml`:
 
 ## The rules a declaration follows
 
-**The name is the app's key, character for character.** This is the whole of
-#109: the plugin declared `autoSubtitlesOnMute` while the app read
+**The name is the app's key, character for character.** This is the whole of the
+mistake in #109: the plugin declared `autoSubtitlesOnMute` while the app read
 `subtitlesOnMute`, so two keys nothing reads shipped, and the lock they existed
 to enable still did nothing.
 
@@ -119,13 +119,14 @@ has no default for them either.
 50 are booleans, numbers and strings, and land on `Lockable<bool>`,
 `Lockable<int>` and `Lockable<string>` unchanged. Two shapes need care:
 
-- **Enumerations.** `audioTranscodeMode`, `inactivityTimeout`, `mpvCacheEnabled`,
-  `mpvVoDriver`, `tvTypographyScale`, `deviceProfile`, `subtitleAlignX`,
-  `subtitleAlignY` and `videoPlayer` each need a C# enum whose member names are
-  the strings the app compares against. `Configuration/Settings/Enums.cs` already
-  holds this pattern, and `SerializationHelper` already registers number
-  converters for the three enums written as numbers. Anything new is written as
-  its member name unless it is added to that list.
+- **Enumerations.** `audioTranscodeMode`, `mpvCacheEnabled`, `mpvVoDriver`,
+  `tvTypographyScale`, `deviceProfile`, `subtitleAlignX` and `subtitleAlignY`
+  each need a C# enum whose member names are the strings the app compares
+  against. `inactivityTimeout` and `videoPlayer` are enums too, but the app
+  compares them as numbers, so they join `OrientationLock`, `Bitrate` and
+  `SubtitlePlaybackMode` in the number converters `SerializationHelper`
+  registers, five in all. `Configuration/Settings/Enums.cs` holds both patterns.
+  Anything new is written as its member name unless it is added to that list.
 - **`downloadQuality` is the one that does not fit.** The app types it as
   `DownloadOption`, which is `{ label, value }`. The generic fallback in
   `normalizePluginValue` only rebuilds `{ key, value }` objects, so a value
