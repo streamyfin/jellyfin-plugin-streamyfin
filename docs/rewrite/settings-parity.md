@@ -158,8 +158,10 @@ invoked from. It is the same device as `ApiSurfaceTests._legacyRoutes`, where a
 checked-in list turns a promise into something a build can fail on, and editing
 the list is the deliberate act.
 
-Three rules read it, and two further tests refuse an excuse that has outlived
-either the setting it names or the reason it was written for.
+Three rules read it. The rest of the tests in the file refuse an excuse that has
+outlived either the setting it names or the reason it was written for, from
+whichever side moved: the app dropping a key, the app catching up, or the plugin
+declaring the setting an entry said it would not.
 
 1. **Every key in the manifest is either declared in `Settings.cs` or named in an
    explicit `NotDeclared` set with its reason.** Silence is not an option: a key
