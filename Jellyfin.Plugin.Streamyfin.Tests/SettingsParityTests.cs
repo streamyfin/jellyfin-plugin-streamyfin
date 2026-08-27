@@ -51,13 +51,7 @@ public class SettingsParityTests
     /// weighed the difference, not a place to put a default that turned out to be
     /// inconvenient to fix.
     /// </remarks>
-    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal)
-    {
-        ["subtitlesOnMute"] =
-            "The app's published develop still defaults this to false. The true here "
-            + "matches the branch of streamyfin/streamyfin#1900, which pull request #109 "
-            + "was deliberately aligned with. Delete this entry the day that branch merges."
-    };
+    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Keys the plugin declares that the app's published branch does not read yet, and
@@ -69,14 +63,7 @@ public class SettingsParityTests
     /// catches up, since an unlocked default is applied whether the app understands the
     /// key or not.
     /// </remarks>
-    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
-    {
-        ["subtitlesOnMuteAllowRestart"] =
-            "Lives on the branch of streamyfin/streamyfin#1900, which is open and "
-            + "mergeable. Declared by pull request #109 on purpose so the two halves "
-            + "could land in either order. Delete this entry once that branch merges "
-            + "and the manifest is regenerated."
-    };
+    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal);
 
     private sealed record ManifestEntry(
         string Key,
