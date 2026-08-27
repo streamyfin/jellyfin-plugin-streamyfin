@@ -248,21 +248,99 @@ public class SettingsParityTests
     [Fact]
     public void EveryExcusedDisagreementNamesASettingThatExists()
     {
-        var known = Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
-
-        var declared = DeclaredKeys();
-
-        var stale = NotDeclared.Keys
-            .Concat(KnownDisagreements.Keys)
-            .Where(key => !known.Contains(key))
-            // Both directions for an ahead-of-the-app key: the plugin dropped it, or the
-            // app caught up and it is no longer ahead of anything.
-            .Concat(DeclaredAheadOfTheApp.Keys.Where(key => !declared.Contains(key) || known.Contains(key)))
-            .ToArray();
+        var stale = StaleExcuses(
+            Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal),
+            DeclaredKeys(),
+            NotDeclared.Keys,
+            KnownDisagreements.Keys,
+            DeclaredAheadOfTheApp.Keys);
 
         Assert.True(
             stale.Length == 0,
             "Excused, but no such setting exists:\n  " + string.Join("\n  ", stale));
+    }
+
+    /// <summary>
+    /// The excuses that no longer name a setting in the state they were written for.
+    /// </summary>
+    /// <remarks>
+    /// Taken apart from the lists it reads so the cases it exists to catch can be shown
+    /// on made-up sets. On the real ones every case is, by construction, absent.
+    /// </remarks>
+    private static string[] StaleExcuses(
+        IReadOnlySet<string> known,
+        IReadOnlySet<string> declared,
+        IEnumerable<string> notDeclared,
+        IEnumerable<string> knownDisagreements,
+        IEnumerable<string> declaredAheadOfTheApp) =>
+        // Both directions for a not-declared key: the app dropped it, or the plugin
+        // declared it after all and the reason for leaving it out has been acted on.
+        notDeclared.Where(key => !known.Contains(key) || declared.Contains(key))
+            .Concat(knownDisagreements.Where(key => !known.Contains(key)))
+            // Both directions for an ahead-of-the-app key: the plugin dropped it, or the
+            // app caught up and it is no longer ahead of anything.
+            .Concat(declaredAheadOfTheApp.Where(key => !declared.Contains(key) || known.Contains(key)))
+            .ToArray();
+
+    /// <summary>
+    /// A setting that gets declared retires the entry saying it would not be.
+    /// </summary>
+    /// <remarks>
+    /// Checking only that the key still exists misses this: <c>downloadQuality</c> is
+    /// excused today because the app cannot read it back. The day the app moves and the
+    /// property is written, the reason is spent, and an entry left behind covers the key
+    /// again the moment the declaration is removed.
+    /// </remarks>
+    [Fact]
+    public void ANotDeclaredEntryDiesWhenItsSettingGetsDeclared()
+    {
+        var known = new HashSet<string>(StringComparer.Ordinal) { "downloadQuality" };
+        var notDeclared = new[] { "downloadQuality" };
+
+        Assert.Empty(StaleExcuses(known, new HashSet<string>(), notDeclared, [], []));
+
+        var declared = new HashSet<string>(StringComparer.Ordinal) { "downloadQuality" };
+
+        Assert.Equal(
+            new[] { "downloadQuality" },
+            StaleExcuses(known, declared, notDeclared, [], []));
+    }
+
+    /// <summary>
+    /// An excuse for a key the app stopped reading is stale whichever list it sits in.
+    /// </summary>
+    [Fact]
+    public void AnExcuseForAKeyTheAppDroppedIsStale()
+    {
+        var gone = new[] { "settingTheAppRemoved" };
+        var nothing = new HashSet<string>(StringComparer.Ordinal);
+
+        Assert.Equal(gone, StaleExcuses(nothing, nothing, gone, [], []));
+        Assert.Equal(gone, StaleExcuses(nothing, nothing, [], gone, []));
+    }
+
+    /// <summary>
+    /// A key declared ahead of the app is stale from both sides.
+    /// </summary>
+    /// <remarks>
+    /// This is what retired <c>subtitlesOnMuteAllowRestart</c>: the plugin still declared
+    /// it, and the app caught up, so it was no longer ahead of anything.
+    /// </remarks>
+    [Fact]
+    public void AKeyDeclaredAheadOfTheAppDiesFromEitherSide()
+    {
+        var ahead = new[] { "subtitlesOnMuteAllowRestart" };
+        var declared = new HashSet<string>(StringComparer.Ordinal) { "subtitlesOnMuteAllowRestart" };
+        var nothing = new HashSet<string>(StringComparer.Ordinal);
+
+        // Still ahead: declared here, unknown to the app.
+        Assert.Empty(StaleExcuses(nothing, declared, [], [], ahead));
+
+        // The app caught up.
+        Assert.Equal(ahead, StaleExcuses(declared, declared, [], [], ahead));
+
+        // The plugin dropped the property.
+        Assert.Equal(ahead, StaleExcuses(nothing, nothing, [], [], ahead));
     }
 
     /// <summary>
