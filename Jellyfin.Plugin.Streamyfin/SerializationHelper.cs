@@ -99,7 +99,40 @@ public class SerializationHelper
 
         var schema = JsonSchemaGenerator.FromType<T>(settings);
         MarkSecrets(schema);
+        MarkCategories(schema);
         return ShapeForGeneratedForm(schema.ToJson());
+    }
+
+    /// <summary>
+    /// Carries each setting's section of the form, as <c>x-category</c> and
+    /// <c>x-group</c>.
+    /// </summary>
+    /// <remarks>
+    /// The form renders one collapsible section per category rather than ninety two
+    /// settings in a single column. The values come from <see cref="SettingsSchema"/>,
+    /// so a new setting picks its section with one attribute and nothing here changes.
+    /// </remarks>
+    private static void MarkCategories(JsonSchema schema)
+    {
+        foreach (var candidate in SchemasCarryingSettings(schema))
+        {
+            foreach (var descriptor in SettingsSchema.Descriptors)
+            {
+                if (descriptor.Category is null
+                    || !candidate.Properties.TryGetValue(descriptor.Key, out var property))
+                {
+                    continue;
+                }
+
+                property.ExtensionData ??= new Dictionary<string, object?>();
+                property.ExtensionData["x-category"] = descriptor.Category;
+
+                if (descriptor.Group is not null)
+                {
+                    property.ExtensionData["x-group"] = descriptor.Group;
+                }
+            }
+        }
     }
 
     /// <summary>
