@@ -202,6 +202,11 @@ Found a bug or have a feature request?
 - **[Open an issue](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues)**
 - **[View existing issues](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues)**
 
+## 📄 License
+
+This plugin is released under the [Mozilla Public License 2.0](LICENSE), the same
+licence as the [Streamyfin app](https://github.com/streamyfin/streamyfin).
+
 ---
 
 <div align="center">
