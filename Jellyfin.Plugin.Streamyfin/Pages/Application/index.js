@@ -1,100 +1,128 @@
-const subtitlePlaybackValue = () => document.getElementById('subtitle-playback-value');
-const defaultOrientationValue = () => document.getElementById('default-orientation-value');
-const defaultBitRateValue = () => document.getElementById('default-bitrate-value');
-const searchEngineValue = () => document.getElementById('search-engine-value');
+// The Application page is json-editor reading the schema the plugin serves, rather than a
+// form written by hand a control at a time. Everything specific to a setting travels in the
+// schema (see SerializationHelper.ShapeForGeneratedForm); this file only mounts the editor,
+// seeds it with the stored config and writes the admin's edits back.
 
-const saveBtn = () => document.getElementById('save-settings-btn');
+// json-editor labels the "Max" playback-quality option as the empty string, and the hand
+// written page always turned a blank field into null, so the value round-trips blank <-> null:
+// a stored null shows as blank in the form, and a blank is saved as null.
+const NO_VALUE = "";
 
-// region helpers
-const getValues = () => ({
-    settings: Array.from(document.querySelectorAll('[data-key-name][data-prop-name]')).reduce((acc, el) => {
-        if (el.offsetParent === null) return acc;
+const mapSettingValues = (settings, map) => {
+    const out = {};
+    for (const [key, entry] of Object.entries(settings ?? {})) {
+        out[key] = entry && typeof entry === "object" && !Array.isArray(entry) && "value" in entry
+            ? { ...entry, value: map(entry.value) }
+            : entry;
+    }
+    return out;
+};
 
-        const setting = el.getAttribute('data-key-name');
-        const property = el.getAttribute('data-prop-name');
+const toForm = (settings) => mapSettingValues(settings, (value) => (value === null ? NO_VALUE : value));
+const toConfig = (settings) => mapSettingValues(settings, (value) => (value === NO_VALUE ? null : value));
 
-        const value = window.Streamyfin.shared.getElValue(el);
-        acc[setting] = acc[setting] ?? {}
+// The form renders every declared setting, filling the ones the config does not carry with a
+// schema default. Writing all of them would push defaults the admin never chose and turn every
+// unset setting into a set one. So a save keeps the settings that were already in the config and
+// adds only the ones the admin actually changed.
+//
+// The comparison is against the editor's own first value, not against what it was seeded with.
+// The editor adds a default for every key the config was missing, so a key absent from the
+// config compares against undefined and would count as changed, which is how a save came to
+// carry all 92 settings and then be rejected by the server.
+const settingsToPersist = (loaded, initial, edited) => {
+    const present = new Set(Object.keys(loaded ?? {}));
+    const result = {};
 
-        if (value != null && !(property === 'locked' && acc[setting]['value'] === undefined)) {
-            acc[setting][property] = value;
-        }
-        else delete acc[setting]
-
-        return acc
-    }, {})
-})
-
-const createOption = (value, title = null) => new Option(title ?? value, value)
-const setOptions = (schema) => {
-    if (!schema) return;
-
-    const {
-        SubtitlePlaybackMode, 
-        OrientationLock, 
-        SearchEngine, 
-        Bitrate
-    } = schema.definitions;
-
-    subtitlePlaybackValue().options.length = 0;
-    SubtitlePlaybackMode.enum.forEach(value => subtitlePlaybackValue().add(createOption(value)));
-    
-    defaultOrientationValue().options.length = 0;
-    OrientationLock.enum.forEach(value => defaultOrientationValue().add(createOption(value)));
-    
-    defaultBitRateValue().options.length = 0;
-    defaultBitRateValue().add(new Option("Max", 'null'))
-    Bitrate.enum.forEach(value => defaultBitRateValue().add(createOption(value, value.replaceAll("_", ""))));
-
-    searchEngineValue().options.length = 0;
-    SearchEngine.enum.forEach(value => searchEngineValue().add(createOption(value)));
-}
-
-const updateSettingConfig = (name, config, valueName, value) => ({
-    ...(config ?? {}),
-    settings: {
-        ...(config?.settings ?? {}),
-        [name]: {
-            ...(config?.settings?.[name] ?? {}),
-            [valueName]: value,
+    for (const [key, value] of Object.entries(edited)) {
+        const changed = JSON.stringify(value) !== JSON.stringify(initial?.[key]);
+        if (present.has(key) || changed) {
+            result[key] = value;
         }
     }
-})
-// endregion helpers
 
-export default function (view, params) {
+    return result;
+};
 
-    // init code here
-    view.addEventListener('viewshow', (e) => {
-        import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then((shared) => {
+// The Settings subtree of the served Config schema, made a schema in its own right so the
+// editor renders the settings and nothing else. Its definitions stay at the root so the
+// references inside the settings still resolve.
+const buildFormSchema = (schema) => ({
+    type: "object",
+    title: "",
+    properties: schema?.definitions?.Settings?.properties ?? {},
+    definitions: schema?.definitions ?? {},
+});
+
+export default function (view) {
+    view.addEventListener("viewshow", () => {
+        import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Application");
 
-            setOptions(shared.getJsonSchema());
-            shared.setDomValues(document, shared.getConfig()?.settings)
+            if (!window.JSONEditor) {
+                await import(window.ApiClient.getUrl("web/configurationpage?name=json-editor.js"));
+            }
 
-            shared.setOnSchemaUpdatedListener('application', setOptions)
-            shared.setOnConfigUpdatedListener('application', (config) => {
-                console.log("updating dom for application settings")
-                const {settings} = config;
+            const mount = document.getElementById("settings-editor");
+            let editor = null;
+            let initial = null;
 
-                shared.setDomValues(document, settings);
-            })
+            const render = () => {
+                const schema = shared.getJsonSchema();
+                if (!schema || editor) return;
 
-            document.querySelectorAll('[data-key-name][data-prop-name]').forEach(el => {
-                shared.keyedEventListener(el, 'change', function () {
-                    shared.setConfig(updateSettingConfig(
-                        el.getAttribute('data-key-name'),
-                        shared.getConfig(),
-                        el.getAttribute('data-prop-name'),
-                        shared.getElValue(el)
-                    ));
-                })
-            })
+                editor = new window.JSONEditor(mount, {
+                    schema: buildFormSchema(schema),
+                    startval: toForm(shared.getConfig()?.settings),
+                    theme: "html",
+                    iconlib: null,
+                    disable_edit_json: true,
+                    disable_properties: true,
+                    no_additional_properties: true,
+                    // Every declared setting has to render, whether or not the config
+                    // already carries it: reaching a setting the admin never set is the
+                    // whole point. Left optional, json-editor draws only the keys present
+                    // in the stored config, which on this server was 20 of 92, and
+                    // disable_properties removes the button that would add the rest.
+                    // Writing them all back is prevented by settingsToPersist, not here.
+                    required_by_default: true,
+                    show_errors: "never",
+                });
 
-            shared.keyedEventListener(saveBtn(), 'click', function () {
+                // What the editor holds once it has filled in every setting the config was
+                // missing. A save compares against this, so an untouched default is not a change.
+                editor.on("ready", () => {
+                    initial = editor.getValue();
+                });
+            };
+
+            const dispose = () => {
+                editor?.destroy();
+                editor = null;
+                initial = null;
+            };
+
+            // Schema and config are loaded once, before this import resolves, so the first
+            // render usually runs here. The listeners cover a config that is replaced later.
+            render();
+            shared.setOnSchemaUpdatedListener("application", render);
+            shared.setOnConfigUpdatedListener("application", () => {
+                if (!editor) render();
+            });
+
+            shared.keyedEventListener(document.getElementById("save-settings-btn"), "click", (e) => {
                 e.preventDefault();
-                shared.saveConfig()
-            })
-        })
+                if (!editor) return;
+
+                const config = shared.getConfig() ?? {};
+                const settings = toConfig(
+                    settingsToPersist(config.settings, initial ?? editor.getValue(), editor.getValue()));
+
+                shared.setConfig({ ...config, settings });
+                shared.saveConfig();
+            });
+
+            view.addEventListener("viewhide", dispose);
+        });
     });
 }
