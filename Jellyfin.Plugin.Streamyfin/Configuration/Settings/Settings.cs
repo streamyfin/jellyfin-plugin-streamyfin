@@ -189,7 +189,7 @@ public class Settings
     public Lockable<bool>? showHomeTitles { get; set; } // = true;
 
     [NotNull]
-    [Display(Name = "Show the home backdrop", Description = "Show a backdrop image behind the home screen")]
+    [Display(Name = "Show the home backdrop", Description = "Apple TV and Android TV only. Show a backdrop image behind the home screen")]
     [SettingScope("Home and appearance")]
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
 
@@ -222,7 +222,7 @@ public class Settings
     public Lockable<bool>? useEpisodeImagesForNextUp { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Show the series poster on an episode", Description = "Use the series poster rather than the episode image on an episode page")]
+    [Display(Name = "Show the series poster on an episode", Description = "Apple TV and Android TV only. Use the series poster rather than the episode image on an episode page")]
     [SettingScope("Home and appearance")]
     public Lockable<bool>? showSeriesPosterOnEpisode { get; set; } // = false;
 
@@ -640,7 +640,7 @@ public class Settings
     public Lockable<TVTypographyScale>? tvTypographyScale { get; set; } // = default;
 
     [NotNull]
-    [Display(Name = "TV theme music", Description = "Play a series theme music while browsing it on TV")]
+    [Display(Name = "TV theme music", Description = "Apple TV and Android TV only. Play a series theme music while browsing it")]
     [SettingScope("Home and appearance")]
     public Lockable<bool>? tvThemeMusicEnabled { get; set; } // = true;
 

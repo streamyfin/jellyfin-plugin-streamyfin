@@ -192,6 +192,51 @@ wants its own change and its own test rather than being folded in here.
 - **A json-editor theme beyond the emby classes already injected.** No new theme
   work.
 
+## Why there is no "platforms" field on a setting
+
+Not every setting applies everywhere, and the obvious next step after grouping was
+to record which platforms each one reaches and show it in the form. It was
+investigated and **deliberately dropped**. The reason is written here so nobody
+spends another afternoon rediscovering it.
+
+There are two different questions, and they give different answers:
+
+1. **Where can a user change it?** Derivable, by following which of the app's
+   settings pages exposes the key. It gives a clean answer for 84 of the 95 keys.
+2. **Where does it take effect?** What an administrator actually needs, since they
+   are deciding what to impose on a fleet.
+
+They do not agree, and the first one is the misleading one:
+
+| Setting | Offered on | Read by |
+|---|---|---|
+| `hiddenLibraries` | mobile pages only | `Home.tv.tsx`, `TVLibraries.tsx` |
+| `defaultBitrate` | mobile pages only | `ItemContent.tv.tsx` |
+| `streamyStatsMovieRecommendations` | mobile pages only | `Home.tv.tsx` |
+
+A badge reading "mobile only" on any of those would be a lie an administrator has
+no way to check, which is worse than saying nothing at all.
+
+The second question is not derivable either. Most settings are read by shared
+player and provider files, `buildNativePlayerConfig.ts`, `useVideoNavigation.ts`,
+`InactivityProvider.tsx`, whose platform is a runtime property rather than
+something the source states. And the derivation that looked cleanest still
+produced a wrong answer: it called `preferedLanguage` TV only, when it is the
+app's language setting and `_layout.tsx` and `AppLanguageSelector.tsx` read it.
+
+**What is done instead**: the settings that are verifiably platform specific say
+so in their own description, in prose, one at a time. Only a handful qualify, and
+each was checked rather than derived:
+
+- `showHomeBackdrop`, `showSeriesPosterOnEpisode` and `tvThemeMusicEnabled`, where
+  nothing outside a `.tv.*` file or `useTVThemeMusic.ts` reads them.
+- `videoPlayer` and the two native player toggles, which #138 already describes,
+  including that `Native` is a phone and tablet value and that a TV chooses
+  through the two toggles instead.
+
+If a future setting is genuinely platform specific, the answer is a sentence in
+its `[Display]` description, not a field that claims to know for all 95.
+
 ## Delivery
 
 Branch `refonte/p3-1-schema-form`, one pull request onto `develop`, squash, body
