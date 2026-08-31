@@ -75,6 +75,16 @@ public class SerializationHelper
     /// <summary>
     /// Generate schema to json
     /// </summary>
+    /// <remarks>
+    /// The names are camel cased to match the config, which YamlDotNet reads under the
+    /// camel case convention. Every settings type agreed already, its properties being
+    /// lower case to begin with, except <c>LanguagePreference</c>: its members are
+    /// PascalCase so the app can match them against the SDK's <c>CultureDto</c>, and the
+    /// schema described a name its own reader rejected. A form fills in what the schema
+    /// tells it to, so that made the two language settings impossible to save. This only
+    /// touches how the schema spells a name; what the app is served is written by
+    /// <see cref="SerializeToJson{T}"/> and keeps the CLR names.
+    /// </remarks>
     public static string GetJsonSchema<T>()
     {
         var settings = new SystemTextJsonSchemaGeneratorSettings
@@ -84,6 +94,7 @@ public class SerializationHelper
 #if DEBUG
         settings.SerializerOptions.WriteIndented = true;
 #endif
+        settings.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         settings.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 
         var schema = JsonSchemaGenerator.FromType<T>(settings);
