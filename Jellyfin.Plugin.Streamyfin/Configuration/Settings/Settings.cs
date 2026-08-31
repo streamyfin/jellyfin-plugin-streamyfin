@@ -565,19 +565,35 @@ public class Settings
     [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
     public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
 
+    // Which player runs is decided by getActiveVideoPlayer() in the app, from this
+    // setting and the two below, in an order that depends on the platform. The three
+    // descriptions say which of them actually decides where, because an administrator
+    // setting the wrong one of the three sees nothing happen and has no way to tell.
     [NotNull]
-    [Display(Name = "Native player on Apple TV")]
+    [Display(
+        Name = "Native player on Apple TV",
+        Description = "Apple TV only, and only on tvOS 26 or newer. On by default, so this is the opt out: "
+                      + "while it is on, Apple TV uses the native player whatever Video player says. Turn it "
+                      + "off to hand Apple TV back to Video player.")]
     public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
 
     [NotNull]
-    [Display(Name = "Native player on Android TV")]
+    [Display(
+        Name = "Native player on Android TV",
+        Description = "Android TV only. Off by default, so this is the opt in. Video player set to ExoPlayer "
+                      + "still wins over it.")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
 
     // No default on purpose. The app resolves this at runtime through
     // getActiveVideoPlayer() so an existing install keeps the player it has been
     // using. A default here would choose for every device that never has.
     [NotNull]
-    [Display(Name = "Video player", Description = "0 for mpv, 1 for ExoPlayer, which is Android TV only, 2 for the native player")]
+    [Display(
+        Name = "Video player",
+        Description = "Which player the app uses, on the platforms where this setting decides. MPV runs "
+                      + "everywhere. ExoPlayer is Android TV only, and wins there. Native applies to phones "
+                      + "and tablets only: on a TV it is not chosen here but by the two Native player "
+                      + "settings above.")]
     public Lockable<VideoPlayer>? videoPlayer { get; set; }
 
 }
