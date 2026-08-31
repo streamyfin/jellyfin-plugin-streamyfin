@@ -25,12 +25,17 @@ const toConfig = (settings) => mapSettingValues(settings, (value) => (value === 
 // schema default. Writing all of them would push defaults the admin never chose and turn every
 // unset setting into a set one. So a save keeps the settings that were already in the config and
 // adds only the ones the admin actually changed.
-const settingsToPersist = (loaded, seeded, edited) => {
+//
+// The comparison is against the editor's own first value, not against what it was seeded with.
+// The editor adds a default for every key the config was missing, so a key absent from the
+// config compares against undefined and would count as changed, which is how a save came to
+// carry all 92 settings and then be rejected by the server.
+const settingsToPersist = (loaded, initial, edited) => {
     const present = new Set(Object.keys(loaded ?? {}));
     const result = {};
 
     for (const [key, value] of Object.entries(edited)) {
-        const changed = JSON.stringify(value) !== JSON.stringify(seeded?.[key]);
+        const changed = JSON.stringify(value) !== JSON.stringify(initial?.[key]);
         if (present.has(key) || changed) {
             result[key] = value;
         }
@@ -60,29 +65,41 @@ export default function (view) {
 
             const mount = document.getElementById("settings-editor");
             let editor = null;
-            let seeded = null;
+            let initial = null;
 
             const render = () => {
                 const schema = shared.getJsonSchema();
                 if (!schema || editor) return;
 
-                seeded = toForm(shared.getConfig()?.settings);
                 editor = new window.JSONEditor(mount, {
                     schema: buildFormSchema(schema),
-                    startval: seeded,
+                    startval: toForm(shared.getConfig()?.settings),
                     theme: "html",
                     iconlib: null,
                     disable_edit_json: true,
                     disable_properties: true,
                     no_additional_properties: true,
-                    required_by_default: false,
+                    // Every declared setting has to render, whether or not the config
+                    // already carries it: reaching a setting the admin never set is the
+                    // whole point. Left optional, json-editor draws only the keys present
+                    // in the stored config, which on this server was 20 of 92, and
+                    // disable_properties removes the button that would add the rest.
+                    // Writing them all back is prevented by settingsToPersist, not here.
+                    required_by_default: true,
                     show_errors: "never",
+                });
+
+                // What the editor holds once it has filled in every setting the config was
+                // missing. A save compares against this, so an untouched default is not a change.
+                editor.on("ready", () => {
+                    initial = editor.getValue();
                 });
             };
 
             const dispose = () => {
                 editor?.destroy();
                 editor = null;
+                initial = null;
             };
 
             // Schema and config are loaded once, before this import resolves, so the first
@@ -98,7 +115,8 @@ export default function (view) {
                 if (!editor) return;
 
                 const config = shared.getConfig() ?? {};
-                const settings = toConfig(settingsToPersist(config.settings, seeded, editor.getValue()));
+                const settings = toConfig(
+                    settingsToPersist(config.settings, initial ?? editor.getValue(), editor.getValue()));
 
                 shared.setConfig({ ...config, settings });
                 shared.saveConfig();

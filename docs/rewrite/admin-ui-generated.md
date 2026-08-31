@@ -129,13 +129,57 @@ but the client path is tried first and is expected to hold.
 
 - **xUnit**, for the schema shaping described above. Runs on jf11 and jf12 in CI
   like the rest.
-- **A manual pass on the beta**, LXC 132, real Jellyfin 12. The generated form is
-  JS and only a browser connected to the dashboard exercises it. Build jf12,
-  deploy to the beta with `autoUpdate` false as usual, open the plugin config
-  page, and confirm: every declared simple setting has a control, a lock checkbox
-  sits beside each lockable value, the two credential fields are masked, an enum
-  and a string array render, and a save round trips through YAML with the values
-  intact. The known unauthenticated `config/schema` is untouched here.
+- **A pass on the beta**, LXC 132, real Jellyfin 12.0.0. The form is JS and only a
+  browser connected to the dashboard exercises it.
+
+Done on 2026-08-31 and it passes. The schema the deployed plugin serves carries all
+four shapes, 92 settings, 80 of them with a description. On the page: every setting
+reaches the admin, both credentials render masked, the quality dropdown reads Max
+then 250KB through 8MB, and an edit round trips, toggled in the form, dumped to
+YAML, stored by the server, read back changed. A save with no edit sends the config
+back unchanged rather than growing it.
+
+## What the dashboard pass found, and the unit tests could not
+
+Four things only a real dashboard surfaced. They are written down because each one
+looks like a detail and is not.
+
+- **A setting the config never carried did not render at all.** With
+  `required_by_default` left false, json-editor draws only the keys present in the
+  start value, and `disable_properties` removes the button that would add the rest.
+  On this server that was 20 settings of 92: the other 72 were unreachable, which is
+  the opposite of what this part is for. The form asks for every setting.
+- **json-editor ignores a `format` and an `enum_titles` when the type is a list.** A
+  credential typed `["null","string"]` renders as a plain text box with the key in
+  clear, and a nullable enum renders a type selector. Both are single types now,
+  `"string"`, and the blank they use for "no value" is turned back into null on save.
+  A test that only asserts `format: password` passes while the field renders in
+  clear, so the tests pin the type as well.
+- **A save compared against the wrong baseline sent every setting.** The editor fills
+  in a default for each key the config was missing, so comparing its output against
+  what it was *seeded* with marked those keys as changed and wrote all 92. The
+  comparison is against the editor's own first value.
+- **`defaultAudioLanguage` and `defaultSubtitleLanguage` cannot round trip**, and
+  that predates this part. See below.
+
+## A setting that cannot be saved, found on the way
+
+`LanguagePreference` declares `ThreeLetterISOLanguageName` and `DisplayName` in
+PascalCase, alone among the settings types, because the app types both settings as
+the SDK's `CultureDto` and matches on that name. The plugin's YAML reader uses the
+camel case convention, so it rejects what its own schema describes:
+
+```
+Property 'ThreeLetterISOLanguageName' not found on type
+'...Configuration.Settings.LanguagePreference'
+```
+
+So an administrator cannot set a default audio or subtitle language today. The hand
+written page never offered the two, which is why it went unnoticed; the generated
+form offers them, and a save carrying one fails. Nothing here works around it: a
+save only sends what the admin touched, so the two stay out of the way until someone
+edits them. Fixing it means making the reader accept the name the app needs, and it
+wants its own change and its own test rather than being folded in here.
 
 ## Out of scope
 

@@ -200,7 +200,11 @@ public class SerializationHelper
                 ["locked"] = locked,
                 ["value"] = new JObject
                 {
-                    ["type"] = new JArray("null", "string"),
+                    // A single "string", never ["null","string"]: json-editor drops the
+                    // format the moment a type is a list, and renders a plain text box
+                    // with the credential in clear. The blank a null value becomes is
+                    // turned back into null on save, the same as every other setting.
+                    ["type"] = "string",
                     ["format"] = "password",
                     ["options"] = new JObject
                     {

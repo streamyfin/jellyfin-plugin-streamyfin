@@ -2,8 +2,19 @@
      data-require="emby-button,emby-select,emby-checkbox"
      data-controller="__plugin/Application.js">
     <style>
-        /* json-editor renders each setting as a collapsible object; tighten its spacing
-           to the dashboard's and let the emby input classes the schema carries do the rest. */
+        /* json-editor wraps the settings in a root object of its own, whose header reads
+           "root" and whose controls edit the raw JSON. Both are noise on a settings page.
+           The child combinator keeps this to the root: every setting keeps its own header. */
+        #settings-editor > .je-object__container > .je-header,
+        #settings-editor > .je-object__container > .je-object__controls { display: none; }
+        #settings-editor > .je-object__container > .je-indented-panel {
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        /* Each setting renders as a collapsible object; tighten its spacing to the
+           dashboard's and let the emby input classes the schema carries do the rest. */
         #settings-editor .je-object__container { margin-bottom: 0.6em; }
         #settings-editor .je-header > label { font-weight: 600; }
         #settings-editor .je-desc { opacity: 0.75; margin: 0.2em 0 0.6em; }

@@ -87,9 +87,17 @@ public class GeneratedFormSchemaTests
         Assert.True(
             setting.TryGetProperty("properties", out var properties),
             $"{key} should inline its value so a password field can be marked without touching the shared definition");
-        Assert.Equal(
-            "password",
-            properties.GetProperty("value").GetProperty("format").GetString());
+
+        var value = properties.GetProperty("value");
+
+        Assert.Equal("password", value.GetProperty("format").GetString());
+
+        // The type has to be the single string "string", never a list. json-editor drops
+        // the format the moment a type is a list, so ["null","string"] renders the
+        // credential in a plain text box, in clear. Found on a real dashboard, where the
+        // field came out as type=text; the format alone is not enough to assert.
+        Assert.Equal(JsonValueKind.String, value.GetProperty("type").ValueKind);
+        Assert.Equal("string", value.GetProperty("type").GetString());
     }
 
     /// <summary>
