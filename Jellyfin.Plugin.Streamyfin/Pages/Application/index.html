@@ -2,22 +2,61 @@
      data-require="emby-button,emby-select,emby-checkbox"
      data-controller="__plugin/Application.js">
     <style>
-        /* json-editor wraps the settings in a root object of its own, whose header reads
-           "root" and whose controls edit the raw JSON. Both are noise on a settings page.
-           The child combinator keeps this to the root: every setting keeps its own header. */
-        #settings-editor > .je-object__container > .je-header,
-        #settings-editor > .je-object__container > .je-object__controls { display: none; }
-        #settings-editor > .je-object__container > .je-indented-panel {
+        /* One collapsible section per category, closed to start with. Ninety two settings
+           in one column ran to eighteen thousand pixels, which is not a page anyone reads. */
+        #settings-editor .sf-section {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        #settings-editor .sf-section > summary {
+            cursor: pointer;
+            padding: 0.75em 0.25em;
+            font-size: 1.15em;
+            font-weight: 600;
+            list-style-position: inside;
+        }
+        #settings-editor .sf-section > summary:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+        #settings-editor .sf-group {
+            margin: 1em 0 0.35em;
+            padding-left: 0.25em;
+            font-size: 0.95em;
+            font-weight: 600;
+            opacity: 0.75;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* json-editor wraps each section's settings in a root object of its own, whose
+           header reads "root" and whose controls edit the raw JSON. Both are noise here.
+           The child combinator keeps this to those roots: every setting keeps its header. */
+        #settings-editor .je-object__container > .je-header,
+        #settings-editor .je-object__container > .je-object__controls { display: none; }
+        #settings-editor .je-indented-panel {
             margin: 0;
             padding: 0;
             border: none;
         }
+        /* A setting is itself an object, so put its own header back. */
+        #settings-editor .je-indented-panel .je-object__container > .je-header { display: block; }
 
-        /* Each setting renders as a collapsible object; tighten its spacing to the
-           dashboard's and let the emby input classes the schema carries do the rest. */
-        #settings-editor .je-object__container { margin-bottom: 0.6em; }
+        /* Density. A setting was taking about two hundred pixels: a bordered box, a header,
+           a collapse button and generous padding, for what is usually one input and a lock. */
+        #settings-editor .je-object__container {
+            margin: 0 0 0.35em;
+            padding: 0.35em 0.5em;
+        }
         #settings-editor .je-header > label { font-weight: 600; }
-        #settings-editor .je-desc { opacity: 0.75; margin: 0.2em 0 0.6em; }
+        #settings-editor .je-desc {
+            opacity: 0.7;
+            margin: 0.1em 0 0.4em;
+            font-size: 0.9em;
+        }
+        #settings-editor .je-indented-panel .je-indented-panel {
+            border-left: 2px solid rgba(255, 255, 255, 0.08);
+            padding-left: 0.6em;
+        }
+        #settings-editor .json-editor-btntype-toggle { padding: 0 0.4em; }
     </style>
 
     <div class="content-primary" style="max-width: 53em; height: 100%">

@@ -17,6 +17,8 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// <param name="IsSecret">Whether the value is a credential. See <see cref="SecretAttribute"/>.</param>
 /// <param name="DisplayName">Label for a form, when the property carries one.</param>
 /// <param name="Description">Help text for a form, when the property carries one.</param>
+/// <param name="Category">The section of the form it belongs to. See <see cref="SettingScopeAttribute"/>.</param>
+/// <param name="Group">The subdivision within that category, when it has one.</param>
 public sealed record SettingDescriptor(
     string Key,
     PropertyInfo Property,
@@ -24,7 +26,9 @@ public sealed record SettingDescriptor(
     bool IsLockable,
     bool IsSecret,
     string? DisplayName,
-    string? Description);
+    string? Description,
+    string? Category,
+    string? Group);
 
 /// <summary>
 /// The settings, as data.
@@ -95,6 +99,7 @@ public static class SettingsSchema
 
         var valueType = lockable ? underlying.GetGenericArguments()[0] : underlying;
         var display = property.GetCustomAttribute<DisplayAttribute>();
+        var scope = property.GetCustomAttribute<SettingScopeAttribute>();
 
         return new SettingDescriptor(
             Key: property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? property.Name,
@@ -103,6 +108,8 @@ public static class SettingsSchema
             IsLockable: lockable,
             IsSecret: property.GetCustomAttribute<SecretAttribute>() is not null,
             DisplayName: display?.Name,
-            Description: display?.Description);
+            Description: display?.Description,
+            Category: scope?.Category,
+            Group: scope?.Group);
     }
 }

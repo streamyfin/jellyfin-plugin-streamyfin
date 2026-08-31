@@ -180,18 +180,22 @@ public class Settings
 {
     [NotNull]
     [Display(Name = "Home view", Description = "Customize the appearance of the apps home page")]
+    [SettingScope("Home and appearance")]
     public Lockable<Home>? home { get; set; }
 
     [NotNull]
     [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showHomeTitles { get; set; } // = true;
 
     [NotNull]
-    [Display(Name = "Show the home backdrop", Description = "Show a backdrop image behind the home screen")]
+    [Display(Name = "Show the home backdrop", Description = "Apple TV and Android TV only. Show a backdrop image behind the home screen")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Show the hero carousel", Description = "Show the large rotating carousel at the top of the home screen")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showHeroCarousel { get; set; } // = true;
 
     // string[] rather than an array of a declared enum, following hiddenLibraries. An
@@ -199,287 +203,355 @@ public class Settings
     // fail to load the day the app adds a section name the plugin does not know yet.
     [NotNull]
     [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
+    [SettingScope("Home and appearance")]
     public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
+    [SettingScope("Home and appearance")]
     public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Merge Next Up and Continue Watching", Description = "Show both in a single row instead of two")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? mergeNextUpAndContinueWatching { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Use episode images in Next Up", Description = "Show the episode's own image rather than the series poster")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? useEpisodeImagesForNextUp { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Show the series poster on an episode", Description = "Use the series poster rather than the episode image on an episode page")]
+    [Display(Name = "Show the series poster on an episode", Description = "Apple TV and Android TV only. Use the series poster rather than the episode image on an episode page")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showSeriesPosterOnEpisode { get; set; } // = false;
 
     // Media Controls
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
+    [SettingScope("Playback controls", Group = "Skip and seek")]
     public Lockable<int>? forwardSkipTime { get; set; } // = 30;
     
     [NotNull]
     [Display(Name = "Rewind skip time", Description = "The amount of time in seconds you want to be able to rewind during playback")]
+    [SettingScope("Playback controls", Group = "Skip and seek")]
     public Lockable<int>? rewindSkipTime { get; set; } // = 10;
 
     // Media segment skip preferences
     [NotNull]
     [Display(Name = "Skip intro", Description = "Automatically skip intros during playback: none, ask, or auto")]
+    [SettingScope("Media segment skip")]
     public Lockable<SegmentSkipMode>? skipIntro { get; set; } // = ask
 
     [NotNull]
     [Display(Name = "Skip outro", Description = "Automatically skip outros/credits during playback: none, ask, or auto")]
+    [SettingScope("Media segment skip")]
     public Lockable<SegmentSkipMode>? skipOutro { get; set; } // = ask
 
     [NotNull]
     [Display(Name = "Skip recap", Description = "Automatically skip recaps during playback: none, ask, or auto")]
+    [SettingScope("Media segment skip")]
     public Lockable<SegmentSkipMode>? skipRecap { get; set; } // = ask
 
     [NotNull]
     [Display(Name = "Skip commercial", Description = "Automatically skip commercials during playback: none, ask, or auto")]
+    [SettingScope("Media segment skip")]
     public Lockable<SegmentSkipMode>? skipCommercial { get; set; } // = ask
 
     [NotNull]
     [Display(Name = "Skip preview", Description = "Automatically skip previews during playback: none, ask, or auto")]
+    [SettingScope("Media segment skip")]
     public Lockable<SegmentSkipMode>? skipPreview { get; set; } // = ask
     
     // Audio
     [NotNull]
     [Display(Name = "Remember audio selection", Description = "Allows you to set the audio language from the previous played item")]
+    [SettingScope("Audio and subtitles", Group = "Audio")]
     public Lockable<bool>? rememberAudioSelections { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Prefer local audio", Description = "Prefer downloaded audio over streaming when it is available")]
+    [SettingScope("Music")]
     public Lockable<bool>? preferLocalAudio { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Audio look-ahead caching", Description = "Pre-cache upcoming tracks for gapless music playback")]
+    [SettingScope("Music")]
     public Lockable<bool>? audioLookaheadEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
+    [SettingScope("Music")]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
     [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
+    [SettingScope("Music")]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
     // No default for either. The app leaves both null and follows what the server or the
     // media offers until the user picks one, so a value here would choose for everyone.
     [NotNull]
     [Display(Name = "Default audio language", Description = "Language to pick automatically when a title offers it")]
+    [SettingScope("Audio and subtitles", Group = "Audio")]
     public Lockable<LanguagePreference>? defaultAudioLanguage { get; set; }
 
     // Subtitles
     [NotNull]
     [Display(Name = "Default subtitle language", Description = "Subtitle language to pick automatically when a title offers it")]
+    [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<LanguagePreference>? defaultSubtitleLanguage { get; set; }
     [NotNull]
     [Display(Name = "Subtitle playback mode", Description = "Setting to determine when subtitles will automatically play during video playback")]
+    [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<SubtitlePlaybackMode>? subtitleMode { get; set; }
 
     [NotNull]
     [Display(Name = "Remember subtitle selection", Description = "Allows you to set the subtitle language from the previous played item")]
+    [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<bool>? rememberSubtitleSelections { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Subtitles when muted", Description = "Turn subtitles on automatically while the sound is off, and turn them back off when it returns")]
+    [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<bool>? subtitlesOnMute { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
+    [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
     [Display(Name = "Subtitle font", Description = "Font family used to render subtitles")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<string>? subtitleFont { get; set; } // = "System";
 
     [NotNull]
     [Display(Name = "Subtitle colour", Description = "Subtitle text colour, as a hex value such as #FFFFFF")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<string>? subtitleColor { get; set; } // = "#FFFFFF";
 
     [NotNull]
     [Display(Name = "Subtitle background", Description = "Draw a box behind the subtitles")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<bool>? subtitleBackground { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
     [Display(Name = "Subtitle background padding", Description = "Space between the subtitle text and the edge of its background")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<int>? subtitleBackgroundPadding { get; set; } // = 8;
 
     [NotNull]
     [Display(Name = "Subtitle vertical margin", Description = "Distance between the subtitles and the edge of the video")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<int>? subtitleMarginY { get; set; } // = 25;
 
     [NotNull]
     [Display(Name = "Subtitle horizontal alignment", Description = "left, center or right")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<SubtitleAlignX>? subtitleAlignX { get; set; } // = center;
 
     [NotNull]
     [Display(Name = "Subtitle vertical alignment", Description = "top, center or bottom")]
+    [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     public Lockable<SubtitleAlignY>? subtitleAlignY { get; set; } // = bottom;
 
     // Other
     [NotNull]
     [Display(Name = "Default video orientation", Description = "Lock orientation during video playback")]
+    [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<OrientationLock>? defaultVideoOrientation { get; set; }
     
     [NotNull]
     [Display(Name = "Safe Area in video controls", Description = "Enable or disable the safe area for video controls")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? safeAreaInControlsEnabled { get; set; } // = true;
     
     [NotNull]
     [Display(Name = "Show custom menu links", Description = "Show custom menu links in Jellyfin's web configuration")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
     [Display(Name = "Hidden libraries", Description = "Enter all library Ids you want hidden from users")]
+    [SettingScope("Home and appearance")]
     public Lockable<string[]>? hiddenLibraries { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Disable haptic feedback")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? disableHapticFeedback { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Default playback quality")]
+    [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
 
     [NotNull]
     [Display(Name = "Max auto play episode count")]
+    [SettingScope("Playback controls", Group = "Autoplay and resume")]
     public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3
 
     [NotNull]
     [Display(Name = "Auto play next episode", Description = "Automatically start the next episode when one finishes")]
+    [SettingScope("Playback controls", Group = "Autoplay and resume")]
     public Lockable<bool>? autoPlayNextEpisode { get; set; } // = true
 
     [NotNull]
     [Display(Name = "Default playback speed", Description = "The default video playback speed multiplier")]
+    [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<double>? defaultPlaybackSpeed { get; set; } // = 1.0
 
     // Swipe controls
 
     [NotNull]
     [Display(Name = "Horizontal swipe to skip")]
+    [SettingScope("Playback controls", Group = "Skip and seek")]
     public Lockable<bool>? enableHorizontalSwipeSkip { get; set; } // = true 
     
      [NotNull]
     [Display(Name = "Left side brightness control")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? enableLeftSideBrightnessSwipe { get; set; } // = true
 
     [NotNull]
     [Display(Name = "Right side volume control")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? enableRightSideVolumeSwipe { get; set; } // = true
 
     [NotNull]
     [Display(Name = "Hide volume slider", Description = "Hide the volume slider in the video controls")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? hideVolumeSlider { get; set; } // = false
 
     [NotNull]
     [Display(Name = "Hide brightness slider", Description = "Hide the brightness slider in the video controls")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? hideBrightnessSlider { get; set; } // = false
 
     [NotNull]
     [Display(Name = "Double tap to seek")]
+    [SettingScope("Playback controls", Group = "Skip and seek")]
     public Lockable<bool>? enableDoubleTapToSeek { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Hold to speed up")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? enableHoldToSpeed { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]
     [Display(Name = "Pinch to zoom")]
+    [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? enablePinchToZoom { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Ask before resuming", Description = "Ask whether to resume or start over instead of resuming straight away")]
+    [SettingScope("Playback controls", Group = "Autoplay and resume")]
     public Lockable<bool>? showResumeDialog { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Auto play episode count", Description = "How many episodes have played automatically so far. 0 starts the count over")]
+    [SettingScope("Advanced")]
     public Lockable<int>? autoPlayEpisodeCount { get; set; } // = 0;
 
     [NotNull]
     [Display(Name = "Play the default audio track", Description = "Play the track the server marks as default rather than the last one chosen")]
+    [SettingScope("Audio and subtitles", Group = "Audio")]
     public Lockable<bool>? playDefaultAudioTrack { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Audio transcoding mode", Description = "How surround audio is handled: auto, stereo, 5.1 or passthrough")]
+    [SettingScope("Audio and subtitles", Group = "Audio")]
     public Lockable<AudioTranscodeMode>? audioTranscodeMode { get; set; } // = auto;
 
     // region Plugins
     // Jellyseerr
     [NotNull]
     [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
+    [SettingScope("Plugins", Group = "Jellyseerr")]
     public Lockable<string>? jellyseerrServerUrl { get; set; }
 
     [NotNull]
     [Display(Name = "Jellyseerr API Key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API — only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
     [Secret]
+    [SettingScope("Plugins", Group = "Jellyseerr")]
     public Lockable<string>? jellyseerrApiKey { get; set; }
 
     // Marlin Search
     [NotNull]
     [Display(Name = "Default search engine", Description = "Enter the search engine you want to use in streamyfin")]
+    [SettingScope("Plugins", Group = "Marlin search")]
     public Lockable<SearchEngine>? searchEngine { get; set; } // = SearchEngine.Jellyfin;
     
     [NotNull]
     [Display(Name = "Marlin server URL", Description = "Enter the URL for your Marlin server")]
+    [SettingScope("Plugins", Group = "Marlin search")]
     public Lockable<string>? marlinServerUrl { get; set; }
 
     // Streamystats
     [NotNull]
     [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server")]
+    [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<string>? streamyStatsServerUrl { get; set; }
     
     [NotNull]
     [Display(Name = "Streamystats Movie Recommendations", Description = "Allow Streamystats to provide movie recommendations using your watch history")]
+    [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsMovieRecommendations { get; set; }
     
     [NotNull]
     [Display(Name = "Streamystats Series Recommendations", Description = "Allow Streamystats to provide series recommendations using your watch history")]
+    [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsSeriesRecommendations { get; set; }
     
     [NotNull]
     [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow Streamystats to promote watchlists using your watch history")]
+    [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsPromotedWatchlists { get; set; }
 
     [NotNull]
     [Display(Name = "Hide watchlists tab", Description = "Hide the Streamystats watchlists tab in the app")]
+    [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? hideWatchlistsTab { get; set; }
 
     // KefinTweaks
     [NotNull]
     [Display(Name = "KefinTweaks watchlist integration", Description = "Enable the KefinTweaks watchlist integration")]
+    [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<bool>? useKefinTweaks { get; set; }
 
     [NotNull]
     [Display(Name = "Popular lists", Description = "Show popular lists from the Popular Lists plugin")]
+    [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<bool>? usePopularPlugin { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Awards from Wikidata", Description = "Show awards fetched from Wikidata on a title's page")]
+    [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<bool>? wikidataAwardsEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "OpenSubtitles", Description = "Allow searching OpenSubtitles for subtitles during playback")]
+    [SettingScope("Plugins", Group = "OpenSubtitles")]
     public Lockable<bool>? openSubtitlesEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Sign in to Jellyseerr automatically", Description = "Sign the user in to Jellyseerr without asking, when the server allows it")]
+    [SettingScope("Plugins", Group = "Jellyseerr")]
     public Lockable<bool>? autoLoginJellyseerr { get; set; } // = true;
 
     // No default. The app leaves this undefined and follows the device language until
@@ -487,18 +559,22 @@ public class Settings
     // never chose.
     [NotNull]
     [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
+    [SettingScope("Home and appearance")]
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]
     [Display(Name = "Media list collections", Description = "Collection ids to offer as media lists in the app")]
+    [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<string[]>? mediaListCollectionIds { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "HEVC for Chromecast", Description = "Offer HEVC to a Chromecast, which only some models decode")]
+    [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
 
     // The five mpv settings and deviceProfile describe what a device can do rather than
@@ -507,10 +583,12 @@ public class Settings
     // TV box with less memory to spare.
     [NotNull]
     [Display(Name = "mpv cache", Description = "Whether mpv caches ahead: auto, yes or no")]
+    [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<MpvCacheMode>? mpvCacheEnabled { get; set; } // = auto;
 
     [NotNull]
     [Display(Name = "mpv cache seconds", Description = "How many seconds mpv caches ahead")]
+    [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<int>? mpvCacheSeconds { get; set; } // = 10;
 
     // No default on purpose: the app's own default is not one number. It is 150 MB on a
@@ -518,51 +596,62 @@ public class Settings
     // number would push it to both and flatten a distinction the app makes deliberately.
     [NotNull]
     [Display(Name = "mpv demuxer buffer (MB)", Description = "Read-ahead buffer size. The app defaults to 150 MB on a phone and 75 MB on Android TV, so one number here applies to both")]
+    [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<int>? mpvDemuxerMaxBytes { get; set; }
 
     // No default, same reason: 50 MB on a phone, 30 MB on Android TV.
     [NotNull]
     [Display(Name = "mpv back buffer (MB)", Description = "How much already-played data mpv keeps. The app defaults to 50 MB on a phone and 30 MB on Android TV")]
+    [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<int>? mpvDemuxerMaxBackBytes { get; set; }
 
     [NotNull]
     [Display(Name = "mpv video output driver", Description = "gpu-next or gpu. gpu is the fallback for devices where gpu-next misbehaves")]
+    [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<MpvVoDriver>? mpvVoDriver { get; set; } // = gpu-next;
 
     [NotNull]
     [Display(Name = "Device profile", Description = "Which playback profile the app reports: Expo, Native or Old")]
+    [SettingScope("Advanced")]
     public Lockable<DeviceProfile>? deviceProfile { get; set; } // = Expo;
 
     [NotNull]
     [Display(Name = "Crash reporting", Description = "Whether the app sends crash reports. Turning it off for everyone is a reasonable policy; turning it on takes a consent decision away from the user")]
+    [SettingScope("Plugins", Group = "Diagnostics")]
     public Lockable<bool>? sentryEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "OpenSubtitles API key", Description = "An OpenSubtitles key for every user on this server. Setting it overwrites the key a user entered themselves, which may be one they pay for")]
     [Secret]
+    [SettingScope("Plugins", Group = "OpenSubtitles")]
     public Lockable<string>? openSubtitlesApiKey { get; set; }
     // endregion Plugins
     
     // Misc.
     [NotNull]
     [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
+    [SettingScope("Advanced")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
 
     // TV
     [NotNull]
     [Display(Name = "TV typography scale", Description = "Text size on the TV app: small, default, large or extraLarge")]
+    [SettingScope("Home and appearance")]
     public Lockable<TVTypographyScale>? tvTypographyScale { get; set; } // = default;
 
     [NotNull]
-    [Display(Name = "TV theme music", Description = "Play a series theme music while browsing it on TV")]
+    [Display(Name = "TV theme music", Description = "Apple TV and Android TV only. Play a series theme music while browsing it")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? tvThemeMusicEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Hide the remote session button")]
+    [SettingScope("Home and appearance")]
     public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
+    [SettingScope("Security")]
     public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
 
     // Which player runs is decided by getActiveVideoPlayer() in the app, from this
@@ -575,6 +664,7 @@ public class Settings
         Description = "Apple TV only, and only on tvOS 26 or newer. On by default, so this is the opt out: "
                       + "while it is on, Apple TV uses the native player whatever Video player says. Turn it "
                       + "off to hand Apple TV back to Video player.")]
+    [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
 
     [NotNull]
@@ -582,6 +672,7 @@ public class Settings
         Name = "Native player on Android TV",
         Description = "Android TV only. Off by default, so this is the opt in. Video player set to ExoPlayer "
                       + "still wins over it.")]
+    [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
 
     // No default on purpose. The app resolves this at runtime through
@@ -594,6 +685,7 @@ public class Settings
                       + "everywhere. ExoPlayer is Android TV only, and wins there. Native applies to phones "
                       + "and tablets only: on a TV it is not chosen here but by the two Native player "
                       + "settings above.")]
+    [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<VideoPlayer>? videoPlayer { get; set; }
 
 }
