@@ -129,8 +129,10 @@ public class ExpoReceiptTask : IScheduledTask
         var ripe = now - _ripeAfter;
 
         // What has already been asked about in this run. A push Expo has not resolved yet
-        // keeps its row, so the next batch would hand back the same one: without this the
-        // run would ask the same thousand over and over and never reach the rest.
+        // keeps its row, so the next batch would otherwise hand back the same one. The set
+        // goes into the query rather than filtering its result: filtering afterwards means
+        // a batch that went entirely unanswered is taken, discarded, and the run stops
+        // with everything behind it untouched.
         var asked = new HashSet<string>(StringComparer.Ordinal);
         var collected = 0;
 
@@ -138,9 +140,7 @@ public class ExpoReceiptTask : IScheduledTask
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var pending = database.GetExpoReceiptsSentBefore(ripe, BatchSize)
-                .Where(receipt => asked.Add(receipt.TicketId))
-                .ToList();
+            var pending = database.GetExpoReceiptsSentBefore(ripe, BatchSize, asked);
 
             if (pending.Count == 0)
             {
@@ -150,6 +150,7 @@ public class ExpoReceiptTask : IScheduledTask
             var ticketToToken = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var receipt in pending)
             {
+                asked.Add(receipt.TicketId);
                 ticketToToken[receipt.TicketId] = receipt.Token;
             }
 

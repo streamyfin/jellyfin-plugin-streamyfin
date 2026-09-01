@@ -209,6 +209,34 @@ public class ExpoReceiptStoreTests : IDisposable
         Assert.Empty(second.Select(r => r.TicketId).Intersect(first.Select(r => r.TicketId)));
     }
 
+    /// <summary>
+    /// Skipping what has already been asked about happens in the query, before the limit,
+    /// so a batch that went entirely unanswered does not hide everything behind it.
+    /// </summary>
+    /// <remarks>
+    /// This is the difference between walking a backlog and starving on it. Filtered
+    /// after the limit, a run whose first batch Expo did not resolve would take that same
+    /// batch again, discard all of it, find nothing new and stop, and the rows behind it
+    /// would wait until the old ones resolved or expired unread. The rows here all carry
+    /// the same timestamp, which is what a burst of notifications actually produces.
+    /// </remarks>
+    [Fact]
+    public void WhatWasAlreadyAskedIsSkippedBeforeTheLimit()
+    {
+        _db.AddExpoReceipts(
+            Enumerable.Range(0, 1500).Select(i => ($"ticket-{i:D4}", $"token-{i}")),
+            Now.AddHours(-1));
+
+        // Asked about, and Expo answered for none of them, so every row is still stored.
+        var first = _db.GetExpoReceiptsSentBefore(Now, 1000);
+        var asked = first.Select(r => r.TicketId).ToHashSet(StringComparer.Ordinal);
+
+        var second = _db.GetExpoReceiptsSentBefore(Now, 1000, asked);
+
+        Assert.Equal(500, second.Count);
+        Assert.Empty(second.Select(r => r.TicketId).Intersect(asked));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

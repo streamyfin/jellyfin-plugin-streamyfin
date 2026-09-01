@@ -246,14 +246,34 @@ public class PluginDatabase
     /// </summary>
     /// <param name="sentBefore">Only pushes older than this, in UTC.</param>
     /// <param name="limit">At most this many, since Expo takes 1000 ids per request.</param>
+    /// <param name="excluding">Ticket ids to skip, typically the ones already asked about.</param>
     /// <returns>The oldest ones first.</returns>
-    public List<ExpoReceipt> GetExpoReceiptsSentBefore(DateTime sentBefore, int limit)
+    /// <remarks>
+    /// The exclusion belongs in the query rather than in the caller, and that is not a
+    /// preference. A push Expo has not resolved keeps its row, so filtering after the
+    /// limit hands back the same oldest batch every time: a run whose first batch went
+    /// entirely unanswered would take that batch, filter it away, find nothing new and
+    /// stop, and everything behind it would wait for those rows to resolve or expire.
+    /// Excluding before the limit is what lets a backlog actually be walked.
+    /// </remarks>
+    public List<ExpoReceipt> GetExpoReceiptsSentBefore(
+        DateTime sentBefore,
+        int limit,
+        IReadOnlyCollection<string>? excluding = null)
     {
         using var context = CreateContext();
 
-        return context.ExpoReceipts.AsNoTracking()
-            .Where(r => r.CreatedAt <= sentBefore)
+        var query = context.ExpoReceipts.AsNoTracking()
+            .Where(r => r.CreatedAt <= sentBefore);
+
+        if (excluding is { Count: > 0 })
+        {
+            query = query.Where(r => !excluding.Contains(r.TicketId));
+        }
+
+        return query
             .OrderBy(r => r.CreatedAt)
+            .ThenBy(r => r.TicketId)
             .Take(limit)
             .ToList();
     }
