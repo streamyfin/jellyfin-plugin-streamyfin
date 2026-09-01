@@ -230,11 +230,15 @@ public class Settings
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Range(0, 60)]
+    [Step(5)]
     public Lockable<int>? forwardSkipTime { get; set; } // = 30;
     
     [NotNull]
     [Display(Name = "Rewind skip time", Description = "The amount of time in seconds you want to be able to rewind during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Range(0, 60)]
+    [Step(5)]
     public Lockable<int>? rewindSkipTime { get; set; } // = 10;
 
     // Media segment skip preferences
@@ -323,6 +327,8 @@ public class Settings
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Range(0, 120)]
+    [Step(5)]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
