@@ -41,7 +41,8 @@ months.
 **Generated admin forms.** `@json-editor/json-editor` 2.15.2 is already vendored
 in `Pages/Libraries/` and imported by nothing. Simple settings render from the
 JSON schema the plugin already publishes. The home editor and the group targeting
-screen stay hand written. That hybrid is what KefinTweaks landed on in
+screen were to stay hand written, which held for one of the two and not for the
+other, as the paragraph below records. That hybrid is what KefinTweaks landed on in
 `scripts/configuration.js`: descriptor driven for the repetitive fields, hand
 written where the shape is genuinely irregular.
 
