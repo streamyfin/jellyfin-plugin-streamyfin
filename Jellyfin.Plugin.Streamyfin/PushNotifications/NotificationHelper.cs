@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -23,6 +24,11 @@ public class NotificationHelper
     private const string SendUri = "https://exp.host/--/api/v2/push/send";
 
     private const string ReceiptsUri = "https://exp.host/--/api/v2/push/getReceipts";
+
+    /// <summary>
+    /// How many ticket ids Expo takes in one receipts request.
+    /// </summary>
+    public const int MaxReceiptsPerRequest = 1000;
 
     private readonly ILogger<NotificationHelper>? _logger;
     private readonly SerializationHelper _serializationHelper;
@@ -158,9 +164,12 @@ public class NotificationHelper
         // position is the only thing tying an error ticket to the device it came from.
         var recipients = notifications.SelectMany(notification => notification.To).ToList();
 
+        // No token to pass: a send happens inside a synchronous Jellyfin event handler,
+        // which has none to give. The client timeout is what bounds it.
         var response = await PostToExpo<ExpoNotificationResponse>(
             SendUri,
-            _serializationHelper.ToJson(notifications)).ConfigureAwait(false);
+            _serializationHelper.ToJson(notifications),
+            CancellationToken.None).ConfigureAwait(false);
 
         PruneAndQueue(recipients, response);
 
@@ -171,14 +180,18 @@ public class NotificationHelper
     /// Asks Expo what became of pushes it accepted earlier.
     /// </summary>
     /// <param name="ticketIds">The ticket ids to ask about, at most a thousand.</param>
+    /// <param name="cancellationToken">Stops the call when the server is shutting down.</param>
     /// <returns>The receipts, or null when the request was refused.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">More ids than Expo takes at once.</exception>
     /// <remarks>
     /// A ticket only says Expo took the message. Whether it arrived, and above all
     /// whether the device is gone, is only ever in the receipt. Nothing called this
     /// before P4.2, so a token stayed in the database after its app was uninstalled and
     /// every later send to it went nowhere.
     /// </remarks>
-    public async Task<ExpoReceiptResponse?> FetchReceipts(IReadOnlyList<string> ticketIds)
+    public async Task<ExpoReceiptResponse?> FetchReceipts(
+        IReadOnlyList<string> ticketIds,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(ticketIds);
 
@@ -187,9 +200,15 @@ public class NotificationHelper
             return null;
         }
 
+        // Expo rejects the request past its cap, and a rejection is not an answer, so the
+        // rows would simply be asked about again every hour until they expired unread.
+        // Louder than a caller quietly never collecting anything.
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(ticketIds.Count, MaxReceiptsPerRequest);
+
         return await PostToExpo<ExpoReceiptResponse>(
             ReceiptsUri,
-            _serializationHelper.ToJson(new ExpoReceiptRequest { Ids = [.. ticketIds] })).ConfigureAwait(false);
+            _serializationHelper.ToJson(new ExpoReceiptRequest { Ids = [.. ticketIds] }),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -228,7 +247,10 @@ public class NotificationHelper
         }
     }
 
-    private async Task<T?> PostToExpo<T>(string uri, string serializedRequest)
+    private async Task<T?> PostToExpo<T>(
+        string uri,
+        string serializedRequest,
+        CancellationToken cancellationToken)
         where T : class
     {
         _logger?.LogDebug("Preparing to call {Uri}", uri);
@@ -238,14 +260,14 @@ public class NotificationHelper
         // an event handler that Jellyfin is waiting on.
         var client = _httpClientFactory.CreateClient(ExpoClientName);
         using var httpRequest = GetHttpRequestMessage(uri, serializedRequest);
-        using var rawResponse = await client.SendAsync(httpRequest).ConfigureAwait(false);
+        using var rawResponse = await client.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
 
         // Expo answers 429 when it is being asked too often, and the body is then not a
         // ticket list. Read as one anyway it yields a response with no tickets, which every
         // caller reads as a delivery that simply had nothing to report.
         if (!rawResponse.IsSuccessStatusCode)
         {
-            var body = await rawResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var body = await rawResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
             _logger?.LogError(
                 "Expo refused the request to {Uri} with {Status}: {Body}",
@@ -258,7 +280,7 @@ public class NotificationHelper
 
         _logger?.LogDebug("Received response");
 
-        return await rawResponse.Content.ReadFromJsonAsync<T>().ConfigureAwait(false);
+        return await rawResponse.Content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
     }
 
     private static HttpRequestMessage GetHttpRequestMessage(string uri, string content) => new()

@@ -44,9 +44,22 @@ public class ExpoReceiptTask : IScheduledTask
     private static readonly TimeSpan _expiresAfter = TimeSpan.FromHours(24);
 
     /// <summary>
-    /// Expo takes a thousand ticket ids per request, so that is one run's worth.
+    /// One request's worth, which is Expo's own limit.
     /// </summary>
-    private const int BatchSize = 1000;
+    private const int BatchSize = NotificationHelper.MaxReceiptsPerRequest;
+
+    /// <summary>
+    /// How many batches one run works through.
+    /// </summary>
+    /// <remarks>
+    /// A single batch per run was not enough. A library scan notifies every device at
+    /// once, so a burst can leave far more than a thousand pushes waiting, and at one
+    /// batch an hour against a 24 hour expiry the oldest would be dropped before anyone
+    /// asked what became of them. That is the very bug this part exists to fix, arriving
+    /// through the back door. Bounded all the same, so one run cannot hold the task open
+    /// indefinitely against an unusually large backlog: what is left waits for the next.
+    /// </remarks>
+    private const int MaxBatchesPerRun = 10;
 
     private readonly NotificationHelper _notifications;
     private readonly ILogger<ExpoReceiptTask> _logger;
@@ -58,6 +71,7 @@ public class ExpoReceiptTask : IScheduledTask
     /// <param name="loggerFactory">Logger factory.</param>
     public ExpoReceiptTask(NotificationHelper notifications, ILoggerFactory loggerFactory)
     {
+        ArgumentNullException.ThrowIfNull(notifications);
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
         _notifications = notifications;
@@ -112,60 +126,80 @@ public class ExpoReceiptTask : IScheduledTask
 
         progress?.Report(10);
 
-        var pending = database.GetExpoReceiptsSentBefore(now - _ripeAfter, BatchSize);
+        var ripe = now - _ripeAfter;
 
-        if (pending.Count == 0)
+        // What has already been asked about in this run. A push Expo has not resolved yet
+        // keeps its row, so the next batch would hand back the same one: without this the
+        // run would ask the same thousand over and over and never reach the rest.
+        var asked = new HashSet<string>(StringComparer.Ordinal);
+        var collected = 0;
+
+        for (var batch = 0; batch < MaxBatchesPerRun; batch++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var pending = database.GetExpoReceiptsSentBefore(ripe, BatchSize)
+                .Where(receipt => asked.Add(receipt.TicketId))
+                .ToList();
+
+            if (pending.Count == 0)
+            {
+                break;
+            }
+
+            var ticketToToken = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var receipt in pending)
+            {
+                ticketToToken[receipt.TicketId] = receipt.Token;
+            }
+
+            var response = await _notifications
+                .FetchReceipts([.. ticketToToken.Keys], cancellationToken)
+                .ConfigureAwait(false);
+
+            // A refused request is not an answer about anybody's token. The rows stay, and
+            // the next run asks again, until they expire on their own.
+            if (response is null)
+            {
+                _logger.LogWarning(
+                    "Expo did not answer for {Count} push receipt(s), which will be asked for again",
+                    pending.Count);
+                break;
+            }
+
+            var dead = ExpoTickets.DeadTokensFrom(response, ticketToToken);
+
+            if (dead.Count > 0)
+            {
+                var removed = database.RemoveDeviceTokensNamed(dead);
+
+                _logger.LogInformation(
+                    "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
+                    dead.Count,
+                    removed);
+            }
+
+            // Every ticket that was answered is done with, whatever it said. One that is
+            // still pending on Expo's side is absent from the answer and keeps its row,
+            // which is also why the next batch has to skip what this one already asked.
+            var answered = response.Data.Keys.Where(ticketToToken.ContainsKey).ToList();
+            database.RemoveExpoReceipts(answered);
+            collected += answered.Count;
+
+            progress?.Report(10 + (90.0 * (batch + 1) / MaxBatchesPerRun));
+        }
+
+        if (asked.Count > 0)
+        {
+            _logger.LogInformation(
+                "Collected {Collected} of {Asked} push receipt(s)",
+                collected,
+                asked.Count);
+        }
+        else
         {
             _logger.LogDebug("No push is waiting on a receipt");
-            progress?.Report(100);
-            return;
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var ticketToToken = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var receipt in pending)
-        {
-            ticketToToken[receipt.TicketId] = receipt.Token;
-        }
-
-        var response = await _notifications
-            .FetchReceipts([.. ticketToToken.Keys])
-            .ConfigureAwait(false);
-
-        progress?.Report(70);
-
-        // A refused request is not an answer about anybody's token. The rows stay, and the
-        // next run asks again, until they expire on their own.
-        if (response is null)
-        {
-            _logger.LogWarning(
-                "Expo did not answer for {Count} push receipt(s), which will be asked for again",
-                pending.Count);
-            return;
-        }
-
-        var dead = ExpoTickets.DeadTokensFrom(response, ticketToToken);
-
-        if (dead.Count > 0)
-        {
-            var removed = database.RemoveDeviceTokensNamed(dead);
-
-            _logger.LogInformation(
-                "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
-                dead.Count,
-                removed);
-        }
-
-        // Every ticket that was answered is done with, whatever it said. One that is still
-        // pending on Expo's side is absent from the answer and keeps its row for next time.
-        var answered = response.Data.Keys.Where(ticketToToken.ContainsKey).ToList();
-        database.RemoveExpoReceipts(answered);
-
-        _logger.LogInformation(
-            "Collected {Answered} of {Asked} push receipt(s)",
-            answered.Count,
-            pending.Count);
 
         progress?.Report(100);
     }

@@ -182,6 +182,33 @@ public class ExpoReceiptStoreTests : IDisposable
         Assert.Equal(["ticket-b"], _db.GetExpoReceiptsSentBefore(Now, 100).Select(r => r.TicketId));
     }
 
+    /// <summary>
+    /// A backlog bigger than one batch is reached a batch at a time, and forgetting what
+    /// was answered brings the rest into range.
+    /// </summary>
+    /// <remarks>
+    /// A run that only ever took the first batch would let the oldest expire before
+    /// anyone asked what became of them, which is the bug this part exists to fix.
+    /// Sized past the batch the task uses on purpose, since that is also the number of
+    /// ids one delete has to carry.
+    /// </remarks>
+    [Fact]
+    public void ABacklogBiggerThanOneBatchIsReachedInPieces()
+    {
+        _db.AddExpoReceipts(
+            Enumerable.Range(0, 1500).Select(i => ($"ticket-{i:D4}", $"token-{i}")),
+            Now.AddHours(-1));
+
+        var first = _db.GetExpoReceiptsSentBefore(Now, 1000);
+        Assert.Equal(1000, first.Count);
+
+        _db.RemoveExpoReceipts(first.Select(r => r.TicketId));
+
+        var second = _db.GetExpoReceiptsSentBefore(Now, 1000);
+        Assert.Equal(500, second.Count);
+        Assert.Empty(second.Select(r => r.TicketId).Intersect(first.Select(r => r.TicketId)));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

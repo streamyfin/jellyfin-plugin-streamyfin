@@ -59,7 +59,7 @@ Both now prune. The receipts half needs to outlive the request, since Expo takes
 to produce one, so an accepted push is stored as a ticket and token pair in a new
 `ExpoReceipts` table and a scheduled task collects them hourly: it asks about pushes
 older than fifteen minutes, a thousand at a time, prunes what comes back dead, forgets
-what was answered, and drops rows older than twenty four hours because past that Expo has
+what was answered, and drops rows older than twenty-four hours because past that Expo has
 no answer left to give.
 
 **The part that had to be got right.** An error ticket carries no id and no token. The
