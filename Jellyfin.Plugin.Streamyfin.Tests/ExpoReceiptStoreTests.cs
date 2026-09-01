@@ -237,6 +237,33 @@ public class ExpoReceiptStoreTests : IDisposable
         Assert.Empty(second.Select(r => r.TicketId).Intersect(asked));
     }
 
+    /// <summary>
+    /// The exclusion holds at the size a full run actually reaches.
+    /// </summary>
+    /// <remarks>
+    /// The task works through up to ten batches of a thousand, so by the last one it is
+    /// asking the database to skip nine thousand ticket ids in a single query. SQLite has
+    /// a ceiling on bound parameters, and a query built the wrong way would throw there
+    /// and nowhere else: only on the busy servers this part exists to help, and only once
+    /// the backlog is deep enough to reach the tenth batch.
+    /// </remarks>
+    [Fact]
+    public void TheExclusionHoldsAtAFullRunsSize()
+    {
+        _db.AddExpoReceipts(
+            Enumerable.Range(0, 10_000).Select(i => ($"ticket-{i:D5}", $"token-{i}")),
+            Now.AddHours(-1));
+
+        var asked = Enumerable.Range(0, 9_000)
+            .Select(i => $"ticket-{i:D5}")
+            .ToHashSet(StringComparer.Ordinal);
+
+        var remaining = _db.GetExpoReceiptsSentBefore(Now, 1000, asked);
+
+        Assert.Equal(1000, remaining.Count);
+        Assert.Empty(remaining.Select(r => r.TicketId).Intersect(asked));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
