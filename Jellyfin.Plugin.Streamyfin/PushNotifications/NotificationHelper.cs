@@ -20,6 +20,10 @@ public class NotificationHelper
     /// </summary>
     public const string ExpoClientName = "streamyfin-expo";
 
+    private const string SendUri = "https://exp.host/--/api/v2/push/send";
+
+    private const string ReceiptsUri = "https://exp.host/--/api/v2/push/getReceipts";
+
     private readonly ILogger<NotificationHelper>? _logger;
     private readonly SerializationHelper _serializationHelper;
     private readonly IUserManager? _userManager;
@@ -146,18 +150,94 @@ public class NotificationHelper
         return await Send(expoNotifications).ConfigureAwait(false);
     }
 
-    public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications) =>
-        await SendNotificationToExpo(_serializationHelper.ToJson(notifications)).ConfigureAwait(false);
-
-    private async Task<ExpoNotificationResponse?> SendNotificationToExpo(string serializedRequest)
+    public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications)
     {
-        _logger?.LogDebug("Preparing to send notification");
+        ArgumentNullException.ThrowIfNull(notifications);
+
+        // The order Expo answers in. One ticket comes back per recipient, and that
+        // position is the only thing tying an error ticket to the device it came from.
+        var recipients = notifications.SelectMany(notification => notification.To).ToList();
+
+        var response = await PostToExpo<ExpoNotificationResponse>(
+            SendUri,
+            _serializationHelper.ToJson(notifications)).ConfigureAwait(false);
+
+        PruneAndQueue(recipients, response);
+
+        return response;
+    }
+
+    /// <summary>
+    /// Asks Expo what became of pushes it accepted earlier.
+    /// </summary>
+    /// <param name="ticketIds">The ticket ids to ask about, at most a thousand.</param>
+    /// <returns>The receipts, or null when the request was refused.</returns>
+    /// <remarks>
+    /// A ticket only says Expo took the message. Whether it arrived, and above all
+    /// whether the device is gone, is only ever in the receipt. Nothing called this
+    /// before P4.2, so a token stayed in the database after its app was uninstalled and
+    /// every later send to it went nowhere.
+    /// </remarks>
+    public async Task<ExpoReceiptResponse?> FetchReceipts(IReadOnlyList<string> ticketIds)
+    {
+        ArgumentNullException.ThrowIfNull(ticketIds);
+
+        if (ticketIds.Count == 0)
+        {
+            return null;
+        }
+
+        return await PostToExpo<ExpoReceiptResponse>(
+            ReceiptsUri,
+            _serializationHelper.ToJson(new ExpoReceiptRequest { Ids = [.. ticketIds] })).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Acts on what a send answer said about its recipients.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately silent when there is no plugin instance, which is the case in a unit
+    /// test: the decision itself is in <see cref="ExpoTickets"/> and is tested there,
+    /// without a database.
+    /// </remarks>
+    private void PruneAndQueue(IReadOnlyList<string> recipients, ExpoNotificationResponse? response)
+    {
+        var outcome = ExpoTickets.Reconcile(recipients, response, _logger);
+
+        var database = StreamyfinPlugin.Instance?.Database;
+        if (database is null)
+        {
+            return;
+        }
+
+        if (outcome.DeadTokens.Count > 0)
+        {
+            var removed = database.RemoveDeviceTokensNamed(outcome.DeadTokens);
+
+            _logger?.LogInformation(
+                "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
+                outcome.DeadTokens.Count,
+                removed);
+        }
+
+        if (outcome.Pending.Count > 0)
+        {
+            database.AddExpoReceipts(
+                outcome.Pending.Select(pending => (pending.TicketId, pending.Token)),
+                DateTime.UtcNow);
+        }
+    }
+
+    private async Task<T?> PostToExpo<T>(string uri, string serializedRequest)
+        where T : class
+    {
+        _logger?.LogDebug("Preparing to call {Uri}", uri);
 
         // From the factory, never a new HttpClient per send: one built inline gets its own
         // connection pool every time and carries the default hundred second timeout, inside
         // an event handler that Jellyfin is waiting on.
         var client = _httpClientFactory.CreateClient(ExpoClientName);
-        using var httpRequest = GetHttpRequestMessage(serializedRequest);
+        using var httpRequest = GetHttpRequestMessage(uri, serializedRequest);
         using var rawResponse = await client.SendAsync(httpRequest).ConfigureAwait(false);
 
         // Expo answers 429 when it is being asked too often, and the body is then not a
@@ -168,7 +248,8 @@ public class NotificationHelper
             var body = await rawResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
 
             _logger?.LogError(
-                "Expo refused the notification with {Status}: {Body}",
+                "Expo refused the request to {Uri} with {Status}: {Body}",
+                uri,
                 (int)rawResponse.StatusCode,
                 body.Length > 500 ? body[..500] : body);
 
@@ -177,13 +258,13 @@ public class NotificationHelper
 
         _logger?.LogDebug("Received response");
 
-        return await rawResponse.Content.ReadFromJsonAsync<ExpoNotificationResponse>().ConfigureAwait(false);
+        return await rawResponse.Content.ReadFromJsonAsync<T>().ConfigureAwait(false);
     }
 
-    private static HttpRequestMessage GetHttpRequestMessage(string content) => new()
+    private static HttpRequestMessage GetHttpRequestMessage(string uri, string content) => new()
     {
         Method = HttpMethod.Post,
-        RequestUri = new Uri("https://exp.host/--/api/v2/push/send"),
+        RequestUri = new Uri(uri),
         Headers =
         {
             { "Host", "exp.host" },

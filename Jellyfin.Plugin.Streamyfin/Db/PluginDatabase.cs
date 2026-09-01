@@ -165,6 +165,151 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Forgets every device registered under a token Expo has reported as gone.
+    /// </summary>
+    /// <param name="tokens">The dead Expo push tokens.</param>
+    /// <returns>How many device rows were removed.</returns>
+    /// <remarks>
+    /// By token rather than by device id, because that is the only thing Expo names. One
+    /// token can sit on more than one row if a device re-registered under a new id
+    /// without the old row ever being cleaned up, which is the very accumulation this
+    /// removes, so every match goes.
+    /// </remarks>
+    public int RemoveDeviceTokensNamed(IEnumerable<string> tokens)
+    {
+        ArgumentNullException.ThrowIfNull(tokens);
+
+        var dead = tokens.Distinct(StringComparer.Ordinal).ToList();
+        if (dead.Count == 0)
+        {
+            return 0;
+        }
+
+        using var context = CreateContext();
+
+        var rows = context.DeviceTokens.Where(t => dead.Contains(t.Token)).ToList();
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        context.DeviceTokens.RemoveRange(rows);
+        context.SaveChanges();
+
+        return rows.Count;
+    }
+
+    /// <summary>
+    /// Remembers the pushes Expo accepted, so their receipts can be asked for later.
+    /// </summary>
+    /// <param name="receipts">The ticket and token pairs.</param>
+    /// <param name="now">When the send happened, in UTC.</param>
+    /// <remarks>
+    /// A ticket id already stored is skipped rather than replaced. Expo does not reissue
+    /// them, so a collision would mean something is wrong upstream and the first row is
+    /// the one that knows which token it belonged to.
+    /// </remarks>
+    public void AddExpoReceipts(IEnumerable<(string TicketId, string Token)> receipts, DateTime now)
+    {
+        ArgumentNullException.ThrowIfNull(receipts);
+
+        var incoming = receipts.ToList();
+        if (incoming.Count == 0)
+        {
+            return;
+        }
+
+        using var context = CreateContext();
+
+        var ids = incoming.Select(r => r.TicketId).ToList();
+        var known = context.ExpoReceipts
+            .Where(r => ids.Contains(r.TicketId))
+            .Select(r => r.TicketId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var rows = incoming
+            .Where(r => known.Add(r.TicketId))
+            .Select(r => new ExpoReceipt { TicketId = r.TicketId, Token = r.Token, CreatedAt = now })
+            .ToList();
+
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        context.ExpoReceipts.AddRange(rows);
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// The pushes old enough for Expo to have produced a receipt.
+    /// </summary>
+    /// <param name="sentBefore">Only pushes older than this, in UTC.</param>
+    /// <param name="limit">At most this many, since Expo takes 1000 ids per request.</param>
+    /// <returns>The oldest ones first.</returns>
+    public List<ExpoReceipt> GetExpoReceiptsSentBefore(DateTime sentBefore, int limit)
+    {
+        using var context = CreateContext();
+
+        return context.ExpoReceipts.AsNoTracking()
+            .Where(r => r.CreatedAt <= sentBefore)
+            .OrderBy(r => r.CreatedAt)
+            .Take(limit)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Forgets pushes, whether they were answered or have simply expired.
+    /// </summary>
+    /// <param name="ticketIds">The ticket ids to drop.</param>
+    public void RemoveExpoReceipts(IEnumerable<string> ticketIds)
+    {
+        ArgumentNullException.ThrowIfNull(ticketIds);
+
+        var ids = ticketIds.Distinct(StringComparer.Ordinal).ToList();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        using var context = CreateContext();
+
+        var rows = context.ExpoReceipts.Where(r => ids.Contains(r.TicketId)).ToList();
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        context.ExpoReceipts.RemoveRange(rows);
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Forgets pushes Expo would no longer answer for.
+    /// </summary>
+    /// <param name="sentBefore">Only pushes older than this, in UTC.</param>
+    /// <returns>How many rows were dropped.</returns>
+    /// <remarks>
+    /// Expo keeps a receipt for 24 hours. Past that the answer is never coming, and a row
+    /// that is never removed is the same accumulation in a different table.
+    /// </remarks>
+    public int RemoveExpoReceiptsSentBefore(DateTime sentBefore)
+    {
+        using var context = CreateContext();
+
+        var rows = context.ExpoReceipts.Where(r => r.CreatedAt <= sentBefore).ToList();
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        context.ExpoReceipts.RemoveRange(rows);
+        context.SaveChanges();
+
+        return rows.Count;
+    }
+
+    /// <summary>
     /// Removes every device token.
     /// </summary>
     public void Purge()

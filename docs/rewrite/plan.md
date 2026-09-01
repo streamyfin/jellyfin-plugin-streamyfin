@@ -181,7 +181,8 @@ weigh against dropping the embedded page machinery.
 ## P4. Push notifications
 
 - **P4.1** Inject `IHttpClientFactory` with a named client and a timeout
-- **P4.2** Read Expo receipts and prune `DeviceNotRegistered` tokens
+- **P4.2** Read Expo receipts and prune `DeviceNotRegistered` tokens, and the error
+  tickets that say the same thing at send time
 - **P4.3** Batching, honour 429 and `Retry-After`, retry with backoff
 - **P4.4** Declared events instead of the four hardcoded ones
 - **P4.5** Per user notification preferences, on top of P1
@@ -256,8 +257,9 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.6 | [#133](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/133) | merged |
 | P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
 | P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
-| P3.3 | this branch | open |
-| P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | open |
+| P3.3 | [#142](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/142) | merged |
+| P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
+| P4.2 | this branch | open |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the

@@ -133,3 +133,16 @@ public class ExpoNotificationRequest
     [JsonProperty(PropertyName = "mutableContent")]
     public bool MutableContent { get; set; }
 }
+
+/// <summary>
+/// Asking Expo for the receipts of tickets it handed back earlier.
+/// see: https://exp.host/--/api/v2/push/getReceipts
+/// </summary>
+public class ExpoReceiptRequest
+{
+    /// <summary>
+    /// Gets or sets the ticket ids to ask about. Expo takes a thousand per request.
+    /// </summary>
+    [JsonProperty("ids")]
+    public List<string> Ids { get; set; } = [];
+}
