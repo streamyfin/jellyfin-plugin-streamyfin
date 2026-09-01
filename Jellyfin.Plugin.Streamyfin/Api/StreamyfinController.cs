@@ -488,14 +488,20 @@ public class StreamyfinController : ControllerBase
   /// The settings targeted at one user.
   /// </summary>
   /// <param name="userId">The Jellyfin user id.</param>
-  /// <returns>The settings, or an empty body when the user has none.</returns>
+  /// <returns>The settings, in an object that carries none when the user has no override.</returns>
   /// <remarks>
+  /// Always a JSON object and never an empty body: a user with no override answers with
+  /// the settings simply absent. That is what lets the targeting screen read every answer
+  /// the same way instead of special casing one of them.
+  ///
+  /// <para>
   /// The only one of the targeting routes with no unversioned shim, because it is the
   /// only one that was never served: P1.2 gave this level a write and a delete and no
   /// read, which left the targeting screen nothing to open an existing override with.
   /// Read through the same tolerant path the resolution uses, so an override whose JSON
   /// cannot be read still answers rather than failing, and an administrator can see it
   /// to repair it.
+  /// </para>
   /// </remarks>
   [HttpGet("v1/users/{userId}/settings")]
   [Authorize(Policy = Policies.RequiresElevation)]
