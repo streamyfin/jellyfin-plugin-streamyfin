@@ -39,8 +39,6 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         // Reading base.Configuration here is what makes Jellyfin parse the old XML, so
         // this is the last point at which its contents are available to carry over.
         Settings.Import(Configuration?.Config, applicationPaths.PluginConfigurationsPath);
-
-        _prefix = GetType().Namespace;
     }
 
     /// <summary>
@@ -61,7 +59,10 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <inheritdoc />
     public override string Name => "Streamyfin";
 
-    private static string? _prefix;
+    // The namespace the pages are embedded under. Taken from the type rather than
+    // assigned in the constructor, so the page list answers without a running server and
+    // a test can hold every EmbeddedResourcePath to account.
+    private static readonly string _prefix = typeof(StreamyfinPlugin).Namespace!;
 
     /// <inheritdoc />
     public override Guid Id => PluginId;
@@ -90,6 +91,18 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             Name = "Application.js",
             EmbeddedResourcePath = _prefix + ".Pages.Application.index.js"
+        },
+
+        new PluginPageInfo
+        {
+            Name = "Targeting",
+            EmbeddedResourcePath = _prefix + ".Pages.Targeting.index.html"
+        },
+
+        new PluginPageInfo
+        {
+            Name = "Targeting.js",
+            EmbeddedResourcePath = _prefix + ".Pages.Targeting.index.js"
         },
 
         new PluginPageInfo
@@ -281,6 +294,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             Name = "shared.js",
             EmbeddedResourcePath = _prefix + ".Pages.shared.js"
+        };
+
+        // The generated settings form, shared by the Application and Targeting pages.
+        yield return new PluginPageInfo
+        {
+            Name = "settings-form.js",
+            EmbeddedResourcePath = _prefix + ".Pages.settings-form.js"
         };
         // endregion libraries
     }

@@ -485,6 +485,32 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
+  /// The settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <returns>The settings, or an empty body when the user has none.</returns>
+  /// <remarks>
+  /// The only one of the targeting routes with no unversioned shim, because it is the
+  /// only one that was never served: P1.2 gave this level a write and a delete and no
+  /// read, which left the targeting screen nothing to open an existing override with.
+  /// Read through the same tolerant path the resolution uses, so an override whose JSON
+  /// cannot be read still answers rather than failing, and an administrator can see it
+  /// to repair it.
+  /// </remarks>
+  [HttpGet("v1/users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<UserSettingsOverrideDto> GetUserSettingsOverride([FromRoute, Required] Guid userId)
+  {
+    var stored = StreamyfinPlugin.Instance!.Database.GetUserSettingsOverride(userId);
+
+    return new UserSettingsOverrideDto
+    {
+      Settings = stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {userId}")
+    };
+  }
+
+  /// <summary>
   /// Sets the settings targeted at one user.
   /// </summary>
   /// <param name="userId">The Jellyfin user id.</param>

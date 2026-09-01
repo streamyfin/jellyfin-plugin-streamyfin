@@ -8,6 +8,87 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-01
+
+### P3.3, the targeting screen
+
+The engine P1.2 to P1.4 built had seven routes, its own tables, its tests, and no
+screen: creating a group meant writing HTTP by hand with a user id nothing in the
+interface would show you. That is the same failure mode P3.1 closed for the 72
+unreachable settings, and it is why P3.3 was taken before P3.2 and P3.4.
+
+A new **Targeting** tab: the groups with their priority, members and override count,
+an editor for one group or one user, and a delete that says what it takes with it.
+
+**The plan called this a hand written screen and half of it is not.** Its list and its
+member picker are hand written; the settings a level overrides are the generated form
+from P3.1, with `required_by_default` false and the property picker left on. That one
+flip is the whole difference between "what does this server default to" and "what does
+this group change", and it also means the Targeting page needs none of the save-diff
+logic the Application page needs: the editor only ever holds the keys the level carries,
+so its value is the answer. `Pages/settings-form.js` is the part they share.
+
+**One route was missing and nobody had noticed**: `users/{userId}/settings` had a PUT
+and a DELETE and no GET, because the resolution only ever reads the *caller's* override,
+never a named user's. Added as `GET v1/users/{userId}/settings`, versioned only, since
+unlike its siblings it is not a path any app in the field ever called.
+
+**`Plugin.cs` gave up a static field assigned from its constructor.** `_prefix` came from
+`GetType().Namespace` at construction, so the page list only answered correctly on a
+running server, and the test for it could only check a hand written copy of the list.
+Taken from the type instead, `PluginPagesTests` now enumerates the plugin's own pages and
+holds every `EmbeddedResourcePath` to account. 167 tests green on jf11 and jf12, Release
+builds clean on both.
+
+**Not yet seen in a browser.** The screen is JS, the beta pass is owed, and the scenario
+to run is written down in [admin-ui-targeting.md](admin-ui-targeting.md) along with a
+casing gap on `LanguagePreference` that the same pass should confirm or dismiss.
+
+### P4.1, and a detour that says something about ordering
+
+[#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141): the push
+notification client. `new HttpClient()` per send is gone, replaced by a named client from
+`IHttpClientFactory` with a 30 second timeout instead of the default 100, the HTTP status
+is checked before the body is parsed (a 429 was reading exactly like a success), and
+`_userManager` is guarded before it is dereferenced. Five tests with a stubbed handler.
+Deployed to the beta on Jellyfin 12 and it loads with no unresolved service, which was
+the real risk of the injection and the only part unit tests could not answer.
+
+The detour worth recording: P4 was picked over the rest of P3 **because Tailscale was
+down and P4 was the only large piece provable without a browser**. That is a tooling
+constraint deciding a priority, and it was the wrong reason. P3 is the admin interface,
+which is what was asked for. Noted here so the next gap in connectivity does not quietly
+reorder the plan again.
+
+## 2026-08-31
+
+### P3.1 landed, and the two fixes it uncovered
+
+[#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136) generates the
+Application form from the schema, and
+[#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) groups it into
+the sections the app uses. The reasoning, what a real dashboard found that the unit tests
+could not, and why a per setting "platforms" field was investigated and dropped, are all
+in [admin-ui-generated.md](admin-ui-generated.md).
+
+Two things the generated form surfaced by offering settings the hand written page never
+had:
+
+- [#137](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/137), the default
+  audio and subtitle languages could not be saved at all. `LanguagePreference` is the one
+  settings type with PascalCase members, because the app matches them against the SDK's
+  `CultureDto`, and the YAML reader rejected the names its own schema described.
+- [#138](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/138), each video
+  player setting now says in its own description which platform it decides, rather than
+  leaving an administrator to guess.
+
+### The plugin is licensed
+
+[#140](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/140) merged into
+`main`: MPL-2.0, the same licence the app uses, so the two halves of one project do not
+disagree about their terms. It also credits SignPath, which is a condition of their free
+open source programme and the prerequisite for P0.10.
+
 ## 2026-08-27
 
 ### #1900 merged, and both written exceptions are gone

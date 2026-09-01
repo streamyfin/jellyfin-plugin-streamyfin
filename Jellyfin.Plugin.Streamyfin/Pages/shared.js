@@ -155,6 +155,11 @@ export const StreamyfinTabs = () => [
         name: "Application"
     },
     {
+        href: "configurationpage?name=Targeting",
+        resource: "Targeting",
+        name: "Targeting"
+    },
+    {
         href: "configurationpage?name=Notifications",
         resource: "Notifications",
         name: "Notifications"

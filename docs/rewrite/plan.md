@@ -45,6 +45,14 @@ screen stay hand written. That hybrid is what KefinTweaks landed on in
 `scripts/configuration.js`: descriptor driven for the repetitive fields, hand
 written where the shape is genuinely irregular.
 
+Half of that held. **The targeting screen went the other way**: its list, its
+member picker and its editing flow are hand written, but the settings a group
+overrides are the same generated form, because by the time P3.3 was built P3.1
+had made one that worked and a second editor written by hand would have been
+duplication. The line is not "irregular shape, write it by hand" but "the settings
+themselves are always the schema's job". See
+[admin-ui-targeting.md](admin-ui-targeting.md).
+
 ## How it lands
 
 `develop` is the integration branch, `main` keeps serving the published plugin.
@@ -156,7 +164,10 @@ states: locked, pushed once, unmanaged.
 - **P3.1** Render simple settings from the JSON schema using the already vendored
   json-editor
 - **P3.2** Hand written editor for home sections
-- **P3.3** Hand written screen for group and user targeting
+- **P3.3** Screen for group and user targeting. Written as "hand written", and
+  delivered on the generated form instead: once P3.1 existed, a second settings editor
+  written by hand was duplication. See
+  [admin-ui-targeting.md](admin-ui-targeting.md)
 - **P3.4** JSON export and import
 - **P3.5** Decide between embedded pages and `jellyfin-plugin-pages`
 
@@ -243,10 +254,20 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.4 | [#131](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/131) | merged |
 | P1.5 | [#132](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/132) | merged |
 | P1.6 | [#133](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/133) | merged |
-| P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134) | open |
+| P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
+| P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
+| P3.3 | this branch | open |
+| P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | open |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the
 plugin's entry in the dashboard's left menu, and
 [#109](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/109), the
 two lockable mute subtitle keys that came out of the pull request triage.
+
+Also not numbered:
+[#137](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/137), which made
+the two language settings saveable at all, and
+[#138](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/138), which says in
+each video player setting's own description which platform it decides. Both came out of
+the generated form offering settings the hand written page never had.
