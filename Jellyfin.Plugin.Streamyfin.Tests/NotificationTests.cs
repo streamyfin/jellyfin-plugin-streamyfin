@@ -19,11 +19,13 @@ public class NotificationTests(ITestOutputHelper output)
     /// <summary>
     /// These two reach the real Expo endpoint, so they need a client that really connects.
     /// The plugin itself is handed a configured one by the server; this keeps these tests
-    /// doing exactly what they did before the client was injected.
+    /// doing what they did before the client was injected, with the same thirty second
+    /// timeout, so a network stall fails the run rather than holding CI for a hundred.
     /// </summary>
     private sealed class PlainHttpClientFactory : System.Net.Http.IHttpClientFactory
     {
-        public System.Net.Http.HttpClient CreateClient(string name) => new();
+        public System.Net.Http.HttpClient CreateClient(string name) =>
+            new() { Timeout = System.TimeSpan.FromSeconds(30) };
     }
 
     // Replace with your own android emulator / ios simulator token
