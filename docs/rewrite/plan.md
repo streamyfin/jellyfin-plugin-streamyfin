@@ -187,9 +187,15 @@ weigh against dropping the embedded page machinery.
 - **P4.4** Declared events instead of the four hardcoded ones
 - **P4.5** Per user notification preferences, on top of P1
 
-P4.2 is the one with user visible consequences. Expo only reports a dead token
-through `/push/getReceipts`, which the plugin never calls, so tokens accumulate
-forever and sends go nowhere.
+P4.2 is the one with user visible consequences. Expo reports a dead token twice
+and the plugin read neither: as an error ticket at send time, whose
+`details.error` is `DeviceNotRegistered`, and later through `/push/getReceipts`,
+which nothing ever called. So tokens accumulated forever and sends went nowhere.
+
+The paragraph that stood here said the receipts were the only source. Building it
+proved otherwise, which is written down rather than quietly corrected: the ticket
+is the cheaper of the two, since it arrives with the send and needs nothing
+stored, and it was in the response the whole time behind a field typed `object`.
 
 P4.4 absorbs #29, #34 and #30, and each needs an explicit decision rather than an
 open ended promise. See [issue-triage.md](issue-triage.md).
