@@ -1,3 +1,4 @@
+using System;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
@@ -22,6 +23,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<LocalizationHelper>();
         serviceCollection.AddSingleton<SerializationHelper>();
         serviceCollection.AddSingleton<NotificationHelper>();
+
+        // The client that talks to Expo. Thirty seconds rather than the hundred an
+        // HttpClient defaults to: a push send happens inside an event handler the server is
+        // waiting on, so a hung request should give up long before that.
+        serviceCollection
+            .AddHttpClient(NotificationHelper.ExpoClientName, client => client.Timeout = TimeSpan.FromSeconds(30));
 
         // Event listeners
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartEvent>();

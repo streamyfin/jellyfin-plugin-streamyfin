@@ -12,7 +12,19 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 public class NotificationTests(ITestOutputHelper output)
 {
     private static readonly SerializationHelper _serializationHelper = new();
-    private readonly NotificationHelper _notificationHelper = new(null, null, _serializationHelper);
+
+    private readonly NotificationHelper _notificationHelper =
+        new(null, null, _serializationHelper, new PlainHttpClientFactory());
+
+    /// <summary>
+    /// These two reach the real Expo endpoint, so they need a client that really connects.
+    /// The plugin itself is handed a configured one by the server; this keeps these tests
+    /// doing exactly what they did before the client was injected.
+    /// </summary>
+    private sealed class PlainHttpClientFactory : System.Net.Http.IHttpClientFactory
+    {
+        public System.Net.Http.HttpClient CreateClient(string name) => new();
+    }
 
     // Replace with your own android emulator / ios simulator token
     // Do not use a real devices token. If you do, you can invalidate the token by re-installing streamyfin on your device.
