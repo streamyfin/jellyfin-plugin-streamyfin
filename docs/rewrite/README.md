@@ -15,6 +15,8 @@ goes in one of these files instead.
 | [pull-request-triage.md](pull-request-triage.md) | The pull requests that were open when the rewrite started. |
 | [app-side-work.md](app-side-work.md) | What the app repository has to do, and what it is waiting on. |
 | [settings-parity.md](settings-parity.md) | Which of the app's settings the plugin declares, and the manifest that keeps the two from drifting. |
+| [admin-ui-generated.md](admin-ui-generated.md) | P3.1: the admin form generated from the schema, and what a real dashboard found that the tests could not. |
+| [admin-ui-targeting.md](admin-ui-targeting.md) | P3.3: the group and user targeting screen, and why it reuses the generated form. |
 
 ## How the work is organised
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MediaBrowser.Common.Plugins;
@@ -19,6 +20,58 @@ public class PluginPagesTests
         new() { Name = "Notifications" },
         new() { Name = "Yaml" }
     ];
+
+    /// <summary>
+    /// Every page the plugin serves is embedded in the assembly under the path it claims.
+    /// </summary>
+    /// <remarks>
+    /// A page is registered by an <c>EmbeddedResourcePath</c> string, so a wrong one is
+    /// not a build error: the dashboard serves an empty tab and nothing says why. The
+    /// list is the plugin's own rather than one repeated here, so a page added without
+    /// its resource fails, and so does a resource renamed without its page.
+    ///
+    /// <para>
+    /// This exists because of the targeting screen: P1.2 to P1.4 built groups and per
+    /// user overrides with an API, tests and no screen at all, which left an
+    /// administrator hand crafting HTTP requests to use any of it.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryPageResourceIsEmbedded()
+    {
+        var assembly = typeof(StreamyfinPlugin).Assembly;
+        var embedded = assembly.GetManifestResourceNames().ToHashSet(StringComparer.Ordinal);
+
+        var plugin = (IHasWebPages)FormatterServices_CreateUninitialized();
+
+        var missing = plugin.GetPages()
+            .Select(page => page.EmbeddedResourcePath)
+            .Where(path => !embedded.Contains(path!))
+            .ToArray();
+
+        Assert.Empty(missing);
+    }
+
+    /// <summary>
+    /// The pages that carry the admin interface are all served. Enumerating the plugin's
+    /// own list proves each path exists; it cannot prove a page was never dropped from
+    /// it, and a tab that quietly stops being registered is exactly as invisible as one
+    /// pointing at a missing resource.
+    /// </summary>
+    [Theory]
+    [InlineData("Application")]
+    [InlineData("Targeting")]
+    [InlineData("Notifications")]
+    [InlineData("Other")]
+    [InlineData("Yaml")]
+    public void ThePageIsServed(string name)
+    {
+        var plugin = (IHasWebPages)FormatterServices_CreateUninitialized();
+        var served = plugin.GetPages().Select(page => page.Name).ToArray();
+
+        Assert.Contains(name, served);
+        Assert.Contains(name + ".js", served);
+    }
 
     /// <summary>
     /// With no preference the declared order stands.
