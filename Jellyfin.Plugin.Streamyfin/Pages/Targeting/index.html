@@ -18,11 +18,13 @@
         /* The member picker: a plain list of the server's users, so an administrator sees
            who exists rather than having to know a Jellyfin user id. */
         #sf-members { max-height: 16em; overflow-y: auto; margin: 0.5em 0 1em; }
+        /* Not a flex row. The dashboard's checkbox positions its input absolutely, so a
+           flex row took the box out of the flow and drew it on top of the first letters
+           of every name. The label leaves room for it instead. */
         #sf-members label {
-            display: flex;
-            align-items: center;
-            gap: 0.5em;
-            padding: 0.25em;
+            position: relative;
+            display: block;
+            padding: 0.35em 0 0.35em 2em;
         }
 
         /* Overrides are rendered by the same generated form the Application tab uses, in
@@ -62,6 +64,42 @@
         #sf-overrides .je-indented-panel .je-indented-panel {
             border-left: 2px solid rgba(255, 255, 255, 0.08);
             padding-left: 0.6em;
+        }
+
+        /* json-editor draws the property picker as a bare white panel, and the dashboard's
+           own text colour is white, so every setting name in it came out invisible. That
+           picker is the only way to add an override or drop one, so an unreadable one
+           makes this page useless exactly where it matters. Found on the beta; no unit
+           test can see a colour. */
+        #sf-overrides .je-modal {
+            background: #1c1c1c;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 0.4em 0.7em;
+            max-height: 22em;
+            overflow-y: auto;
+        }
+        #sf-overrides .je-modal label {
+            display: block;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 0.2em 0;
+            white-space: nowrap;
+        }
+
+        /* json-editor's own buttons, which the Application tab hides outright. Here the
+           properties button is the affordance for adding a setting, so it stays, and it
+           is dressed to look like it belongs rather than like raw browser chrome. */
+        #sf-overrides button[class*="json-editor-btn"] {
+            background: rgba(255, 255, 255, 0.08);
+            color: inherit;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+            padding: 0.15em 0.6em;
+            font-size: 0.85em;
+            margin-right: 0.4em;
+        }
+        #sf-overrides button[class*="json-editor-btn"]:hover {
+            background: rgba(255, 255, 255, 0.16);
         }
 
         .sf-hidden { display: none; }
