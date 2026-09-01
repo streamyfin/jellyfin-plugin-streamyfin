@@ -21,20 +21,20 @@ public class NotificationConfiguration
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
-    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from")]
+    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from. Leave it out to notify for every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
-    public string[] EnabledLibraries { get; set; }
+    public string[]? EnabledLibraries { get; set; }
 }
 
 public class UserNotificationConfig : NotificationConfiguration
 {
     [Display(Name = "Jellyfin User Ids", Description = "List of jellyfin user ids that this notification is for.")]
     [JsonPropertyName(name: "userIds")]
-    public string[] UserIds { get; set; }
+    public string[]? UserIds { get; set; }
 
     [Display(Name = "Jellyfin Usernames", Description = "List of jellyfin usernames that this notification is for.")]
     [JsonPropertyName(name: "usernames")]
-    public string[] Usernames { get; set; }
+    public string[]? Usernames { get; set; }
 
     [Display(Name = "Forward to admins", Description = "if true, the notification will be forwarded to admins alongside any defined users.")]
     [JsonPropertyName(name: "forwardToAdmins")]

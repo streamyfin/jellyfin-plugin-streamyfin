@@ -1,0 +1,48 @@
+<Project>
+
+  <!--
+    Build target selector. The same source produces two artifacts, one per
+    Jellyfin runtime, never a single DLL for both:
+
+      JellyfinTarget=jf11  -> Jellyfin 10.11, .NET 9
+      JellyfinTarget=jf12  -> Jellyfin 12,    .NET 10
+
+    Build the other target with: dotnet build -p:JellyfinTarget=jf12
+
+    The default stays jf11 while 12 is a release candidate. Flip it the day 12
+    goes stable, and drop the jf11 block entirely the day 10.11 support ends.
+    See Jellyfin.Plugin.Streamyfin/Compat/README.md for the removal procedure.
+  -->
+  <PropertyGroup>
+    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf11</JellyfinTarget>
+  </PropertyGroup>
+
+  <!--
+    Jellyfin.Controller is pinned rather than left floating on 10.11.*-*, so the
+    minimum supported server is a decision instead of whatever happened to be
+    latest on build day. A newer host satisfies a lower reference; the reverse
+    is not true.
+
+    10.11.9 is the floor of what this plugin actually uses, not the floor of the
+    line. IUserManager.Users was replaced by IUserManager.GetUsers() in 10.11.9,
+    a breaking change inside the patch line, so no single build covers 10.11.0
+    through 10.11.8 as well. Those servers should update. This is still wider
+    than the current manifest, which demands 10.11.11.
+  -->
+  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf11'">
+    <TargetFramework>net9.0</TargetFramework>
+    <JellyfinVersion>10.11.9</JellyfinVersion>
+    <JellyfinAbi>10.11.9.0</JellyfinAbi>
+    <EfCoreVersion>9.0.11</EfCoreVersion>
+    <DefineConstants>$(DefineConstants);JF11</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf12'">
+    <TargetFramework>net10.0</TargetFramework>
+    <JellyfinVersion>12.0.0-rc5</JellyfinVersion>
+    <JellyfinAbi>12.0.0.0</JellyfinAbi>
+    <EfCoreVersion>10.0.10</EfCoreVersion>
+    <DefineConstants>$(DefineConstants);JF12</DefineConstants>
+  </PropertyGroup>
+
+</Project>
