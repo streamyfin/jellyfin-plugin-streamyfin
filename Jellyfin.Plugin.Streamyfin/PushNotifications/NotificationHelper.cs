@@ -14,18 +14,27 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications;
 
 public class NotificationHelper
 {
+    /// <summary>
+    /// The name of the configured client that talks to Expo. Its timeout lives with the
+    /// registration in <c>PluginServiceRegistrator</c> rather than at this call site.
+    /// </summary>
+    public const string ExpoClientName = "streamyfin-expo";
+
     private readonly ILogger<NotificationHelper>? _logger;
     private readonly SerializationHelper _serializationHelper;
     private readonly IUserManager? _userManager;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public NotificationHelper(
         ILoggerFactory? loggerFactory,
         IUserManager? userManager,
-        SerializationHelper serializationHelper)
+        SerializationHelper serializationHelper,
+        IHttpClientFactory httpClientFactory)
     {
         _logger = loggerFactory?.CreateLogger<NotificationHelper>();
         _userManager = userManager;
         _serializationHelper = serializationHelper;
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <summary>
@@ -35,8 +44,16 @@ public class NotificationHelper
     /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToAdmins(params Notification[] notifications)
     {
+        // Declared nullable and dereferenced all the same. A null here threw inside an event
+        // handler the server was waiting on, rather than skipping a notification.
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
+            return null;
+        }
+
         var adminTokens = _userManager.GetAdminTokens();
-        
+
         _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
 
         // No admin tokens found.
@@ -99,7 +116,13 @@ public class NotificationHelper
     {
         _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
 
-        var excludedIds = excludedUserIds ?? Array.Empty<Guid>().ToList(); 
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
+            return null;
+        }
+
+        var excludedIds = excludedUserIds ?? Array.Empty<Guid>().ToList();
         var adminTokens = _userManager.GetAdminDeviceTokens()
             .FindAll(deviceToken => !excludedIds.Contains(deviceToken.UserId))
             .Select(deviceToken => deviceToken.Token)
@@ -129,11 +152,30 @@ public class NotificationHelper
     private async Task<ExpoNotificationResponse?> SendNotificationToExpo(string serializedRequest)
     {
         _logger?.LogDebug("Preparing to send notification");
-        using HttpClient client = new();
-        var httpRequest = GetHttpRequestMessage(serializedRequest);
-        var rawResponse = await client.SendAsync(httpRequest).ConfigureAwait(false);
+
+        // From the factory, never a new HttpClient per send: one built inline gets its own
+        // connection pool every time and carries the default hundred second timeout, inside
+        // an event handler that Jellyfin is waiting on.
+        var client = _httpClientFactory.CreateClient(ExpoClientName);
+        using var httpRequest = GetHttpRequestMessage(serializedRequest);
+        using var rawResponse = await client.SendAsync(httpRequest).ConfigureAwait(false);
+
+        // Expo answers 429 when it is being asked too often, and the body is then not a
+        // ticket list. Read as one anyway it yields a response with no tickets, which every
+        // caller reads as a delivery that simply had nothing to report.
+        if (!rawResponse.IsSuccessStatusCode)
+        {
+            var body = await rawResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            _logger?.LogError(
+                "Expo refused the notification with {Status}: {Body}",
+                (int)rawResponse.StatusCode,
+                body.Length > 500 ? body[..500] : body);
+
+            return null;
+        }
+
         _logger?.LogDebug("Received response");
-        httpRequest.Dispose();
 
         return await rawResponse.Content.ReadFromJsonAsync<ExpoNotificationResponse>().ConfigureAwait(false);
     }
