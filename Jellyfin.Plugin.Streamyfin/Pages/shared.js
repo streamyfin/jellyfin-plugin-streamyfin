@@ -64,32 +64,40 @@ export const setPage = (resource) => {
     LibraryMenu.setTabs(tabs[index].resource, index, StreamyfinTabs)
 }
 
+// Resolves to true once the server has stored the configuration, and to false when it
+// refused it or the request failed, so a page can keep its unsaved state on a refusal.
 export const saveConfig = () => {
     Dashboard.showLoadingMsg();
     
-    if (config) {
-        //todo: potentially just keep it as json? we only need to convert only for editor reasons
-        // convert config back to yaml 
-        const data = JSON.stringify({
-            Value: tools.jsYaml.dump(config),
-        });
-    
-        window.ApiClient.ajax({type: 'POST', url: YAML_URL, data, contentType: 'application/json'})
-            .then(async (response) => {
-                const {Error, Message} = await response.json();
-    
-                if (Error) {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert(Message);
-                    return;
-                } 
-    
-                Dashboard.processPluginConfigurationUpdateResult();
-            })
-            .catch((error) => console.error(error))
-            .finally(Dashboard.hideLoadingMsg);
+    if (!config) {
+        Dashboard.hideLoadingMsg();
+        return Promise.resolve(false);
     }
 
+    //todo: potentially just keep it as json? we only need to convert only for editor reasons
+    // convert config back to yaml 
+    const data = JSON.stringify({
+        Value: tools.jsYaml.dump(config),
+    });
+
+    return window.ApiClient.ajax({type: 'POST', url: YAML_URL, data, contentType: 'application/json'})
+        .then(async (response) => {
+            const {Error, Message} = await response.json();
+
+            if (Error) {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert(Message);
+                return false;
+            } 
+
+            Dashboard.processPluginConfigurationUpdateResult();
+            return true;
+        })
+        .catch((error) => {
+            console.error(error);
+            return false;
+        })
+        .finally(Dashboard.hideLoadingMsg);
 }
 
 export const getElValue = (el) => {
@@ -182,8 +190,10 @@ if (!window.Streamyfin?.shared) {
     await import(window.ApiClient.getUrl("web/configurationpage?name=js-yaml.js")).then(async (jsYaml) => {
         tools.jsYaml = jsYaml;
         
-        //fetch default configuration
-        window.ApiClient.ajax({type: 'GET', url: DEFAULT_URL, contentType: 'application/json'})
+        // The default configuration is awaited with the rest, so a page that imports this
+        // module can read getDefaultConfig() as soon as the import resolves. The Application
+        // page shows a free setting's default from it.
+        await window.ApiClient.ajax({type: 'GET', url: DEFAULT_URL, contentType: 'application/json'})
             .then(async function (response) {
                 const {Value} = await response.json();
                 defaultConfig = jsYaml.load(Value)

@@ -1,0 +1,5 @@
+# The admin pages are JavaScript that only a browser runs. These tests give them a DOM
+# (happy-dom) so the renderer can be held to account without a Jellyfin server.
+[test]
+root = "Jellyfin.Plugin.Streamyfin.Tests/Pages"
+preload = ["./Jellyfin.Plugin.Streamyfin.Tests/Pages/dom.setup.js"]

@@ -1,82 +1,240 @@
 <div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
-     data-require="emby-button,emby-select,emby-checkbox"
      data-controller="__plugin/Application.js">
     <style>
-        /* One collapsible section per category, closed to start with. Ninety two settings
-           in one column ran to eighteen thousand pixels, which is not a page anyone reads. */
-        #settings-editor .sf-section {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        /* The page follows the dashboard rather than bringing a palette of its own: the
+           accent is Jellyfin's, the greys are the dark theme's, and the light set is
+           chosen by the controller from the theme the dashboard actually loaded. Only
+           two colours are the page's: amber for a locked setting, and the accent bar for
+           a suggested one. Every rule is scoped under #sf-app. */
+        #sf-app {
+            --sf-ac: var(--jf-palette-primary-main, #00a4dc);
+            --sf-on-ac: #fff;
+            --sf-card: #1a1a1a;
+            --sf-card-2: #232323;
+            --sf-line: rgba(255, 255, 255, 0.12);
+            --sf-line-soft: rgba(255, 255, 255, 0.06);
+            --sf-ink: rgba(255, 255, 255, 0.92);
+            --sf-ink-2: rgba(255, 255, 255, 0.7);
+            --sf-ink-3: rgba(255, 255, 255, 0.45);
+            --sf-wash: color-mix(in srgb, var(--sf-ac) 15%, transparent);
+            --sf-edge: color-mix(in srgb, var(--sf-ac) 42%, transparent);
+            --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 20%, transparent), transparent);
+            --sf-pin: #e2a33c;
+            --sf-pin-ink: #241700;
+            --sf-pin-wash: color-mix(in srgb, var(--sf-pin) 14%, transparent);
+            --sf-dock: rgba(28, 28, 28, 0.92);
+            --sf-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            --sf-r: 8px;
+            --sf-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+            max-width: none;
+            color: var(--sf-ink-2);
+            line-height: 1.5;
         }
-        #settings-editor .sf-section > summary {
-            cursor: pointer;
-            padding: 0.75em 0.25em;
-            font-size: 1.15em;
-            font-weight: 600;
-            list-style-position: inside;
+        #sf-app[data-sf-theme="light"] {
+            --sf-ac: #0b7fae;
+            --sf-card: #fff;
+            --sf-card-2: #f5f6f7;
+            --sf-line: rgba(0, 0, 0, 0.14);
+            --sf-line-soft: rgba(0, 0, 0, 0.07);
+            --sf-ink: rgba(0, 0, 0, 0.9);
+            --sf-ink-2: rgba(0, 0, 0, 0.66);
+            --sf-ink-3: rgba(0, 0, 0, 0.46);
+            --sf-wash: color-mix(in srgb, var(--sf-ac) 10%, transparent);
+            --sf-edge: color-mix(in srgb, var(--sf-ac) 38%, transparent);
+            --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 16%, transparent), transparent);
+            --sf-pin: #a25c00;
+            --sf-pin-ink: #fff;
+            --sf-pin-wash: color-mix(in srgb, var(--sf-pin) 12%, transparent);
+            --sf-dock: rgba(255, 255, 255, 0.92);
+            --sf-shadow: 0 8px 32px rgba(16, 24, 32, 0.16);
         }
-        #settings-editor .sf-section > summary:hover {
-            background: rgba(255, 255, 255, 0.04);
+        #sf-app *, #sf-app *::before, #sf-app *::after { box-sizing: border-box; }
+        #sf-app button, #sf-app input, #sf-app select, #sf-app textarea { font: inherit; }
+        #sf-app .sf-mono { font-family: var(--sf-mono); }
+
+        /* Top row: the name, the version, the descriptions switch and the search. */
+        #sf-app .sf-top { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin: 0 0 1rem; }
+        #sf-app .sf-top h1 { margin: 0; font-size: 1.5rem; font-weight: 700; color: var(--sf-ink); letter-spacing: -0.015em; }
+        #sf-app .sf-meta { font-size: 0.78rem; color: var(--sf-ink-3); font-family: var(--sf-mono); }
+        #sf-app .sf-toggle {
+            display: inline-flex; align-items: center; gap: 0.55rem; cursor: pointer;
+            background: var(--sf-card); border: 1px solid var(--sf-line); border-radius: 999px;
+            padding: 0.3rem 0.35rem 0.3rem 0.8rem; color: var(--sf-ink-2); font-size: 0.82rem; font-weight: 600;
         }
-        #settings-editor .sf-group {
-            margin: 1em 0 0.35em;
-            padding-left: 0.25em;
-            font-size: 0.95em;
-            font-weight: 600;
-            opacity: 0.75;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+        #sf-app .sf-pip {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.12rem 0.45rem;
+            border-radius: 999px; background: var(--sf-ac); color: var(--sf-on-ac);
+        }
+        #sf-app .sf-toggle[aria-pressed="false"] .sf-pip { background: var(--sf-line); color: var(--sf-ink-3); }
+        #sf-app .sf-find {
+            margin-left: auto; background: var(--sf-card); color: var(--sf-ink); border: 1px solid var(--sf-line);
+            border-radius: 999px; padding: 0.42rem 0.9rem; width: 17rem; max-width: 100%; font-size: 0.85rem;
+        }
+        #sf-app .sf-find::placeholder { color: var(--sf-ink-3); }
+
+        /* One pill per category, one chip per card inside the chosen category. */
+        #sf-app .sf-pills { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+        #sf-app .sf-pill {
+            display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; background: var(--sf-card);
+            border: 1px solid var(--sf-line); color: var(--sf-ink-2); border-radius: 999px; padding: 0.42rem 0.85rem;
+            font-size: 0.85rem; font-weight: 600;
+        }
+        #sf-app .sf-pill:hover { border-color: var(--sf-edge); color: var(--sf-ink); }
+        #sf-app .sf-pill[aria-current="true"] { background: var(--sf-ac); border-color: var(--sf-ac); color: var(--sf-on-ac); }
+        #sf-app .sf-pill svg { width: 15px; height: 15px; flex: none; }
+        #sf-app .sf-pill .sf-n, #sf-app .sf-count { font-size: 0.7rem; opacity: 0.75; font-family: var(--sf-mono); font-variant-numeric: tabular-nums; }
+        #sf-app .sf-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        #sf-app .sf-chip {
+            cursor: pointer; background: var(--sf-card-2); border: 1px solid var(--sf-line-soft); color: var(--sf-ink-3);
+            border-radius: 999px; padding: 0.22rem 0.65rem; font-size: 0.76rem;
+        }
+        #sf-app .sf-chip:hover { color: var(--sf-ink); border-color: var(--sf-line); }
+
+        #sf-app .sf-banner {
+            display: flex; gap: 0.8rem; align-items: flex-start; background: var(--sf-card); border: 1px solid var(--sf-line);
+            border-left: 3px solid var(--sf-ac); border-radius: var(--sf-r); padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.85rem;
+        }
+        #sf-app .sf-banner svg { flex: none; color: var(--sf-ac); margin-top: 0.1rem; }
+        #sf-app .sf-banner b { color: var(--sf-ink); }
+        #sf-app .sf-status { padding: 1rem 0.2rem; color: var(--sf-ink-3); font-size: 0.9rem; }
+        #sf-app .sf-status.is-error { color: #e0706a; }
+
+        /* The cards: one per group, in a grid that fills the width the dashboard gives. */
+        #sf-app .sf-grid { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr)); align-items: start; }
+        #sf-app .sf-card { background: var(--sf-card); border: 1px solid var(--sf-line); border-radius: var(--sf-r); overflow: hidden; }
+        #sf-app .sf-card--wide { grid-column: 1 / -1; }
+        #sf-app .sf-card--wide .sf-body { column-count: 2; column-gap: 1.6rem; }
+        #sf-app .sf-card--wide .sf-row { break-inside: avoid; }
+        #sf-app .sf-card > header {
+            background: var(--sf-legend); border-bottom: 1px solid var(--sf-line); padding: 0.6rem 0.9rem;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        #sf-app .sf-card > header h2 { margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--sf-ink); }
+        #sf-app .sf-card > header .sf-count { margin-left: auto; color: var(--sf-ink-3); }
+        #sf-app .sf-body { padding: 0.3rem 0.9rem 0.8rem; }
+
+        /* One row per setting. The left bar is the state: amber for locked, accent for
+           suggested, nothing for free. */
+        #sf-app .sf-row { padding: 0.6rem 0.35rem; border-bottom: 1px solid var(--sf-line-soft); margin: 0 -0.35rem; border-radius: 4px; }
+        #sf-app .sf-row:last-child { border-bottom: 0; }
+        #sf-app .sf-row.is-locked { box-shadow: inset 3px 0 0 var(--sf-pin); background: var(--sf-pin-wash); padding-left: 0.6rem; }
+        #sf-app .sf-row.is-suggested { box-shadow: inset 3px 0 0 var(--sf-ac); padding-left: 0.6rem; }
+        #sf-app .sf-row.is-inert { opacity: 0.55; }
+        #sf-app .sf-row.is-free [data-control] { opacity: 0.7; }
+        #sf-app .sf-head { display: flex; align-items: center; gap: 0.6rem; }
+        #sf-app .sf-name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--sf-ink); font-size: 0.88rem; }
+        #sf-app .sf-key { display: block; font-style: normal; font-size: 0.68rem; color: var(--sf-ink-3); font-weight: 400; font-family: var(--sf-mono); }
+        #sf-app .sf-desc { margin: 0.3rem 0 0; font-size: 0.79rem; color: var(--sf-ink-3); }
+        #sf-app .sf-desc strong { color: var(--sf-pin); font-weight: 600; }
+        #sf-app .sf-form.is-terse .sf-desc { display: none; }
+        #sf-app .sf-why { margin: 0.3rem 0 0; font-size: 0.76rem; color: var(--sf-ink-3); }
+        #sf-app .is-inert .sf-why { color: var(--sf-pin); }
+        #sf-app .sf-problem { margin: 0.3rem 0 0; font-size: 0.76rem; color: #e0706a; }
+        #sf-app .sf-foot { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.45rem; flex-wrap: wrap; }
+        #sf-app .sf-bounds { font-size: 0.69rem; color: var(--sf-ink-3); font-family: var(--sf-mono); }
+        #sf-app .sf-note { font-size: 0.79rem; color: var(--sf-ink-3); }
+        #sf-app .sf-note a { color: var(--sf-ac); }
+
+        /* Controls. The dashboard's own inputs are absolutely positioned and sized for a
+           column; these are sized for a row. */
+        #sf-app .sf-switch {
+            appearance: none; -webkit-appearance: none; width: 2.1rem; height: 1.18rem; flex: none; cursor: pointer;
+            margin: 0; background: var(--sf-line); border: 0; border-radius: 999px; position: relative; transition: background 0.15s;
+        }
+        #sf-app .sf-switch::after {
+            content: ""; position: absolute; top: 2px; left: 2px; width: 0.82rem; height: 0.82rem;
+            border-radius: 50%; background: #fff; transition: transform 0.15s;
+        }
+        #sf-app .sf-switch:checked { background: var(--sf-ac); }
+        #sf-app .sf-switch:checked::after { transform: translateX(0.92rem); }
+        /* No value at all: the knob sits in the middle, the way an undecided switch does. */
+        #sf-app .sf-switch:indeterminate { background: var(--sf-line-soft); border: 1px solid var(--sf-line); }
+        #sf-app .sf-switch:indeterminate::after { transform: translateX(0.46rem); opacity: 0.55; top: 1px; left: 1px; }
+        #sf-app .sf-switch:disabled { cursor: not-allowed; }
+        #sf-app .sf-number, #sf-app .sf-text, #sf-app .sf-select, #sf-app .sf-list {
+            background: var(--sf-card-2); color: var(--sf-ink); border: 1px solid var(--sf-line);
+            border-radius: 5px; padding: 0.28rem 0.5rem; font-size: 0.84rem;
+        }
+        #sf-app .sf-number { width: 7rem; text-align: right; font-variant-numeric: tabular-nums; }
+        #sf-app .sf-text { flex: 1 1 10rem; min-width: 0; }
+        #sf-app .sf-select { min-width: 7.5rem; max-width: 100%; }
+        #sf-app .sf-list { flex: 1 1 100%; min-height: 3.6rem; resize: vertical; font-family: var(--sf-mono); font-size: 0.78rem; }
+        #sf-app .sf-list::placeholder { color: var(--sf-ink-3); font-family: inherit; }
+        #sf-app .sf-number::placeholder, #sf-app .sf-text::placeholder { color: var(--sf-ink-3); font-style: italic; }
+        #sf-app .is-invalid [data-control] { border-color: #e0706a; }
+        #sf-app .sf-reveal {
+            cursor: pointer; background: var(--sf-card-2); border: 1px solid var(--sf-line); color: var(--sf-ink-2);
+            border-radius: 5px; padding: 0.28rem 0.6rem; font-size: 0.76rem; font-weight: 600;
         }
 
-        /* json-editor wraps each section's settings in a root object of its own, whose
-           header reads "root" and whose controls edit the raw JSON. Both are noise here.
-           The child combinator keeps this to those roots: every setting keeps its header. */
-        #settings-editor .je-object__container > .je-header,
-        #settings-editor .je-object__container > .je-object__controls { display: none; }
-        #settings-editor .je-indented-panel {
-            margin: 0;
-            padding: 0;
-            border: none;
+        /* The three states, as one segmented control per row. */
+        #sf-app .sf-state { display: inline-flex; margin-left: auto; border: 1px solid var(--sf-line); border-radius: 999px; overflow: hidden; flex: none; }
+        #sf-app .sf-state button {
+            border: 0; background: var(--sf-card-2); cursor: pointer; font-size: 0.69rem; font-weight: 700;
+            padding: 0.22rem 0.55rem; color: var(--sf-ink-3); line-height: 1.4;
         }
-        /* A setting is itself an object, so put its own header back. */
-        #settings-editor .je-indented-panel .je-object__container > .je-header { display: block; }
+        #sf-app .sf-state button + button { border-left: 1px solid var(--sf-line); }
+        #sf-app .sf-state button:hover:not(:disabled) { color: var(--sf-ink); }
+        #sf-app .sf-state button:disabled { cursor: not-allowed; opacity: 0.5; }
+        /* Free is the quiet answer and most rows give it, so it is marked in grey; the two
+           states that change something for a user carry the colour. */
+        #sf-app .sf-state button[aria-pressed="true"] { background: var(--sf-line); color: var(--sf-ink); }
+        #sf-app .sf-state button[aria-pressed="true"][data-state="suggested"] { background: var(--sf-ac); color: var(--sf-on-ac); }
+        #sf-app .sf-state button[aria-pressed="true"][data-state="locked"] { background: var(--sf-pin); color: var(--sf-pin-ink); }
 
-        /* Density. A setting was taking about two hundred pixels: a bordered box, a header,
-           a collapse button and generous padding, for what is usually one input and a lock. */
-        #settings-editor .je-object__container {
-            margin: 0 0 0.35em;
-            padding: 0.35em 0.5em;
+        /* The save dock stays in view at the bottom while there is something to say. */
+        #sf-app .sf-dock {
+            position: sticky; bottom: 1.2rem; z-index: 5; width: max-content; max-width: 100%; margin: 1.4rem auto 0;
+            display: flex; align-items: center; gap: 0.8rem; background: var(--sf-dock);
+            -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+            border: 1px solid var(--sf-line); border-radius: 999px; padding: 0.45rem 0.5rem 0.45rem 1rem; box-shadow: var(--sf-shadow);
         }
-        #settings-editor .je-header > label { font-weight: 600; }
-        #settings-editor .je-desc {
-            opacity: 0.7;
-            margin: 0.1em 0 0.4em;
-            font-size: 0.9em;
+        #sf-app .sf-dock-text { font-size: 0.82rem; color: var(--sf-ink-2); font-variant-numeric: tabular-nums; }
+        #sf-app .sf-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sf-pin); display: inline-block; margin-right: 0.4rem; }
+        #sf-app .sf-dock.is-clean .sf-dot { background: var(--sf-line); }
+        #sf-app .sf-btn {
+            cursor: pointer; border: 1px solid var(--sf-line); background: var(--sf-card-2); color: var(--sf-ink);
+            border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.82rem;
         }
-        #settings-editor .je-indented-panel .je-indented-panel {
-            border-left: 2px solid rgba(255, 255, 255, 0.08);
-            padding-left: 0.6em;
+        #sf-app .sf-btn--primary { background: var(--sf-ac); border-color: var(--sf-ac); color: var(--sf-on-ac); font-weight: 600; }
+        #sf-app .sf-btn:disabled { opacity: 0.45; cursor: default; }
+
+        #sf-app :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--sf-ac); outline-offset: 2px; }
+        #sf-app [hidden] { display: none !important; }
+        @media (prefers-reduced-motion: reduce) { #sf-app * { transition: none !important; } }
+        @media (max-width: 40em) {
+            #sf-app .sf-find { margin-left: 0; width: 100%; }
+            #sf-app .sf-card--wide .sf-body { column-count: 1; }
         }
-        #settings-editor .json-editor-btntype-toggle { padding: 0 0.4em; }
     </style>
 
-    <div class="content-primary" style="max-width: 53em; height: 100%">
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h1 class="sectionTitle">Streamyfin</h1>
-            </div>
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Application</h2>
-            </div>
+    <div class="content-primary" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Streamyfin</h1>
+            <span class="sf-meta" id="sf-meta"></span>
+            <button type="button" class="sf-toggle" id="sf-terse" aria-pressed="true">Descriptions <span class="sf-pip">ON</span></button>
+            <input class="sf-find" id="sf-find" type="search" placeholder="Search all settings" aria-label="Search all settings" autocomplete="off">
         </div>
 
-        <p>These settings are the ones found on the application itself. As the admin you are allowed to set default values to these settings and also choose to lock them from your users.</p>
+        <div class="sf-pills" id="sf-pills" role="tablist" aria-label="Setting categories"></div>
+        <div class="sf-chips" id="sf-chips"></div>
 
-        <div id="settings-editor"></div>
+        <div class="sf-banner">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div>Each setting does one of three things. <b>Free</b> leaves it to the user.
+                <b>Suggested</b> pushes your value once as their starting point, and they can still change it.
+                <b>Locked</b> pins it and takes the control away. Only what you set here travels;
+                everything else stays the app's own default.</div>
+        </div>
 
-        <div id="config-layout" style="margin-top: 24px;">
-            <button id="save-settings-btn" is="emby-button" type="submit" class="raised button-submit block">
-                <span>Save</span>
-            </button>
+        <div class="sf-status" id="sf-status">Loading the settings…</div>
+        <div id="sf-editor"></div>
+
+        <div class="sf-dock is-clean" id="sf-dock" hidden>
+            <span class="sf-dock-text"><span class="sf-dot"></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn" id="sf-discard" disabled>Discard</button>
+            <button type="button" class="sf-btn sf-btn--primary" id="sf-save" disabled>Save changes</button>
         </div>
     </div>
 </div>

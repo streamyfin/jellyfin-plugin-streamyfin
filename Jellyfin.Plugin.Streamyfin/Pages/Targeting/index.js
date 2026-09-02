@@ -242,7 +242,7 @@ export default function (view) {
             shared = loaded;
             shared.setPage("Targeting");
 
-            form = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
+            form = await import(window.ApiClient.getUrl("web/configurationpage?name=legacy-settings-form.js"));
             await form.loadJsonEditor();
 
             users = await window.ApiClient.getUsers();

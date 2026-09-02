@@ -187,4 +187,123 @@ public class SettingsFormTests
             SettingsSchema.Descriptors.Where(d => d.IsLockable).Select(d => d.Key),
             fields.Where(f => f.Lockable).Select(f => f.Key));
     }
+
+    /// <summary>
+    /// A choice is spelled the way the store writes it, so a stored value always matches
+    /// one of the dropdown's options.
+    /// </summary>
+    /// <remarks>
+    /// Several enums carry an <c>EnumMember</c> value that differs from the member name:
+    /// <c>Allow51</c> is stored as <c>5.1</c>, <c>GpuNext</c> as <c>gpu-next</c>,
+    /// <c>Default</c> as <c>default</c>. A dropdown offering the member name would send
+    /// a spelling the YAML reader rejects, and would never show the stored value as
+    /// selected. The round trip pins both: what a choice sends is accepted, and it comes
+    /// back written the same way.
+    /// </remarks>
+    [Fact]
+    public void AChoiceIsSpelledTheWayTheStoreWritesIt()
+    {
+        var serialization = new SerializationHelper();
+
+        foreach (var field in SettingsForm.Describe().Where(f => f.Control == SettingsControl.Select))
+        {
+            foreach (var option in field.Options.Where(o => o.Value is not null))
+            {
+                var yaml = $"settings:\n  {field.Key}:\n    locked: false\n    value: {option.Value}\n";
+
+                var config = serialization.Deserialize<Configuration.Config>(yaml);
+                var written = serialization.SerializeToYaml(config);
+                var stored = System.Text.RegularExpressions.Regex.Match(written, @"value: ['""]?([^'""\r\n]+)").Groups[1].Value;
+
+                Assert.True(
+                    option.Value == stored,
+                    $"{field.Key}: the form offers '{option.Value}' and the store writes '{stored}'");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A setting that only matters while another one is on says which one.
+    /// </summary>
+    /// <remarks>
+    /// Each pair was read in the app rather than guessed from the names: the restart
+    /// flag is passed to the mute hook under <c>enabled: subtitlesOnMute</c>, the
+    /// look-ahead count is read after an early return on <c>audioLookaheadEnabled</c>,
+    /// the hold rate after one on <c>enableHoldToSpeed</c>, and the background opacity
+    /// only feeds the alpha of a background that <c>subtitleBackground</c> draws.
+    /// </remarks>
+    [Theory]
+    [InlineData("subtitlesOnMuteAllowRestart", "subtitlesOnMute")]
+    [InlineData("audioLookaheadCount", "audioLookaheadEnabled")]
+    [InlineData("holdToSpeedRate", "enableHoldToSpeed")]
+    [InlineData("subtitleBackgroundOpacity", "subtitleBackground")]
+    public void ADependentSettingNamesWhatItDependsOn(string key, string parent)
+    {
+        Assert.Equal(parent, Field(key).DependsOn);
+    }
+
+    /// <summary>
+    /// A setting nothing gates depends on nothing, so the form does not grey it.
+    /// </summary>
+    [Fact]
+    public void AnIndependentSettingDependsOnNothing()
+    {
+        Assert.Null(Field("forwardSkipTime").DependsOn);
+    }
+
+    /// <summary>
+    /// A dependency names a declared toggle. The form greys the dependent setting when
+    /// that toggle is locked off, which it can only do for a setting that exists and
+    /// is a toggle.
+    /// </summary>
+    [Fact]
+    public void ADependencyPointsAtADeclaredToggle()
+    {
+        var fields = SettingsForm.Describe();
+
+        foreach (var field in fields.Where(f => f.DependsOn is not null))
+        {
+            var parent = Assert.Single(fields.Where(f => f.Key == field.DependsOn));
+
+            Assert.Equal(SettingsControl.Toggle, parent.Control);
+            Assert.NotEqual(field.Key, parent.Key);
+        }
+    }
+
+    /// <summary>
+    /// A field travels with its control named, not numbered, whatever the host's JSON
+    /// options. The page switches on the name.
+    /// </summary>
+    [Fact]
+    public void TheControlTravelsByName()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(Field("showHomeTitles"));
+
+        Assert.Contains("\"control\":\"Toggle\"", json);
+        Assert.Contains("\"dependsOn\":null", json);
+    }
+
+    /// <summary>
+    /// A number says whether it takes whole numbers only. Most numeric settings are
+    /// <c>Lockable&lt;int&gt;</c>, and a form that accepts 2.5 for one hands the server a
+    /// value it refuses with a message that points at no field.
+    /// </summary>
+    [Theory]
+    [InlineData("forwardSkipTime", true)]
+    [InlineData("subtitleSize", true)]
+    [InlineData("defaultPlaybackSpeed", false)]
+    [InlineData("holdToSpeedRate", false)]
+    public void ANumberSaysWhetherItIsWhole(string key, bool integer)
+    {
+        Assert.Equal(integer, Field(key).Integer);
+    }
+
+    /// <summary>
+    /// Only a number claims to be whole; the flag means nothing on any other control.
+    /// </summary>
+    [Fact]
+    public void OnlyANumberIsWhole()
+    {
+        Assert.Empty(SettingsForm.Describe().Where(f => f.Integer && f.Control != SettingsControl.Number));
+    }
 }
