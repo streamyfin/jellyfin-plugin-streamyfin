@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -18,6 +19,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// which meant the schema had to be reshaped four ways before it would draw the right
 /// thing, and that nothing could test what a setting would come out as.
 /// </remarks>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SettingsControl
 {
     /// <summary>No control maps to this value's type. A test fails on it.</summary>
@@ -71,6 +73,8 @@ public sealed record SettingsChoice(
 /// <param name="Maximum">Highest accepted value, when declared.</param>
 /// <param name="Step">The increment, when declared.</param>
 /// <param name="Options">The choices, for a <see cref="SettingsControl.Select"/>.</param>
+/// <param name="DependsOn">The toggle this setting only matters under, when there is one.</param>
+/// <param name="Integer">Whether a <see cref="SettingsControl.Number"/> takes whole numbers only.</param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -82,7 +86,9 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("minimum")] double? Minimum,
     [property: JsonPropertyName("maximum")] double? Maximum,
     [property: JsonPropertyName("step")] double? Step,
-    [property: JsonPropertyName("options")] IReadOnlyList<SettingsChoice> Options);
+    [property: JsonPropertyName("options")] IReadOnlyList<SettingsChoice> Options,
+    [property: JsonPropertyName("dependsOn")] string? DependsOn,
+    [property: JsonPropertyName("integer")] bool Integer);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.
@@ -121,7 +127,9 @@ public static class SettingsForm
             Minimum: AsNumber(range?.Minimum),
             Maximum: AsNumber(range?.Maximum),
             Step: step?.Value,
-            Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)));
+            Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)),
+            DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
+            Integer: control == SettingsControl.Number && IsWhole(type));
     }
 
     private static SettingsControl ControlFor(SettingDescriptor descriptor, Type type, Type? enumType)
@@ -168,6 +176,14 @@ public static class SettingsForm
         return underlying.IsClass ? SettingsControl.Composite : SettingsControl.Unknown;
     }
 
+    // Whole numbers only. The form steps by one and refuses a fraction, which the
+    // server would otherwise refuse with a message that points at no field.
+    private static bool IsWhole(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+        return underlying == typeof(int) || underlying == typeof(long);
+    }
+
     private static Type? EnumTypeOf(Type type)
     {
         var underlying = Nullable.GetUnderlyingType(type) ?? type;
@@ -180,11 +196,17 @@ public static class SettingsForm
     /// The choices for one enum, labelled for a person.
     /// </summary>
     /// <remarks>
+    /// A choice's value is the spelling the store writes, which is the <c>EnumMember</c>
+    /// value where a member carries one: <c>Allow51</c> is stored as <c>5.1</c>, and a
+    /// dropdown offering the member name would never show the stored value as selected.
+    ///
+    /// <para>
     /// A nullable enum keeps null as its first choice. Only the playback quality is one
     /// today, where null is the app's "Max", meaning no cap. P3.1 could not express that:
     /// json-editor labels a null entry "null" however its title is set, so the schema had
     /// to encode it as an empty string and the page had to turn the empty string back into
     /// null on the way out. Drawing the control ourselves, null is simply a choice.
+    /// </para>
     /// </remarks>
     private static List<SettingsChoice> Choices(Type enumType, bool acceptsNull)
     {
@@ -198,7 +220,8 @@ public static class SettingsForm
         foreach (var member in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
         {
             var display = member.GetCustomAttribute<DisplayAttribute>()?.Name;
-            choices.Add(new SettingsChoice(member.Name, display ?? Humanize(member.Name)));
+            var stored = member.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? member.Name;
+            choices.Add(new SettingsChoice(stored, display ?? Humanize(member.Name)));
         }
 
         return choices;

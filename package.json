@@ -1,0 +1,12 @@
+{
+  "name": "jellyfin-plugin-streamyfin-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.13.2",
+    "happy-dom": "^20.13.2"
+  }
+}

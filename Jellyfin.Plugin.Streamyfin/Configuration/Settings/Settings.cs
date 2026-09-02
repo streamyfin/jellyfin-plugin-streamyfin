@@ -286,6 +286,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
     [SettingScope("Music")]
+    [DependsOn("audioLookaheadEnabled")]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
@@ -322,6 +323,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
+    [DependsOn("subtitlesOnMute")]
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
@@ -349,6 +351,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [DependsOn("subtitleBackground")]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
@@ -457,6 +460,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
     [SettingScope("Playback controls", Group = "Gestures")]
+    [DependsOn("enableHoldToSpeed")]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]

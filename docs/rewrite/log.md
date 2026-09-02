@@ -8,6 +8,51 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-02
+
+### P3.6, the form drawn by the plugin
+
+The Application tab no longer renders through json-editor. The server describes the
+form at `GET v1/settings/form`, one entry per setting with its control, bounds,
+choices and dependency, and `Pages/settings-form.js` draws it. The reasoning, what
+was measured on the way and what is deferred are in
+[admin-ui-renderer.md](admin-ui-renderer.md); the audit that decided the shape is
+[admin-ui-references.md](admin-ui-references.md).
+
+**Why json-editor went.** Seen on the beta after P3.3: its property picker never
+added a setting, so an override could be edited and never created. Its DOM could
+only be styled from outside, four passes reshaped the schema for it alone, and a
+`locked` box shows two states where the app has three. Free, suggested and locked
+are now the three answers every row offers, and a save writes exactly the settings
+that are not free.
+
+**Two things the tests found before the beta did.** A dropdown offered `Left` where
+the store writes `left`, because the first descriptor used the member name and not
+the `EnumMember` value; the round trip test failed on `subtitleAlignX` and the
+choices now carry the stored spelling. And the audit's premise that the accent could
+follow Jellyfin's own CSS variable was wrong: the 12 web client defines four `--jf-*`
+properties, none a colour, and 10.11 none. The page carries Jellyfin's greys and
+accent itself and picks light or dark from the background the theme paints.
+
+**Dependencies are declared, four of them, each read in the app.** A dependent
+setting is inert only while its toggle is locked off at this level; suggested off
+still lets a user turn the toggle on.
+
+**A review of the diff caught four things the beta pass had not reached**: the language
+settings written with the cultures API's spelling where the config wants camel case, a
+whole number accepting `2.5`, a dependent setting that could be inert and invalid at once
+with no way out, and a refused save leaving its edit in the shared config. Each has its
+test now; the detail is in the renderer document.
+
+**The repository tests JavaScript for the first time.** 41 tests on the renderer run
+under a test DOM with `bun test`, in a `pages` job beside the two Jellyfin targets.
+The json-editor form stays as `legacy-settings-form.js` for the Targeting tab, and
+goes with the schema reshaping when that tab moves onto the renderer.
+
+**Seen on the beta**, Jellyfin 12, through a real Chrome: the page renders in the
+dashboard with all 92 settings, and a setting locked from the page, saved, reloaded,
+released and saved again is stored, read back and removed as the states say.
+
 ## 2026-09-01
 
 ### P3.3, the targeting screen

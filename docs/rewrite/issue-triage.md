@@ -73,6 +73,16 @@ The enum is copied at all because of the 10.10 to 10.11 move noted in
 `Enums.cs:77`. Worth checking the other copied enums for the same kind of gap
 while we are in there.
 
+**Read again on 2026-09-02.** The member is there: `Landscape = 5` has been in the
+enum since #8, so the gap was the hand written page's dropdown, not the enum. The
+generated form offers every member, and P3.6 labels this one "Landscape" where the
+app says "Landscape Auto"; a `Display` name on the member closes that, and a beta
+check that the option appears and round trips closes the issue. A second user added
+on 2026-09-01 that they also want the video to open expanded rather than cropped, by
+default. That is a setting the app does not have; it starts on the app side, and the
+plugin declares it once the app reads it, the way P1.7 works. Kept open for later,
+and answered on the issue when the label lands.
+
 ## Blocked on the settings model
 
 ### #69, hidden libraries still expose their section headers

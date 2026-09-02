@@ -296,11 +296,18 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             EmbeddedResourcePath = _prefix + ".Pages.shared.js"
         };
 
-        // The generated settings form, shared by the Application and Targeting pages.
+        // The settings form, drawn by the plugin itself. The Application page runs on it;
+        // the Targeting page still runs on the json-editor one below until it moves.
         yield return new PluginPageInfo
         {
             Name = "settings-form.js",
             EmbeddedResourcePath = _prefix + ".Pages.settings-form.js"
+        };
+
+        yield return new PluginPageInfo
+        {
+            Name = "legacy-settings-form.js",
+            EmbeddedResourcePath = _prefix + ".Pages.legacy-settings-form.js"
         };
         // endregion libraries
     }
