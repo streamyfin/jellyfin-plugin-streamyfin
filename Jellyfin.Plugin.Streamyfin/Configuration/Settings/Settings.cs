@@ -230,11 +230,15 @@ public class Settings
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Range(0, 60)]
+    [Step(5)]
     public Lockable<int>? forwardSkipTime { get; set; } // = 30;
     
     [NotNull]
     [Display(Name = "Rewind skip time", Description = "The amount of time in seconds you want to be able to rewind during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Range(0, 60)]
+    [Step(5)]
     public Lockable<int>? rewindSkipTime { get; set; } // = 10;
 
     // Media segment skip preferences
@@ -282,6 +286,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
     [SettingScope("Music")]
+    [DependsOn("audioLookaheadEnabled")]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
@@ -318,11 +323,14 @@ public class Settings
     [NotNull]
     [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
+    [DependsOn("subtitlesOnMute")]
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Range(0, 120)]
+    [Step(5)]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
@@ -343,6 +351,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [DependsOn("subtitleBackground")]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
@@ -451,6 +460,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
     [SettingScope("Playback controls", Group = "Gestures")]
+    [DependsOn("enableHoldToSpeed")]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]

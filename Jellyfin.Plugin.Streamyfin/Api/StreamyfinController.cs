@@ -160,6 +160,28 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
+  /// The admin form, one entry per setting.
+  /// </summary>
+  /// <returns>The fields the form draws, in the order the settings are declared.</returns>
+  /// <remarks>
+  /// Beside <c>config/schema</c> rather than replacing it: the schema describes the
+  /// configuration for anything that wants to validate or edit it, notably the YAML
+  /// page, and this describes how to draw it. P3.1 asked the schema to do both, which
+  /// meant reshaping it four ways for one browser library and left the choice of control
+  /// happening in JavaScript where nothing could test it.
+  ///
+  /// <para>
+  /// Elevated, because the descriptions are written for an administrator and some of
+  /// them name what a credential grants.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/settings/form")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<IReadOnlyList<SettingsFormField>> GetSettingsForm() =>
+    new JsonResult(SettingsForm.Describe());
+
+  /// <summary>
   /// The configuration as YAML, filtered the same way as the JSON.
   /// </summary>
   /// <returns>The configuration.</returns>

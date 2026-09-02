@@ -171,6 +171,11 @@ states: locked, pushed once, unmanaged.
   [admin-ui-targeting.md](admin-ui-targeting.md)
 - **P3.4** JSON export and import
 - **P3.5** Decide between embedded pages and `jellyfin-plugin-pages`
+- **P3.6** Draw the form ourselves. Added after P3.3 was seen on the beta: json-editor's
+  property picker never added a setting, its DOM could only be styled from the
+  outside, and a `locked` box shows two states where the app has three. The server
+  describes the form, the plugin draws it. See
+  [admin-ui-renderer.md](admin-ui-renderer.md)
 
 P3.5 is a real fork. Today the pages are HTML and JS embedded as resources in the
 DLL, 16 MB of it. `jellyfin-plugin-pages` and `jellyfin-plugin-custom-tabs` are
@@ -257,8 +262,10 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.6 | [#133](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/133) | merged |
 | P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
 | P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
-| P3.3 | this branch | open |
-| P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | open |
+| P3.3 | [#142](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/142) | merged |
+| P3.6 | this branch, on `refonte/p3-6-form-descriptor` | open |
+| P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
+| P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | open |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the
