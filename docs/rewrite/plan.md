@@ -270,7 +270,7 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
 | P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
 | P3.3 | [#142](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/142) | merged |
-| P3.6 | this branch, on `refonte/p3-6-form-descriptor` | open |
+| P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145) | open |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 

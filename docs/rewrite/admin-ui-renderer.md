@@ -42,8 +42,9 @@ one property and its attributes and nothing here changes.
 The control is decided from the value's type, in C#, where `SettingsFormTests` holds
 it to account: every declared setting has one, a credential is a `Secret`, a
 `Lockable<LanguagePreference>` is a `Language`, a shape with fields of its own is a
-`Composite`. Bounds come from `[Range]` and a new `[Step]` on the property, where a
-future validator can read them too.
+`Composite`. Bounds come from `[Bounds]` and `[Step]` on the property, both the
+plugin's own attributes, where a future validator can read them too. Not
+`[Range]`: see what the audit found, below.
 
 **A bug the tests found on the way.** A dropdown's value has to be spelled the way
 the store writes it, or a stored value never shows as selected. Several enums carry
@@ -140,12 +141,22 @@ pinned by a test:
 ## The page
 
 One row across the top: the name, the version, the count, a *Descriptions* switch
-that strips the help text once the page is known, and a search over every setting's
-title, key and description. One pill per category with its count, one chip per card
-inside the chosen category, a banner that says what the three states do, and the
-cards in a grid that fills whatever width the dashboard gives. A save dock stays in
-view at the bottom, saying how many settings are unsaved and how many still need a
-value.
+that strips the help text once the page is known, a *Keys* switch that shows the
+YAML key under each name for the hands that live in the Yaml tab, an *All / Set /
+Locked* filter, and a search over every setting's title, key and description. The
+filter and the search both look across every category, since "what have I set" is
+a question about the whole server, and the pills stand down while either is on.
+One pill per category with its count and, once anything in it is set, how many. One
+chip per card inside the chosen category; a category over eight settings is
+subdivided into groups, which a test holds. A banner says what the three states do
+and can be dismissed for good. The cards sit in a grid that fills whatever width the
+dashboard gives. A save dock appears with the first edit and stays in view at the
+bottom, saying how many settings are unsaved and how many still need a value.
+
+The page keeps the dashboard's own materials rather than a look of its own:
+Jellyfin's greys and accent, its rounded grey buttons, its square checkbox with the
+accent check, one boxed row per setting. Only two colours are the page's, amber for
+a locked setting and the accent bar for a suggested one.
 
 **The dashboard's theme is detected, not declared.** The audit assumed the accent
 could be read from Jellyfin's own variable. Measured on both servers: the Jellyfin 12
@@ -166,9 +177,10 @@ without that, a second showing saved twice.
   the wire shape the page switches on. `PluginPagesTests` holds every page resource,
   the renamed json-editor module included.
 - **bun test under happy-dom**, for the renderer, which is JavaScript a browser runs
-  and C# cannot see: 41 tests on what each control writes, what the three states
+  and C# cannot see: 45 tests on what each control writes, what the three states
   write, what a free setting shows with and without a declared default, what is
-  invalid, what a search hides, and how a dependency greys. A `pages` job runs them
+  invalid, what a search or a state filter hides, what the categories count, and
+  how a dependency greys. A `pages` job runs them
   in CI beside the two Jellyfin targets. This is the first JavaScript the repository
   tests; `package.json` and `bunfig.toml` exist for it and nothing else.
 - **A pass on the beta**, LXC 132, Jellyfin 12.0.0, on 2026-09-02, driven through a
@@ -176,6 +188,33 @@ without that, a second showing saved twice.
   the states and the dock behave, and a setting locked from the page, saved, and read
   back after a reload is stored as `locked: true` with its value, then released and
   stored as absent.
+
+## What the audit found
+
+A read of the whole pull request against the rest of the plugin, on 2026-09-10,
+before the merge. Four things, each fixed in the same branch:
+
+- **The `[Range]` attributes refused every targeting write that carried a skip time.**
+  ASP.NET validates every DataAnnotations attribute on a body it binds, and the
+  group and user routes bind a partial `Settings`. A `[Range(0, 60)]` on a
+  `Lockable<int>` property was asked whether the `Lockable` itself lay between 0
+  and 60, could not convert it, and answered no. Proven on the beta: `PUT
+  v1/users/{id}/settings` with `forwardSkipTime: { value: 45, locked: true }`
+  answered `400 The field Forward skip time must be between 0 and 60`, and a
+  setting without bounds answered 204. The Application tab never saw it, since it
+  posts YAML that no model binder reads. The bounds now live on `[Bounds]`, an
+  attribute of the plugin's own that nothing validates, and a test refuses any
+  DataAnnotations validation attribute on a setting so the mistake stays made once.
+- **The search box and the filter survived a tab switch while the form did not.**
+  The dashboard keeps the page's DOM between showings, so coming back to the tab
+  showed the last search and the last filter pressed over a form filtering nothing.
+  Both are cleared on every showing, and on a pill, through one function.
+- **A page drawn without the configuration could post one.** `shared.js` logs and
+  swallows a failed fetch of the configuration and of the defaults. The page then
+  drew every setting as free and, on a save, posted a configuration missing its
+  notifications and its other section. It now refuses to draw without both.
+- **Clearing a search or a filter came back to the first category** rather than to
+  the one that was open. The pills remember it.
 
 ## What is deferred
 

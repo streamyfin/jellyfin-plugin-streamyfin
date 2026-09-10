@@ -8,6 +8,44 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-10
+
+### P3.6, the audit before the merge
+
+The renderer had sat in #145 for a week with its CI red and a second pass of polish
+uncommitted. Read in full against the rest of the plugin before asking for the merge.
+What it found is recorded in
+[admin-ui-renderer.md](admin-ui-renderer.md#what-the-audit-found); the short version:
+
+**The `[Range]` attributes broke the targeting routes.** ASP.NET validates
+DataAnnotations on every body it binds, and a `[Range]` on a `Lockable<int>` is asked
+about the `Lockable`, not its value. Every group or user override carrying a skip time
+or the subtitle size was refused with a 400 that named the bounds as the reason, for
+any value. Proven on the beta before the fix and after it. The bounds are now a
+`[Bounds]` attribute of the plugin's own, and a test refuses any validation attribute
+on a setting.
+
+**Three smaller things on the page**: the search and the filter outlived the form
+across a tab switch, a page drawn without the configuration could post one without
+its other sections, and clearing a search came back to the first category.
+
+**The CI was red on packaging, not on tests.** The `package.json` that gives the page
+tests a runner declares `"type": "module"`, which turned `scripts/*.js` into ES modules,
+and `make update-manifest` failed on `require`. A `package.json` in `scripts/` pins them
+back to CommonJS.
+
+**The second pass of polish** lands with it: each pill says how many of its settings
+are set, an *All / Set / Locked* filter looks across every category, a *Keys* switch
+shows the YAML keys, the banner can be dismissed for good, Home and appearance is
+subdivided like the other large categories, and the page keeps the dashboard's own
+materials. 45 tests on the renderer, 209 on the plugin.
+
+**Jellyfin 12.0.0 was released on 2026-09-08** and `jf12` still compiles against
+`12.0.0-rc5`. The bump to the release needs EF Core 10.0.11, which is what 12.0 pins,
+and that needs Newtonsoft.Json 13.0.4, or the restore fails on NU1605 under the
+warning policy. Checked on a throwaway worktree: three lines, 0 errors, tests green
+on net10.0. It goes in its own pull request after this one.
+
 ## 2026-09-02
 
 ### P3.6, the form drawn by the plugin
