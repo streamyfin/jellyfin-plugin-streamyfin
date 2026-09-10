@@ -85,7 +85,6 @@ export const saveConfig = () => {
             const {Error, Message} = await response.json();
 
             if (Error) {
-                Dashboard.hideLoadingMsg();
                 Dashboard.alert(Message);
                 return false;
             } 
