@@ -158,6 +158,12 @@ Jellyfin's greys and accent, its rounded grey buttons, its square checkbox with 
 accent check, one boxed row per setting. Only two colours are the page's, amber for
 a locked setting and the accent bar for a suggested one.
 
+![The Playback controls category on the beta: suggested settings with the accent bar, one chip per group, and each pill saying how many of its settings are set](images/admin-application-playback.png)
+
+![The Set filter, looking across every category: what this server sets, locked settings in amber](images/admin-application-filter-set.png)
+
+![The Plugins category with the descriptions and the keys off and the banner dismissed](images/admin-application-plugins-terse.png)
+
 **The dashboard's theme is detected, not declared.** The audit assumed the accent
 could be read from Jellyfin's own variable. Measured on both servers: the Jellyfin 12
 web client defines four `--jf-*` properties in a theme stylesheet and none of them is
