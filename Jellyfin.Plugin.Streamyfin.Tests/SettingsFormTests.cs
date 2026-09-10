@@ -330,4 +330,22 @@ public class SettingsFormTests
 
         Assert.Empty(offenders);
     }
+
+    /// <summary>
+    /// A category large enough to fill a screen is subdivided, so the form draws it as
+    /// several cards rather than one wall. Sixteen settings in one card read as a list
+    /// with no shape.
+    /// </summary>
+    [Fact]
+    public void ALargeCategoryIsSubdivided()
+    {
+        var ungrouped = SettingsForm.Describe()
+            .GroupBy(f => f.Category)
+            .Where(category => category.Count() > 8)
+            .SelectMany(category => category.Where(f => string.IsNullOrEmpty(f.Group)))
+            .Select(f => f.Key)
+            .ToArray();
+
+        Assert.Empty(ungrouped);
+    }
 }

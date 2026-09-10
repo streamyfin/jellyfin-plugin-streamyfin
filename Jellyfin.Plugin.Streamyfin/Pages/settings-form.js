@@ -117,7 +117,7 @@ const buildControl = (field, cultures) => {
 
     switch (field.control) {
         case "Toggle":
-            control = el("input", "sf-switch");
+            control = el("input", "sf-check");
             control.type = "checkbox";
             break;
         case "Number":
@@ -198,6 +198,7 @@ const writeControl = (row) => {
             case "Toggle":
                 control.checked = false;
                 control.indeterminate = true;
+                control.title = "The app decides until you set it";
                 break;
             case "Select":
                 placeholderOption(control).selected = true;
@@ -212,6 +213,7 @@ const writeControl = (row) => {
     switch (field.control) {
         case "Toggle":
             control.indeterminate = false;
+            control.title = "";
             control.checked = value === true;
             break;
         case "Number":
@@ -295,16 +297,20 @@ const problemOf = (row) => {
 // JSON.stringify drops the former, which is what keeps them apart here.
 const snapshot = (row) => JSON.stringify({ state: row.state, value: row.value });
 
-export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false } = {}) => {
+export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true } = {}) => {
     const rows = new Map();
     const cards = [];
     const listeners = [];
     const arranged = sections(fields);
     let currentCategory = null;
     let query = "";
+    // null, "set" (suggested or locked) or "locked". Like a search, a filter looks across
+    // every category: "what have I set" is a question about the whole server.
+    let stateFilter = null;
 
     const root = el("div", "sf-form");
     root.classList.toggle("is-terse", Boolean(terse));
+    root.classList.toggle("is-keyless", !keys);
     const grid = el("div", "sf-grid");
     root.appendChild(grid);
 
@@ -525,18 +531,20 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         notify();
     });
 
+    const matchesFilter = (row) => stateFilter === null
+        || (stateFilter === "set" && row.state !== "free")
+        || (stateFilter === "locked" && row.state === "locked");
+
     const applyVisibility = () => {
         const q = query.trim().toLowerCase();
+        const narrowing = Boolean(q) || stateFilter !== null;
         for (const row of rows.values()) {
-            if (!q) {
-                row.el.hidden = false;
-                continue;
-            }
             const { title, key, description } = row.field;
-            row.el.hidden = ![title, key, description].some((text) => String(text ?? "").toLowerCase().includes(q));
+            const matchesQuery = !q || [title, key, description].some((text) => String(text ?? "").toLowerCase().includes(q));
+            row.el.hidden = !(matchesQuery && matchesFilter(row));
         }
         for (const card of cards) {
-            if (q) {
+            if (narrowing) {
                 card.hidden = [...card.querySelectorAll(".sf-row")].every((r) => r.hidden);
             } else {
                 card.hidden = currentCategory !== null && card.dataset.category !== currentCategory;
@@ -577,18 +585,29 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             query = text ?? "";
             applyVisibility();
         },
+        filter: (state) => {
+            stateFilter = state === "set" || state === "locked" ? state : null;
+            applyVisibility();
+        },
         showCategory: (category) => {
             currentCategory = category ?? null;
             applyVisibility();
         },
-        categories: () => arranged.map((section) => ({
-            name: section.category,
-            count: section.groups.reduce((n, group) => n + group.fields.length, 0),
-        })),
+        categories: () => arranged.map((section) => {
+            const keys = section.groups.flatMap((group) => group.fields.map((f) => f.key));
+            const states = keys.map((key) => rows.get(key)?.state);
+            return {
+                name: section.category,
+                count: keys.length,
+                set: states.filter((state) => state !== "free").length,
+                locked: states.filter((state) => state === "locked").length,
+            };
+        }),
         groups: (category) => (arranged.find((section) => section.category === category)?.groups ?? [])
             .map((group) => ({ name: group.name, count: group.fields.length })),
         cardFor: (category, group) => cards.find((card) => card.dataset.category === category && card.dataset.group === group) ?? null,
         setTerse: (on) => root.classList.toggle("is-terse", Boolean(on)),
+        setKeys: (on) => root.classList.toggle("is-keyless", !on),
         onChange: (listener) => listeners.push(listener),
         destroy: () => {
             mount.textContent = "";

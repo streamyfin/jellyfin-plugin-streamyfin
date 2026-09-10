@@ -329,10 +329,10 @@ describe("createForm", () => {
         const { form } = mountForm();
 
         expect(form.categories()).toEqual([
-            { name: "Playback controls", count: 3 },
-            { name: "Plugins", count: 2 },
-            { name: "Home and appearance", count: 2 },
-            { name: "Audio and subtitles", count: 3 },
+            { name: "Playback controls", count: 3, set: 0, locked: 0 },
+            { name: "Plugins", count: 2, set: 0, locked: 0 },
+            { name: "Home and appearance", count: 2, set: 0, locked: 0 },
+            { name: "Audio and subtitles", count: 3, set: 0, locked: 0 },
         ]);
     });
 
@@ -396,6 +396,51 @@ describe("createForm", () => {
         expect(form.toSettings().forwardSkipTime).toEqual({ value: 3, locked: false });
     });
 
+    test("a state filter keeps the set settings, or the locked ones, across every category", () => {
+        const { mount, form } = mountForm({
+            forwardSkipTime: { value: 45, locked: true },
+            jellyseerrServerUrl: { value: "https://seerr.example", locked: false },
+        });
+        form.showCategory("Playback controls");
+
+        form.filter("set");
+        expect(row(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(row(mount, "jellyseerrServerUrl").hidden).toBe(false);
+        expect(row(mount, "jellyseerrServerUrl").closest(".sf-card").hidden).toBe(false);
+        expect(row(mount, "enableDoubleTapToSeek").hidden).toBe(true);
+        expect(row(mount, "home").closest(".sf-card").hidden).toBe(true);
+
+        form.filter("locked");
+        expect(row(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(row(mount, "jellyseerrServerUrl").closest(".sf-card").hidden).toBe(true);
+
+        form.filter(null);
+        expect(row(mount, "enableDoubleTapToSeek").hidden).toBe(false);
+        expect(row(mount, "jellyseerrServerUrl").closest(".sf-card").hidden).toBe(true);
+    });
+
+    test("categories count what is set and what is locked, live", () => {
+        const { mount, form } = mountForm({ forwardSkipTime: { value: 45, locked: true } });
+
+        expect(form.categories()[0]).toEqual({ name: "Playback controls", count: 3, set: 1, locked: 1 });
+
+        stateButton(mount, "enableDoubleTapToSeek", "suggested").click();
+
+        expect(form.categories()[0]).toEqual({ name: "Playback controls", count: 3, set: 2, locked: 1 });
+    });
+
+    test("an undecided toggle says the app decides, until it is set", () => {
+        const fields = [field("streamyStatsMovieRecommendations", "Toggle", { title: "Movie recommendations" })];
+        const { mount } = mountForm({}, { fields, defaults: {} });
+        const toggle = control(mount, "streamyStatsMovieRecommendations");
+
+        expect(toggle.title).toBe("The app decides until you set it");
+
+        stateButton(mount, "streamyStatsMovieRecommendations", "suggested").click();
+
+        expect(toggle.title).toBe("");
+    });
+
     test("a description renders its emphasis without the asterisks", () => {
         const { mount } = mountForm();
         const description = row(mount, "jellyseerrApiKey").querySelector(".sf-desc");
@@ -412,6 +457,18 @@ describe("createForm", () => {
 
         form.setTerse(false);
         expect(mount.querySelector(".sf-form").classList.contains("is-terse")).toBe(false);
+    });
+
+    test("the keys are shown or hidden on their own, apart from the descriptions", () => {
+        const { mount, form } = mountForm({}, { keys: false });
+        const root = mount.querySelector(".sf-form");
+
+        expect(root.classList.contains("is-keyless")).toBe(true);
+
+        form.setKeys(true);
+        expect(root.classList.contains("is-keyless")).toBe(false);
+        form.setTerse(true);
+        expect(root.classList.contains("is-keyless")).toBe(false);
     });
 
     test("onChange fires when a state or a value changes", () => {
