@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Reflection;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
 
@@ -305,5 +307,27 @@ public class SettingsFormTests
     public void OnlyANumberIsWhole()
     {
         Assert.Empty(SettingsForm.Describe().Where(f => f.Integer && f.Control != SettingsControl.Number));
+    }
+
+    /// <summary>
+    /// No setting carries a DataAnnotations validation attribute.
+    /// </summary>
+    /// <remarks>
+    /// ASP.NET validates every such attribute on a body it binds, and the targeting
+    /// routes bind a partial <see cref="Settings"/>. The attribute is then asked about
+    /// the <c>Lockable</c> rather than its value, cannot convert it, and refuses the
+    /// request: a <c>[Range(0, 60)]</c> on the forward skip time turned every group or
+    /// user override that carried one into a 400, whatever the value. Bounds live on
+    /// <see cref="BoundsAttribute"/>, which nothing but the form reads.
+    /// </remarks>
+    [Fact]
+    public void NoSettingCarriesAValidationAttribute()
+    {
+        var offenders = SettingsSchema.Descriptors
+            .SelectMany(d => d.Property.GetCustomAttributes<ValidationAttribute>()
+                .Select(a => $"{d.Key}: {a.GetType().Name}"))
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 }

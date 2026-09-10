@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -113,7 +112,7 @@ public static class SettingsForm
         var type = descriptor.ValueType;
         var enumType = EnumTypeOf(type);
         var control = ControlFor(descriptor, type, enumType);
-        var range = descriptor.Property.GetCustomAttribute<RangeAttribute>();
+        var bounds = descriptor.Property.GetCustomAttribute<BoundsAttribute>();
         var step = descriptor.Property.GetCustomAttribute<StepAttribute>();
 
         return new SettingsFormField(
@@ -124,8 +123,8 @@ public static class SettingsForm
             Description: descriptor.Description,
             Control: control,
             Lockable: descriptor.IsLockable,
-            Minimum: AsNumber(range?.Minimum),
-            Maximum: AsNumber(range?.Maximum),
+            Minimum: bounds?.Minimum,
+            Maximum: bounds?.Maximum,
             Step: step?.Value,
             Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)),
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
@@ -226,9 +225,6 @@ public static class SettingsForm
 
         return choices;
     }
-
-    private static double? AsNumber(object? value) =>
-        value is null ? null : Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Turns a member name into something an administrator can read.
