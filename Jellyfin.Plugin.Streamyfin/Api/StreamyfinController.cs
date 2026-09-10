@@ -225,14 +225,21 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Forward notifications to expos push service using persisted device tokens
+  /// Forward notifications to Expo's push service using the persisted device tokens.
   /// </summary>
-  /// <param name="notifications"></param>
-  /// <returns></returns>
+  /// <param name="notifications">What to send, each with an optional target.</param>
+  /// <returns>Expo's answer, or 202 when there was nobody to send to.</returns>
+  /// <remarks>
+  /// Elevated. A notification with no target goes to every registered device, so with a
+  /// plain <c>Authorize</c> any account on the server could push to everyone. The app
+  /// never calls this route: it registers and removes its own device and nothing else.
+  /// The callers are administrators and integrations holding an API key, which Jellyfin
+  /// treats as an administrator, so the webhook senders keep working.
+  /// </remarks>
   [HttpPost("v1/notifications")]
   [HttpPost("v1/notification")]
   [HttpPost("notification")]
-  [Authorize]
+  [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
   public ActionResult PostNotifications([FromBody, Required] List<Notification> notifications)
