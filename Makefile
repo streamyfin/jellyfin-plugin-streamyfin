@@ -8,7 +8,7 @@ $(error Failed to compute VERSION via scripts/next-version.js)
 endif
 
 # Which Jellyfin line to build for. See Directory.Build.props.
-JELLYFIN_TARGET ?= jf11
+JELLYFIN_TARGET ?= jf12
 
 # Ask MSBuild what this target compiles to instead of repeating the mapping
 # here, where it would drift from Directory.Build.props the first time a target

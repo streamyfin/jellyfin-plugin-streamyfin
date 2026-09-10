@@ -7,14 +7,16 @@
       JellyfinTarget=jf11  -> Jellyfin 10.11, .NET 9
       JellyfinTarget=jf12  -> Jellyfin 12,    .NET 10
 
-    Build the other target with: dotnet build -p:JellyfinTarget=jf12
+    Build the other target with: dotnet build -p:JellyfinTarget=jf11
 
-    The default stays jf11 while 12 is a release candidate. Flip it the day 12
-    goes stable, and drop the jf11 block entirely the day 10.11 support ends.
-    See Jellyfin.Plugin.Streamyfin/Compat/README.md for the removal procedure.
+    The default is jf12 since 12.0.0 shipped on 2026-09-08; it was jf11 while 12
+    was a release candidate. CI and the release always name the target, so the
+    default only decides what a bare build on a developer's machine produces.
+    Drop the jf11 block entirely the day 10.11 support ends. See
+    Jellyfin.Plugin.Streamyfin/Compat/README.md for the removal procedure.
   -->
   <PropertyGroup>
-    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf11</JellyfinTarget>
+    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf12</JellyfinTarget>
   </PropertyGroup>
 
   <!--
