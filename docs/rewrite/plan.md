@@ -187,7 +187,7 @@ weigh against dropping the embedded page machinery.
 - **P4.4** Declared events instead of the four hardcoded ones
 - **P4.5** Per user notification preferences, on top of P1
 
-P4.2 is the one with user visible consequences. Expo reports a dead token twice
+P4.2 is the one with user-visible consequences. Expo reports a dead token twice
 and the plugin read neither: as an error ticket at send time, whose
 `details.error` is `DeviceNotRegistered`, and later through `/push/getReceipts`,
 which nothing ever called. So tokens accumulated forever and sends went nowhere.
