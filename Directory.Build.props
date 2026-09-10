@@ -39,9 +39,9 @@
 
   <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf12'">
     <TargetFramework>net10.0</TargetFramework>
-    <JellyfinVersion>12.0.0-rc5</JellyfinVersion>
+    <JellyfinVersion>12.0.0</JellyfinVersion>
     <JellyfinAbi>12.0.0.0</JellyfinAbi>
-    <EfCoreVersion>10.0.10</EfCoreVersion>
+    <EfCoreVersion>10.0.11</EfCoreVersion>
     <DefineConstants>$(DefineConstants);JF12</DefineConstants>
   </PropertyGroup>
 
