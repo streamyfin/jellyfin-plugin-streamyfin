@@ -29,6 +29,7 @@ public class StreamyfinDbContext : DbContext
         SettingsGroupMembers = Set<SettingsGroupMember>();
         UserSettingsOverrides = Set<UserSettingsOverride>();
         GlobalConfigurations = Set<GlobalConfiguration>();
+        ExpoReceipts = Set<ExpoReceipt>();
     }
 
     /// <summary>
@@ -45,6 +46,7 @@ public class StreamyfinDbContext : DbContext
         SettingsGroupMembers = Set<SettingsGroupMember>();
         UserSettingsOverrides = Set<UserSettingsOverride>();
         GlobalConfigurations = Set<GlobalConfiguration>();
+        ExpoReceipts = Set<ExpoReceipt>();
     }
 
     /// <summary>
@@ -76,6 +78,11 @@ public class StreamyfinDbContext : DbContext
     /// Gets or sets the configuration the server declares for everyone. One row.
     /// </summary>
     public DbSet<GlobalConfiguration> GlobalConfigurations { get; set; }
+
+    /// <summary>
+    /// Gets or sets the pushes Expo accepted, waiting for their delivery receipt.
+    /// </summary>
+    public DbSet<ExpoReceipt> ExpoReceipts { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -133,6 +140,17 @@ public class StreamyfinDbContext : DbContext
             entity.ToTable("GlobalConfigurations");
             entity.HasKey(c => c.Id);
             entity.Property(c => c.ConfigJson).IsRequired();
+        });
+
+        modelBuilder.Entity<ExpoReceipt>(entity =>
+        {
+            entity.ToTable("ExpoReceipts");
+            entity.HasKey(r => r.TicketId);
+            entity.Property(r => r.Token).IsRequired();
+            entity.Property(r => r.CreatedAt).IsRequired();
+            // Every read of this table is "what is old enough to ask about" and "what is
+            // too old to keep", so both ends of the window go through this column.
+            entity.HasIndex(r => r.CreatedAt);
         });
 
         base.OnModelCreating(modelBuilder);

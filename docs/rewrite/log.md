@@ -44,6 +44,41 @@ builds clean on both.
 to run is written down in [admin-ui-targeting.md](admin-ui-targeting.md) along with a
 casing gap on `LanguagePreference` that the same pass should confirm or dismiss.
 
+### P4.2, the dead tokens nobody was collecting
+
+Expo says a token is dead in two places and the plugin read neither, so a device that
+uninstalled the app kept its row forever and every notification aimed at it was accepted,
+queued and thrown away.
+
+- **At send time**, as a ticket whose `details.error` is `DeviceNotRegistered`. That
+  field was typed `object` and read by nothing.
+- **Later, in a receipt**, because a delivery can still fail after the ticket said ok.
+  `/push/getReceipts` was never called at all, which is the line the issue names.
+
+Both now prune. The receipts half needs to outlive the request, since Expo takes minutes
+to produce one, so an accepted push is stored as a ticket and token pair in a new
+`ExpoReceipts` table and a scheduled task collects them hourly: it asks about pushes
+older than fifteen minutes, a thousand at a time, prunes what comes back dead, forgets
+what was answered, and drops rows older than twenty-four hours because past that Expo has
+no answer left to give.
+
+**The part that had to be got right.** An error ticket carries no id and no token. The
+only thing tying it to a device is its position, since Expo answers with one ticket per
+recipient in the order they were sent. Acting on that means a miscount deletes someone
+else's token and their notifications stop with nothing to show why, which is worse than
+the bug being fixed. So the mapping is only used when the two counts agree exactly,
+otherwise it logs and prunes nothing; and only `DeviceNotRegistered` prunes, never
+`MessageRateExceeded` or the others, which are about the message and not the device.
+
+That decision lives in `ExpoTickets`, deliberately apart from the helper and free of the
+database, because it is the only code in the plugin that deletes something a user
+registered. Thirteen tests on it alone, ten more on the store, 195 green on both targets.
+
+**A note for P4.3.** `SendToAll` still puts every token in one `to` field while Expo caps
+a message at a hundred recipients. The count guard means that cannot cause a wrong
+prune — a refused request is not an answer about anybody's token — but the send itself
+still fails silently past a hundred, and that is P4.3's to fix.
+
 ### P4.1, and a detour that says something about ordering
 
 [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141): the push
