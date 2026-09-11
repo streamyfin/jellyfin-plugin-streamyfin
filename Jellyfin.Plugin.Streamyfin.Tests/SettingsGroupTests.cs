@@ -174,6 +174,35 @@ public class SettingsGroupTests : IDisposable
     }
 
     /// <summary>
+    /// A level that turns the playback quality off keeps every other setting it carries.
+    /// </summary>
+    /// <remarks>
+    /// The quality is the one setting whose "no cap" is a null, and the store writes
+    /// with Jellyfin's JSON options, which omit a null: the key left the document
+    /// entirely. Reading it back then failed on <c>Lockable&lt;T&gt;.value</c> being
+    /// required, the tolerant read answered null, and the whole level came back empty.
+    /// A group set to Max looked saved until the page was reopened, and the resolution
+    /// gave its members nothing at all. Seen on the beta on 2026-09-11.
+    /// </remarks>
+    [Fact]
+    public void ALevelThatSetsTheQualityToMaxKeepsItsOtherSettings()
+    {
+        var json = _serialization.SerializeToJson(new Settings
+        {
+            forwardSkipTime = new Lockable<int> { value = 42, locked = true },
+            defaultBitrate = new Lockable<Bitrate?> { value = null, locked = false },
+        });
+
+        var read = _serialization.DeserializeJson<Settings>(json);
+
+        Assert.NotNull(read);
+        Assert.Equal(42, read!.forwardSkipTime!.value);
+        Assert.NotNull(read.defaultBitrate);
+        Assert.Null(read.defaultBitrate!.value);
+        Assert.False(read.defaultBitrate.locked);
+    }
+
+    /// <summary>
     /// A level whose JSON cannot be read costs that level, not every setting for
     /// every user in it. This runs during a request, so throwing would turn one
     /// corrupted row into a broken settings endpoint.
