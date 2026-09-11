@@ -10,6 +10,18 @@ lives only in a comment thread is a decision nobody will find.
 
 ## 2026-09-11, later
 
+### The release takes the number it is given
+
+`scripts/next-version.js` reads the commits since the last tag, which answers what a
+change deserves: a `feat:` is a minor bump, so this release computed 0.69.0.0. A release
+is sometimes a decision instead, and no commit subject says 0.70 without also claiming a
+breaking change. The Create release workflow now takes an optional version, and the
+script uses it when it is given one and computes as before when it is not. A value that
+is not a version stops the release rather than tagging something nobody meant.
+
+`bun test` now looks at the whole test project rather than only its pages, since the
+release scripts are JavaScript this repository owns too.
+
 ### The Targeting tab moves onto the renderer, and json-editor goes
 
 The screen P3.3 built kept its shape and changed what draws a level's overrides. The

@@ -2,6 +2,11 @@ name: "Create release"
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, such as 0.70.0.0. Left empty, it is computed from the commits since the last tag."
+        required: false
+        type: string
 
 permissions:
   pull-requests: write
@@ -25,6 +30,8 @@ jobs:
           node-version: "lts/*"
 
       - id: compute
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: echo "version=$(node scripts/next-version.js)" >> "$GITHUB_OUTPUT"
 
   build:
