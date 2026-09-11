@@ -135,4 +135,24 @@ public class ApiSurfaceTests
         Assert.Contains($"v1/{singular}", served);
         Assert.Contains(singular, served);
     }
+
+    /// <summary>
+    /// Posting a notification takes an administrator.
+    /// </summary>
+    /// <remarks>
+    /// A notification with no target goes to every registered device, so with a plain
+    /// <c>Authorize</c> any account on the server could push to everyone. The app never
+    /// calls this route: it registers and removes its own device and nothing else. An
+    /// API key counts as an administrator in Jellyfin, so integrations keep working.
+    /// </remarks>
+    [Fact]
+    public void PostingANotificationRequiresElevation()
+    {
+        var method = typeof(StreamyfinController).GetMethod(nameof(StreamyfinController.PostNotifications));
+
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal(MediaBrowser.Common.Api.Policies.RequiresElevation, authorize!.Policy);
+    }
 }
