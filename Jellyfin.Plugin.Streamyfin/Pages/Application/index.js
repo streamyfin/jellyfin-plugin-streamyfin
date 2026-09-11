@@ -145,6 +145,10 @@ export default function (view) {
         }
     };
 
+    // Set by buildNavigation, so the dock's "Show me" can put the page where the
+    // setting is using the same controls a click on a pill would.
+    let goTo = null;
+
     const buildNavigation = () => {
         const pills = el("sf-pills");
         const chips = el("sf-chips");
@@ -186,6 +190,14 @@ export default function (view) {
                 }, { signal: showing.signal });
                 chips.appendChild(chip);
             }
+        };
+
+        goTo = (category) => {
+            find.value = "";
+            form.search("");
+            pressFilter("all");
+            form.filter(null);
+            select(category);
         };
 
         const select = (category) => {
@@ -286,13 +298,6 @@ export default function (view) {
         wireSwitch("sf-keys", readKeys, writeKeys, (on) => form.setKeys(on));
     };
 
-    const wireFindProblem = () => {
-        el("sf-find-problem").addEventListener("click", () => {
-            const found = form?.showProblem();
-            if (found) refreshPillCounts?.();
-        });
-    };
-
     const wireDock = (shared) => {
         listen("sf-discard", "click", () => form.reset());
         listen("sf-save", "click", async () => {
@@ -350,7 +355,10 @@ export default function (view) {
         wireTerse();
         wireBanner();
         wireDock(shared);
-        wireFindProblem();
+        shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
+            goTo?.(found.category);
+            form.reveal(found.key);
+        });
         form.onChange(updateDock);
         updateDock();
         setStatus(null);

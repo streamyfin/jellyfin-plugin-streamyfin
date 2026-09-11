@@ -21,7 +21,11 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// <param name="Group">The subdivision within that category, when it has one.</param>
 /// <param name="Bounds">The values it accepts, when it declares any.</param>
 /// <param name="Probe">The service that answers at the other end, when it names one.</param>
-/// <param name="IsWebAddress">Whether the value has to be a whole http or https address.</param>
+/// <param name="IsWebAddress">
+/// Whether the value has to be a whole http or https address. Implied by naming a
+/// service, which is the only way a setting says so today; a setting that is an address
+/// with nothing to ask at the end of it would want its own marker.
+/// </param>
 /// <param name="Value">Where a <see cref="Lockable{T}"/> keeps its value, when it is one.</param>
 /// <remarks>
 /// The attributes are resolved here rather than at each use. Validation runs over every
@@ -168,7 +172,7 @@ public static class SettingsSchema
             Group: scope?.Group,
             Bounds: property.GetCustomAttribute<BoundsAttribute>(),
             Probe: probe,
-            IsWebAddress: probe is not null || property.GetCustomAttribute<WebAddressAttribute>() is not null,
+            IsWebAddress: probe is not null,
             Value: lockable ? underlying.GetProperty("value") : null);
     }
 }

@@ -76,7 +76,7 @@ public static class SettingsValidation
                     address));
             }
 
-            if (bounds is null || value is null || !IsNumber(value))
+            if (bounds is null || !IsNumber(value))
             {
                 continue;
             }

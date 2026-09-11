@@ -110,8 +110,6 @@ const typeDefault = (field) => {
 
 const formatBound = (n) => String(n);
 
-// Seerr reports a development build as a full commit hash, forty characters of nothing
-// anyone reads. Enough of it to tell two builds apart.
 // A refusal the route itself wrote says which of several things to do. Anything else,
 // including losing the session, is the one sentence.
 export const askingFailed = (error) => {
@@ -123,47 +121,35 @@ export const askingFailed = (error) => {
 
 // What a probe answer reads as. The server says what it found and why; this only
 // decides the sentence, so a test can hold the wording without a server.
-export const probeText = (health) => {
-    if (!health) return "The server gave no answer.";
-    switch (health.outcome) {
-        case "Ok":
-            // Shown whole. The server bounds it, and a second cut here would put an
-            // ellipsis on a string that had already lost its tail silently.
-            return health.version ? `Answered, running ${health.version}.` : (health.detail ?? "Answered.");
-        case "Reachable":
-            return health.detail ?? "Something answered, and nothing there says what it is.";
-        case "NotConfigured":
-            return "Nothing to try yet.";
-        case "NotAUrl":
-            return health.detail ?? "That is not an address the server will open.";
-        case "WrongService":
-            return health.detail ?? "Something answered, but not this service.";
-        case "Down":
-            return health.detail ?? "The service answered that it is not working.";
-        case "Unreachable":
-            return health.detail ?? "Nothing answered at that address.";
-        default:
-            // A server that gained an outcome this page does not know about. Saying
-            // nothing answered would send an administrator to their network.
-            return health.detail ?? "The server gave an answer this page does not understand.";
-    }
+// What each answer reads as and reads like. One table, since a tone and a sentence that
+// disagree is how a hard failure ends up in the quiet italics of "nothing to try".
+const OUTCOMES = {
+    Ok: { tone: "sf-said--ok", said: "Answered." },
+    // Not a pass. The Jellyfin address in the Marlin field answers 200 and lands here,
+    // and green would read as confirmed.
+    Reachable: { tone: "sf-said--maybe", said: "Something answered, and nothing there says what it is." },
+    NotConfigured: { tone: "sf-said--quiet", said: "Nothing to try yet." },
+    NotAUrl: { tone: "sf-said--no", said: "That is not an address the server will open." },
+    WrongService: { tone: "sf-said--no", said: "Something answered, but not this service." },
+    Down: { tone: "sf-said--no", said: "The service answered that it is not working." },
+    Unreachable: { tone: "sf-said--no", said: "Nothing answered at that address." },
 };
 
-// An empty field is not a broken one. Three tones rather than a pass and a fail, or
-// "Nothing to try yet" arrives in the same red as "nothing answered".
-export const probeTone = (health) => {
-    switch (health?.outcome) {
-        case "Ok": return "sf-said--ok";
-        case "NotConfigured": return "sf-said--quiet";
-        // Not a pass. The Jellyfin address in the Marlin field answers 200 and lands
-        // here, and green would read as confirmed.
-        case "Reachable": return "sf-said--maybe";
-        case "WrongService": case "Unreachable": case "Down": case "NotAUrl": return "sf-said--no";
-        // A server that gained an outcome this page does not know. Red would call a
-        // healthy integration broken.
-        default: return "sf-said--quiet";
-    }
+// A server that gained an outcome this page does not know. Red would call a healthy
+// integration broken.
+const UNKNOWN = { tone: "sf-said--quiet", said: "The server gave an answer this page does not understand." };
+
+export const probeText = (health) => {
+    if (!health) return "The server gave no answer.";
+
+    // Shown whole. The server bounds it, and a second cut here would put an ellipsis on
+    // a string that had already lost its tail silently.
+    if (health.outcome === "Ok" && health.version) return `Answered, running ${health.version}.`;
+
+    return health.detail ?? (OUTCOMES[health.outcome] ?? UNKNOWN).said;
 };
+
+export const probeTone = (health) => (OUTCOMES[health?.outcome] ?? UNKNOWN).tone;
 
 const boundsHint = (field) => {
     const parts = [];
@@ -339,6 +325,11 @@ const readControl = (row, cultures) => {
 // server's: "http:/host" with one slash, and "http:host", both parse here and are
 // refused by Uri.TryCreate, so the form would pass a value the server then refuses as a
 // banner over the whole save, which is what marking the field exists to avoid.
+// The server refuses these, so the form has to as well, or it passes a value the save
+// then refuses as a banner. A private address is fine and is the normal case; nothing a
+// person configures lives on link-local.
+const isLinkLocal = (host) => /^169\.254\./.test(host) || /^fe[89ab][0-9a-f]:/i.test(host);
+
 const isWebAddress = (typed) => {
     const trimmed = typed.trim();
     if (!/^https?:\/\/[^/\\?#]+/i.test(trimmed)) return false;
@@ -353,6 +344,7 @@ const isWebAddress = (typed) => {
     // so it is answered here rather than handed to one that would refuse it. The
     // contents still have to be an address: "[zzz]" is neither.
     if (authority.startsWith("[")) {
+        if (isLinkLocal(authority.slice(1, authority.indexOf("]")).split("%25")[0])) return false;
         const close = authority.indexOf("]");
         if (close < 2) return false;
 
@@ -368,7 +360,7 @@ const isWebAddress = (typed) => {
 
     try {
         const { protocol, hostname } = new URL(trimmed);
-        return (protocol === "http:" || protocol === "https:") && hostname.length > 0;
+        return (protocol === "http:" || protocol === "https:") && hostname.length > 0 && !isLinkLocal(hostname);
     } catch {
         return false;
     }
@@ -820,19 +812,22 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         invalid: () => [...rows.values()].filter((row) => row.invalid).map((row) => row.field.key),
         // A configuration stored before a rule existed can open the page already
         // refusing to save, and a count alone leaves an administrator hunting through
-        // ninety settings for it.
-        showProblem: () => {
+        // ninety settings for it. The page owns its search box, its filter and its
+        // pills, so this names the setting and the page does the moving.
+        firstProblem: () => {
             const row = [...rows.values()].find((one) => one.invalid);
-            if (!row) return null;
 
-            currentCategory = row.field.category ?? null;
-            query = "";
-            stateFilter = null;
-            applyVisibility();
+            return row
+                ? { key: row.field.key, title: row.field.title ?? row.field.key, category: row.field.category ?? "Other" }
+                : null;
+        },
+        reveal: (key) => {
+            const row = rows.get(key);
+            if (!row) return false;
+
             row.el.scrollIntoView({ block: "center" });
             row.control?.focus?.();
-
-            return { key: row.field.key, title: row.field.title ?? row.field.key, category: currentCategory };
+            return true;
         },
         dirtyCount: () => [...rows.values()].filter((row) => snapshot(row) !== row.baseline).length,
         reset: () => {

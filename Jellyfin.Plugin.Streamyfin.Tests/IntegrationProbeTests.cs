@@ -262,7 +262,9 @@ public class IntegrationProbeTests
         { new HttpRequestException("tls", new AuthenticationException("bad cert")), "certificate" },
         { new HttpRequestException("dns", new SocketException((int)SocketError.HostNotFound)), "could not be resolved" },
         { new TaskCanceledException("timed out"), "in time" },
-        { new HttpRequestException("refused"), "Nothing answered at that address" },
+        { new HttpRequestException("refused", new SocketException((int)SocketError.ConnectionRefused)), "nothing is listening on that port" },
+        { new HttpRequestException("unreachable", new SocketException((int)SocketError.HostUnreachable)), "cannot be reached" },
+        { new HttpRequestException("nothing else"), "Nothing answered at that address" },
     };
 
     /// <summary>

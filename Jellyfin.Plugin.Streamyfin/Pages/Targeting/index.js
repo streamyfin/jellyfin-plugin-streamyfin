@@ -222,16 +222,17 @@ export default function (view) {
         return changed;
     };
 
+    const wireFindProblem = () =>
+        shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
+            // One card here, so nothing to open: clear what is narrowing the list and
+            // put the row on screen.
+            el("sf-find").value = "";
+            form.search("");
+            form.reveal(found.key);
+        });
+
     // The same switch as the Application tab, sharing its remembered choice: an
     // administrator who turned the help text off did so for the settings, not for a tab.
-    let findProblemWired = false;
-
-    const wireFindProblem = () => {
-        if (findProblemWired) return;
-        findProblemWired = true;
-        el("sf-find-problem").addEventListener("click", () => form?.showProblem());
-    };
-
     const wireTerse = () => {
         const toggle = el("sf-terse");
         const show = (on) => {
@@ -263,7 +264,6 @@ export default function (view) {
             probe: shared.probeIntegration,
         });
         form.onChange(updateDock);
-        wireFindProblem();
         el("sf-find").value = "";
         el("sf-terse").setAttribute("aria-pressed", String(!readTerse()));
         updateDock();
@@ -408,6 +408,7 @@ export default function (view) {
         });
         listen("sf-find", "input", (event) => form.search(event.target.value));
         wireTerse();
+        wireFindProblem();
         listen("sf-member-find", "input", (event) => filterMembers(event.target.value));
         listen("sf-save", "click", commit(save));
         listen("sf-delete", "click", commit(remove));

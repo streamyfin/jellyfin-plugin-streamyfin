@@ -34,10 +34,10 @@ public sealed class IntegrationProbe : IDisposable
 
     private readonly TimeSpan _keepFor;
 
-    // A cap on rounds running at once. The cache stops one account in a loop; this
-    // stops the fan-out an address overridden per user makes reachable, where every
-    // caller has their own key and so their own round.
-    private readonly SemaphoreSlim _atOnce = new(4, 4);
+    // A cap on connections this opens at once, on both routes. The cache stops one
+    // account in a loop; this stops the fan-out an address overridden per user makes
+    // reachable, and the probe route, which takes an address rather than a cached set.
+    private readonly SemaphoreSlim _atOnce = new(6, 6);
 
     private readonly Dictionary<string, Round> _recent = new(StringComparer.Ordinal);
     private readonly IHttpClientFactory _clients;
@@ -82,6 +82,8 @@ public sealed class IntegrationProbe : IDisposable
                 null);
         }
 
+        await _atOnce.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
             return kind == IntegrationKind.Seerr
@@ -124,6 +126,10 @@ public sealed class IntegrationProbe : IDisposable
             }
 
             return new IntegrationHealth(kind, IntegrationOutcome.Unreachable, said, null);
+        }
+        finally
+        {
+            _atOnce.Release();
         }
     }
 
@@ -306,18 +312,9 @@ public sealed class IntegrationProbe : IDisposable
         List<(IntegrationKind Kind, string? Url)> probeable,
         CancellationToken cancellationToken)
     {
-        await _atOnce.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var asking = probeable.Select(one => Probe(one.Kind, one.Url, cancellationToken)).ToList();
 
-        try
-        {
-            var asking = probeable.Select(one => Probe(one.Kind, one.Url, cancellationToken)).ToList();
-
-            return await Task.WhenAll(asking).ConfigureAwait(false);
-        }
-        finally
-        {
-            _atOnce.Release();
-        }
+        return await Task.WhenAll(asking).ConfigureAwait(false);
     }
 
     // /api/v1/status is Seerr's own, unauthenticated, and carries a version. It proves
@@ -381,14 +378,25 @@ public sealed class IntegrationProbe : IDisposable
 
             if (cause is SocketException socket)
             {
-                if (socket.SocketErrorCode is SocketError.HostNotFound or SocketError.NoData)
+                switch (socket.SocketErrorCode)
                 {
-                    return "That host could not be resolved from this server.";
-                }
+                    case SocketError.HostNotFound:
+                    case SocketError.NoData:
+                    case SocketError.TryAgain:
+                        return "That host could not be resolved from this server.";
 
-                if (socket.SocketErrorCode is SocketError.TimedOut)
-                {
-                    return "Nothing answered in time from this server.";
+                    case SocketError.TimedOut:
+                        return "Nothing answered in time from this server.";
+
+                    case SocketError.ConnectionRefused:
+                        return "That host answered, and nothing is listening on that port.";
+
+                    case SocketError.NetworkUnreachable:
+                    case SocketError.HostUnreachable:
+                        return "That host cannot be reached from this server.";
+
+                    default:
+                        return Unnamed;
                 }
             }
 

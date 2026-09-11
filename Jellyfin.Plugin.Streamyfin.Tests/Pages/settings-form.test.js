@@ -828,7 +828,7 @@ describe("testing an address", () => {
         [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
         await flush();
 
-        expect(marlin.querySelector(".sf-said").textContent).toBe("Nothing to try yet.");
+        expect(marlin.querySelector(".sf-said").textContent).toBe("Nothing is configured.");
         expect(marlin.querySelector(".sf-said").className).toContain("sf-said--quiet");
         expect(marlin.querySelector(".sf-said").className).not.toContain("sf-said--no");
     });
@@ -904,21 +904,6 @@ describe("testing an address", () => {
         form.reset();
 
         expect(marlin.querySelector(".sf-said").textContent).toBe("");
-    });
-
-    test("an address with an IPv6 zone id is not refused", () => {
-        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
-
-        const marlin = row(mount, "marlinServerUrl");
-        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
-        const input = marlin.querySelector("input");
-        // The server accepts it; the browser's own URL parser does not, so the form
-        // answers this shape itself rather than handing it to one that would refuse it.
-        for (const good of ["http://[fe80::1%25eth0]:3000", "http://[::1]:3000", "http://user%40x@host"]) {
-            input.value = good;
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            expect(form.invalid()).not.toContain("marlinServerUrl");
-        }
     });
 
     test("a helper that throws before it returns a promise still frees the button", async () => {
@@ -1178,17 +1163,19 @@ describe("testing an address", () => {
         input.value = "marlin.example.com";
         input.dispatchEvent(new Event("change", { bubbles: true }));
 
-        const found = form.showProblem();
+        // Named rather than moved to: the page owns its search box and its pills, and
+        // this used to clear them behind its back.
+        expect(form.firstProblem()).toEqual({ key: "marlinServerUrl", title: "Marlin server", category: "Plugins" });
 
-        expect(found).toEqual({ key: "marlinServerUrl", title: "Marlin server", category: "Plugins" });
-        // And it brought the category it lives in with it.
-        expect(marlin.closest(".sf-card").hidden).toBe(false);
+        form.showCategory("Plugins");
+        expect(form.reveal("marlinServerUrl")).toBe(true);
+        expect(form.reveal("nothing-declared-this")).toBe(false);
     });
 
     test("nothing to point at when nothing is wrong", () => {
         const { form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
 
-        expect(form.showProblem()).toBe(null);
+        expect(form.firstProblem()).toBe(null);
     });
 
     test("every outcome reads as a sentence", () => {

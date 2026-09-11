@@ -7,6 +7,21 @@ export const tools = {jsYaml: undefined};
 // Asking the server to try an address, for whichever page drew the button. Here rather
 // than in each page because both tabs draw the same form from the same description, and
 // a third hand rolled ApiClient wrapper is a third place to forget when this changes.
+// The dock's way out of a page that opens already refusing to save. Here rather than in
+// each page because both tabs draw the same form and the same dock, and writing it twice
+// is what let one copy leak a listener per tab switch.
+export const wireFindProblem = (button, form, signal, goTo) => {
+    if (!button) return;
+
+    button.addEventListener(
+        "click",
+        () => {
+            const found = form()?.firstProblem();
+            if (found) goTo(found);
+        },
+        signal ? { signal } : undefined);
+};
+
 export const probeIntegration = (kind, address) =>
     window.ApiClient.ajax({
         type: "POST",
