@@ -58,10 +58,14 @@ jobs:
           stale-issue-label: stale
           stale-pr-label: stale
           stale-issue-message: >
-            This has been waiting on an answer for a month. It closes in three weeks
-            unless there is one; a comment reopens it at any time.
+            This has been waiting on an answer for a month. A comment keeps it open;
+            without one it closes in three weeks.
           stale-pr-message: >
-            This pull request has been waiting on its author for a month. It closes in
-            three weeks unless something moves; a comment reopens it at any time.
-          close-issue-message: "Closed for want of an answer. Comment to reopen."
-          close-pr-message: "Closed for want of an answer. Comment to reopen."
+            This pull request has been waiting on its author for a month. A comment
+            keeps it open; without one it closes in three weeks.
+          close-issue-message: >
+            Closed for want of an answer, which is bookkeeping rather than a verdict.
+            Reopen it, or open a new one and link here, and it gets read again.
+          close-pr-message: >
+            Closed for want of an answer, which is bookkeeping rather than a verdict.
+            Reopen it when there is something to say.
