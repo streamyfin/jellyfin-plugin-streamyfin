@@ -1,182 +1,75 @@
 <div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
-     data-require="emby-button,emby-select,emby-checkbox,emby-input"
      data-controller="__plugin/Targeting.js">
-    <style>
-        #sf-groups .sf-row {
-            display: flex;
-            align-items: center;
-            gap: 0.75em;
-            padding: 0.6em 0.25em;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-            cursor: pointer;
-        }
-        #sf-groups .sf-row:hover { background: rgba(255, 255, 255, 0.04); }
-        #sf-groups .sf-row .sf-name { font-weight: 600; flex: 1 1 auto; }
-        #sf-groups .sf-row .sf-meta { opacity: 0.7; font-size: 0.9em; }
-        #sf-empty { opacity: 0.7; padding: 1em 0.25em; }
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
 
-        /* The member picker: a plain list of the server's users, so an administrator sees
-           who exists rather than having to know a Jellyfin user id. */
-        #sf-members { max-height: 16em; overflow-y: auto; margin: 0.5em 0 1em; }
-        /* Not a flex row. The dashboard's checkbox positions its input absolutely, so a
-           flex row took the box out of the flow and drew it on top of the first letters
-           of every name. The label leaves room for it instead. */
-        #sf-members label {
-            position: relative;
-            display: block;
-            padding: 0.35em 0 0.35em 2em;
-        }
-
-        /* Overrides are rendered by the same generated form the Application tab uses, in
-           the same collapsible sections, so an admin recognises the layout. */
-        #sf-overrides .sf-section { border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
-        #sf-overrides .sf-section > summary {
-            cursor: pointer;
-            padding: 0.75em 0.25em;
-            font-size: 1.15em;
-            font-weight: 600;
-            list-style-position: inside;
-        }
-        #sf-overrides .sf-section > summary:hover { background: rgba(255, 255, 255, 0.04); }
-        #sf-overrides .sf-group {
-            margin: 1em 0 0.35em;
-            padding-left: 0.25em;
-            font-size: 0.95em;
-            font-weight: 600;
-            opacity: 0.75;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        /* Each section's editor wraps its settings in a root object whose header reads
-           "root". That header is noise; its controls are not, because this is the page
-           where the button beside them is how a setting joins or leaves the override. */
-        #sf-overrides .je-object__container > .je-header { display: none; }
-        #sf-overrides .je-indented-panel { margin: 0; padding: 0; border: none; }
-        /* A setting is itself an object, so put its own header back, and take away its
-           property picker: which fields a setting has is not an admin's decision. */
-        #sf-overrides .je-indented-panel .je-object__container > .je-header { display: block; }
-        #sf-overrides .je-indented-panel .je-object__controls { display: none; }
-
-        #sf-overrides .je-object__container { margin: 0 0 0.35em; padding: 0.35em 0.5em; }
-        #sf-overrides .je-header > label { font-weight: 600; }
-        #sf-overrides .je-desc { opacity: 0.7; margin: 0.1em 0 0.4em; font-size: 0.9em; }
-        #sf-overrides .je-indented-panel .je-indented-panel {
-            border-left: 2px solid rgba(255, 255, 255, 0.08);
-            padding-left: 0.6em;
-        }
-
-        /* json-editor draws the property picker as a bare white panel, and the dashboard's
-           own text colour is white, so every setting name in it came out invisible. That
-           picker is the only way to add an override or drop one, so an unreadable one
-           makes this page useless exactly where it matters. Found on the beta; no unit
-           test can see a colour. */
-        #sf-overrides .je-modal {
-            background: #1c1c1c;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-            padding: 0.4em 0.7em;
-            max-height: 22em;
-            overflow-y: auto;
-        }
-        #sf-overrides .je-modal label {
-            display: block;
-            color: rgba(255, 255, 255, 0.9);
-            padding: 0.2em 0;
-            white-space: nowrap;
-        }
-
-        /* json-editor's own buttons, which the Application tab hides outright. Here the
-           properties button is the affordance for adding a setting, so it stays, and it
-           is dressed to look like it belongs rather than like raw browser chrome. */
-        #sf-overrides button[class*="json-editor-btn"] {
-            background: rgba(255, 255, 255, 0.08);
-            color: inherit;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 3px;
-            padding: 0.15em 0.6em;
-            font-size: 0.85em;
-            margin-right: 0.4em;
-        }
-        #sf-overrides button[class*="json-editor-btn"]:hover {
-            background: rgba(255, 255, 255, 0.16);
-        }
-
-        .sf-hidden { display: none; }
-    </style>
-
-    <div class="content-primary" style="max-width: 53em; height: 100%">
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h1 class="sectionTitle">Streamyfin</h1>
-            </div>
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Targeting</h2>
-            </div>
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Targeting</h1>
+            <span class="sf-meta" id="sf-meta"></span>
+            <button type="button" class="sf-toggle" id="sf-terse" aria-pressed="true">Descriptions <span class="sf-pip">ON</span></button>
+            <label class="sf-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <input class="sf-find" id="sf-find" type="search" placeholder="Search this level's overrides" aria-label="Search this level's overrides" autocomplete="off">
+            </label>
         </div>
 
-        <p>Settings are resolved from the least specific to the most: the server defaults on the Application tab, then any group the user belongs to, then anything set for the user themselves. A group only carries the settings it means to change.</p>
-
-        <!-- List -->
-        <div id="sf-list">
-            <div class="verticalSection">
-                <h3 class="sectionTitle">Groups</h3>
-                <div id="sf-groups"></div>
-                <div id="sf-empty" class="sf-hidden">No groups yet. A group lets you point a set of settings at some of your users.</div>
-                <button id="sf-new" is="emby-button" type="button" class="raised" style="margin-top: 1em;">
-                    <span>Add a group</span>
-                </button>
-            </div>
-
-            <div class="verticalSection" style="margin-top: 2em;">
-                <h3 class="sectionTitle">One user</h3>
-                <p>Settings for a single user, which win over every group they belong to.</p>
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="sf-user">User</label>
-                    <select id="sf-user" is="emby-select" class="emby-select-withcolor emby-select"></select>
-                </div>
-                <button id="sf-edit-user" is="emby-button" type="button" class="raised">
-                    <span>Edit their settings</span>
-                </button>
-            </div>
+        <div class="sf-scope" id="sf-scope" role="tablist" aria-label="Which users these settings reach">
+            <span class="sf-scope-label">Applies to</span>
+            <a class="sf-lv" id="sf-everyone" href="#/configurationpage?name=Application">Everyone</a>
+            <span class="sf-arrow" aria-hidden="true">&rsaquo;</span>
+            <span id="sf-groups"></span>
+            <button type="button" class="sf-lv sf-lv--add" id="sf-new">+ Group</button>
+            <span class="sf-arrow" aria-hidden="true">&rsaquo;</span>
+            <span class="sf-lv sf-lv--user">One user
+                <select id="sf-user" aria-label="Settings for one user"></select>
+            </span>
         </div>
 
-        <!-- Editor, for a group or for a user -->
-        <div id="sf-editor" class="sf-hidden">
-            <div class="verticalSection">
-                <h3 class="sectionTitle" id="sf-editor-title">Group</h3>
+        <div class="sf-status" id="sf-status">Loading the groups…</div>
 
-                <div id="sf-group-fields">
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="sf-group-name">Name</label>
-                        <input id="sf-group-name" type="text" is="emby-input" />
+        <div class="sf-grid sf-grid--one" id="sf-level" hidden>
+            <section class="sf-card" id="sf-level-card">
+                <header><h2 id="sf-level-title">The group</h2></header>
+                <div class="sf-body">
+                    <div class="sf-level" id="sf-group-fields">
+                        <label>Name <input class="sf-text" id="sf-group-name" type="text" autocomplete="off" aria-label="Group name"></label>
+                        <label>Priority <input class="sf-number" id="sf-group-priority" type="number" step="1" aria-label="Priority"></label>
                     </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="sf-group-priority">Priority</label>
-                        <input id="sf-group-priority" type="number" step="1" is="emby-input" />
-                        <div class="fieldDescription">When a user is in more than one group, the higher priority wins.</div>
+                    <p class="sf-desc" id="sf-level-help">When a user is in more than one group, the higher priority wins.</p>
+                    <details class="sf-people" id="sf-people">
+                        <summary><span id="sf-members-count">No members</span></summary>
+                        <input class="sf-text sf-member-find" id="sf-member-find" type="search" placeholder="Find a user" aria-label="Find a user" autocomplete="off">
+                        <div class="sf-members" id="sf-members"></div>
+                    </details>
+                    <div class="sf-foot">
+                        <button type="button" class="sf-danger" id="sf-delete">Delete this group</button>
                     </div>
-
-                    <h4>Members</h4>
-                    <div id="sf-members"></div>
                 </div>
+            </section>
 
-                <h4>Settings this <span id="sf-scope-word">group</span> overrides</h4>
-                <p id="sf-overrides-help">Only the settings you add here are changed. Everything else falls through to the level below. Use a section's properties button to add a setting or to drop one.</p>
-                <div id="sf-overrides"></div>
-
-                <div style="margin-top: 1.5em; display: flex; gap: 0.75em; flex-wrap: wrap;">
-                    <button id="sf-save" is="emby-button" type="submit" class="raised button-submit">
-                        <span>Save</span>
-                    </button>
-                    <button id="sf-cancel" is="emby-button" type="button" class="raised">
-                        <span>Cancel</span>
-                    </button>
-                    <button id="sf-delete" is="emby-button" type="button" class="raised button-delete">
-                        <span>Delete</span>
-                    </button>
+            <section class="sf-card">
+                <header><h2>Current overrides</h2><span class="sf-count" id="sf-overrides-count">0 of 0</span></header>
+                <div class="sf-body">
+                    <div id="sf-editor"></div>
+                    <div class="sf-blank" id="sf-blank" hidden>
+                        <b>This level changes nothing yet</b>
+                        <p>Its users get what everyone gets. Add an override to change a setting for them, and for nobody else.</p>
+                    </div>
+                    <div class="sf-adder">
+                        <select class="sf-select" id="sf-add" aria-label="Setting to override"></select>
+                        <button type="button" class="sf-btn" id="sf-add-go">Add an override</button>
+                    </div>
                 </div>
-            </div>
+            </section>
+        </div>
+
+        <div class="sf-dock is-clean" id="sf-dock" hidden>
+            <span class="sf-dock-text"><span class="sf-dot"></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn" id="sf-discard" disabled>Discard</button>
+            <button type="button" class="sf-btn sf-btn--primary" id="sf-save" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
+            </button>
         </div>
     </div>
 </div>

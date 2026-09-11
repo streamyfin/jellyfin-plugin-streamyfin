@@ -136,4 +136,70 @@ public class SettingsSchemaTests
 
         Assert.False(lockableOfString.TryGetProperty("x-secret", out _));
     }
+
+    /// <summary>
+    /// Every setting names the section of the form it belongs to. The form draws one card
+    /// per section rather than ninety two settings in a single column, so a setting
+    /// without one would have nowhere to go. Failing here is the point: adding a setting
+    /// is also deciding where an administrator will look for it.
+    /// </summary>
+    [Fact]
+    public void EverySettingNamesItsSection()
+    {
+        var uncategorised = SettingsSchema.Descriptors
+            .Where(descriptor => string.IsNullOrWhiteSpace(descriptor.Category))
+            .Select(descriptor => descriptor.Key)
+            .ToArray();
+
+        Assert.True(
+            uncategorised.Length == 0,
+            $"no category, so the form has nowhere to put them: {string.Join(", ", uncategorised)}");
+    }
+
+    /// <summary>
+    /// The section reaches the served schema too. The admin pages read it from
+    /// <c>v1/settings/form</c>, but the schema is the public description of the
+    /// configuration and anything else editing it deserves the same grouping.
+    /// </summary>
+    [Fact]
+    public void TheSchemaCarriesTheSection()
+    {
+        using var document = JsonDocument.Parse(SerializationHelper.GetJsonSchema<Config>());
+        var settings = document.RootElement
+            .GetProperty("definitions")
+            .GetProperty("Settings")
+            .GetProperty("properties");
+
+        foreach (var descriptor in SettingsSchema.Descriptors)
+        {
+            var property = settings.GetProperty(descriptor.Key);
+
+            Assert.True(
+                property.TryGetProperty("x-category", out var category),
+                $"{descriptor.Key} reaches the schema without a category");
+            Assert.Equal(descriptor.Category, category.GetString());
+        }
+    }
+
+    /// <summary>
+    /// No playback cap is stored as null, which is the app's "Max".
+    /// </summary>
+    /// <remarks>
+    /// The form offers it as a choice whose value is null, and the store has to read that
+    /// back as no cap rather than as a missing setting or a zero.
+    /// </remarks>
+    [Fact]
+    public void NoPlaybackCapIsStoredAsNull()
+    {
+        var config = new SerializationHelper().Deserialize<Config>(
+            """
+            settings:
+              defaultBitrate:
+                locked: false
+                value: null
+            """);
+
+        Assert.NotNull(config.settings);
+        Assert.Null(config.settings!.defaultBitrate!.value);
+    }
 }
