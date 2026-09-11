@@ -119,9 +119,12 @@ public static class Sections
 
             if (section.kind is not null && section.kind.Value != carried[0])
             {
+                // No article before the kind: "a items query" is what writing one gives
+                // you, and the kinds are spelled the way the payload is rather than in
+                // English, so there is no right article to pick.
                 problems.Add(string.Format(
                     CultureInfo.InvariantCulture,
-                    "{0} says it is a {1} section and carries a {2} query.",
+                    "{0} says it is a {1} section, and the query beside it is {2}.",
                     name,
                     section.kind.Value,
                     carried[0]));

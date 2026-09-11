@@ -132,6 +132,23 @@ public class ExpoNotificationRequest
     /// </summary>
     [JsonProperty(PropertyName = "mutableContent")]
     public bool MutableContent { get; set; }
+
+    /// <summary>
+    /// The same message, addressed to some of its recipients.
+    /// </summary>
+    /// <param name="recipients">Who this copy is for.</param>
+    /// <returns>A copy carrying every other field unchanged.</returns>
+    /// <remarks>
+    /// A shallow copy rather than a field by field one, so a message gains a field
+    /// without this quietly dropping it from every split send. Expo takes a hundred
+    /// recipients per request and a server can have more devices than that.
+    /// </remarks>
+    public ExpoNotificationRequest WithRecipients(List<string> recipients)
+    {
+        var copy = (ExpoNotificationRequest)MemberwiseClone();
+        copy.To = recipients;
+        return copy;
+    }
 }
 
 /// <summary>
