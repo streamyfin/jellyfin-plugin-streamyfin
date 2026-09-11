@@ -151,3 +151,22 @@ change and its own test, the way #137 did for the YAML reader.
 
 Branch `refonte/p3-3-targeting`, one pull request onto `develop`, squash, body in the
 `Part of #114. Covers P3.3.` form the sisters use. The tracking pull request is #121.
+
+## What replaced this, on 2026-09-11
+
+The screen survived; what drew its overrides did not. The settings a level carries are
+rendered by the P3.6 renderer in its overrides mode, so json-editor and the
+`legacy-settings-form.js` that wrapped it are gone, and with them the property picker
+that never added a setting. The reasoning is in
+[admin-ui-renderer.md](admin-ui-renderer.md#the-targeting-tab-and-the-end-of-json-editor).
+
+The scenario above ran on the beta that day, on Jellyfin 12.0.0, and passed: a group
+created from the screen with one member and a locked override reaches exactly that
+member through `config/resolved`, an outsider gets their own group's value instead, a
+user override wins over their group, and both levels reopen showing what was stored.
+
+The casing gap this document asked about is **not real**. `LanguagePreference` travels
+as JSON through MVC, which keeps the CLR names, and the renderer opens on either
+spelling: the round trip was checked on the beta for a group overriding the default
+audio language. What the same pass did find is written in the renderer document, and
+neither finding was about casing.

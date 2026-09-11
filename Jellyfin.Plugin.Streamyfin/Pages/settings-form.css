@@ -1,0 +1,318 @@
+/* The settings pages' shared stylesheet: the Application tab and the Targeting tab draw
+   the same rows, states and controls, so they share one file. The page keeps the
+   dashboard's own scale and materials: Jellyfin's greys and accent, its rounded grey
+   buttons, its square checkbox, one boxed row per setting. Only two colours are the
+   pages' own: amber for a locked setting and the accent bar for a suggested one. The
+   light set is chosen by the controller from the theme the dashboard actually loaded.
+   Every rule is scoped under .sf-page. */
+.sf-page {
+    --sf-ac: var(--jf-palette-primary-main, #00a4dc);
+    --sf-on-ac: #fff;
+    --sf-card: #1c1c1c;
+    --sf-card-2: #242424;
+    --sf-field: #2c2c2c;
+    --sf-raised: #303030;
+    --sf-line: rgba(255, 255, 255, 0.12);
+    --sf-line-soft: rgba(255, 255, 255, 0.07);
+    --sf-ink: rgba(255, 255, 255, 0.94);
+    --sf-ink-2: rgba(255, 255, 255, 0.72);
+    --sf-ink-3: rgba(255, 255, 255, 0.5);
+    --sf-key: rgba(255, 255, 255, 0.55);
+    --sf-wash: color-mix(in srgb, var(--sf-ac) 16%, transparent);
+    --sf-edge: color-mix(in srgb, var(--sf-ac) 45%, transparent);
+    --sf-glow: 0 0 0 4px color-mix(in srgb, var(--sf-ac) 22%, transparent);
+    --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 22%, transparent), transparent 70%);
+    --sf-pin: #e2a33c;
+    --sf-pin-ink: #241700;
+    --sf-pin-wash: color-mix(in srgb, var(--sf-pin) 12%, transparent);
+    --sf-danger: #e0706a;
+    --sf-dock: rgba(24, 24, 24, 0.94);
+    --sf-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    --sf-r: 0.5em;
+    --sf-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    max-width: none;
+    color: var(--sf-ink-2);
+    line-height: 1.5;
+    container-type: inline-size;
+}
+.sf-page[data-sf-theme="light"] {
+    --sf-ac: #0b7fae;
+    --sf-card: #fff;
+    --sf-card-2: #f7f7f7;
+    --sf-field: #ececec;
+    --sf-raised: #e2e2e2;
+    --sf-line: rgba(0, 0, 0, 0.13);
+    --sf-line-soft: rgba(0, 0, 0, 0.07);
+    --sf-ink: rgba(0, 0, 0, 0.9);
+    --sf-ink-2: rgba(0, 0, 0, 0.68);
+    --sf-ink-3: rgba(0, 0, 0, 0.5);
+    --sf-key: rgba(0, 0, 0, 0.56);
+    --sf-wash: color-mix(in srgb, var(--sf-ac) 10%, transparent);
+    --sf-edge: color-mix(in srgb, var(--sf-ac) 40%, transparent);
+    --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 16%, transparent), transparent 70%);
+    --sf-pin: #a25c00;
+    --sf-pin-ink: #fff;
+    --sf-pin-wash: color-mix(in srgb, var(--sf-pin) 10%, transparent);
+    --sf-dock: rgba(255, 255, 255, 0.94);
+    --sf-shadow: 0 8px 32px rgba(16, 24, 32, 0.18);
+}
+.sf-page *, .sf-page *::before, .sf-page *::after { box-sizing: border-box; }
+.sf-page button, .sf-page input, .sf-page select, .sf-page textarea { font: inherit; }
+
+/* Top row: the name, the version, the two switches and the search. */
+.sf-page .sf-top { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin: 0.4rem 0 1.3rem; }
+.sf-page .sf-top h1 { margin: 0 0.2rem 0 0; font-size: 1.9rem; font-weight: 700; color: var(--sf-ink); letter-spacing: -0.01em; }
+.sf-page .sf-meta { font-size: 0.82rem; color: var(--sf-ink-3); font-family: var(--sf-mono); margin-right: 0.4rem; }
+.sf-page .sf-toggle {
+    display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer;
+    background: var(--sf-raised); border: 0; border-radius: var(--sf-r);
+    padding: 0.7em 1.1em; color: var(--sf-ink); font-size: 0.98rem; font-weight: 600;
+}
+.sf-page .sf-toggle:hover { filter: brightness(1.15); }
+.sf-page .sf-pip {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.18rem 0.55rem;
+    border-radius: 999px; background: var(--sf-ac); color: var(--sf-on-ac);
+}
+.sf-page .sf-toggle[aria-pressed="false"] .sf-pip { background: var(--sf-line); color: var(--sf-ink-3); }
+.sf-page .sf-search { position: relative; margin-left: auto; width: 21rem; max-width: 100%; }
+.sf-page .sf-search svg { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--sf-ink-3); pointer-events: none; }
+.sf-page .sf-find {
+    width: 100%; background: var(--sf-card-2); color: var(--sf-ink); border: 1px solid var(--sf-line);
+    border-radius: 999px; padding: 0.75em 1.1em 0.75em 2.7rem; font-size: 0.98rem;
+}
+.sf-page .sf-find::placeholder { color: var(--sf-ink-3); }
+
+/* One pill per category, one chip per card inside the chosen category. */
+.sf-page .sf-pills { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.sf-page .sf-pill {
+    display: inline-flex; align-items: center; gap: 0.55rem; cursor: pointer; background: var(--sf-card-2);
+    border: 1px solid var(--sf-line); color: var(--sf-ink); border-radius: 999px; padding: 0.7em 1.25em;
+    font-size: 0.98rem; font-weight: 700;
+}
+.sf-page .sf-pill:hover { border-color: var(--sf-edge); }
+.sf-page .sf-pill[aria-current="true"] { background: var(--sf-ac); border-color: var(--sf-ac); color: var(--sf-on-ac); box-shadow: var(--sf-glow); }
+.sf-page .sf-pill svg { width: 18px; height: 18px; flex: none; }
+.sf-page .sf-pill .sf-n, .sf-page .sf-count { font-size: 0.78rem; font-weight: 600; opacity: 0.7; font-family: var(--sf-mono); font-variant-numeric: tabular-nums; }
+.sf-page .sf-pill .sf-set { font-size: 0.74rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--sf-wash); color: var(--sf-ac); }
+.sf-page .sf-pill[aria-current="true"] .sf-set { background: rgba(255, 255, 255, 0.25); color: var(--sf-on-ac); }
+.sf-page .sf-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.sf-page .sf-chip {
+    cursor: pointer; background: transparent; border: 1px solid var(--sf-line); color: var(--sf-ink-3);
+    border-radius: 999px; padding: 0.4em 0.95em; font-size: 0.88rem;
+}
+.sf-page .sf-chip:hover { color: var(--sf-ink); border-color: var(--sf-edge); }
+
+.sf-page .sf-filter { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--sf-raised); }
+.sf-page .sf-filter button {
+    border: 0; background: transparent; cursor: pointer; border-radius: 999px; padding: 0.45em 0.95em;
+    font-size: 0.92rem; font-weight: 600; color: var(--sf-ink-3);
+}
+.sf-page .sf-filter button:hover { color: var(--sf-ink); }
+.sf-page .sf-filter button[aria-pressed="true"] { background: var(--sf-card); color: var(--sf-ink); }
+.sf-page .sf-filter button[aria-pressed="true"][data-filter="locked"] { background: var(--sf-pin); color: var(--sf-pin-ink); }
+
+.sf-page .sf-banner {
+    display: flex; gap: 1rem; align-items: flex-start; background: var(--sf-card); border: 1px solid var(--sf-line);
+    border-left: 4px solid var(--sf-ac); border-radius: var(--sf-r); padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; font-size: 0.98rem;
+}
+.sf-page .sf-banner svg { flex: none; color: var(--sf-ac); margin-top: 0.2rem; width: 20px; height: 20px; }
+.sf-page .sf-banner b { color: var(--sf-ink); }
+.sf-page .sf-banner-close {
+    margin-left: auto; flex: none; align-self: flex-start; cursor: pointer; border: 0; background: none;
+    color: var(--sf-ink-3); font-size: 1.2rem; line-height: 1; padding: 0.1rem 0.4rem; border-radius: 4px;
+}
+.sf-page .sf-banner-close:hover { color: var(--sf-ink); background: var(--sf-line-soft); }
+.sf-page .sf-status { padding: 1rem 0.2rem; color: var(--sf-ink-3); font-size: 1rem; }
+.sf-page .sf-status.is-error { color: var(--sf-danger); }
+
+/* The cards: one per group, in a grid that fills the width the dashboard gives. */
+.sf-page .sf-grid { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fill, minmax(27rem, 1fr)); align-items: start; }
+.sf-page .sf-card { background: var(--sf-card); border: 1px solid var(--sf-line); border-radius: var(--sf-r); overflow: hidden; }
+.sf-page .sf-card--wide { grid-column: 1 / -1; }
+.sf-page .sf-card--wide .sf-body { column-count: 2; column-gap: 1.2rem; }
+.sf-page .sf-card--wide .sf-row { break-inside: avoid; }
+.sf-page .sf-card > header {
+    background: var(--sf-legend); border-bottom: 1px solid var(--sf-line); padding: 0.95rem 1.2rem;
+    display: flex; align-items: center; gap: 0.7rem;
+}
+.sf-page .sf-card > header h2 { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--sf-ink); }
+.sf-page .sf-card > header .sf-count { margin-left: auto; color: var(--sf-ink-3); }
+.sf-page .sf-body { padding: 1rem 1rem 0.4rem; }
+
+/* One boxed row per setting. Its left edge is the state: amber for locked, the
+   accent for suggested, nothing for free. */
+.sf-page .sf-row {
+    background: var(--sf-card-2); border: 1px solid var(--sf-line-soft); border-left: 4px solid transparent;
+    border-radius: 6px; padding: 0.85rem 1rem 0.9rem; margin: 0 0 0.6rem;
+}
+.sf-page .sf-row.is-locked { border-left-color: var(--sf-pin); background: var(--sf-pin-wash); }
+.sf-page .sf-row.is-suggested { border-left-color: var(--sf-ac); }
+.sf-page .sf-row.is-inert { opacity: 0.55; }
+.sf-page .sf-row.is-free [data-control] { opacity: 0.75; }
+.sf-page .sf-head { display: flex; align-items: center; gap: 0.8rem; }
+.sf-page .sf-name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--sf-ink); font-size: 1.02rem; }
+.sf-page .sf-key { display: block; font-style: normal; font-size: 0.76rem; color: var(--sf-key); font-weight: 400; font-family: var(--sf-mono); margin-top: 0.1rem; }
+.sf-page .sf-form.is-keyless .sf-key { display: none; }
+.sf-page .sf-desc { margin: 0.45rem 0 0; font-size: 0.92rem; color: var(--sf-ink-3); }
+.sf-page .sf-desc strong { color: var(--sf-pin); font-weight: 600; }
+.sf-page .sf-form.is-terse .sf-desc { display: none; }
+.sf-page .sf-why { margin: 0.4rem 0 0; font-size: 0.88rem; font-style: italic; color: var(--sf-ink-3); }
+.sf-page .is-inert .sf-why { color: var(--sf-pin); }
+.sf-page .sf-problem { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--sf-danger); }
+.sf-page .sf-foot { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.65rem; flex-wrap: wrap; }
+.sf-page .sf-bounds { font-size: 0.78rem; color: var(--sf-ink-3); font-family: var(--sf-mono); }
+.sf-page .sf-note { font-size: 0.92rem; color: var(--sf-ink-3); }
+.sf-page .sf-note a { color: var(--sf-ac); }
+
+/* Controls, in the dashboard's own shapes: the square checkbox with the accent
+   check, and the flat dark field. */
+.sf-page .sf-check {
+    appearance: none; -webkit-appearance: none; width: 1.55rem; height: 1.55rem; flex: none; cursor: pointer; margin: 0;
+    border: 2px solid var(--sf-ink-3); border-radius: 0.2em; background: transparent; position: relative; transition: background 0.12s, border-color 0.12s;
+}
+.sf-page .sf-check:hover { border-color: var(--sf-ink-2); }
+.sf-page .sf-check:checked { background: var(--sf-ac); border-color: var(--sf-ac); }
+.sf-page .sf-check:checked::after {
+    content: ""; position: absolute; left: 0.42rem; top: 0.12rem; width: 0.42rem; height: 0.85rem;
+    border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+}
+/* No value at all: the dash of an undecided box. */
+.sf-page .sf-check:indeterminate { border-color: var(--sf-ink-3); }
+.sf-page .sf-check:indeterminate::after {
+    content: ""; position: absolute; left: 0.3rem; right: 0.3rem; top: 50%; height: 2.5px; margin-top: -1px;
+    background: var(--sf-ink-3);
+}
+.sf-page .sf-check:disabled { cursor: not-allowed; }
+.sf-page .sf-number, .sf-page .sf-text, .sf-page .sf-select, .sf-page .sf-list {
+    background: var(--sf-field); color: var(--sf-ink); border: 1px solid transparent;
+    border-radius: 0.3em; padding: 0.6em 0.85em; font-size: 0.98rem;
+}
+.sf-page .sf-number:focus, .sf-page .sf-text:focus, .sf-page .sf-select:focus, .sf-page .sf-list:focus { border-color: var(--sf-ac); outline: none; }
+.sf-page .sf-number { width: 8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.sf-page .sf-text { flex: 1 1 12rem; min-width: 0; }
+.sf-page .sf-select { min-width: 9rem; max-width: 100%; }
+.sf-page .sf-list { flex: 1 1 100%; min-height: 4rem; resize: vertical; font-family: var(--sf-mono); font-size: 0.86rem; }
+.sf-page .sf-list::placeholder { color: var(--sf-ink-3); font-family: inherit; }
+.sf-page .sf-number::placeholder, .sf-page .sf-text::placeholder { color: var(--sf-ink-3); font-style: italic; }
+.sf-page .is-invalid [data-control] { border-color: var(--sf-danger); }
+.sf-page .sf-reveal {
+    cursor: pointer; background: var(--sf-raised); border: 0; color: var(--sf-ink);
+    border-radius: 0.3em; padding: 0.6em 0.9em; font-size: 0.9rem; font-weight: 600;
+}
+
+/* The three states, as one segmented control per row. Only the pressed segment
+   carries a fill; the other two are quiet text until the pointer is over the row. */
+.sf-page .sf-state { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid transparent; border-radius: 999px; flex: none; transition: border-color 0.15s; }
+.sf-page .sf-row:hover .sf-state, .sf-page .sf-state:focus-within { border-color: var(--sf-line); }
+.sf-page .sf-state button {
+    border: 0; background: transparent; cursor: pointer; font-size: 0.78rem; font-weight: 700;
+    padding: 0.3rem 0.7rem; color: var(--sf-ink-3); line-height: 1.4; border-radius: 999px;
+}
+.sf-page .sf-state button:hover:not(:disabled) { color: var(--sf-ink); background: var(--sf-line-soft); }
+.sf-page .sf-state button:disabled { cursor: not-allowed; opacity: 0.5; }
+.sf-page .sf-state button[aria-pressed="true"] { background: var(--sf-raised); color: var(--sf-ink); }
+.sf-page .sf-state button[aria-pressed="true"][data-state="suggested"] { background: var(--sf-ac); color: var(--sf-on-ac); }
+.sf-page .sf-state button[aria-pressed="true"][data-state="locked"] { background: var(--sf-pin); color: var(--sf-pin-ink); }
+
+/* The save dock stays in view at the bottom from the first edit on. */
+.sf-page .sf-dock {
+    position: sticky; bottom: 1.4rem; z-index: 5; width: max-content; max-width: 100%; margin: 1.6rem auto 0;
+    display: flex; align-items: center; gap: 0.9rem; background: var(--sf-dock);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid var(--sf-line); border-radius: 999px; padding: 0.55rem 0.6rem 0.55rem 1.3rem; box-shadow: var(--sf-shadow);
+}
+.sf-page .sf-dock-text { font-size: 0.95rem; color: var(--sf-ink-2); font-variant-numeric: tabular-nums; }
+.sf-page .sf-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sf-pin); display: inline-block; margin-right: 0.5rem; }
+.sf-page .sf-btn {
+    cursor: pointer; border: 0; background: var(--sf-raised); color: var(--sf-ink);
+    border-radius: 999px; padding: 0.65em 1.2em; font-size: 0.98rem; font-weight: 600;
+}
+.sf-page .sf-btn--primary { display: inline-flex; align-items: center; gap: 0.55rem; background: var(--sf-ac); color: var(--sf-on-ac); font-weight: 700; padding: 0.65em 1.5em; }
+.sf-page .sf-btn--primary svg { width: 18px; height: 18px; }
+.sf-page .sf-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* An override row, on the Targeting tab. The drop button is what "free" is on the
+   Application tab: a level carries a setting or it does not appear at all. */
+.sf-page .sf-drop {
+    flex: none; cursor: pointer; border: 0; background: none; color: var(--sf-ink-3);
+    font-size: 1.15rem; line-height: 1; padding: 0.15rem 0.45rem; border-radius: 4px;
+}
+.sf-page .sf-drop:hover { color: var(--sf-pin); background: var(--sf-pin-wash); }
+.sf-page .sf-from { margin: 0.4rem 0 0; font-size: 0.8rem; color: var(--sf-ink-3); font-family: var(--sf-mono); }
+
+/* "Applies to": the levels a setting is resolved through, left to right, the way the
+   server resolves them. The bar is the Targeting tab's whole navigation. */
+.sf-page .sf-scope {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.2rem;
+    padding: 0.7rem 0.9rem; background: var(--sf-card); border: 1px solid var(--sf-line); border-radius: var(--sf-r);
+}
+.sf-page .sf-scope-label { font-size: 0.78rem; font-weight: 700; color: var(--sf-ink-3); margin-right: 0.2rem; }
+.sf-page .sf-arrow { color: var(--sf-ink-3); font-size: 0.95rem; }
+.sf-page .sf-lv {
+    display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; background: var(--sf-card-2);
+    border: 1px solid var(--sf-line); color: var(--sf-ink); border-radius: 999px; padding: 0.5em 1em;
+    font-size: 0.94rem; font-weight: 600;
+}
+.sf-page .sf-lv:hover { border-color: var(--sf-edge); }
+.sf-page .sf-lv[aria-current="true"] { background: var(--sf-ac); border-color: var(--sf-ac); color: var(--sf-on-ac); box-shadow: var(--sf-glow); }
+.sf-page .sf-lv .sf-n { font-size: 0.76rem; font-weight: 600; opacity: 0.75; font-family: var(--sf-mono); font-variant-numeric: tabular-nums; }
+.sf-page .sf-lv--add { border-style: dashed; color: var(--sf-ac); border-color: var(--sf-edge); background: transparent; }
+.sf-page .sf-lv--user { padding: 0.2em 0.3em 0.2em 1em; gap: 0.4rem; }
+.sf-page .sf-lv--user select { background: var(--sf-field); color: var(--sf-ink); border: 0; border-radius: 999px; padding: 0.4em 0.7em; font-size: 0.88rem; max-width: 11rem; }
+
+/* A level lists its overrides one after another rather than as a grid of cards: each
+   row already carries a name, a value and what it falls through to. */
+.sf-page .sf-grid--one { grid-template-columns: 1fr; }
+.sf-page .sf-form.is-overrides .sf-grid { grid-template-columns: 1fr; gap: 0; }
+.sf-page .sf-form.is-overrides .sf-card { background: transparent; border: 0; }
+.sf-page .sf-form.is-overrides .sf-body { padding: 0; }
+
+/* The level's own fields: a group's name, priority and members. */
+.sf-page .sf-level { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.sf-page .sf-level label { font-size: 0.86rem; color: var(--sf-ink-3); display: inline-flex; align-items: center; gap: 0.45rem; }
+
+/* Forty eight users is a wall, so the members stay folded until they are the question. */
+.sf-page .sf-people { margin-top: 0.9rem; }
+.sf-page .sf-people > summary {
+    cursor: pointer; list-style-position: outside; padding: 0.5em 0; font-size: 0.94rem;
+    font-weight: 600; color: var(--sf-ink);
+}
+.sf-page .sf-people > summary::marker { color: var(--sf-ink-3); }
+.sf-page .sf-member-find { display: block; width: 100%; margin: 0.3rem 0 0.6rem; }
+.sf-page .sf-members { display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 14rem; overflow-y: auto; }
+.sf-page .sf-member {
+    display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.4em 0.85em;
+    background: var(--sf-card-2); border: 1px solid var(--sf-line-soft); border-radius: 999px; font-size: 0.9rem;
+}
+.sf-page .sf-member:hover { border-color: var(--sf-edge); }
+.sf-page .sf-member.is-in { background: var(--sf-wash); border-color: var(--sf-edge); color: var(--sf-ink); }
+.sf-page .sf-member input { position: absolute; opacity: 0; pointer-events: none; }
+/* The checkbox is the focusable thing and it is invisible, so the chip around it wears
+   the ring. focus-within rather than :has(), which Jellyfin's older clients may not read. */
+.sf-page .sf-member:focus-within { outline: 2px solid var(--sf-ac); outline-offset: 2px; }
+
+/* Adding an override: pick a setting, add it. The list is what this level does not
+   already carry, which is why there is no modal and nothing to hunt for. */
+.sf-page .sf-adder {
+    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.9rem 0 0.2rem;
+    padding: 0.85rem 1rem; background: var(--sf-card-2); border: 1px dashed var(--sf-edge); border-radius: 6px;
+}
+.sf-page .sf-adder select { flex: 1 1 16rem; min-width: 0; }
+.sf-page .sf-blank { padding: 1.4rem 0.2rem 0.6rem; }
+.sf-page .sf-blank b { display: block; color: var(--sf-ink); font-size: 1.02rem; margin-bottom: 0.3rem; }
+.sf-page .sf-blank p { margin: 0; font-size: 0.92rem; color: var(--sf-ink-3); max-width: 52ch; }
+.sf-page .sf-danger {
+    cursor: pointer; background: transparent; border: 1px solid var(--sf-line); color: var(--sf-danger);
+    border-radius: 999px; padding: 0.55em 1.1em; font-size: 0.92rem; font-weight: 600;
+}
+.sf-page .sf-danger:hover { border-color: var(--sf-danger); }
+
+.sf-page :is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--sf-ac); outline-offset: 2px; }
+.sf-page [hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .sf-page * { transition: none !important; } }
+@container (max-width: 52em) {
+    .sf-page .sf-grid { grid-template-columns: 1fr; }
+    .sf-page .sf-card--wide .sf-body { column-count: 1; }
+    .sf-page .sf-search { margin-left: 0; width: 100%; }
+}

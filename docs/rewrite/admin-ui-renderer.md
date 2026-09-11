@@ -230,10 +230,6 @@ before the merge. Four things, each fixed in the same branch:
 
 ## What is deferred
 
-- **The Targeting tab on this renderer**, with the mockup's "Applies to" bar to
-  switch between the server, a group and one user, and the override list in the
-  shape of Jellyfin Enhanced's Keyboard tab. When it lands, json-editor, the schema
-  reshaping in `SerializationHelper` and the tests that pin it all go.
 - **A `Test` button beside an integration's URL** needs the server side probe P6.2
   plans. A button that does nothing is worse than none.
 - **An Overview tab** needs the health P6.3 exposes.
@@ -244,6 +240,87 @@ before the merge. Four things, each fixed in the same branch:
   per line. The server has the list; the form does not ask for it yet.
 - **The home layout and the library options**, which are `Composite` and edited on
   the Yaml tab until P3.2.
+
+## The Targeting tab, and the end of json-editor
+
+The tab a level is edited on runs on this renderer too, in an **overrides mode**. The
+two modes differ in what the question is:
+
+| | Application | Targeting |
+|---|---|---|
+| The question | what does this server default to | what does this level change |
+| What is listed | every declared setting, in its category and group | only the settings the level overrides, as one list |
+| The states offered | Free, Suggested, Locked | Suggested and Locked |
+| Leaving a setting alone | *Free* | the row is not there; the drop button puts it back |
+| What a save writes | every setting that is not free | the level's overrides, and nothing else |
+
+A level has no *Free* because free is the absence of the row: a group carries the
+settings it means to change, and the way to stop changing one is to drop it. That is
+the same contract P3.3 relied on json-editor's property picker to express, except
+that picker never actually added a setting, so an override could be read and edited
+and never created. Adding one is now a select and a button, the shape the audit took
+from Jellyfin Enhanced's Keyboard tab.
+
+**Each override says what it falls through to**, *everyone gets 15*, read for a
+person: a choice by its label, a toggle as on or off, a list as its items, and *the
+app's default* where the level above declares nothing. For a group that is the
+server; for one user it is every group they belong to, applied in ascending priority,
+which is the rule the server resolves by. `inherited` and `groupsFor` are the two
+pure functions that say so, and they are tested.
+
+The page is the mockup's **"Applies to"** bar and nothing else: Everyone, which links
+to the Application tab, then the groups, then one user. A group's own fields sit above
+its overrides, with its members folded behind a count and a filter, because a server
+with forty eight users draws a wall otherwise.
+
+With the Targeting tab moved, **json-editor is gone**: the 535 KB library, the
+`legacy-settings-form.js` that wrapped it, the four schema reshapings in
+`SerializationHelper` that existed only to accommodate it, and the five tests that
+pinned those workarounds. The served schema is now the generated one, plus the two
+markers that describe the configuration rather than a form, `x-secret` and
+`x-category`. The plugin's assembly is 516 KB smaller.
+
+![A group on the Targeting tab: the "Applies to" bar, the group's own fields with its members folded, and the four settings it overrides, each saying what it falls through to](images/admin-targeting-group.png)
+
+![The same tab in the dashboard's light theme](images/admin-targeting-light.png)
+
+![A new group, with nothing overridden yet and the picker that adds the first one](images/admin-targeting-new.png)
+
+## What the beta found
+
+Two defects that only a real server could show, both fixed here:
+
+- **A level that set the playback quality to Max lost every setting it carried.** Max
+  is a null, Jellyfin's JSON options omit a null when writing, so the stored document
+  lost the `value` key; reading it back tripped the required `value` on `Lockable<T>`
+  and threw, the tolerant read answered null, and the level came back empty. The group
+  looked saved until the page was reopened, and its members got nothing. An absent
+  value now means null, which is what omitting it meant.
+- **The same null was refused by the form.** The "no cap" choice arrives with no
+  `value` key at all, so compared strictly against null it looked absent and Max was
+  held invalid with *Choose a value*. That one reached the Application tab too. The
+  test fixtures had spelled the option out as `{ value: null }`, a shape the server
+  never sends; they carry the wire shape now.
+
+## What the review of this branch found
+
+Five more, each fixed with the change that caused it:
+
+- **A level's list did not follow a discard.** Restoring the states put an override back
+  without putting its row back, so a dropped setting stayed out of sight and one added
+  since the load stayed in it.
+- **The member chip could not show focus.** Its checkbox is the focusable thing and it is
+  invisible, so the outline landed on nothing. The chip wears it, through
+  `:focus-within` rather than `:has()`, which older clients may not read.
+- **A user level still showed the group's member count.** Only the list inside the
+  disclosure was hidden, not the disclosure.
+- **The Descriptions switch was drawn and never wired.** It reads and writes the same
+  remembered choice as the Application tab: an administrator who turned the help text
+  off did so for the settings, not for one tab.
+- **A showing read the wrong abort flag.** Every `viewshow` replaces the controller, so a
+  run still awaiting its imports asked whichever one was current by then rather than the
+  one it started with, and an abandoned run could draw over the new one. Each showing
+  keeps its own.
 
 ## Delivery
 

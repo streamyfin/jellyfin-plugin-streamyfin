@@ -280,12 +280,6 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
         yield return new PluginPageInfo
         {
-            Name = "json-editor.js",
-            EmbeddedResourcePath = _prefix + ".Pages.Libraries.json-editor.min.js"
-        };
-
-        yield return new PluginPageInfo
-        {
             Name = "js-yaml.js",
             EmbeddedResourcePath = _prefix + ".Pages.Libraries.js-yaml.min.js"
         };
@@ -296,18 +290,18 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             EmbeddedResourcePath = _prefix + ".Pages.shared.js"
         };
 
-        // The settings form, drawn by the plugin itself. The Application page runs on it;
-        // the Targeting page still runs on the json-editor one below until it moves.
+        // The settings form, drawn by the plugin itself. Both settings pages run on it.
         yield return new PluginPageInfo
         {
             Name = "settings-form.js",
             EmbeddedResourcePath = _prefix + ".Pages.settings-form.js"
         };
 
+        // Shared by the Application and Targeting pages, which draw the same rows.
         yield return new PluginPageInfo
         {
-            Name = "legacy-settings-form.js",
-            EmbeddedResourcePath = _prefix + ".Pages.legacy-settings-form.js"
+            Name = "settings-form.css",
+            EmbeddedResourcePath = _prefix + ".Pages.settings-form.css"
         };
         // endregion libraries
     }
