@@ -34,17 +34,32 @@ public class NotificationHelper
     private readonly SerializationHelper _serializationHelper;
     private readonly IUserManager? _userManager;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ExpoRetry _retry;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NotificationHelper"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">Where the sends are reported.</param>
+    /// <param name="userManager">Jellyfin's users, for the admin recipients.</param>
+    /// <param name="serializationHelper">The plugin's serializer.</param>
+    /// <param name="httpClientFactory">The factory holding the configured Expo client.</param>
+    /// <param name="retry">
+    /// When a refused request is worth making again. Defaults to
+    /// <see cref="ExpoRetry.Default"/>; a test passes <see cref="ExpoRetry.Immediate"/>
+    /// rather than sleeping through its own retries.
+    /// </param>
     public NotificationHelper(
         ILoggerFactory? loggerFactory,
         IUserManager? userManager,
         SerializationHelper serializationHelper,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ExpoRetry? retry = null)
     {
         _logger = loggerFactory?.CreateLogger<NotificationHelper>();
         _userManager = userManager;
         _serializationHelper = serializationHelper;
         _httpClientFactory = httpClientFactory;
+        _retry = retry ?? ExpoRetry.Default;
     }
 
     /// <summary>
@@ -156,24 +171,69 @@ public class NotificationHelper
         return await Send(expoNotifications).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Sends messages to the devices they name, in as many requests as Expo needs.
+    /// </summary>
+    /// <param name="notifications">The messages, each already addressed.</param>
+    /// <returns>
+    /// Every ticket Expo handed back, in the order the recipients went out, or null when
+    /// no request was answered at all.
+    /// </returns>
+    /// <remarks>
+    /// Expo takes a hundred recipients per request and refuses a body past that, whole.
+    /// A server with more devices than that had its library notifications refused
+    /// entirely, so nobody was told rather than everybody.
+    ///
+    /// <para>
+    /// Each batch is reconciled against its own recipients rather than all of them at
+    /// the end. A refused batch then costs only its own devices their pruning, instead
+    /// of shifting every later ticket by one position and making the counts disagree,
+    /// which <see cref="ExpoTickets.Reconcile"/> answers by doing nothing at all.
+    /// </para>
+    /// </remarks>
     public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications)
     {
         ArgumentNullException.ThrowIfNull(notifications);
 
-        // The order Expo answers in. One ticket comes back per recipient, and that
-        // position is the only thing tying an error ticket to the device it came from.
-        var recipients = notifications.SelectMany(notification => notification.To).ToList();
+        var batches = ExpoBatching.Chunk(notifications);
 
-        // No token to pass: a send happens inside a synchronous Jellyfin event handler,
-        // which has none to give. The client timeout is what bounds it.
-        var response = await PostToExpo<ExpoNotificationResponse>(
-            SendUri,
-            _serializationHelper.ToJson(notifications),
-            CancellationToken.None).ConfigureAwait(false);
+        if (batches.Count > 1)
+        {
+            _logger?.LogInformation(
+                "Sending to {Recipients} device(s) in {Batches} requests, since Expo takes {Limit} at a time",
+                batches.Sum(batch => batch.Sum(notification => notification.To.Count)),
+                batches.Count,
+                ExpoBatching.MaxRecipientsPerRequest);
+        }
 
-        PruneAndQueue(recipients, response);
+        var tickets = new List<TicketStatus>();
+        var answered = false;
 
-        return response;
+        foreach (var batch in batches)
+        {
+            // The order Expo answers in. One ticket comes back per recipient, and that
+            // position is the only thing tying an error ticket to the device it came from.
+            var recipients = batch.SelectMany(notification => notification.To).ToList();
+
+            // No token to pass: a send happens inside a synchronous Jellyfin event handler,
+            // which has none to give. The client timeout is what bounds it.
+            var response = await PostToExpo<ExpoNotificationResponse>(
+                SendUri,
+                _serializationHelper.ToJson(batch),
+                CancellationToken.None).ConfigureAwait(false);
+
+            PruneAndQueue(recipients, response);
+
+            if (response is null)
+            {
+                continue;
+            }
+
+            answered = true;
+            tickets.AddRange(response.Data);
+        }
+
+        return answered ? new ExpoNotificationResponse { Data = tickets } : null;
     }
 
     /// <summary>
@@ -255,32 +315,50 @@ public class NotificationHelper
     {
         _logger?.LogDebug("Preparing to call {Uri}", uri);
 
-        // From the factory, never a new HttpClient per send: one built inline gets its own
-        // connection pool every time and carries the default hundred second timeout, inside
-        // an event handler that Jellyfin is waiting on.
-        var client = _httpClientFactory.CreateClient(ExpoClientName);
-        using var httpRequest = GetHttpRequestMessage(uri, serializedRequest);
-        using var rawResponse = await client.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
-
-        // Expo answers 429 when it is being asked too often, and the body is then not a
-        // ticket list. Read as one anyway it yields a response with no tickets, which every
-        // caller reads as a delivery that simply had nothing to report.
-        if (!rawResponse.IsSuccessStatusCode)
+        for (var tried = 1; ; tried++)
         {
+            // From the factory, never a new HttpClient per send: one built inline gets its own
+            // connection pool every time and carries the default hundred second timeout, inside
+            // an event handler that Jellyfin is waiting on.
+            var client = _httpClientFactory.CreateClient(ExpoClientName);
+            using var httpRequest = GetHttpRequestMessage(uri, serializedRequest);
+            using var rawResponse = await client.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
+
+            // Expo answers 429 when it is being asked too often, and the body is then not a
+            // ticket list. Read as one anyway it yields a response with no tickets, which every
+            // caller reads as a delivery that simply had nothing to report.
+            if (rawResponse.IsSuccessStatusCode)
+            {
+                _logger?.LogDebug("Received response");
+
+                return await rawResponse.Content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
+            }
+
             var body = await rawResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var shown = body.Length > 500 ? body[..500] : body;
+            var wait = _retry.Wait(rawResponse.StatusCode, rawResponse.Headers.RetryAfter, tried, DateTimeOffset.UtcNow);
 
-            _logger?.LogError(
-                "Expo refused the request to {Uri} with {Status}: {Body}",
-                uri,
+            if (wait is null)
+            {
+                _logger?.LogError(
+                    "Expo refused the request to {Uri} with {Status} after {Tries} tr(ies): {Body}",
+                    uri,
+                    (int)rawResponse.StatusCode,
+                    tried,
+                    shown);
+
+                return null;
+            }
+
+            _logger?.LogWarning(
+                "Expo answered {Status} for {Uri}, trying again in {Wait}: {Body}",
                 (int)rawResponse.StatusCode,
-                body.Length > 500 ? body[..500] : body);
+                uri,
+                wait.Value,
+                shown);
 
-            return null;
+            await Task.Delay(wait.Value, cancellationToken).ConfigureAwait(false);
         }
-
-        _logger?.LogDebug("Received response");
-
-        return await rawResponse.Content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
     }
 
     private static HttpRequestMessage GetHttpRequestMessage(string uri, string content) => new()

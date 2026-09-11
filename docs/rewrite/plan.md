@@ -210,6 +210,15 @@ proved otherwise, which is written down rather than quietly corrected: the ticke
 is the cheaper of the two, since it arrives with the send and needs nothing
 stored, and it was in the response the whole time behind a field typed `object`.
 
+P4.3 turned out to be two separate holes rather than one. Expo takes a hundred
+recipients per request, counted across the whole body, and the plugin sent every
+device on the server in one: a library addition on a server with more than a
+hundred registered devices was refused whole, so nobody was notified rather than
+everybody. And a 429, which Expo answers past six hundred notifications a second
+for a project, was read as a delivery with nothing to report, so the notification
+was lost with a line in a log nobody reads. A library adding fifty episodes at
+once is the shape that reaches both.
+
 P4.4 absorbs #29, #34 and #30, and each needs an explicit decision rather than an
 open ended promise. See [issue-triage.md](issue-triage.md).
 
@@ -292,6 +301,7 @@ Everything merged below is on `develop`, which reaches `main` through
 | P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), and the Targeting tab on this branch | merged, then this |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
+| P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | this |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged, then this |
 
