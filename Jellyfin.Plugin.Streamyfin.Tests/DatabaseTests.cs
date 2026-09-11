@@ -52,6 +52,36 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// Two registrations of the same device at the same time both succeed and leave
+    /// one row.
+    /// </summary>
+    /// <remarks>
+    /// The app posts its push token twice on sign in. With a lookup followed by an
+    /// insert, the second post found nothing, inserted, and failed on the primary key
+    /// with a 500 while the first was still saving. Seen on the beta on 2026-09-11.
+    /// The write is one statement now, so there is no window between the two.
+    /// </remarks>
+    [Fact]
+    public void TwoRegistrationsOfTheSameDeviceAtOnceBothSucceed()
+    {
+        var deviceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        for (var round = 0; round < 30; round++)
+        {
+            System.Threading.Tasks.Parallel.Invoke(
+                () => _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "left", UserId = userId }),
+                () => _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "right", UserId = userId }));
+        }
+
+        var stored = _db.GetDeviceTokenForDeviceId(deviceId);
+
+        Assert.NotNull(stored);
+        Assert.Contains(stored.Token, new[] { "left", "right" });
+        Assert.Equal(1, _db.TotalDevicesCount());
+    }
+
+    /// <summary>
     /// The timestamp is written by the store, not by the caller.
     /// </summary>
     [Fact]
