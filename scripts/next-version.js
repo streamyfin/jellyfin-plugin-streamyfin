@@ -57,18 +57,24 @@ function applyBump([major, minor, patch], bump) {
 // the wrong one when a release is a decision: the rewrite is a minor bump by the rule
 // and a bigger number by intent, and there is no commit subject that says 0.70 without
 // also claiming a breaking change.
-const explicit = (process.env.RELEASE_VERSION || '').trim();
-if (explicit) {
+function chosen() {
+  const explicit = (process.env.RELEASE_VERSION || '').trim();
+  if (!explicit) return null;
   if (!VERSION_TAG_RE.test(explicit)) {
     throw new Error(`RELEASE_VERSION is not a version: ${explicit}`);
   }
-  process.stdout.write(parseVersion(explicit).join('.') + '\n');
-  process.exit(0);
+  return parseVersion(explicit);
 }
 
-const tag = lastVersionTag();
-const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
-const next = applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
+function computed() {
+  const tag = lastVersionTag();
+  const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
+  return applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
+}
+
+// One write and one exit path, and no process.exit: on a pipe, which is how the release
+// workflow reads this, exiting can cut a write that has not flushed.
+const next = chosen() ?? computed();
 
 if (next.some((n) => !Number.isInteger(n) || n < 0)) {
   throw new Error(`Computed invalid version: ${next.join('.')}`);
