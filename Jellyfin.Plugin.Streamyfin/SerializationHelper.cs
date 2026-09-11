@@ -43,6 +43,10 @@ public class SerializationHelper
         
         _deserializer = new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            // Reading only. A setting declaring [AlsoKnownAs] answers to that spelling as
+            // well, which is how seerrServerUrl stopped being ignored in silence, and the
+            // document still comes back written under one name per setting.
+            .WithTypeInspector(inner => new AliasingTypeInspector(inner))
             .Build();
 
         _jsonSerializer = NewtonsoftJsonSerializer.CreateDefault();
