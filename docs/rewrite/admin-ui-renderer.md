@@ -302,6 +302,26 @@ Two defects that only a real server could show, both fixed here:
   test fixtures had spelled the option out as `{ value: null }`, a shape the server
   never sends; they carry the wire shape now.
 
+## What the review of this branch found
+
+Five more, each fixed with the change that caused it:
+
+- **A level's list did not follow a discard.** Restoring the states put an override back
+  without putting its row back, so a dropped setting stayed out of sight and one added
+  since the load stayed in it.
+- **The member chip could not show focus.** Its checkbox is the focusable thing and it is
+  invisible, so the outline landed on nothing. The chip wears it, through
+  `:focus-within` rather than `:has()`, which older clients may not read.
+- **A user level still showed the group's member count.** Only the list inside the
+  disclosure was hidden, not the disclosure.
+- **The Descriptions switch was drawn and never wired.** It reads and writes the same
+  remembered choice as the Application tab: an administrator who turned the help text
+  off did so for the settings, not for one tab.
+- **A showing read the wrong abort flag.** Every `viewshow` replaces the controller, so a
+  run still awaiting its imports asked whichever one was current by then rather than the
+  one it started with, and an abandoned run could draw over the new one. Each showing
+  keeps its own.
+
 ## Delivery
 
 Branch `refonte/p3-6-renderer`, stacked on `refonte/p3-6-form-descriptor`, one pull

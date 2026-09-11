@@ -696,6 +696,24 @@ describe("overrides mode", () => {
         expect(candidates.map((c) => c.key)).not.toContain("home");
     });
 
+    // Discard restores the states, and the list has to follow them: an override added
+    // since the load goes back out of sight, a dropped one comes back.
+    test("discarding puts the list back in step with what was loaded", () => {
+        const { mount, form } = mountLevel({ forwardSkipTime: { value: 45, locked: true } });
+
+        form.set("enableDoubleTapToSeek", "suggested");
+        row(mount, "forwardSkipTime").querySelector(".sf-drop").click();
+        expect(row(mount, "enableDoubleTapToSeek").hidden).toBe(false);
+        expect(row(mount, "forwardSkipTime").hidden).toBe(true);
+
+        form.reset();
+
+        expect(row(mount, "enableDoubleTapToSeek").hidden).toBe(true);
+        expect(row(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(form.overridden()).toEqual(["forwardSkipTime"]);
+        expect(form.dirtyCount()).toBe(0);
+    });
+
     test("a level saves exactly its overrides, and a setting it cannot draw passes through", () => {
         const { form } = mountLevel({ forwardSkipTime: { value: 45, locked: true }, somethingNewer: { value: 1, locked: false } });
         form.set("enableDoubleTapToSeek", "suggested");

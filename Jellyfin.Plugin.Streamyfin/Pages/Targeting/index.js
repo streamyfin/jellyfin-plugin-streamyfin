@@ -32,6 +32,14 @@ const readTerse = () => {
     }
 };
 
+const writeTerse = (terse) => {
+    try {
+        window.localStorage.setItem(TERSE_KEY, terse ? "off" : "on");
+    } catch {
+        // A dashboard that blocks storage just forgets the choice.
+    }
+};
+
 // Deleting a group takes everyone's membership of it with it, so it asks first. Older
 // dashboards reject a cancelled confirmation rather than resolving false, and a rejection
 // here would be reported as a failed delete, so both shapes answer false.
@@ -211,6 +219,24 @@ export default function (view) {
         return changed;
     };
 
+    // The same switch as the Application tab, sharing its remembered choice: an
+    // administrator who turned the help text off did so for the settings, not for a tab.
+    const wireTerse = () => {
+        const toggle = el("sf-terse");
+        const show = (on) => {
+            toggle.setAttribute("aria-pressed", String(on));
+            toggle.querySelector(".sf-pip").textContent = on ? "ON" : "OFF";
+            form.setTerse(!on);
+        };
+
+        show(!readTerse());
+        listen("sf-terse", "click", () => {
+            const on = toggle.getAttribute("aria-pressed") !== "true";
+            writeTerse(!on);
+            show(on);
+        });
+    };
+
     const draw = (values) => {
         form?.destroy();
         form = renderer.createForm(el("sf-editor"), {
@@ -223,6 +249,7 @@ export default function (view) {
         });
         form.onChange(updateDock);
         el("sf-find").value = "";
+        el("sf-terse").setAttribute("aria-pressed", String(!readTerse()));
         updateDock();
     };
 
@@ -231,7 +258,7 @@ export default function (view) {
         el("sf-level-title").textContent = group.id ? group.name : "New group";
         el("sf-group-fields").hidden = false;
         el("sf-level-help").hidden = false;
-        el("sf-members").hidden = false;
+        el("sf-people").hidden = false;
         el("sf-delete").hidden = !group.id;
         el("sf-group-name").value = group.name ?? "";
         el("sf-group-priority").value = group.priority ?? 0;
@@ -251,7 +278,7 @@ export default function (view) {
         el("sf-level-title").textContent = user?.Name ?? "This user";
         el("sf-group-fields").hidden = true;
         el("sf-level-help").hidden = true;
-        el("sf-members").hidden = true;
+        el("sf-people").hidden = true;
         el("sf-delete").hidden = false;
         draw(stored?.settings ?? {});
         markCurrent();
@@ -364,6 +391,7 @@ export default function (view) {
             if (key) form.set(key, "suggested");
         });
         listen("sf-find", "input", (event) => form.search(event.target.value));
+        wireTerse();
         listen("sf-member-find", "input", (event) => filterMembers(event.target.value));
         listen("sf-save", "click", commit(save));
         listen("sf-delete", "click", commit(remove));
@@ -380,7 +408,11 @@ export default function (view) {
 
     view.addEventListener("viewshow", () => {
         showing?.abort();
-        showing = new AbortController();
+        // This showing's own controller. `showing` is replaced by the next one, so a run
+        // that is still awaiting its imports has to ask the controller it started with
+        // whether it was abandoned, not whichever one is current by then.
+        const mine = new AbortController();
+        showing = mine;
 
         const failed = (error) => {
             console.error(error);
@@ -388,11 +420,12 @@ export default function (view) {
         };
 
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (loaded) => {
-            shared = loaded;
-            shared.setPage("Targeting");
             renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
 
-            if (showing.signal.aborted) return;
+            if (mine.signal.aborted) return;
+
+            shared = loaded;
+            shared.setPage("Targeting");
 
             try {
                 await load(loaded);

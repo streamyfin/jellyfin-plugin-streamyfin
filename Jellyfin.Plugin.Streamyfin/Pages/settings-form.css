@@ -288,6 +288,9 @@
 .sf-page .sf-member:hover { border-color: var(--sf-edge); }
 .sf-page .sf-member.is-in { background: var(--sf-wash); border-color: var(--sf-edge); color: var(--sf-ink); }
 .sf-page .sf-member input { position: absolute; opacity: 0; pointer-events: none; }
+/* The checkbox is the focusable thing and it is invisible, so the chip around it wears
+   the ring. focus-within rather than :has(), which Jellyfin's older clients may not read. */
+.sf-page .sf-member:focus-within { outline: 2px solid var(--sf-ac); outline-offset: 2px; }
 
 /* Adding an override: pick a setting, add it. The list is what this level does not
    already carry, which is why there is no modal and nothing to hunt for. */

@@ -648,6 +648,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 row.value = "value" in parsed ? parsed.value : undefined;
             }
             for (const row of rows.values()) refreshRow(row);
+            // A level lists the rows it overrides, so restoring the states has to put the
+            // list back in step: an override added since the load goes, a dropped one
+            // comes back.
+            if (overridesOnly) applyVisibility();
             notify();
         },
         markSaved: () => {
