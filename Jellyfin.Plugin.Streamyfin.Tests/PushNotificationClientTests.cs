@@ -93,6 +93,31 @@ public class PushNotificationClientTests
     }
 
     /// <summary>
+    /// What Expo says about a request survives being one batch of several.
+    /// </summary>
+    /// <remarks>
+    /// The notifications route hands this response straight back, so an error dropped
+    /// while the batches were combined is an error the caller never sees.
+    /// </remarks>
+    [Fact]
+    public async Task ErrorsSurviveBeingCombined()
+    {
+        var handler = new StubHandler(
+            HttpStatusCode.OK,
+            """{"data":[],"errors":[{"code":"PUSH_TOO_MANY_EXPERIENCE_IDS","message":"too many"}]}""");
+
+        var response = await HelperFor(handler).Send(new ExpoNotificationRequest
+        {
+            Title = "A title",
+            To = [.. Enumerable.Range(0, 150).Select(i => $"ExponentPushToken[{i}]")]
+        });
+
+        Assert.Equal(2, handler.Calls);
+        Assert.Equal(2, response!.Errors.Count);
+        Assert.Equal("PUSH_TOO_MANY_EXPERIENCE_IDS", response.Errors[0].Code);
+    }
+
+    /// <summary>
     /// A refusal that cannot pass is not made again.
     /// </summary>
     /// <remarks>
