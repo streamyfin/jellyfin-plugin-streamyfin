@@ -8,6 +8,43 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-12
+
+### P3.5, and the fifteen megabytes that are not what they looked like
+
+The question was whether to keep serving the admin pages as resources embedded in
+the DLL, or to move to `jellyfin-plugin-pages` and File Transformation the way
+`jellyfin-plugin-custom-tabs` does. The reason to consider moving was size: the
+DLL is fifteen megabytes and the pages were assumed to be why.
+
+They are not. Measured:
+
+| | |
+|---|---|
+| The pages this plugin wrote | 168 KB |
+| Monaco, vendored for the Yaml tab | 11 MB |
+| Its three web workers | 3.8 MB |
+
+So the mechanism costs 168 KB and the choice of editor costs 14.8 MB. Moving to
+File Transformation would move the 168 KB and leave the rest exactly where it is,
+which answers the question: **the pages stay embedded.**
+
+What that keeps is worth saying. `IHasWebPages` is Jellyfin's own interface,
+supported on both lines this plugin targets, and it needs nothing installed
+beside it. File Transformation is a third party plugin an administrator would
+have to install first, and reaching it means reflection across
+`AssemblyLoadContext` boundaries, since every plugin loads into its own. That is
+a real dependency and a real fragility to take on, and the thing it was supposed
+to buy is not there.
+
+**The size is a separate question, and it is Monaco.** A code editor with a
+language server, three web workers and completion, shipped so an administrator
+can edit the one part of the configuration the form does not draw: the home
+sections. Once P3.2 gives those an editor of their own, the Yaml tab is a
+fallback, and fifteen megabytes for a fallback is the wrong shape. Worth
+revisiting then rather than now, and worth measuring against CodeMirror, which
+does the same job for about 200 KB.
+
 ## 2026-09-11, later
 
 ### The repository catches up with its siblings
