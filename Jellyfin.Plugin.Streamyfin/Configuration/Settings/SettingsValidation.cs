@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using Jellyfin.Plugin.Streamyfin.Integrations;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
@@ -15,6 +16,13 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// typed, and the targeting routes take a JSON body from anything holding an API key.
 /// A skip time of 600 was accepted by all three, reached the app, and made a button
 /// jump ten minutes.
+///
+/// <para>
+/// An address is checked for being one at all. The Yaml tab accepted
+/// <c>http://:5055</c>, which parses as YAML and is not an address, and the app was
+/// handed it. Whether anything answers there is a different question, and one only a
+/// probe can ask.
+/// </para>
 ///
 /// <para>
 /// The home layout is checked here too, by <see cref="Sections"/>: a section carrying
@@ -47,7 +55,8 @@ public static class SettingsValidation
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
             var bounds = descriptor.Property.GetCustomAttribute<BoundsAttribute>();
-            if (bounds is null)
+            var probe = descriptor.Property.GetCustomAttribute<ProbeAttribute>();
+            if (bounds is null && probe is null)
             {
                 continue;
             }
@@ -61,7 +70,18 @@ public static class SettingsValidation
             }
 
             var value = lockable.GetType().GetProperty("value")?.GetValue(lockable);
-            if (value is null || !IsNumber(value))
+
+            if (probe is not null && value is string address && !string.IsNullOrWhiteSpace(address)
+                && !IntegrationProbe.Address(address, out _))
+            {
+                problems.Add(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} needs a whole http or https address, and this is \"{1}\".",
+                    descriptor.DisplayName ?? descriptor.Key,
+                    address));
+            }
+
+            if (bounds is null || value is null || !IsNumber(value))
             {
                 continue;
             }

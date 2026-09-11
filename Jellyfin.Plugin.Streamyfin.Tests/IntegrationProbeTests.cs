@@ -204,6 +204,52 @@ public class IntegrationProbeTests
         }
     }
 
+    /// <summary>
+    /// An address that is not one is refused before it is stored, not only when it is
+    /// probed.
+    /// </summary>
+    /// <remarks>
+    /// Found on the beta: <c>http://:5055</c> parses as YAML, is not an address, was
+    /// stored, and was handed to the app. Whether anything answers there is a different
+    /// question and only a probe can ask it; whether it is an address at all is
+    /// something the server can say at once.
+    /// </remarks>
+    /// <param name="address">What an administrator typed.</param>
+    [Theory]
+    [InlineData("http://:5055")]
+    [InlineData("requests.example.com")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("a sentence")]
+    public void AnAddressThatIsNotOneIsRefusedBeforeItIsStored(string address)
+    {
+        var problems = SettingsValidation.Problems(new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = address }
+        });
+
+        var problem = Assert.Single(problems);
+
+        Assert.Contains("whole http or https address", problem, StringComparison.Ordinal);
+        Assert.Contains(address, problem, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A real address, and no address at all, are both fine.
+    /// </summary>
+    /// <param name="address">What is stored.</param>
+    [Theory]
+    [InlineData("https://requests.example.com")]
+    [InlineData("http://10.0.0.1:5055/seerr")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void ARealAddressAndNoAddressAreBothFine(string? address)
+    {
+        Assert.Empty(SettingsValidation.Problems(new Settings
+        {
+            jellyseerrServerUrl = address is null ? null : new Lockable<string> { value = address }
+        }));
+    }
+
     private static IntegrationHealth Find(IReadOnlyList<IntegrationHealth> health, IntegrationKind kind) =>
         health.Single(one => one.Kind == kind);
 
