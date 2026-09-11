@@ -1,0 +1,95 @@
+name: Security
+
+# Two scanners on a schedule and on what lands, rather than on every pull request.
+# CodeQL reads the C# and the workflows themselves; Trivy reads the dependency tree and
+# looks for a secret or a misconfiguration. Both report to GitHub code scanning, which
+# needs a write token a fork's pull request never gets, so neither runs on one: the
+# dependency review in build.yml is what guards a pull request.
+on:
+  push:
+    branches: [main, develop]
+  schedule:
+    # Friday morning, so a finding has a working day in front of it.
+    - cron: "40 7 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, actions]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The plugin builds against Jellyfin 12 here. CodeQL needs one build, not both:
+      # the source is the same and the boundary between the two targets is held by
+      # CompatBoundaryTests rather than by a second scan.
+      - name: Setup .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-extended
+
+      - name: Build
+        if: matrix.language == 'csharp'
+        run: dotnet build --configuration Release -p:JellyfinTarget=jf12
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
+
+  trivy:
+    name: Dependencies and secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned by commit rather than by tag, and this is why: the dependency review on
+      # this pull request refused 0.28.0, a version published while this action's
+      # release pipeline was compromised. A tag is a name its owner can move; a commit
+      # is the code that was reviewed. Renovate reads the version in the comment.
+      #
+      # Unfixed findings are left out: a vulnerability with no released fix is a thing
+      # to know, not a thing this repository can act on, and it would drown the rest.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy.sarif
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy

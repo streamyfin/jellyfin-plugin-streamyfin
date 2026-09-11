@@ -10,6 +10,47 @@ lives only in a comment thread is a decision nobody will find.
 
 ## 2026-09-11, later
 
+### The repository catches up with its siblings
+
+The app and seerr both carry a set of workflows this repository never had, and the
+plugin had two: a build and a pull request title lint. Read tab by tab against
+`streamyfin/streamyfin`, `streamyfin/seerr` and `intro-skipper/intro-skipper`, and what
+applies here was taken:
+
+- **`security.yml`**: CodeQL over the C# and over the workflows themselves, and a Trivy
+  filesystem scan for a vulnerable dependency, a leaked secret or a misconfiguration.
+  Both on what lands and weekly, never on a pull request, since uploading to code
+  scanning needs a write token a fork never gets.
+- **A dependency review on every pull request**, which is the half a scheduled scan
+  cannot do and the only one that runs on a fork, since it needs no write.
+- **`--frozen-lockfile` as the lockfile check**, now that `bun.lock` exists: it fails
+  when `package.json` asks for something the lockfile does not carry.
+- **A comment pointing at the build.** Two DLLs, one per Jellyfin line, are already
+  uploaded on every pull request; nothing said so, so nobody used them. It now says
+  where the file goes on a server and that the replaced one is the way back.
+- **`housekeeping.yml`**: a label on a pull request that stopped merging, which a stack
+  of pull requests onto `develop` produces every time one of them lands, and a stale
+  sweep that only touches threads waiting on their author. An issue nobody has answered
+  is waiting on us, and closing it for our own silence is how a tracker stops being
+  read: #81 sat nine months for that reason.
+- **Issue templates and a pull request template**, which this repository had none of,
+  and a Renovate configuration, which it also had none of. Renovate leaves the Jellyfin
+  and EF Core packages alone: those pin the oldest server each target supports and the
+  runtime the host provides, which are decisions rather than versions to keep current.
+
+What was deliberately not taken: the app's Crowdin sync, its Expo build matrix, seerr's
+Helm and Cypress jobs, and intro-skipper's SPDX header pass. The duplicate issue
+detector and the notification workflow are worth a second look once the release is out.
+
+**On sharing these across the organisation**: the `.github` repository gives every
+repository its community health files (issue templates, contributing, security policy,
+a pull request template) automatically, and workflow templates that are offered when
+someone creates a workflow. It does not run a workflow on other repositories. The rule
+that does, required workflows in an organisation ruleset, is a GitHub Enterprise
+feature, and this organisation is on the free plan. What works everywhere is a reusable
+workflow called by a few lines in each repository, which is the shape to move these into
+once they have proven themselves here.
+
 ### The release takes the number it is given
 
 `scripts/next-version.js` reads the commits since the last tag, which answers what a
