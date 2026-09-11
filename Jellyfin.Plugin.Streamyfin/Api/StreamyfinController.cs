@@ -239,6 +239,8 @@ public class StreamyfinController : ControllerBase
   /// worse than one that says the server is not answering. The addresses are the ones
   /// resolved for this caller, never ones they supply, and no answer carries a URL or a
   /// key, so a user learns that an integration is down without learning where it lives.
+  /// The version goes with them for anyone who is not an administrator, since the exact
+  /// build of a private service is how a published vulnerability is picked for it.
   ///
   /// <para>
   /// The answer is held briefly. Every signed in account may call this, each call
@@ -264,7 +266,11 @@ public class StreamyfinController : ControllerBase
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId));
 
-    return new JsonResult(await _integrations.HealthOf(settings, cancellationToken).ConfigureAwait(false));
+    var health = await _integrations.HealthOf(settings, cancellationToken).ConfigureAwait(false);
+
+    return new JsonResult(CallerIsApiKey || _userManager.IsAdministrator(callerId)
+      ? health
+      : IntegrationProbe.WithoutVersions(health));
   }
 
   /// <summary>

@@ -13,7 +13,13 @@ export const probeIntegration = (kind, address) =>
         url: window.ApiClient.getUrl("streamyfin/v1/integrations/probe"),
         contentType: "application/json",
         data: JSON.stringify({ kind, url: address }),
-    }).then((response) => response.json());
+    }).then((response) => response.json())
+        // The route refuses some requests with a sentence of its own. Losing it behind
+        // "the server could not be asked" hides which of several things to fix.
+        .catch(async (error) => {
+            const body = await error?.response?.text?.().catch(() => null);
+            throw Object.assign(error instanceof Error ? error : new Error("probe failed"), { body });
+        });
 
 // region private variables
 let schema = undefined;

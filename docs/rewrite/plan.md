@@ -322,14 +322,14 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
 | P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
 | P3.3 | [#142](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/142) | merged |
-| P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), and the Targeting tab on this branch | merged, then this |
+| P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), then the Targeting tab in [#150](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/150) | merged |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
 | P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
 | P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160) | this |
-| P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | this |
-| P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged, then this |
+| P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
+| P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the

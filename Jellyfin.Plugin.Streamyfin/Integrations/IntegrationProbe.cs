@@ -25,7 +25,7 @@ namespace Jellyfin.Plugin.Streamyfin.Integrations;
 /// others do not, so for those any HTTP answer is the most that can be claimed. A probe
 /// answers rather than throws, since a failed probe is an answer.
 /// </remarks>
-public sealed class IntegrationProbe
+public sealed class IntegrationProbe : IDisposable
 {
     /// <summary>
     /// The configured client that reaches an integration.
@@ -40,7 +40,7 @@ public sealed class IntegrationProbe
     // A cap on rounds running at once. The cache stops one account in a loop; this
     // stops the fan-out an address overridden per user makes reachable, where every
     // caller has their own key and so their own round.
-    private static readonly SemaphoreSlim _atOnce = new(4, 4);
+    private readonly SemaphoreSlim _atOnce = new(4, 4);
 
     private readonly Dictionary<string, Round> _recent = new(StringComparer.Ordinal);
     private readonly IHttpClientFactory _clients;
@@ -110,13 +110,21 @@ public sealed class IntegrationProbe
         // 500 for every caller for the next half minute.
         catch (Exception exception)
         {
-            _logger?.LogDebug(exception, "Probing {Kind} did not reach it", kind);
+            var said = Why(exception);
 
-            return new IntegrationHealth(
-                kind,
-                IntegrationOutcome.Unreachable,
-                Why(exception),
-                null);
+            // Anything Why could not name is a fault here rather than a network, and it
+            // is reported to the administrator as a network. A debug line would leave
+            // that unfalsifiable from the server.
+            if (said == Unnamed)
+            {
+                _logger?.LogWarning(exception, "Probing {Kind} failed in a way nothing here expected", kind);
+            }
+            else
+            {
+                _logger?.LogDebug(exception, "Probing {Kind} did not reach it", kind);
+            }
+
+            return new IntegrationHealth(kind, IntegrationOutcome.Unreachable, said, null);
         }
     }
 
@@ -151,9 +159,9 @@ public sealed class IntegrationProbe
                 // everyone and a caller who walks away must not write theirs into it.
                 // Lazy, so the lock publishes the task rather than doing its work, and
                 // over the addresses rather than the whole settings graph.
-                known = new Round(
-                    new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(() => ProbeEach(probeable, CancellationToken.None)),
-                    DateTimeOffset.UtcNow);
+                known = new Round();
+                known.Health = new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(
+                    () => Timed(known, probeable));
                 _recent[asked] = known;
             }
 
@@ -164,10 +172,13 @@ public sealed class IntegrationProbe
     }
 
     // Anything past its half minute, so a server giving many users their own address
-    // does not keep a slot per address for ever.
+    // does not keep a slot per address for ever. Only when there is more than a handful,
+    // since this runs under the lock on the route every app calls at startup.
+    private const int SweepWhenOver = 16;
+
     private void Forget(DateTimeOffset now)
     {
-        if (_recent.Count == 0)
+        if (_recent.Count <= SweepWhenOver)
         {
             return;
         }
@@ -209,15 +220,63 @@ public sealed class IntegrationProbe
         return found;
     }
 
-    private sealed record Round(Lazy<Task<IReadOnlyList<IntegrationHealth>>> Health, DateTimeOffset At);
+    // Its clock starts when the round finished rather than when it was queued: behind
+    // the gate it could otherwise spend its half minute waiting to start.
+    private sealed class Round
+    {
+        public Lazy<Task<IReadOnlyList<IntegrationHealth>>> Health { get; set; } = null!;
+
+        public DateTimeOffset At { get; set; } = DateTimeOffset.MaxValue;
+    }
+
+    private async Task<IReadOnlyList<IntegrationHealth>> Timed(
+        Round round,
+        List<(IntegrationKind Kind, string? Url)> probeable)
+    {
+        try
+        {
+            return await ProbeEach(probeable, CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_recent)
+            {
+                round.At = DateTimeOffset.UtcNow;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose() => _atOnce.Dispose();
 
     /// <summary>
-    /// Asks every service these settings configure.
+    /// The same answers with the versions removed.
+    /// </summary>
+    /// <param name="health">What the probes found.</param>
+    /// <returns>The answers a caller who is not an administrator may read.</returns>
+    /// <remarks>
+    /// A development build reports its full commit tag, and the exact build of a private
+    /// service is the usual first step in picking a published vulnerability for it. That
+    /// an integration is down is every user's to know; which build it is is not.
+    /// </remarks>
+    public static IReadOnlyList<IntegrationHealth> WithoutVersions(IReadOnlyList<IntegrationHealth> health)
+    {
+        ArgumentNullException.ThrowIfNull(health);
+
+        return [.. health.Select(one => one.Version is null ? one : one with { Version = null })];
+    }
+
+    /// <summary>
+    /// Asks every service these settings configure, reaching all of them every time.
     /// </summary>
     /// <param name="settings">The settings, resolved for whoever is asking.</param>
     /// <param name="cancellationToken">Stops the calls.</param>
     /// <returns>One answer per service, configured or not.</returns>
-    public async Task<IReadOnlyList<IntegrationHealth>> ProbeAll(
+    /// <remarks>
+    /// Internal on purpose. <see cref="HealthOf"/> is what a route calls: this one
+    /// reaches the services on every call, which is what the cache exists to stop.
+    /// </remarks>
+    internal async Task<IReadOnlyList<IntegrationHealth>> ProbeAll(
         Settings? settings,
         CancellationToken cancellationToken = default)
     {
@@ -320,8 +379,10 @@ public sealed class IntegrationProbe
             }
         }
 
-        return "Nothing answered at that address from this server.";
+        return Unnamed;
     }
+
+    private const string Unnamed = "Nothing answered at that address from this server.";
 
     // A server error, an access wall and a redirect are each something other than a
     // wrong address.

@@ -7,6 +7,7 @@ import {
     createForm,
     groupsFor,
     inherited,
+    askingFailed,
     probeText,
     probeTone,
     sections,
@@ -1026,6 +1027,8 @@ describe("testing an address", () => {
     test("something serving HTTP with no signature is not read as confirmed", () => {
         expect(probeTone({ outcome: "Ok" })).toBe("sf-said--ok");
         expect(probeTone({ outcome: "Down" })).toBe("sf-said--no");
+        // An outcome this page does not know is not a failure it can name.
+        expect(probeTone({ outcome: "SomethingNewer" })).toBe("sf-said--quiet");
         expect(probeTone({ outcome: "Reachable" })).toBe("sf-said--maybe");
         // Without a detail it still has to read as something that answered.
         expect(probeText({ outcome: "Reachable" })).toBe("Something answered, and nothing there says what it is.");
@@ -1082,6 +1085,76 @@ describe("testing an address", () => {
         input.dispatchEvent(new Event("change", { bubbles: true }));
 
         expect(form.toSettings().jellyseerrApiKey.value).toBe("a-key-with-a-newline");
+    });
+
+    test("editing while the server is thinking leaves the button usable", async () => {
+        let answer;
+        const { mount } = withProbe(() => new Promise((resolve) => { answer = resolve; }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://one.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        const test = [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test");
+        test.click();
+        await flush();
+
+        input.value = "https://two.example.com";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        expect(test.disabled).toBe(false);
+
+        answer({ outcome: "Ok", version: "2.1.0" });
+        await flush();
+
+        expect(test.disabled).toBe(false);
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("discarding while the server is thinking drops the answer", async () => {
+        let answer;
+        const { mount, form } = withProbe(() => new Promise((resolve) => { answer = resolve; }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://one.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+
+        form.reset();
+        answer({ outcome: "Ok", version: "2.1.0" });
+        await flush();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("a bracketed authority still has to be an address", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+
+        for (const bad of ["http://[not-an-ipv6]", "http://[zzz]:80", "http://[]1"]) {
+            input.value = bad;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            expect(form.invalid()).toContain("marlinServerUrl");
+        }
+    });
+
+    test("a refusal the route wrote is the one shown", () => {
+        expect(askingFailed({ body: '"Say which service to try: Seerr, Marlin or Streamystats."' }))
+            .toBe("Say which service to try: Seerr, Marlin or Streamystats.");
+        expect(askingFailed({ body: '{"title":"One or more validation errors occurred."}' }))
+            .toBe("The server could not be asked.");
+        expect(askingFailed(new Error("network"))).toBe("The server could not be asked.");
+    });
+
+    test("a version is not cut through a character", () => {
+        expect(probeText({ outcome: "Ok", version: `${"v".repeat(19)}🎬tail` }))
+            .toBe(`Answered, running ${"v".repeat(19)}\u2026.`);
     });
 
     test("every outcome reads as a sentence", () => {

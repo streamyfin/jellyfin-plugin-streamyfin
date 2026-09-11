@@ -112,7 +112,21 @@ const formatBound = (n) => String(n);
 
 // Seerr reports a development build as a full commit hash, forty characters of nothing
 // anyone reads. Enough of it to tell two builds apart.
-const shortVersion = (version) => (version.length > 20 ? `${version.slice(0, 20)}\u2026` : version);
+const shortVersion = (version) => {
+    if (version.length <= 20) return version;
+    // Not through a surrogate pair, or the last thing shown is half a character.
+    const cut = /[\uD800-\uDBFF]/.test(version[19]) ? 19 : 20;
+    return `${version.slice(0, cut)}\u2026`;
+};
+
+// A refusal the route itself wrote says which of several things to do. Anything else,
+// including losing the session, is the one sentence.
+export const askingFailed = (error) => {
+    const said = typeof error?.body === "string" ? error.body.trim() : "";
+    const plain = said.startsWith("\"") && said.endsWith("\"") ? said.slice(1, -1) : said;
+
+    return plain && plain.length < 200 && !plain.startsWith("{") ? plain : "The server could not be asked.";
+};
 
 // What a probe answer reads as. The server says what it found and why; this only
 // decides the sentence, so a test can hold the wording without a server.
@@ -149,7 +163,10 @@ export const probeTone = (health) => {
         // Not a pass. The Jellyfin address in the Marlin field answers 200 and lands
         // here, and green would read as confirmed.
         case "Reachable": return "sf-said--maybe";
-        default: return "sf-said--no";
+        case "WrongService": case "Unreachable": case "Down": case "NotAUrl": return "sf-said--no";
+        // A server that gained an outcome this page does not know. Red would call a
+        // healthy integration broken.
+        default: return "sf-said--quiet";
     }
 };
 
@@ -337,8 +354,14 @@ const isWebAddress = (typed) => {
     if (!/[a-z0-9]/i.test(authority.replace(/%[0-9a-f]{2}/gi, ""))) return false;
 
     // An IPv6 literal, which the server accepts and the browser's own parser does not,
-    // so it is answered here rather than handed to one that would refuse it.
-    if (authority.startsWith("[")) return authority.includes("]");
+    // so it is answered here rather than handed to one that would refuse it. The
+    // contents still have to be an address: "[zzz]" is neither.
+    if (authority.startsWith("[")) {
+        const inside = authority.slice(1, authority.indexOf("]"));
+        if (inside.length === 0) return false;
+        const host = inside.split("%25")[0];
+        return /^[0-9a-f:.]+$/i.test(host) && host.includes(":");
+    }
 
     try {
         const { protocol, hostname } = new URL(trimmed);
@@ -482,7 +505,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         // Locked on an address that did not move keeps its answer. An object rather than
         // the value itself, since a free row's value is undefined and that is not the
         // same as never having been probed.
-        if (row.probed && row.probed.typed !== String(row.value ?? "").trim()) row.clearProbe?.();
+        // Waiting counts: an ask in flight is about the address that was there, and the
+        // answer would otherwise be painted next to the one that replaced it.
+        const probed = row.probed;
+        if (probed && (probed.waiting || probed.typed !== String(row.value ?? "").trim())) row.clearProbe?.();
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
@@ -647,6 +673,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                     row.probed = null;
                     // Anything still in flight is about an address that is gone.
                     row.asking = (row.asking ?? 0) + 1;
+                    test.disabled = false;
                 };
 
                 row.control?.addEventListener("input", row.clearProbe);
@@ -654,6 +681,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 test.addEventListener("click", () => {
                     const typed = String(row.control?.value ?? "").trim();
                     const mine = (row.asking = (row.asking ?? 0) + 1);
+                    // What is being asked about, from the click rather than from the
+                    // answer, so a Discard that lands first knows there is one in flight.
+                    row.probed = { typed, waiting: true };
+
                     const show = (text, tone) => {
                         // An answer about an address the field no longer holds is not an
                         // answer about the field.
@@ -661,6 +692,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                         said.textContent = text;
                         said.className = `sf-said ${tone}`;
                         row.probed = { typed };
+                        test.disabled = false;
                     };
 
                     test.disabled = true;
@@ -673,10 +705,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                     Promise.resolve()
                         .then(() => probe(field.probe, typed))
                         .then((health) => show(probeText(health), probeTone(health)))
-                        .catch(() => show("The server could not be asked.", "sf-said--no"))
-                        .finally(() => {
-                            if (mine === row.asking) test.disabled = false;
-                        });
+                        .catch((error) => show(askingFailed(error), "sf-said--no"));
                 });
 
                 foot.appendChild(test);

@@ -171,7 +171,7 @@ public class IntegrationProbeTests
             jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" }
         };
 
-        var health = await ProbeWith(new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""")).ProbeAll(settings);
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""")).HealthOf(settings);
 
         Assert.Equal(3, health.Count);
         Assert.Equal(IntegrationOutcome.Ok, Find(health, IntegrationKind.Seerr).Outcome);
@@ -197,7 +197,7 @@ public class IntegrationProbeTests
             marlinServerUrl = new Lockable<string> { value = "https://marlin.internal.example" }
         };
 
-        var health = await ProbeWith(new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""")).ProbeAll(settings);
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""")).HealthOf(settings);
 
         foreach (var one in health)
         {
@@ -721,6 +721,52 @@ public class IntegrationProbeTests
 
         Assert.Null(SettingsValidation.Check(settings));
         Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
+    }
+
+    /// <summary>
+    /// The build of a private service is not something every account may read.
+    /// </summary>
+    /// <remarks>
+    /// A development build reports its full commit tag, and the exact build is the usual
+    /// first step in picking a published vulnerability for it.
+    /// </remarks>
+    [Fact]
+    public void AVersionIsNotForEveryone()
+    {
+        IReadOnlyList<IntegrationHealth> health =
+        [
+            new(IntegrationKind.Seerr, IntegrationOutcome.Ok, null, "develop-68c5bc8c"),
+            new(IntegrationKind.Marlin, IntegrationOutcome.NotConfigured, "Nothing is configured.", null)
+        ];
+
+        var quiet = IntegrationProbe.WithoutVersions(health);
+
+        Assert.All(quiet, one => Assert.Null(one.Version));
+        Assert.Equal(IntegrationOutcome.Ok, quiet[0].Outcome);
+        Assert.Equal("Nothing is configured.", quiet[1].Detail);
+    }
+
+    /// <summary>
+    /// A setting that is an address without being lockable is still checked and still
+    /// trimmed.
+    /// </summary>
+    /// <remarks>
+    /// Both halves read the value one level down, where a Lockable keeps it, so a plain
+    /// property was a rule the form applied and the server did not.
+    /// </remarks>
+    [Fact]
+    public void AnAddressThatIsNotLockableIsStillChecked()
+    {
+        var settings = new Settings { preferedLanguage = new Lockable<string> { value = "fr" } };
+
+        // Nothing declares a plain address today, so this holds the shape of the rule
+        // rather than a setting: every descriptor that is an address is read the right
+        // way round.
+        Assert.All(
+            SettingsSchema.Descriptors.Where(descriptor => descriptor.IsWebAddress),
+            descriptor => Assert.True(descriptor.Lockable ? descriptor.Value is not null : descriptor.Value is null));
+
+        Assert.Empty(SettingsValidation.Problems(settings));
     }
 
     private static Settings Configured() => new()

@@ -60,13 +60,11 @@ public static class SettingsValidation
 
             // A level carries a setting or it does not. The absent ones are not this
             // method's business: they fall through to the level below.
-            var lockable = descriptor.Property.GetValue(settings);
-            if (lockable is null)
+            var value = Read(descriptor, settings);
+            if (value is null && descriptor.Bounds is not null)
             {
                 continue;
             }
-
-            var value = descriptor.Value?.GetValue(lockable);
 
             if (descriptor.IsWebAddress && value is string address && !string.IsNullOrWhiteSpace(address)
                 && !WebAddress.Parses(address, out _))
@@ -133,21 +131,29 @@ public static class SettingsValidation
 
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
-            if (!descriptor.IsWebAddress || descriptor.Value is null)
+            if (!descriptor.IsWebAddress)
             {
                 continue;
             }
 
-            var lockable = descriptor.Property.GetValue(settings);
-            if (lockable is null || descriptor.Value.GetValue(lockable) is not string address)
+            if (Read(descriptor, settings) is not string address)
             {
                 continue;
             }
 
             var trimmed = address.Trim();
-            if (!string.Equals(trimmed, address, StringComparison.Ordinal))
+            if (string.Equals(trimmed, address, StringComparison.Ordinal))
             {
-                descriptor.Value.SetValue(lockable, trimmed);
+                continue;
+            }
+
+            if (descriptor.Lockable)
+            {
+                descriptor.Value!.SetValue(descriptor.Property.GetValue(settings), trimmed);
+            }
+            else
+            {
+                descriptor.Property.SetValue(settings, trimmed);
             }
         }
     }
@@ -162,6 +168,16 @@ public static class SettingsValidation
         var problems = Problems(settings);
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
+    }
+
+    // A setting is usually a Lockable, which keeps its value one level down. One that
+    // is not is read directly, or [WebAddress] on a plain property would be a rule the
+    // form applies and the server does not.
+    private static object? Read(SettingDescriptor descriptor, Settings settings)
+    {
+        var held = descriptor.Property.GetValue(settings);
+
+        return descriptor.Lockable ? (held is null ? null : descriptor.Value?.GetValue(held)) : held;
     }
 
     private static bool IsNumber(object value) =>
