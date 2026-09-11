@@ -29,7 +29,7 @@ jobs:
       # The rewrite lands as a stack of pull requests onto develop, so one merging takes
       # the next one out of mergeable without touching it. Saying so on the pull request
       # beats finding out at merge time.
-      - uses: eps1lon/actions-label-merge-conflict@v3
+      - uses: eps1lon/actions-label-merge-conflict@0273be72a0bbd58fcd71d0d6c02c209b50d1e5e1 # v3.1.0
         with:
           dirtyLabel: merge conflict
           removeOnDirtyLabel: ""
@@ -48,7 +48,7 @@ jobs:
       # Only threads that were asked a question and never answered. An issue nobody has
       # replied to is waiting on the maintainers, and closing it for their own silence
       # is how a tracker stops being read. #81 sat nine months for exactly that reason.
-      - uses: actions/stale@v9
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
         with:
           only-labels: waiting for the author
           exempt-issue-labels: confirmed,pinned,security

@@ -70,10 +70,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned by commit rather than by tag, and this is why: the dependency review on
+      # this pull request refused 0.28.0, a version published while this action's
+      # release pipeline was compromised. A tag is a name its owner can move; a commit
+      # is the code that was reviewed. Renovate reads the version in the comment.
+      #
       # Unfixed findings are left out: a vulnerability with no released fix is a thing
       # to know, not a thing this repository can act on, and it would drown the rest.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
