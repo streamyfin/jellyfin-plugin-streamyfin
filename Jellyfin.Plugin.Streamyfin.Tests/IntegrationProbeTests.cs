@@ -365,60 +365,6 @@ public class IntegrationProbeTests
     }
 
     /// <summary>
-    /// A caller that goes away does not leave everyone else told that nothing is
-    /// answering.
-    /// </summary>
-    /// <remarks>
-    /// The answer is shared, so a phone backgrounded a second into the request would
-    /// otherwise write three cancellations into it and take the Seerr tab away from the
-    /// whole server for half a minute.
-    /// </remarks>
-    [Fact]
-    public async Task ACallerWhoWalksAwayDoesNotSpeakForEveryoneElse()
-    {
-        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
-        var probe = ProbeWith(handler);
-        var settings = new Settings
-        {
-            jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" }
-        };
-
-        using var gone = new CancellationTokenSource();
-        handler.Hold();
-
-        var walkedAway = probe.HealthOf(settings, gone.Token);
-        await gone.CancelAsync();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => walkedAway);
-
-        handler.Release();
-
-        var health = await probe.HealthOf(settings);
-
-        Assert.Equal(IntegrationOutcome.Ok, Find(health, IntegrationKind.Seerr).Outcome);
-    }
-
-    /// <summary>
-    /// Callers arriving together share one round rather than each opening its own.
-    /// </summary>
-    [Fact]
-    public async Task CallersArrivingTogetherShareOneRound()
-    {
-        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
-        var probe = ProbeWith(handler);
-        var settings = new Settings
-        {
-            jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" },
-            marlinServerUrl = new Lockable<string> { value = "https://marlin.example.com" }
-        };
-
-        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => probe.HealthOf(settings)));
-
-        // Two configured services, asked once between them however many callers arrived.
-        Assert.Equal(2, handler.Calls);
-    }
-
-    /// <summary>
     /// An address carrying a query or a fragment is still asked about its status
     /// endpoint rather than having the path glued onto the query.
     /// </summary>

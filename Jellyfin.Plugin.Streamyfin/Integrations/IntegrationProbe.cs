@@ -39,7 +39,14 @@ public sealed class IntegrationProbe : IDisposable
     // reachable, and the probe route, which takes an address rather than a cached set.
     private readonly SemaphoreSlim _atOnce = new(6, 6);
 
-    private readonly Dictionary<string, Round> _recent = new(StringComparer.Ordinal);
+    // One answer, not one per address set. A server has one set; the ones that give a
+    // group its own address have a handful, and re-probing when the set changes is
+    // cheaper than a table with an expiry policy of its own.
+    private readonly object _keeping = new();
+
+    private IReadOnlyList<IntegrationHealth> _recent = [];
+    private string? _recentFor;
+    private DateTimeOffset _recentAt;
     private readonly IHttpClientFactory _clients;
     private readonly ILogger<IntegrationProbe>? _logger;
 
@@ -149,68 +156,31 @@ public sealed class IntegrationProbe : IDisposable
         CancellationToken cancellationToken = default)
     {
         var probeable = Probeable(settings);
-        // Lengths rather than a separator: a stored address is not validated on read and
-        // one carrying the separator could otherwise forge another set's key.
+
+        // Lengths rather than a separator: a stored address is not checked again on
+        // read, and one carrying the separator could otherwise look like another set.
         var asked = string.Concat(probeable.Select(one => $"{(int)one.Kind}:{one.Url?.Length ?? -1}:{one.Url}"));
-        Lazy<Task<IReadOnlyList<IntegrationHealth>>> round;
 
-        lock (_recent)
+        lock (_keeping)
         {
-            Forget(DateTimeOffset.UtcNow);
-
-            // Checked here rather than only in the sweep: a server with one address set
-            // has one entry, the sweep never runs, and the first answer would be
-            // replayed for the life of the process.
-            if (_recent.TryGetValue(asked, out var known) && DateTimeOffset.UtcNow - known.At >= _keepFor)
+            if (_recentFor == asked && DateTimeOffset.UtcNow - _recentAt < _keepFor)
             {
-                _recent.Remove(asked);
-                known = null;
-            }
-
-            if (known is null)
-            {
-                // The round runs on its own token, since this answer is stored for
-                // everyone and a caller who walks away must not write theirs into it.
-                // Lazy, so the lock publishes the task rather than doing its work, and
-                // over the addresses rather than the whole settings graph.
-                known = new Round();
-                known.Health = new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(
-                    () => Timed(known, probeable));
-                _recent[asked] = known;
-            }
-
-            round = known.Health;
-        }
-
-        return await round.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    // Anything past its half minute, so a server giving many users their own address
-    // does not keep a slot per address for ever. Only when there is more than a handful,
-    // since this runs under the lock on the route every app calls at startup.
-    private const int SweepWhenOver = 16;
-
-    private void Forget(DateTimeOffset now)
-    {
-        if (_recent.Count <= SweepWhenOver)
-        {
-            return;
-        }
-
-        List<string>? stale = null;
-
-        foreach (var entry in _recent)
-        {
-            if (now - entry.Value.At >= _keepFor)
-            {
-                (stale ??= []).Add(entry.Key);
+                return _recent;
             }
         }
 
-        foreach (var key in stale ?? [])
+        // On its own token: the answer is kept for everyone, and a caller who walks away
+        // must not write theirs into it.
+        var health = await ProbeEach(probeable, CancellationToken.None).ConfigureAwait(false);
+
+        lock (_keeping)
         {
-            _recent.Remove(key);
+            _recent = health;
+            _recentFor = asked;
+            _recentAt = DateTimeOffset.UtcNow;
         }
+
+        return health;
     }
 
     // Read from the declarations rather than from a list here, so a fourth integration
@@ -230,45 +200,6 @@ public sealed class IntegrationProbe : IDisposable
         }
 
         return found;
-    }
-
-    // Its clock starts when the round finished rather than when it was queued: behind
-    // the gate it could otherwise spend its half minute waiting to start.
-    private sealed class Round
-    {
-        public Lazy<Task<IReadOnlyList<IntegrationHealth>>> Health { get; set; } = null!;
-
-        public DateTimeOffset At { get; set; } = DateTimeOffset.MaxValue;
-    }
-
-    private async Task<IReadOnlyList<IntegrationHealth>> Timed(
-        Round round,
-        List<(IntegrationKind Kind, string? Url)> probeable)
-    {
-        try
-        {
-            return await ProbeEach(probeable, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception exception)
-        {
-            // A stored round that faults is a 500 for everyone who asks while it is
-            // held. Nothing inside a probe throws, so this is the layer around them
-            // failing, and the answer is that nothing was reached.
-            _logger?.LogWarning(exception, "A round of integration probes failed");
-
-            return [.. probeable.Select(one => new IntegrationHealth(
-                one.Kind,
-                IntegrationOutcome.Unreachable,
-                Unnamed,
-                null))];
-        }
-        finally
-        {
-            lock (_recent)
-            {
-                round.At = DateTimeOffset.UtcNow;
-            }
-        }
     }
 
     /// <inheritdoc/>
