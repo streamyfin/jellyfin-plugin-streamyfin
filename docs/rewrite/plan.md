@@ -185,6 +185,12 @@ serves without touching its files. The call has to go through reflection, since
 every plugin lives in its own `AssemblyLoadContext`, which is a real cost to
 weigh against dropping the embedded page machinery.
 
+**Server side validation** is not a numbered sub part and landed alongside P3.6:
+`SettingsValidation` refuses a value outside the `[Bounds]` a setting declares, on the
+YAML save and on both targeting writes, reading the same declaration the form draws
+from. What it does not catch is `value: null` on a whole number, which YamlDotNet reads
+as `0`; that needs the raw document rather than the deserialised settings.
+
 ## P4. Push notifications
 
 - **P4.1** Inject `IHttpClientFactory` with a named client and a timeout
