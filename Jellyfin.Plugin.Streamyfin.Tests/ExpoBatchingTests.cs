@@ -103,15 +103,52 @@ public class ExpoBatchingTests
     /// <param name="retries">Whether the request is made again.</param>
     [Theory]
     [InlineData(HttpStatusCode.TooManyRequests, true)]
-    [InlineData(HttpStatusCode.ServiceUnavailable, true)]
-    [InlineData(HttpStatusCode.InternalServerError, true)]
-    [InlineData(HttpStatusCode.RequestTimeout, true)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, false)]
+    [InlineData(HttpStatusCode.InternalServerError, false)]
+    [InlineData(HttpStatusCode.RequestTimeout, false)]
     [InlineData(HttpStatusCode.BadRequest, false)]
     [InlineData(HttpStatusCode.Unauthorized, false)]
     [InlineData(HttpStatusCode.RequestEntityTooLarge, false)]
     public void OnlyARefusalThatCanPassIsWaitedOut(HttpStatusCode status, bool retries)
     {
         Assert.Equal(retries, ExpoRetry.Default.Wait(status, null, 1, DateTimeOffset.UnixEpoch) is not null);
+    }
+
+    /// <summary>
+    /// A send is only repeated when Expo says it did not take it. A read is repeated
+    /// whenever it might have worked.
+    /// </summary>
+    /// <remarks>
+    /// Expo's send endpoint carries no idempotency key and documents no deduplication,
+    /// so a 500 or a timeout might mean the pushes went out and the answer was lost.
+    /// Repeating that notifies everyone twice, which is worse than the notification
+    /// being late. Asking what became of a ticket changes nothing, so there the same
+    /// refusal is simply worth asking again.
+    /// </remarks>
+    /// <param name="status">What Expo answered.</param>
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    public void AnAmbiguousRefusalIsRepeatedForAReadAndNotForASend(HttpStatusCode status)
+    {
+        Assert.Null(ExpoRetry.Default.Wait(status, null, 1, DateTimeOffset.UnixEpoch));
+        Assert.NotNull(ExpoRetry.Default.ForSomethingThatOnlyReads().Wait(status, null, 1, DateTimeOffset.UnixEpoch));
+
+        // 429 stays safe either way: it is Expo saying it did not take the request.
+        Assert.NotNull(ExpoRetry.Default.Wait(HttpStatusCode.TooManyRequests, null, 1, DateTimeOffset.UnixEpoch));
+    }
+
+    /// <summary>
+    /// A policy that would wait a negative time is refused when it is built, rather than
+    /// reaching Task.Delay to throw there.
+    /// </summary>
+    [Fact]
+    public void ANegativeWaitIsRefusedWhenItIsBuilt()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExpoRetry(3, TimeSpan.FromSeconds(-1), TimeSpan.FromSeconds(30)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExpoRetry(3, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(-30)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExpoRetry(0, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30)));
     }
 
     /// <summary>

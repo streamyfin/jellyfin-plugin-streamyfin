@@ -24,7 +24,7 @@ public sealed class ExpoRetry
     /// <summary>
     /// What the plugin uses: three tries, a second apart, doubling, never past half a
     /// minute. The same shape as Expo's own server SDK, which retries twice with a
-    /// factor of two from one second.
+    /// factor of two from one second, and on the same one status.
     /// </summary>
     public static readonly ExpoRetry Default = new(3, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30));
 
@@ -39,13 +39,24 @@ public sealed class ExpoRetry
     /// <param name="tries">How many times the request is made in total, the first included.</param>
     /// <param name="firstWait">The wait before the second try.</param>
     /// <param name="longestWait">The cap, which a server's own Retry-After is held to as well.</param>
-    public ExpoRetry(int tries, TimeSpan firstWait, TimeSpan longestWait)
+    /// <param name="repeatWhenTheAnswerIsAmbiguous">
+    /// Whether a refusal that does not say the request was dropped is worth repeating.
+    /// False for anything that changes something, true for a read.
+    /// </param>
+    public ExpoRetry(
+        int tries,
+        TimeSpan firstWait,
+        TimeSpan longestWait,
+        bool repeatWhenTheAnswerIsAmbiguous = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(tries, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(firstWait, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(longestWait, TimeSpan.Zero);
 
         Tries = tries;
         FirstWait = firstWait;
         LongestWait = longestWait;
+        RepeatWhenTheAnswerIsAmbiguous = repeatWhenTheAnswerIsAmbiguous;
     }
 
     /// <summary>
@@ -62,6 +73,30 @@ public sealed class ExpoRetry
     /// Gets the longest this will wait, whatever the arithmetic or the server says.
     /// </summary>
     public TimeSpan LongestWait { get; }
+
+    /// <summary>
+    /// Gets whether a refusal that does not say the request was dropped is repeated.
+    /// </summary>
+    /// <remarks>
+    /// A send is not something to repeat on a maybe. Expo's send endpoint carries no
+    /// idempotency key and documents no deduplication, so a 500 or a timeout might mean
+    /// the pushes went out and the answer was lost, and repeating it would notify
+    /// everyone twice. A 429 is different: it is the server saying in so many words
+    /// that it did not take the request.
+    ///
+    /// <para>
+    /// Reading a receipt changes nothing, so for that a 5xx is simply worth asking
+    /// again. Expo's own server SDK retries on 429 and on nothing else, for either.
+    /// </para>
+    /// </remarks>
+    public bool RepeatWhenTheAnswerIsAmbiguous { get; }
+
+    /// <summary>
+    /// The same policy, for a request that can be repeated without consequence.
+    /// </summary>
+    /// <returns>The policy, repeating on an ambiguous refusal as well.</returns>
+    public ExpoRetry ForSomethingThatOnlyReads() =>
+        RepeatWhenTheAnswerIsAmbiguous ? this : new ExpoRetry(Tries, FirstWait, LongestWait, true);
 
     /// <summary>
     /// How long to wait before trying again, or <c>null</c> to give up.
@@ -92,12 +127,13 @@ public sealed class ExpoRetry
         return Capped(FirstWait * Math.Pow(2, doublings));
     }
 
-    // 429 is the one this exists for. A 5xx is Expo having a moment, and 408 is the
-    // request never arriving; both are the same request being worth making again.
-    private static bool CanPass(HttpStatusCode status) =>
+    // 429 is the one this exists for, and the only one that is safe whatever the
+    // request was: Expo is saying it did not take it. A 5xx or a 408 might mean it did
+    // and the answer was lost, which for a send would mean notifying everyone twice.
+    private bool CanPass(HttpStatusCode status) =>
         status == HttpStatusCode.TooManyRequests
-        || status == HttpStatusCode.RequestTimeout
-        || (int)status >= 500;
+        || (RepeatWhenTheAnswerIsAmbiguous
+            && (status == HttpStatusCode.RequestTimeout || (int)status >= 500));
 
     private static TimeSpan? Asked(RetryConditionHeaderValue? retryAfter, DateTimeOffset now)
     {

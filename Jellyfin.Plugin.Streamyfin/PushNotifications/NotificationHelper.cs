@@ -35,6 +35,7 @@ public class NotificationHelper
     private readonly IUserManager? _userManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ExpoRetry _retry;
+    private readonly ExpoRetry _retryReads;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationHelper"/> class.
@@ -60,6 +61,7 @@ public class NotificationHelper
         _serializationHelper = serializationHelper;
         _httpClientFactory = httpClientFactory;
         _retry = retry ?? ExpoRetry.Default;
+        _retryReads = _retry.ForSomethingThatOnlyReads();
     }
 
     /// <summary>
@@ -176,8 +178,10 @@ public class NotificationHelper
     /// </summary>
     /// <param name="notifications">The messages, each already addressed.</param>
     /// <returns>
-    /// Every ticket Expo handed back, in the order the recipients went out, or null when
-    /// no request was answered at all.
+    /// The tickets from the batches Expo answered, in the order those recipients went
+    /// out, or null when none was answered. A refused batch contributes no tickets, so
+    /// the list lines up with the recipients batch by batch and not as a whole: nothing
+    /// outside this method should match a ticket to a device by its index.
     /// </returns>
     /// <remarks>
     /// Expo takes a hundred recipients per request and refuses a body past that, whole.
@@ -210,8 +214,10 @@ public class NotificationHelper
         var errors = new List<Errors>();
         var answered = false;
 
-        foreach (var batch in batches)
+        for (var sent = 0; sent < batches.Count; sent++)
         {
+            var batch = batches[sent];
+
             // The order Expo answers in. One ticket comes back per recipient, and that
             // position is the only thing tying an error ticket to the device it came from.
             var recipients = batch.SelectMany(notification => notification.To).ToList();
@@ -221,13 +227,22 @@ public class NotificationHelper
             var response = await PostToExpo<ExpoNotificationResponse>(
                 SendUri,
                 _serializationHelper.ToJson(batch),
+                _retry,
                 CancellationToken.None).ConfigureAwait(false);
 
             PruneAndQueue(recipients, response);
 
+            // Expo refusing one batch after its retries is Expo refusing this send. The
+            // rest would be nine more batches of the same request, each with its own
+            // waits, and PostNotifications blocks on this: a thousand recipients against
+            // a server answering 429 would hold an event handler for twenty minutes to
+            // reach nobody.
             if (response is null)
             {
-                continue;
+                _logger?.LogWarning(
+                    "Expo did not answer a batch, so the remaining {Batches} were not sent",
+                    batches.Count - sent - 1);
+                break;
             }
 
             answered = true;
@@ -271,9 +286,12 @@ public class NotificationHelper
         // Louder than a caller quietly never collecting anything.
         ArgumentOutOfRangeException.ThrowIfGreaterThan(ticketIds.Count, MaxReceiptsPerRequest);
 
+        // Asking what became of a ticket changes nothing, so unlike a send it is worth
+        // asking again when Expo answers 500 or never answers at all.
         return await PostToExpo<ExpoReceiptResponse>(
             ReceiptsUri,
             _serializationHelper.ToJson(new ExpoReceiptRequest { Ids = [.. ticketIds] }),
+            _retryReads,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -316,6 +334,7 @@ public class NotificationHelper
     private async Task<T?> PostToExpo<T>(
         string uri,
         string serializedRequest,
+        ExpoRetry retry,
         CancellationToken cancellationToken)
         where T : class
     {
@@ -342,7 +361,7 @@ public class NotificationHelper
 
             var body = await rawResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var shown = body.Length > 500 ? body[..500] : body;
-            var wait = _retry.Wait(rawResponse.StatusCode, rawResponse.Headers.RetryAfter, tried, DateTimeOffset.UtcNow);
+            var wait = retry.Wait(rawResponse.StatusCode, rawResponse.Headers.RetryAfter, tried, DateTimeOffset.UtcNow);
 
             if (wait is null)
             {
