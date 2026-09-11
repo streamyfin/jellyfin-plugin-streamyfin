@@ -207,6 +207,7 @@ public class NotificationHelper
         }
 
         var tickets = new List<TicketStatus>();
+        var errors = new List<Errors>();
         var answered = false;
 
         foreach (var batch in batches)
@@ -231,9 +232,14 @@ public class NotificationHelper
 
             answered = true;
             tickets.AddRange(response.Data);
+
+            // What Expo says about the request rather than about a delivery. The caller
+            // is handed this response and the notifications route serializes it, so a
+            // batch's errors would otherwise be dropped on the way out.
+            errors.AddRange(response.Errors);
         }
 
-        return answered ? new ExpoNotificationResponse { Data = tickets } : null;
+        return answered ? new ExpoNotificationResponse { Data = tickets, Errors = errors } : null;
     }
 
     /// <summary>
