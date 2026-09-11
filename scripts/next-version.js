@@ -52,6 +52,20 @@ function applyBump([major, minor, patch], bump) {
   return [major, minor, patch + 1, 0];
 }
 
+// An explicit version wins over the computed one. The conventional commit rule answers
+// "what does this change deserve", which is the right answer for a routine release and
+// the wrong one when a release is a decision: the rewrite is a minor bump by the rule
+// and a bigger number by intent, and there is no commit subject that says 0.70 without
+// also claiming a breaking change.
+const explicit = (process.env.RELEASE_VERSION || '').trim();
+if (explicit) {
+  if (!VERSION_TAG_RE.test(explicit)) {
+    throw new Error(`RELEASE_VERSION is not a version: ${explicit}`);
+  }
+  process.stdout.write(parseVersion(explicit).join('.') + '\n');
+  process.exit(0);
+}
+
 const tag = lastVersionTag();
 const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
 const next = applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
