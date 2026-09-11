@@ -16,6 +16,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # What a pull request adds to the dependency tree, before it is merged. The scheduled
+  # scan in security.yml reads what is already there; this reads what is arriving, and
+  # it is the only one that can run on a fork's pull request, since it needs no write.
+  dependencies:
+    name: dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
   build:
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -75,8 +94,44 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # The admin pages are JavaScript that only a browser runs. Their tests run under a
-  # test DOM, once, since nothing in them depends on the Jellyfin target.
+  # A reviewer who wants to try a pull request should not have to build it. The two
+  # artifacts above are one download away; this says so on the pull request, once, and
+  # says where the file goes on a server.
+  #
+  # Only for a branch in this repository: a fork's pull request gets a read only token
+  # whatever the permissions below say, so the job would fail rather than stay quiet.
+  artifacts:
+    name: point at the build
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-artifacts
+          message: |
+            **This branch is built.** Two DLLs, one per Jellyfin line, on [the run that produced them](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts):
+
+            | Artifact | For |
+            |---|---|
+            | `Jellyfin.Plugin.Streamyfin-jf11` | Jellyfin 10.11.9 and later |
+            | `Jellyfin.Plugin.Streamyfin-jf12` | Jellyfin 12 |
+
+            To try one, stop the server, drop the DLL over the one in
+            `config/data/plugins/Streamyfin_<version>/`, and start it again. Keep the
+            file you replaced: that is the way back.
+
+  # The JavaScript this repository owns: the admin pages, which only a browser runs and
+  # which get a test DOM here, and the release scripts. Once, since nothing in either
+  # depends on the Jellyfin target.
+  #
+  # --frozen-lockfile is the lockfile check as well as the install: it fails when
+  # package.json asks for something bun.lock does not carry, which is how a dependency
+  # gets added in a pull request and resolved differently on the next machine.
   pages:
     name: pages
     runs-on: ubuntu-latest
@@ -88,7 +143,7 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install
+      - name: Install, and check the lockfile agrees with package.json
         run: bun install --frozen-lockfile
 
       - name: Test
