@@ -18,30 +18,20 @@ namespace Jellyfin.Plugin.Streamyfin.Integrations;
 /// Asks a configured integration whether it is there.
 /// </summary>
 /// <remarks>
-/// This belongs on the server rather than in the app, and that is the whole point of it.
-/// An administrator types an address the server can reach and a phone on mobile data
-/// never will, saves it, and finds out it is wrong when a user reports that the Seerr
-/// tab is empty. The server can ask, from where the address is meant to work.
-///
-/// <para>
-/// The probes are the ones the app already uses, deliberately: Seerr has an
-/// unauthenticated endpoint that identifies the service, and the other two do not, so
-/// for those any HTTP answer at all is the most that can honestly be claimed. A probe
-/// resolves rather than throws, because a failed probe is an answer.
-/// </para>
+/// On the server because an administrator types an address the server reaches and a
+/// phone on mobile data never will. Seerr has an endpoint that identifies it; the
+/// others do not, so for those any HTTP answer is the most that can be claimed. A probe
+/// answers rather than throws, since a failed probe is an answer.
 /// </remarks>
 public sealed class IntegrationProbe
 {
     /// <summary>
-    /// The name of the configured client that reaches an integration. Its timeout lives
-    /// with the registration rather than at this call site.
+    /// The configured client that reaches an integration.
     /// </summary>
     public const string ClientName = "streamyfin-integrations";
 
     /// <summary>
-    /// How long an answer is reused. Short enough that an administrator correcting an
-    /// address sees it, long enough that a room full of apps starting at once costs one
-    /// round of probes.
+    /// How long an answer is reused.
     /// </summary>
     private static readonly TimeSpan _keepFor = TimeSpan.FromSeconds(30);
 
@@ -92,20 +82,14 @@ public sealed class IntegrationProbe
                 ? await Seerr(address!, cancellationToken).ConfigureAwait(false)
                 : await Answers(kind, address!, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or IOException)
+        // The caller going away is not a verdict about the address. A timeout is.
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger?.LogDebug(exception, "Probing {Kind} did not reach it", kind);
-
-            return new IntegrationHealth(
-                kind,
-                IntegrationOutcome.Unreachable,
-                "Nothing answered at that address from this server.",
-                null);
+            throw;
         }
         catch (UriFormatException exception)
         {
-            // Distinct from nothing answering, because nothing was asked. Saying a
-            // connection was attempted when none was would send an administrator
+            // Nothing was asked, so saying nothing answered would send an administrator
             // looking at their network.
             _logger?.LogDebug(exception, "Could not build a request for {Kind}", kind);
 
@@ -113,6 +97,18 @@ public sealed class IntegrationProbe
                 kind,
                 IntegrationOutcome.NotAUrl,
                 "The server could not turn that into a request.",
+                null);
+        }
+        // Everything else, because a round is stored and replayed: one that faults is a
+        // 500 for every caller for the next half minute.
+        catch (Exception exception)
+        {
+            _logger?.LogDebug(exception, "Probing {Kind} did not reach it", kind);
+
+            return new IntegrationHealth(
+                kind,
+                IntegrationOutcome.Unreachable,
+                "Nothing answered at that address from this server.",
                 null);
         }
     }
@@ -124,69 +120,40 @@ public sealed class IntegrationProbe
     /// <param name="cancellationToken">Stops the calls.</param>
     /// <returns>One answer per service, configured or not.</returns>
     /// <remarks>
-    /// Every signed in account may ask, each ask reaches three third party services from
-    /// the server's own network position, and one that does not answer holds the request
-    /// for the client timeout. A handful of apps starting at once, or one account in a
-    /// loop, would turn this into something pointed at the administrator's own services.
-    ///
-    /// <para>
-    /// Keyed by the addresses, so an administrator who corrects one gets a fresh answer
-    /// on the next ask rather than the old one for another half minute, and shared
-    /// across callers because the addresses are the server's rather than theirs.
-    /// </para>
+    /// Every signed in account may ask, and each ask reaches the configured services
+    /// from the server's own network position. Keyed by the addresses, so correcting one
+    /// is answered at once rather than after the cache expires.
     /// </remarks>
     public async Task<IReadOnlyList<IntegrationHealth>> HealthOf(
         Settings? settings,
         CancellationToken cancellationToken = default)
     {
-        var asked = string.Join(
-            '\n',
-            settings?.jellyseerrServerUrl?.value,
-            settings?.marlinServerUrl?.value,
-            settings?.streamyStatsServerUrl?.value);
-
-        Task<IReadOnlyList<IntegrationHealth>> round;
+        var asked = Addresses(settings);
+        Lazy<Task<IReadOnlyList<IntegrationHealth>>> round;
 
         lock (_recent)
         {
             Forget(DateTimeOffset.UtcNow);
 
-            if (_recent.TryGetValue(asked, out var known))
+            if (!_recent.TryGetValue(asked, out var known))
             {
-                round = known.Health;
+                // The round runs on its own token, since this answer is stored for
+                // everyone and a caller who walks away must not write theirs into it.
+                // Lazy, so the lock publishes the task rather than doing its work.
+                known = new Round(
+                    new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(() => ProbeAll(settings, CancellationToken.None)),
+                    DateTimeOffset.UtcNow);
+                _recent[asked] = known;
             }
-            else
-            {
-                // Started inside the lock and shared, so the second caller to arrive
-                // before the first finishes waits on the same round rather than opening
-                // three more connections to the administrator's services. Thirty phones
-                // waking at once is one round, which is what the cache is for.
-                //
-                // On its own token: this answer is stored for everyone, and a caller who
-                // walks away must not be able to write "everything is down" into it.
-                round = ProbeAll(settings, CancellationToken.None);
-                _recent[asked] = new Round(round, DateTimeOffset.UtcNow);
-            }
+
+            round = known.Health;
         }
 
-        var health = await round.WaitAsync(cancellationToken).ConfigureAwait(false);
-
-        // A round that answered nothing but cancellations says nothing about the
-        // services, and it would be read by everyone asking for the next half minute.
-        if (health.All(one => one.Outcome == IntegrationOutcome.Unreachable))
-        {
-            lock (_recent)
-            {
-                _recent.Remove(asked);
-            }
-        }
-
-        return health;
+        return await round.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    // Anything past its half minute, and anything from an address nobody asks about any
-    // more, so a server whose targeting gives many users their own address does not keep
-    // a slot per address for ever.
+    // Anything past its half minute, so a server giving many users their own address
+    // does not keep a slot per address for ever.
     private void Forget(DateTimeOffset now)
     {
         if (_recent.Count == 0)
@@ -194,13 +161,38 @@ public sealed class IntegrationProbe
             return;
         }
 
-        foreach (var stale in _recent.Where(entry => now - entry.Value.At >= _keepFor).Select(entry => entry.Key).ToList())
+        List<string>? stale = null;
+
+        foreach (var entry in _recent)
         {
-            _recent.Remove(stale);
+            if (now - entry.Value.At >= _keepFor)
+            {
+                (stale ??= []).Add(entry.Key);
+            }
+        }
+
+        foreach (var key in stale ?? [])
+        {
+            _recent.Remove(key);
         }
     }
 
-    private sealed record Round(Task<IReadOnlyList<IntegrationHealth>> Health, DateTimeOffset At);
+    private static string Addresses(Settings? settings) =>
+        string.Join('\n', Probeable(settings).Select(one => $"{one.Kind}={one.Url}"));
+
+    // Read from the declarations rather than from a list here, so a fourth integration
+    // is an attribute on its property and nothing else.
+    private static IEnumerable<(IntegrationKind Kind, string? Url)> Probeable(Settings? settings) =>
+        SettingsSchema.Descriptors
+            .Where(descriptor => descriptor.Probe is not null)
+            .Select(descriptor => (
+                descriptor.Probe!.Kind,
+                Url: settings is null
+                    ? null
+                    : descriptor.Property.GetValue(settings)?.GetType().GetProperty("value")
+                        ?.GetValue(descriptor.Property.GetValue(settings)) as string));
+
+    private sealed record Round(Lazy<Task<IReadOnlyList<IntegrationHealth>>> Health, DateTimeOffset At);
 
     /// <summary>
     /// Asks every service these settings configure.
@@ -212,15 +204,11 @@ public sealed class IntegrationProbe
         Settings? settings,
         CancellationToken cancellationToken = default)
     {
-        var seerr = Probe(IntegrationKind.Seerr, settings?.jellyseerrServerUrl?.value, cancellationToken);
-        var marlin = Probe(IntegrationKind.Marlin, settings?.marlinServerUrl?.value, cancellationToken);
-        var stats = Probe(IntegrationKind.Streamystats, settings?.streamyStatsServerUrl?.value, cancellationToken);
+        var asking = Probeable(settings)
+            .Select(one => Probe(one.Kind, one.Url, cancellationToken))
+            .ToList();
 
-        return [
-            await seerr.ConfigureAwait(false),
-            await marlin.ConfigureAwait(false),
-            await stats.ConfigureAwait(false)
-        ];
+        return await Task.WhenAll(asking).ConfigureAwait(false);
     }
 
     // /api/v1/status is Seerr's own, unauthenticated, and carries a version. It proves
@@ -243,9 +231,7 @@ public sealed class IntegrationProbe
 
         if (!response.IsSuccessStatusCode)
         {
-            // What answered decides which of three different things to say. A 503 from a
-            // Seerr that is restarting is not a wrong address, and telling an
-            // administrator it is sends them editing a correct one.
+            // A 503 from a Seerr that is restarting is not a wrong address.
             return Ailing(IntegrationKind.Seerr, response.StatusCode)
                 ?? Refused(IntegrationKind.Seerr, response.StatusCode, "which Seerr's status endpoint would not");
         }
@@ -258,9 +244,8 @@ public sealed class IntegrationProbe
             return new IntegrationHealth(IntegrationKind.Seerr, IntegrationOutcome.Ok, null, version);
         }
 
-        // A status document is a few hundred bytes, so one that filled the cap is not a
-        // status document. Saying it is not Seerr would be a diagnosis of the address,
-        // which is not what went wrong.
+        // One that filled the cap is not a status document, and calling that the wrong
+        // address diagnoses the wrong thing.
         return whole
             ? new IntegrationHealth(
                 IntegrationKind.Seerr,
@@ -274,8 +259,8 @@ public sealed class IntegrationProbe
                 null);
     }
 
-    // A server error, and an authentication wall, are both something other than a wrong
-    // address, and each is worth its own sentence.
+    // A server error, an access wall and a redirect are each something other than a
+    // wrong address.
     private static IntegrationHealth? Ailing(IntegrationKind kind, HttpStatusCode status)
     {
         if ((int)status >= 500)
@@ -310,10 +295,9 @@ public sealed class IntegrationProbe
         return null;
     }
 
-    // A status document is a few hundred bytes. Reading whatever answers without a cap
-    // would let a mistyped address pointing at a media file or a log tail pull as much
-    // as eight seconds of it into memory, twice over as a string. Whether it ended says
-    // the difference between "not Seerr" and "more than this could read".
+    // Capped: a mistyped address pointing at a media file would otherwise pull as much
+    // as the timeout allows into memory. Whether it ended tells "not Seerr" from
+    // "more than this could read".
     private static async Task<(string Body, bool Whole)> FirstOf(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -321,14 +305,16 @@ public sealed class IntegrationProbe
         const int Enough = 8 * 1024;
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var buffer = new byte[Enough];
+        // One byte past the cap, so a body that ends exactly on it is not mistaken for
+        // one that was cut short.
+        var buffer = new byte[Enough + 1];
         var filled = 0;
         var whole = false;
 
-        while (filled < Enough)
+        while (filled < buffer.Length)
         {
             var read = await stream
-                .ReadAsync(buffer.AsMemory(filled, Enough - filled), cancellationToken)
+                .ReadAsync(buffer.AsMemory(filled, buffer.Length - filled), cancellationToken)
                 .ConfigureAwait(false);
 
             if (read == 0)
@@ -340,7 +326,7 @@ public sealed class IntegrationProbe
             filled += read;
         }
 
-        return (Encoding.UTF8.GetString(buffer, 0, filled), whole);
+        return (Encoding.UTF8.GetString(buffer, 0, Math.Min(filled, Enough)), whole);
     }
 
     private static IntegrationHealth Refused(IntegrationKind kind, HttpStatusCode status, string why) =>
@@ -358,20 +344,14 @@ public sealed class IntegrationProbe
         using var response = await _clients.CreateClient(ClientName)
             .GetAsync(address, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
-        // A 5xx is the one answer that is worse than no answer: something is there, in
-        // front of the service, saying the service is not working. Reported as reachable
-        // it would paint a stopped container green and send the app at a dead tab, which
-        // is the failure this exists to catch.
         var ailing = Ailing(kind, response.StatusCode);
         if (ailing is not null)
         {
             return ailing;
         }
 
-        // Reachable rather than Ok, and the difference is the whole point: nothing at
-        // this address says what it is, so the Jellyfin address typed into the Marlin
-        // field answers 200 and lands here. An app that read that as confirmed would
-        // open a Marlin tab onto Jellyfin.
+        // Reachable rather than Ok: the Jellyfin address in the Marlin field answers
+        // 200 and lands here, and an app reading that as confirmed opens a dead tab.
         return new IntegrationHealth(
             kind,
             IntegrationOutcome.Reachable,
@@ -382,8 +362,7 @@ public sealed class IntegrationProbe
             null);
     }
 
-    // A JSON body carrying version or commitTag is a real Seerr, which is what the app's
-    // own probe looks for. Anything else, including a login page that answers 200, is not.
+    // version or commitTag is a real Seerr. A login page answering 200 is not.
     private static string? SeerrVersion(string body)
     {
         try
@@ -402,10 +381,8 @@ public sealed class IntegrationProbe
                 return version.GetString();
             }
 
-            // A build that reports only a commit tag is still Seerr, and the tag is still
-            // a version. A key that is there but null or a number is not: the answer said
-            // nothing, and reporting an invented version would be worse than reporting
-            // none.
+            // A commit tag is a version. One that is null or a number said nothing, and
+            // an invented version is worse than none.
             return document.RootElement.TryGetProperty("commitTag", out var tag)
                 && tag.ValueKind == JsonValueKind.String
                 && !string.IsNullOrWhiteSpace(tag.GetString())

@@ -39,11 +39,14 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // has not answered in eight seconds is not one the app will wait for either.
         serviceCollection
             .AddHttpClient(IntegrationProbe.ClientName, client => client.Timeout = TimeSpan.FromSeconds(8))
-            // A probe reports on the address that was typed. Following a redirect makes
-            // it report on somewhere else: a Seerr behind an SSO proxy sends the status
-            // request to a login page, which answers 200 and does not look like Seerr,
-            // and the administrator is sent to fix an address that was right.
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+            // A probe reports on the address that was typed, so it follows nothing and
+            // remembers nothing: a redirect would report on somewhere else, and a cookie
+            // from one probe would change the answer to the next.
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false
+            });
 
         // Event listeners
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartEvent>();

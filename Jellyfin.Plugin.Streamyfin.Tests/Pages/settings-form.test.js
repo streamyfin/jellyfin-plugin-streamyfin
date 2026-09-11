@@ -760,7 +760,7 @@ describe("what a level inherits", () => {
 describe("testing an address", () => {
     const PROBED = [
         ...FIELDS,
-        field("marlinServerUrl", "Text", { category: "Plugins", group: "Marlin search", title: "Marlin server", probe: "Marlin" }),
+        field("marlinServerUrl", "Text", { category: "Plugins", group: "Marlin search", title: "Marlin server", probe: "Marlin", address: true }),
     ];
 
     const withProbe = (probe) => {
@@ -935,8 +935,61 @@ describe("testing an address", () => {
 
     test("something serving HTTP with no signature is not read as confirmed", () => {
         expect(probeTone({ outcome: "Reachable" })).toBe("sf-said--ok");
+        // Without a detail it still has to read as something that answered.
+        expect(probeText({ outcome: "Reachable" })).toBe("Something answered, and nothing there says what it is.");
         expect(probeText({ outcome: "Reachable", detail: "Answered with 200. Nothing there identifies the service." }))
             .toBe("Answered with 200. Nothing there identifies the service.");
+    });
+
+    test("discarding clears an answer about the address that was there", async () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok", version: "2.1.0" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://marlin.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+        expect(marlin.querySelector(".sf-said").hidden).toBe(false);
+
+        form.reset();
+
+        expect(marlin.querySelector(".sf-said").hidden).toBe(true);
+    });
+
+    test("a setting that is an address with nothing to ask is still checked", () => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const fields = [
+            ...FIELDS,
+            field("webhookUrl", "Text", { category: "Plugins", group: "Other", title: "Webhook", address: true }),
+        ];
+        const form = createForm(mount, { fields, values: {}, defaults: DEFAULTS, cultures: CULTURES });
+
+        const hook = mount.querySelector('[data-key="webhookUrl"]');
+        hook.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = hook.querySelector("input");
+        input.value = "not an address";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(form.invalid()).toContain("webhookUrl");
+        // And no Test button, since nothing declared a service at the other end.
+        expect([...hook.querySelectorAll("button")].some((b) => b.textContent === "Test")).toBe(false);
+    });
+
+    test("a key is trimmed the way an address is", () => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields: FIELDS, values: {}, defaults: DEFAULTS, cultures: CULTURES });
+
+        const key = mount.querySelector('[data-key="jellyseerrApiKey"]');
+        key.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = key.querySelector("input");
+        input.value = "  a-key-with-a-newline\n";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(form.toSettings().jellyseerrApiKey.value).toBe("a-key-with-a-newline");
     });
 
     test("every outcome reads as a sentence", () => {

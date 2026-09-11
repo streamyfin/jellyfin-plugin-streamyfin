@@ -506,6 +506,86 @@ public class IntegrationProbeTests
         }));
     }
 
+    /// <summary>
+    /// A round where nothing answered is still kept, since that is when the cache
+    /// matters most.
+    /// </summary>
+    /// <remarks>
+    /// Three services on a host that is off is three probes held for the whole client
+    /// timeout. Dropping that answer would make every caller pay it again, which is the
+    /// loop the cache exists to stop.
+    /// </remarks>
+    [Fact]
+    public async Task ARoundWhereNothingAnsweredIsStillKept()
+    {
+        var handler = new Throwing(new HttpRequestException("no route"));
+        var probe = new IntegrationProbe(new OneClient(handler));
+        var settings = Configured();
+
+        await probe.HealthOf(settings);
+        await probe.HealthOf(settings);
+
+        // One reach for the one configured service, and the second ask read the answer.
+        Assert.Equal(1, handler.Calls);
+    }
+
+    /// <summary>
+    /// A probe that hits something nobody thought of is an answer, not a round that
+    /// faults.
+    /// </summary>
+    /// <remarks>
+    /// The round is stored and replayed, so one that faults is a 500 for every caller
+    /// for the next half minute.
+    /// </remarks>
+    [Fact]
+    public async Task AnUnexpectedFailureIsStillAnAnswer()
+    {
+        var probe = new IntegrationProbe(new OneClient(new Throwing(new InvalidOperationException("something else"))));
+
+        var health = await probe.HealthOf(Configured());
+
+        Assert.Equal(IntegrationOutcome.Unreachable, Find(health, IntegrationKind.Seerr).Outcome);
+    }
+
+    /// <summary>
+    /// A caller who goes away gets their cancellation rather than a verdict about the
+    /// address.
+    /// </summary>
+    [Fact]
+    public async Task ACancelledProbeIsNotAVerdict()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        handler.Hold();
+        var probe = ProbeWith(handler);
+
+        using var gone = new CancellationTokenSource();
+        var asking = probe.Probe(IntegrationKind.Seerr, "https://requests.example.com", gone.Token);
+        await gone.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => asking);
+
+        handler.Release();
+    }
+
+    /// <summary>
+    /// A body that ends exactly on the cap is whole, not cut short.
+    /// </summary>
+    [Fact]
+    public async Task ABodyThatEndsExactlyOnTheCapIsWhole()
+    {
+        var exact = "{\"x\":\"" + new string('y', 8 * 1024 - 10) + "\"}";
+
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, exact))
+            .Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.Equal(IntegrationOutcome.WrongService, health.Outcome);
+    }
+
+    private static Settings Configured() => new()
+    {
+        jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" }
+    };
+
     private static IntegrationHealth Find(IReadOnlyList<IntegrationHealth> health, IntegrationKind kind) =>
         health.Single(one => one.Kind == kind);
 
@@ -543,7 +623,9 @@ public class IntegrationProbeTests
 
             if (_holding)
             {
-                await _held.Task.ConfigureAwait(false);
+                // Through the token, the way a real handler waits, or a cancelled probe
+                // never observes its own cancellation.
+                await _held.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return new HttpResponseMessage(status)
@@ -555,8 +637,15 @@ public class IntegrationProbeTests
 
     private sealed class Throwing(Exception exception) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
             throw exception;
+        }
     }
 
     private sealed class OneClient(HttpMessageHandler handler) : IHttpClientFactory

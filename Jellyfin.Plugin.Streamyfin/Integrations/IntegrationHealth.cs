@@ -31,15 +31,9 @@ public enum IntegrationOutcome
     Ok,
 
     /// <summary>
-    /// Something is serving HTTP at that address, and nothing there says what it is.
+    /// Something is serving HTTP there, and nothing says what. Apart from
+    /// <see cref="Ok"/> so a consumer can tell "confirmed" from "answers".
     /// </summary>
-    /// <remarks>
-    /// Apart from <see cref="Ok"/> because a consumer has to be able to tell them
-    /// apart. Marlin and Streamystats have no endpoint that identifies them, so the
-    /// Jellyfin address typed into the Marlin field answers 200 and is reachable; an
-    /// app that read that as confirmed would open a Marlin tab onto Jellyfin, which is
-    /// the failure this exists to prevent.
-    /// </remarks>
     Reachable,
 
     /// <summary>Something answered, but it is not the service that was expected.</summary>
@@ -60,10 +54,8 @@ public enum IntegrationOutcome
 /// <param name="Detail">A sentence an administrator can act on.</param>
 /// <param name="Version">The version the service reported, when it reports one.</param>
 /// <remarks>
-/// Deliberately carries no URL. The health of an integration is something every user
-/// may know, since the app changes what it offers by it, but the address of an internal
-/// service is not, and P1.4 exists because this plugin used to serve that distinction
-/// the wrong way round.
+/// Carries no URL on purpose: that a service is down is every user's to know, where it
+/// lives is not.
 /// </remarks>
 public sealed record IntegrationHealth(
     [property: JsonPropertyName("kind")] IntegrationKind Kind,

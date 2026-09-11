@@ -121,6 +121,8 @@ export const probeText = (health) => {
     switch (health.outcome) {
         case "Ok":
             return health.version ? `Answered, running ${shortVersion(health.version)}.` : (health.detail ?? "Answered.");
+        case "Reachable":
+            return health.detail ?? "Something answered, and nothing there says what it is.";
         case "NotConfigured":
             return "Nothing to try yet.";
         case "NotAUrl":
@@ -294,11 +296,10 @@ const readControl = (row, cultures) => {
             return control.value.trim() === "" ? null : Number(control.value);
         case "Select":
             return control.value === "" || control.value === APP_DEFAULT ? null : control.value;
-        case "Text":
-            // Trimmed, because everything else on this path already is: the Test button
-            // sends a trimmed address and the server trims before checking one, so an
-            // address pasted with a trailing space was verified in a form it was never
-            // saved in.
+        case "Text": case "Secret":
+            // An address pasted with a trailing space was tested trimmed and saved
+            // untrimmed, and a key pasted with a trailing newline fails auth for the
+            // same reason. Neither setting means anything by its edges.
             return control.value.trim();
         case "List":
             return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -363,7 +364,7 @@ const problemOf = (row) => {
     // field rather than refused as a banner over the whole save. A configuration stored
     // before the rule existed can carry one of these, and finding it in a list of
     // ninety settings is the difference between a correction and a wall.
-    if (field.probe && !isWebAddress(String(value ?? ""))) {
+    if (field.address && !isWebAddress(String(value ?? ""))) {
         return "Enter a whole address, starting with http:// or https://.";
     }
 
@@ -458,6 +459,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
 
     const refreshRow = (row) => {
         setPressed(row);
+        // Before the control is rewritten: Discard and the state buttons both land here
+        // and assign the value directly, which fires no input event.
+        row.clearProbe?.();
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
@@ -614,15 +618,15 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 said.setAttribute("role", "status");
                 said.hidden = true;
 
-                const clear = () => {
+                // An answer is about the address that was tried, so it goes the moment
+                // the value moves, whether someone typed it or Discard put it back.
+                row.clearProbe = () => {
                     said.hidden = true;
                     said.textContent = "";
                     said.className = "sf-said";
                 };
 
-                // An answer is about the address that was tried. Leaving it beside an
-                // address that has since been edited says a different one was verified.
-                row.control?.addEventListener("input", clear);
+                row.control?.addEventListener("input", row.clearProbe);
 
                 test.addEventListener("click", () => {
                     const typed = String(row.control?.value ?? "").trim();

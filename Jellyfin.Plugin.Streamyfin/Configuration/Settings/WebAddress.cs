@@ -6,14 +6,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// Whether something an administrator typed is an address at all.
 /// </summary>
 /// <remarks>
-/// The shape only. Whether anything answers there is a different question, and one
-/// only a probe can ask.
-///
-/// <para>
-/// Here rather than beside the probe, so the validation that refuses a bad address and
-/// the probe that would open it agree without the settings folder and the integrations
-/// folder pointing at each other.
-/// </para>
+/// The shape only. Whether anything answers there is what a probe asks.
 /// </remarks>
 public static class WebAddress
 {
@@ -24,10 +17,8 @@ public static class WebAddress
     /// <param name="address">The address, when it is one.</param>
     /// <returns>Whether it is.</returns>
     /// <remarks>
-    /// Absolute, and http or https. A <c>file:</c> address would have the server read
-    /// its own disk and report whether it succeeded, which is a probe answering a
-    /// question nobody asked, and <c>192.168.1.5:3000</c> is a host and a port that the
-    /// app cannot turn into a request.
+    /// Absolute, and http or https. <c>file:</c> would have the server read its own
+    /// disk, and <c>192.168.1.5:3000</c> is not something the app can request.
     /// </remarks>
     public static bool Parses(string? typed, out Uri? address)
     {
