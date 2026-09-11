@@ -673,7 +673,7 @@ public class StreamyfinController : ControllerBase
     Id = group.Id,
     Name = group.Name,
     Priority = group.Priority,
-    Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Name}"),
+    Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Id}"),
     UserIds = members
   };
 

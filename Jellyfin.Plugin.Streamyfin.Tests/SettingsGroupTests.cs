@@ -300,6 +300,44 @@ public class SettingsGroupTests : IDisposable
         Assert.Equal(42, _resolution.ReadLevel(stored, "a test")?.subtitleSize?.value);
     }
 
+    /// <summary>
+    /// The warning about an unreadable level stays on one line, whatever it is told
+    /// the level is called.
+    /// </summary>
+    /// <remarks>
+    /// Callers name a level by its id, so this is defence rather than a live hole,
+    /// but a log line assembled from a name someone typed is how a forged entry gets
+    /// written, and this one only appears when stored data is already wrong.
+    /// </remarks>
+    [Fact]
+    public void TheWarningAboutAnUnreadableLevelStaysOnOneLine()
+    {
+        var log = new RecordingLogger<SettingsResolutionService>();
+        var resolution = new SettingsResolutionService(_serialization, log);
+
+        Assert.Null(resolution.ReadLevel("{ this is not json", "group Night\r\nfatal: everything is fine"));
+
+        var written = Assert.Single(log.Messages);
+        Assert.DoesNotContain("\n", written, StringComparison.Ordinal);
+        Assert.DoesNotContain("\r", written, StringComparison.Ordinal);
+        Assert.Contains("group Night", written, StringComparison.Ordinal);
+        Assert.Contains("fatal: everything is fine", written, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A level named by nothing at all still says something.
+    /// </summary>
+    [Fact]
+    public void ALevelNamedByNothingStillSaysSomething()
+    {
+        var log = new RecordingLogger<SettingsResolutionService>();
+        var resolution = new SettingsResolutionService(_serialization, log);
+
+        Assert.Null(resolution.ReadLevel("{ this is not json", "   "));
+
+        Assert.Contains("an unnamed level", Assert.Single(log.Messages), StringComparison.Ordinal);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

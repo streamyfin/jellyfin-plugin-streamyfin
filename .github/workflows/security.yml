@@ -34,19 +34,19 @@ jobs:
         language: [csharp, actions]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # The plugin builds against Jellyfin 12 here. CodeQL needs one build, not both:
       # the source is the same and the boundary between the two targets is held by
       # CompatBoundaryTests rather than by a second scan.
       - name: Setup .NET
         if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3.38.0
         with:
           languages: ${{ matrix.language }}
           queries: +security-extended
@@ -56,7 +56,7 @@ jobs:
         run: dotnet build --configuration Release -p:JellyfinTarget=jf12
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3.38.0
         with:
           category: /language:${{ matrix.language }}
 
@@ -68,7 +68,7 @@ jobs:
       security-events: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Pinned by commit rather than by tag, and this is why: the dependency review on
       # this pull request refused 0.28.0, a version published while this action's
@@ -89,7 +89,7 @@ jobs:
           output: trivy.sarif
 
       - name: Upload to code scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3.38.0
         with:
           sarif_file: trivy.sarif
           category: trivy
