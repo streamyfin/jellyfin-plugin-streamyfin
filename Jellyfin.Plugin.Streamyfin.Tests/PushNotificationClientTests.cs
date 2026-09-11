@@ -139,9 +139,51 @@ public class PushNotificationClientTests
     [Fact]
     public async Task RetryingGivesUp()
     {
-        var handler = new StubHandler(HttpStatusCode.ServiceUnavailable, "later");
+        var handler = new StubHandler(HttpStatusCode.TooManyRequests, "later");
 
         Assert.Null(await HelperFor(handler).Send(ANotification()));
+        Assert.Equal(ExpoRetry.Immediate.Tries, handler.Calls);
+    }
+
+    /// <summary>
+    /// A send is not repeated when the answer does not say whether Expo took it.
+    /// </summary>
+    /// <remarks>
+    /// Expo's send endpoint carries no idempotency key and documents no deduplication.
+    /// A 500 might mean the pushes went out and the answer was lost, so repeating it
+    /// notifies everyone twice, which is worse than the notification being late.
+    /// </remarks>
+    [Fact]
+    public async Task AnAmbiguousRefusalDoesNotRepeatASend()
+    {
+        var handler = new StubHandler(HttpStatusCode.InternalServerError, "boom");
+
+        Assert.Null(await HelperFor(handler).Send(ANotification()));
+        Assert.Equal(1, handler.Calls);
+    }
+
+    /// <summary>
+    /// Expo refusing one batch stops the send rather than working through the rest.
+    /// </summary>
+    /// <remarks>
+    /// The notifications route blocks on this call. A thousand recipients against a
+    /// server answering 429 is ten batches, each with its own waits, and every one of
+    /// them reaches nobody.
+    /// </remarks>
+    [Fact]
+    public async Task ARefusedBatchStopsTheSend()
+    {
+        var handler = new StubHandler(HttpStatusCode.TooManyRequests, "no");
+
+        var response = await HelperFor(handler).Send(new ExpoNotificationRequest
+        {
+            Title = "A title",
+            To = [.. Enumerable.Range(0, 500).Select(i => $"ExponentPushToken[{i}]")]
+        });
+
+        Assert.Null(response);
+
+        // The first batch's three tries, and nothing for the four batches behind it.
         Assert.Equal(ExpoRetry.Immediate.Tries, handler.Calls);
     }
 
