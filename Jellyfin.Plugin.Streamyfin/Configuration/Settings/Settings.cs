@@ -525,16 +525,20 @@ public class Settings
     public Lockable<AudioTranscodeMode>? audioTranscodeMode { get; set; } // = auto;
 
     // region Plugins
-    // Jellyseerr
+    // Seerr, which the keys still spell jellyseerr: every copy of the app in the field
+    // reads that name, so it stays the one the plugin writes. [AlsoKnownAs] is what lets
+    // an administrator type the current name, which is issue #95.
     [NotNull]
-    [Display(Name = "Jellyseerr Server URL", Description = "Enter the url for your jellyseerr server. **Jellyfin authentication is required**")]
-    [SettingScope("Plugins", Group = "Jellyseerr")]
+    [Display(Name = "Seerr server URL", Description = "Enter the url for your Seerr server, the project formerly called Jellyseerr. **Jellyfin authentication is required**")]
+    [SettingScope("Plugins", Group = "Seerr")]
+    [AlsoKnownAs("seerrServerUrl")]
     public Lockable<string>? jellyseerrServerUrl { get; set; }
 
     [NotNull]
-    [Display(Name = "Jellyseerr API Key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API — only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
+    [Display(Name = "Seerr API key", Description = "Seerr admin API key (Seerr Settings > General). Lets Streamyfin sign each user in to Seerr without a password. **Warning: every authenticated Jellyfin user on this server can read this key and it grants full admin access to the Seerr API. Only set it if you trust all of your users.** Requires a Seerr version with the /user/jellyfin/{id} route.")]
     [Secret]
-    [SettingScope("Plugins", Group = "Jellyseerr")]
+    [SettingScope("Plugins", Group = "Seerr")]
+    [AlsoKnownAs("seerrApiKey")]
     public Lockable<string>? jellyseerrApiKey { get; set; }
 
     // Marlin Search
@@ -596,8 +600,9 @@ public class Settings
     public Lockable<bool>? openSubtitlesEnabled { get; set; } // = true;
 
     [NotNull]
-    [Display(Name = "Sign in to Jellyseerr automatically", Description = "Sign the user in to Jellyseerr without asking, when the server allows it")]
-    [SettingScope("Plugins", Group = "Jellyseerr")]
+    [Display(Name = "Sign in to Seerr automatically", Description = "Sign the user in to Seerr without asking, when the server allows it")]
+    [SettingScope("Plugins", Group = "Seerr")]
+    [AlsoKnownAs("autoLoginSeerr")]
     public Lockable<bool>? autoLoginJellyseerr { get; set; } // = true;
 
     // No default. The app leaves this undefined and follows the device language until

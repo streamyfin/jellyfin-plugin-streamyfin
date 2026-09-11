@@ -261,6 +261,21 @@ The app's `utils/serverUrl/probes/reachability.ts` is the pattern to follow.
 P6.1 is also the moment to rename the `jellyseerr*` keys to `seerr*` with the old
 names kept as aliases, which closes #95 without breaking every existing YAML.
 
+The rename landed first, on its own, and the typed blocks did not. Reading is
+where the rename matters: an administrator writes `seerrServerUrl`, the plugin
+now answers to it, and #95 was that it did not and said nothing. Writing is where
+it cannot move yet, because every copy of the app in the field reads
+`jellyseerrServerUrl` by name and a plugin that wrote the other spelling would
+take Seerr away from everyone who had not updated. So the old name stays the one
+written, the new one is an alias on the way in, and the day the app reads the new
+name the canonical one moves without a second migration for anyone who typed
+either.
+
+Typed blocks are the same wall, one storey higher. `seerr.serverUrl` is a
+different shape rather than a different spelling, and no alias makes an app that
+reads a flat key find a nested one. That part waits for the app, and it is the
+one piece of P6 that does.
+
 ## P1.7. Settings parity
 
 The plugin declares 43 of the 95 settings the app reads, so more than half of
@@ -301,7 +316,8 @@ Everything merged below is on `develop`, which reaches `main` through
 | P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), and the Targeting tab on this branch | merged, then this |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
-| P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | this |
+| P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
+| P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, this. Typed blocks wait for the app |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | this |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged, then this |
 

@@ -99,7 +99,7 @@ public class SettingsSchemaTests
         var descriptor = SettingsSchema.Find("jellyseerrApiKey");
 
         Assert.NotNull(descriptor);
-        Assert.Equal("Jellyseerr API Key", descriptor!.DisplayName);
+        Assert.Equal("Seerr API key", descriptor!.DisplayName);
         Assert.False(string.IsNullOrWhiteSpace(descriptor.Description));
     }
 
