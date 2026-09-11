@@ -65,6 +65,18 @@ public class Section
   [Display(Name = "Media poster orientation")]
   public SectionOrientation? orientation { get; set; }
 
+  /// <summary>
+  /// Which query fills this section.
+  /// </summary>
+  /// <remarks>
+  /// The discriminant. Absent in every configuration written before it existed, and
+  /// those are read by the payload they carry rather than refused. The server fills
+  /// it in on the way out, so the app is always told what a section is instead of
+  /// testing four fields in an order nothing declared.
+  /// </remarks>
+  [Display(Name = "Kind", Description = "Which query fills this section: items, nextUp, latest or custom")]
+  public SectionKind? kind { get; set; }
+
   [NotNull]
   [Display(Name = "Items", Description = "Customize the Items API query")]
   public Items? items { get; set; }
@@ -91,6 +103,30 @@ public enum SectionType
 {
   row,
   carousel,
+}
+
+/// <summary>
+/// What fills a home section.
+/// </summary>
+/// <remarks>
+/// One value per payload a section can carry, spelled the way the payload is spelled,
+/// so a section reads as "a nextUp section" and the field holding its query is the
+/// one named after it. Adding a kind is a value here and a property on
+/// <see cref="Section"/>; nothing acquires a fifth branch it can forget to test.
+/// </remarks>
+public enum SectionKind
+{
+  /// <summary>The items query.</summary>
+  items,
+
+  /// <summary>What the user is part way through, by series.</summary>
+  nextUp,
+
+  /// <summary>What arrived most recently.</summary>
+  latest,
+
+  /// <summary>An endpoint the administrator names.</summary>
+  custom,
 }
 
 public class Items

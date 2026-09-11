@@ -17,6 +17,12 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// jump ten minutes.
 ///
 /// <para>
+/// The home layout is checked here too, by <see cref="Sections"/>: a section carrying
+/// two queries used whichever the app tested first, and a section carrying none drew
+/// an empty row under a title.
+/// </para>
+///
+/// <para>
 /// The bounds come from <see cref="BoundsAttribute"/>, the same declaration the form
 /// draws from, so a setting is bounded once and both ends agree. Nothing here holds a
 /// list of keys.
@@ -36,7 +42,7 @@ public static class SettingsValidation
             return [];
         }
 
-        var problems = new List<string>();
+        var problems = new List<string>(Sections.Problems(settings));
 
         foreach (var descriptor in SettingsSchema.Descriptors)
         {

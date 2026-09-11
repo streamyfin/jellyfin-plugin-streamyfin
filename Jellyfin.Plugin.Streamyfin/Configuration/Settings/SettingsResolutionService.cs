@@ -87,6 +87,11 @@ public sealed class SettingsResolutionService(
         UserSettingsOverride? userOverride,
         bool isElevated)
     {
+        // Every section says what kind it is by the time it leaves here, whether or not
+        // the stored copy does. Nothing is written back: a GET does not rewrite the
+        // database, and the kind a payload implies is the same answer every time.
+        Sections.Declare(config?.settings);
+
         if (isElevated)
         {
             return config ?? new Config();
@@ -124,7 +129,9 @@ public sealed class SettingsResolutionService(
 
         try
         {
-            return _serialization.DeserializeJson<Settings>(json);
+            var settings = _serialization.DeserializeJson<Settings>(json);
+            Sections.Declare(settings);
+            return settings;
         }
         catch (System.Text.Json.JsonException ex)
         {
