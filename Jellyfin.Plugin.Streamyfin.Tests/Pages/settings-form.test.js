@@ -7,6 +7,7 @@ import {
     createForm,
     groupsFor,
     inherited,
+    probeText,
     sections,
     stateOf,
     themeFromBackground,
@@ -749,5 +750,81 @@ describe("what a level inherits", () => {
         const forU1 = inherited(APP, SERVER, ...groupsFor(GROUPS, "u1").map((g) => g.settings));
         expect(forU1.forwardSkipTime).toEqual({ value: 45, locked: true });
         expect(forU1.subtitleSize).toEqual({ value: 120, locked: false });
+    });
+});
+
+// An address is the one setting that can be wrong in a way nobody notices: it saves, it
+// looks right, and it shows up as an empty tab in the app days later. The server does
+// the reaching, because it can see an internal address the browser never will.
+describe("testing an address", () => {
+    const PROBED = [
+        ...FIELDS,
+        field("marlinServerUrl", "Text", { category: "Plugins", group: "Marlin search", title: "Marlin server", probe: "Marlin" }),
+    ];
+
+    const withProbe = (probe) => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        return { mount, form: createForm(mount, { fields: PROBED, values: {}, defaults: DEFAULTS, cultures: CULTURES, probe }) };
+    };
+
+    const row = (mount, key) => mount.querySelector(`[data-key="${key}"]`);
+
+    test("only a field that declares a probe gets a button", () => {
+        const { mount } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        expect([...row(mount, "marlinServerUrl").querySelectorAll("button")].some((b) => b.textContent === "Test")).toBe(true);
+        expect([...row(mount, "jellyseerrServerUrl").querySelectorAll("button")].some((b) => b.textContent === "Test")).toBe(false);
+    });
+
+    test("no button at all when the page passed no way to ask", () => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, { fields: PROBED, values: {}, defaults: DEFAULTS, cultures: CULTURES });
+
+        expect([...row(mount, "marlinServerUrl").querySelectorAll("button")].some((b) => b.textContent === "Test")).toBe(false);
+    });
+
+    test("the address on screen is what gets tried, not what was saved", async () => {
+        const asked = [];
+        const { mount } = withProbe((kind, address) => {
+            asked.push([kind, address]);
+            return Promise.resolve({ outcome: "Ok", version: "2.1.0" });
+        });
+
+        const marlin = row(mount, "marlinServerUrl");
+        const input = marlin.querySelector("input");
+        input.value = "  https://marlin.example.com  ";
+
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(asked).toEqual([["Marlin", "https://marlin.example.com"]]);
+        expect(marlin.querySelector(".sf-said").textContent).toBe("Answered, running 2.1.0.");
+        expect(marlin.querySelector(".sf-said").className).toContain("sf-said--ok");
+    });
+
+    test("a server that cannot be asked says so rather than staying on Asking", async () => {
+        const { mount } = withProbe(() => Promise.reject(new Error("no")));
+
+        const marlin = row(mount, "marlinServerUrl");
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("The server could not be asked.");
+        expect(marlin.querySelector(".sf-said").className).toContain("sf-said--no");
+    });
+
+    test("every outcome reads as a sentence", () => {
+        expect(probeText({ outcome: "Ok", version: "2.1.0" })).toBe("Answered, running 2.1.0.");
+        expect(probeText({ outcome: "Ok", detail: "Answered with 404." })).toBe("Answered with 404.");
+        expect(probeText({ outcome: "NotConfigured" })).toBe("Nothing to try yet.");
+        expect(probeText({ outcome: "NotAUrl", detail: "That is not an http address." })).toBe("That is not an http address.");
+        expect(probeText({ outcome: "WrongService" })).toBe("Something answered, but not this service.");
+        expect(probeText({ outcome: "Unreachable" })).toBe("Nothing answered at that address.");
+        expect(probeText(null)).toBe("The server gave no answer.");
     });
 });

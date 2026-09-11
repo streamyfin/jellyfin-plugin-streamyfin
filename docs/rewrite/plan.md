@@ -256,7 +256,16 @@ administrator next saves.
 - **P6.4** Replace the hidden Streamystats rule with a declared one
 
 P6.2 belongs on the server, which can reach an internal URL a phone never will.
-The app's `utils/serverUrl/probes/reachability.ts` is the pattern to follow.
+The app's `utils/serverUrl/probes/reachability.ts` is the pattern to follow, and
+it was followed rather than improved on: Seerr has an unauthenticated endpoint
+that identifies the service, the other two have nothing of the sort, and for
+those any HTTP answer at all is the most that can honestly be claimed.
+
+P6.3 is the same probes read by a different caller. The app changes what it
+offers by whether an integration answers, and a tab that opens onto nothing is
+worse than one that says the server is not answering. No answer carries a URL or
+a key, so a user learns that an integration is down without learning where it
+lives, which is the distinction P1.4 exists to keep.
 
 P6.1 is also the moment to rename the `jellyseerr*` keys to `seerr*` with the old
 names kept as aliases, which closes #95 without breaking every existing YAML.
@@ -317,7 +326,8 @@ Everything merged below is on `develop`, which reaches `main` through
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
-| P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, this. Typed blocks wait for the app |
+| P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
+| P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | this |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged, then this |
 

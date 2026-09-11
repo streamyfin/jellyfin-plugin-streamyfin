@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
+using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
@@ -82,6 +85,7 @@ public class StreamyfinController : ControllerBase
   private readonly IDtoService _dtoService;
   private readonly SerializationHelper _serializationHelperService;
   private readonly NotificationHelper _notificationHelper;
+  private readonly IntegrationProbe _integrations;
 
   public StreamyfinController(
     ILoggerFactory loggerFactory,
@@ -90,7 +94,8 @@ public class StreamyfinController : ControllerBase
     IUserManager userManager,
     ILibraryManager libraryManager,
     SerializationHelper serializationHelper,
-    NotificationHelper notificationHelper
+    NotificationHelper notificationHelper,
+    IntegrationProbe integrations
   )
   {
     _loggerFactory = loggerFactory;
@@ -101,6 +106,7 @@ public class StreamyfinController : ControllerBase
     _libraryManager = libraryManager;
     _serializationHelperService = serializationHelper;
     _notificationHelper = notificationHelper;
+    _integrations = integrations;
 
     _logger.LogInformation("StreamyfinController Loaded");
   }
@@ -186,6 +192,57 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult<IReadOnlyList<SettingsFormField>> GetSettingsForm() =>
     new JsonResult(SettingsForm.Describe());
+
+  /// <summary>
+  /// Asks one integration whether it is there, at an address that has not been saved yet.
+  /// </summary>
+  /// <param name="request">Which service, and the address to try.</param>
+  /// <param name="cancellationToken">Stops the probe when the caller goes away.</param>
+  /// <returns>What the probe found.</returns>
+  /// <remarks>
+  /// The server is the only thing that can answer this. An administrator types an
+  /// address their server reaches and a phone on mobile data never will, saves it, and
+  /// finds out it was wrong when a user reports an empty tab.
+  ///
+  /// <para>
+  /// Elevated, because it makes the server open an address the caller chose. That is
+  /// already within what an administrator can do here, and it is not within what anyone
+  /// else can.
+  /// </para>
+  /// </remarks>
+  [HttpPost("v1/integrations/probe")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public async Task<ActionResult<IntegrationHealth>> ProbeIntegration(
+    [FromBody, Required] IntegrationProbeRequest request,
+    CancellationToken cancellationToken)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    return await _integrations.Probe(request.Kind, request.Url, cancellationToken).ConfigureAwait(false);
+  }
+
+  /// <summary>
+  /// Whether the integrations this caller is pointed at are answering.
+  /// </summary>
+  /// <param name="cancellationToken">Stops the probes when the caller goes away.</param>
+  /// <returns>One answer per service, configured or not.</returns>
+  /// <remarks>
+  /// The app changes what it offers by this: a Seerr tab that opens onto nothing is
+  /// worse than one that says the server is not answering. The addresses are the ones
+  /// resolved for this caller, never ones they supply, and no answer carries a URL or a
+  /// key, so a user learns that an integration is down without learning where it lives.
+  /// </remarks>
+  [HttpGet("v1/integrations/health")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public async Task<ActionResult<IReadOnlyList<IntegrationHealth>>> GetIntegrationHealth(
+    CancellationToken cancellationToken)
+  {
+    var settings = ConfigForCaller().settings;
+
+    return new JsonResult(await _integrations.ProbeAll(settings, cancellationToken).ConfigureAwait(false));
+  }
 
   /// <summary>
   /// The configuration as YAML, filtered the same way as the JSON.

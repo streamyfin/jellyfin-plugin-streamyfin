@@ -110,6 +110,24 @@ const typeDefault = (field) => {
 
 const formatBound = (n) => String(n);
 
+// What a probe answer reads as. The server says what it found and why; this only
+// decides the sentence, so a test can hold the wording without a server.
+export const probeText = (health) => {
+    if (!health) return "The server gave no answer.";
+    switch (health.outcome) {
+        case "Ok":
+            return health.version ? `Answered, running ${health.version}.` : (health.detail ?? "Answered.");
+        case "NotConfigured":
+            return "Nothing to try yet.";
+        case "NotAUrl":
+            return health.detail ?? "That is not an address the server will open.";
+        case "WrongService":
+            return health.detail ?? "Something answered, but not this service.";
+        default:
+            return health.detail ?? "Nothing answered at that address.";
+    }
+};
+
 const boundsHint = (field) => {
     const parts = [];
     if (field.minimum !== null && field.minimum !== undefined && field.maximum !== null && field.maximum !== undefined) {
@@ -318,7 +336,7 @@ const snapshot = (row) => JSON.stringify({ state: row.state, value: row.value })
 // tab, a group or one user: only what the level overrides is listed, in one card, and
 // each override says what it falls through to. In that mode `defaults` is what the level
 // inherits, which for a group is what everyone gets.
-export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true, mode = "settings" } = {}) => {
+export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true, mode = "settings", probe = null } = {}) => {
     const rows = new Map();
     const cards = [];
     const listeners = [];
@@ -535,6 +553,40 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             if (field.control === "Number") {
                 const hint = boundsHint(field);
                 if (hint) foot.appendChild(el("span", "sf-bounds", hint));
+            }
+            // An address is the one setting that can be wrong in a way nobody notices:
+            // it saves, it looks right, and it shows up as an empty tab days later. The
+            // server does the reaching, since it is the one that can see an internal
+            // address a phone never will. No button when the page passed no way to ask.
+            if (field.probe && probe) {
+                const test = el("button", "sf-reveal", "Test");
+                test.type = "button";
+                const said = el("span", "sf-bounds sf-said");
+                said.hidden = true;
+
+                test.addEventListener("click", () => {
+                    const typed = String(row.control?.value ?? "").trim();
+                    test.disabled = true;
+                    said.hidden = false;
+                    said.className = "sf-bounds sf-said";
+                    said.textContent = "Asking the server\u2026";
+
+                    Promise.resolve(probe(field.probe, typed))
+                        .then((health) => {
+                            said.textContent = probeText(health);
+                            said.className = `sf-bounds sf-said ${health?.outcome === "Ok" ? "sf-said--ok" : "sf-said--no"}`;
+                        })
+                        .catch(() => {
+                            said.textContent = "The server could not be asked.";
+                            said.className = "sf-bounds sf-said sf-said--no";
+                        })
+                        .finally(() => {
+                            test.disabled = false;
+                        });
+                });
+
+                foot.appendChild(test);
+                foot.appendChild(said);
             }
             row.el.appendChild(foot);
         }

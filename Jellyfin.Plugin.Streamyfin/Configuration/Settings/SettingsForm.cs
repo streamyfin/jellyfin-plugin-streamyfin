@@ -74,6 +74,7 @@ public sealed record SettingsChoice(
 /// <param name="Options">The choices, for a <see cref="SettingsControl.Select"/>.</param>
 /// <param name="DependsOn">The toggle this setting only matters under, when there is one.</param>
 /// <param name="Integer">Whether a <see cref="SettingsControl.Number"/> takes whole numbers only.</param>
+/// <param name="Probe">The service the server can try this address against, when there is one.</param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -87,7 +88,8 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("step")] double? Step,
     [property: JsonPropertyName("options")] IReadOnlyList<SettingsChoice> Options,
     [property: JsonPropertyName("dependsOn")] string? DependsOn,
-    [property: JsonPropertyName("integer")] bool Integer);
+    [property: JsonPropertyName("integer")] bool Integer,
+    [property: JsonPropertyName("probe")] string? Probe);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.
@@ -128,7 +130,8 @@ public static class SettingsForm
             Step: step?.Value,
             Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)),
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
-            Integer: control == SettingsControl.Number && IsWhole(type));
+            Integer: control == SettingsControl.Number && IsWhole(type),
+            Probe: descriptor.Property.GetCustomAttribute<ProbeAttribute>()?.Kind.ToString());
     }
 
     private static SettingsControl ControlFor(SettingDescriptor descriptor, Type type, Type? enumType)

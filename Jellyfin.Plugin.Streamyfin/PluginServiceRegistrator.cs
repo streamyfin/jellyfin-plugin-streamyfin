@@ -1,5 +1,6 @@
 using System;
 using Jellyfin.Data.Events.Users;
+using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using MediaBrowser.Controller;
@@ -29,6 +30,14 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // waiting on, so a hung request should give up long before that.
         serviceCollection
             .AddHttpClient(NotificationHelper.ExpoClientName, client => client.Timeout = TimeSpan.FromSeconds(30));
+
+        serviceCollection.AddSingleton<IntegrationProbe>();
+
+        // The client that reaches a third party integration. Eight seconds, the same as
+        // the app's own probes: an administrator is watching a button, and a service that
+        // has not answered in eight seconds is not one the app will wait for either.
+        serviceCollection
+            .AddHttpClient(IntegrationProbe.ClientName, client => client.Timeout = TimeSpan.FromSeconds(8));
 
         // Event listeners
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartEvent>();

@@ -316,3 +316,28 @@
     .sf-page .sf-card--wide .sf-body { column-count: 1; }
     .sf-page .sf-search { margin-left: 0; width: 100%; }
 }
+
+/* What the server answered when an address was tested. The colours are the page's own
+   rather than the dashboard's, which exposes none: a light background and a dark one
+   both have to read, so the text carries the colour and the background does not. */
+.sf-page .sf-said {
+    font-variant-numeric: tabular-nums;
+}
+
+.sf-page .sf-said--ok {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.sf-page .sf-said--no {
+    color: #c62828;
+    font-weight: 600;
+}
+
+.sf-page[data-sf-theme="dark"] .sf-said--ok {
+    color: #7fd18a;
+}
+
+.sf-page[data-sf-theme="dark"] .sf-said--no {
+    color: #ff8a80;
+}

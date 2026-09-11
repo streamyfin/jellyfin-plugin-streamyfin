@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Jellyfin.Data.Enums;
+using Jellyfin.Plugin.Streamyfin.Integrations;
 using MediaBrowser.Model.Querying;
 using NJsonSchema.Annotations;
 using System.Xml.Serialization;
@@ -532,6 +533,7 @@ public class Settings
     [Display(Name = "Seerr server URL", Description = "Enter the url for your Seerr server, the project formerly called Jellyseerr. **Jellyfin authentication is required**")]
     [SettingScope("Plugins", Group = "Seerr")]
     [AlsoKnownAs("seerrServerUrl")]
+    [Probe(IntegrationKind.Seerr)]
     public Lockable<string>? jellyseerrServerUrl { get; set; }
 
     [NotNull]
@@ -550,12 +552,14 @@ public class Settings
     [NotNull]
     [Display(Name = "Marlin server URL", Description = "Enter the URL for your Marlin server")]
     [SettingScope("Plugins", Group = "Marlin search")]
+    [Probe(IntegrationKind.Marlin)]
     public Lockable<string>? marlinServerUrl { get; set; }
 
     // Streamystats
     [NotNull]
     [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server")]
     [SettingScope("Plugins", Group = "Streamystats")]
+    [Probe(IntegrationKind.Streamystats)]
     public Lockable<string>? streamyStatsServerUrl { get; set; }
     
     [NotNull]
