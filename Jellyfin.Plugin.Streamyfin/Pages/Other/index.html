@@ -24,5 +24,26 @@
                 <span>Save</span>
             </button>
         </div>
+
+        <div class="verticalSection">
+            <div class="sectionTitleContainer">
+                <h2 class="sectionTitle">Backup</h2>
+            </div>
+            <p class="fieldDescription">
+                Everything you set here, in one file: the configuration, the groups and their members, and the
+                settings targeted at one user. Jellyfin's own backup does not carry the last two.
+                <strong>The file contains the Seerr API key, so treat it the way you treat that key.</strong>
+            </p>
+            <div class="inputContainer">
+                <button id="backup-btn" is="emby-button" type="button" class="raised block">
+                    <span>Download a backup</span>
+                </button>
+                <button id="restore-btn" is="emby-button" type="button" class="raised block">
+                    <span>Restore from a file</span>
+                </button>
+                <input id="restore-file" type="file" accept="application/json,.json" hidden>
+                <div id="backup-said" class="fieldDescription" role="status"></div>
+            </div>
+        </div>
     </div>
 </div>

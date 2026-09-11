@@ -561,6 +561,16 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Every user who has settings targeted at them.
+    /// </summary>
+    /// <returns>The overrides, one per user.</returns>
+    public List<UserSettingsOverride> GetAllUserSettingsOverrides()
+    {
+        using var context = CreateContext();
+        return context.UserSettingsOverrides.AsNoTracking().ToList();
+    }
+
+    /// <summary>
     /// Sets the settings targeted at one user.
     /// </summary>
     /// <param name="userId">The Jellyfin user id.</param>

@@ -178,6 +178,12 @@ states: locked, pushed once, unmanaged.
   json-editor is gone with the schema reshaping that existed for it. See
   [admin-ui-renderer.md](admin-ui-renderer.md)
 
+P3.4 carries more than the configuration. The targeting levels are the work, and
+they live in the plugin's own database rather than in Jellyfin's XML, so nothing a
+server administrator backs up today carries them. The file holds the credentials
+the configuration holds, because a backup that cannot restore a working server is
+not one, and the page says so before it hands it over.
+
 P3.5 is a real fork. Today the pages are HTML and JS embedded as resources in the
 DLL, 16 MB of it. `jellyfin-plugin-pages` and `jellyfin-plugin-custom-tabs` are
 both built on File Transformation, which lets a plugin change what jellyfin-web
@@ -327,7 +333,8 @@ Everything merged below is on `develop`, which reaches `main` through
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
 | P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
-| P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160) | this |
+| P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160), simplified in [#161](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161) | merged |
+| P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged |
 
