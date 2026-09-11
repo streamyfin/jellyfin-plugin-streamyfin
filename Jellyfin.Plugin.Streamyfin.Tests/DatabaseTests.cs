@@ -69,6 +69,9 @@ public class DatabaseTests : IDisposable
 
         for (var round = 0; round < 30; round++)
         {
+            // Each round starts with no row, or only the first one could ever race: a
+            // lookup followed by an insert takes the update path once the row exists.
+            _db.RemoveDeviceToken(deviceId);
             System.Threading.Tasks.Parallel.Invoke(
                 () => _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "left", UserId = userId }),
                 () => _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "right", UserId = userId }));
