@@ -203,7 +203,7 @@ internal sealed class WrittenOnce(IPropertyDescriptor inner, string spelling) : 
             throw new InvalidOperationException(
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "{0} is set twice, once as {1}. A setting is written under one name.",
+                    "{0} is set twice, the second time as {1}. A setting is written under one name.",
                     _inner.Name,
                     spelling));
         }

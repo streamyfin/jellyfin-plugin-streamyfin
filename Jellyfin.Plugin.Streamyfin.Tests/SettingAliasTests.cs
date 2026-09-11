@@ -115,6 +115,7 @@ public class SettingAliasTests
 
         Assert.Contains("jellyseerrServerUrl", said, System.StringComparison.Ordinal);
         Assert.Contains(second, said, System.StringComparison.Ordinal);
+        Assert.Contains("the second time as " + second, said, System.StringComparison.Ordinal);
         Assert.Contains("written under one name", said, System.StringComparison.Ordinal);
     }
 
