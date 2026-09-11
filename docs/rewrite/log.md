@@ -8,6 +8,60 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-11
+
+### P4.2 on a real phone, and what the pass found
+
+#143 merged on the 10th. The receipt half of P4.2 needs a push token a real
+installation registered, so the pass ran with an iPhone 15 Pro Max on the TestFlight
+build, signed in to the beta as a test account with one device:
+
+- The app registered its token. One notification targeted at that account reached the
+  phone; fifteen minutes later the task collected its receipt, `ok`, and forgot the
+  ticket, token kept.
+- After the app was uninstalled, two more sends both came back `ok` from Expo,
+  asked directly, so the token stayed. That is APNs, which on iOS takes hours or
+  days to report an uninstalled app, and the plugin did what the receipts said. The
+  `DeviceNotRegistered` receipt stays covered by the unit tests on `ExpoTickets`,
+  and the send time prune was proven against the real Expo with a token it never
+  issued: `DeviceNotRegistered` in the ticket, row removed, nothing else targeted.
+- Reinstalled, the app registered under a new device id; signing out removed it
+  through `DELETE device/{id}`. The old token stays until APNs speaks, which is the
+  real world case, and the hourly task will log it when it does.
+
+Two things the pass found, neither in P4.2 itself:
+
+- **The app posts its token twice on sign in**, within a second, and the second post
+  failed on the device id with a 500 while the first was still saving. #149 makes the
+  registration one upsert statement, and streamyfin/streamyfin#2068 posts once.
+- **Any signed in account could post a notification to every device.** The route
+  carried a plain `Authorize`; the app never calls it. #148 takes an administrator,
+  and an API key still passes, so integrations keep working.
+
+### Jellyfin 12.0.0, and a report that did not reproduce
+
+Jellyfin 12.0.0 shipped on the 8th; #147 compiles `jf12` against it and makes it the
+default target, as `Directory.Build.props` promised for that day. It needs EF Core
+10.0.11 and, through it, Newtonsoft.Json 13.0.4.
+
+#146 says 0.68.1.0 on 12.0 breaks Home Screen Sections through a bundled Harmony.
+The published zip carries no Harmony at all, checked byte by byte, and on the beta,
+Jellyfin 12.0.0 with File Transformation 3.0.0.0 and Home Screen Sections 3.0.0.0 for
+12, that plugin starts, injects its script and completes its startup task with our
+net10 build present, with the published 0.68.1.0 present, and with Streamyfin absent.
+Whatever fails on that server is not what the report names; asked for the plugin list
+and the exact build.
+
+### A probe on the store
+
+`value: null` on an integer setting is accepted by `config/yaml` and stored as `0`,
+silently. The form now never writes one, which is what the second review of #145
+caught, and a server side validator that refuses it, along with values outside their
+`[Bounds]`, is owed as its own pull request.
+
+The beta carries the production server's plugins since the 10th, binaries only, so a
+pass there sees the same neighbours a real server has.
+
 ## 2026-09-10
 
 ### P3.6, the audit before the merge
