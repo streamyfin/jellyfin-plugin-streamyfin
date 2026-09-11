@@ -43,16 +43,6 @@ const writeTerse = (terse) => {
 // Deleting a group takes everyone's membership of it with it, so it asks first. Older
 // dashboards reject a cancelled confirmation rather than resolving false, and a rejection
 // here would be reported as a failed delete, so both shapes answer false.
-const confirmed = (message) => {
-    if (window.Dashboard?.confirm) {
-        return Promise.resolve(window.Dashboard.confirm(message, "Streamyfin")).then(
-            (answer) => answer !== false,
-            () => false);
-    }
-
-    return Promise.resolve(window.confirm(message));
-};
-
 export default function (view) {
     let renderer = null;
     let shared = null;
@@ -324,12 +314,12 @@ export default function (view) {
 
     const remove = async () => {
         if (level.kind === "user") {
-            if (!await confirmed("Clear every setting aimed at this user?")) return false;
+            if (!await shared.confirmed("Clear every setting aimed at this user?")) return false;
             await send("DELETE", `users/${level.userId}/settings`);
             return true;
         }
 
-        if (!await confirmed(`Delete the group "${level.group.name}" and everyone's membership of it?`)) return false;
+        if (!await shared.confirmed(`Delete the group "${level.group.name}" and everyone's membership of it?`)) return false;
         await send("DELETE", `groups/${level.group.id}`);
         return true;
     };

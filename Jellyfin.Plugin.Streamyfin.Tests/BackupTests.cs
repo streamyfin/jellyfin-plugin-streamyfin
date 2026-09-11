@@ -115,6 +115,50 @@ public class BackupTests
     }
 
     /// <summary>
+    /// The settings that do not survive the wrong serializer survive a backup.
+    /// </summary>
+    /// <remarks>
+    /// The framework writes an enum as its name and the plugin's reader expects the
+    /// number it stores, so a backup written by the wrong one made every restore fail
+    /// on subtitleMode. These five are the ones SerializationHelper names.
+    /// </remarks>
+    [Fact]
+    public void TheSettingsThatNeedTheRightSerializerSurvive()
+    {
+        var backup = new ConfigurationBackup
+        {
+            Config = new Configuration.Config
+            {
+                settings = new Settings
+                {
+                    subtitleMode = new Lockable<Configuration.SubtitlePlaybackMode> { value = Configuration.SubtitlePlaybackMode.Smart },
+                    defaultBitrate = new Lockable<Configuration.Bitrate?> { value = Configuration.Bitrate._4MB },
+                    defaultVideoOrientation = new Lockable<Configuration.OrientationLock> { value = Configuration.OrientationLock.LandscapeLeft },
+                    inactivityTimeout = new Lockable<Configuration.InactivityTimeout> { value = Configuration.InactivityTimeout.OneMinute }
+                }
+            }
+        };
+
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        Assert.Equal(Configuration.SubtitlePlaybackMode.Smart, read!.Config?.settings?.subtitleMode?.value);
+        Assert.Equal(Configuration.Bitrate._4MB, read.Config?.settings?.defaultBitrate?.value);
+        Assert.Equal(Configuration.OrientationLock.LandscapeLeft, read.Config?.settings?.defaultVideoOrientation?.value);
+        Assert.Equal(Configuration.InactivityTimeout.OneMinute, read.Config?.settings?.inactivityTimeout?.value);
+    }
+
+    /// <summary>
+    /// A group with no name is refused, the way one written through the API is.
+    /// </summary>
+    [Fact]
+    public void AGroupWithNoNameIsNotSomethingToRestore()
+    {
+        var nameless = new SettingsGroupDto { Name = "   ", Priority = 1 };
+
+        Assert.True(string.IsNullOrWhiteSpace(nameless.Name));
+    }
+
+    /// <summary>
     /// The report says what happened, including what this server had never heard of.
     /// </summary>
     [Fact]

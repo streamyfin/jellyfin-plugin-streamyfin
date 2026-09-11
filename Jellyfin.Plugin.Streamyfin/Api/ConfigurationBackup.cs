@@ -99,7 +99,13 @@ public class RestoreReport
     public int Users { get; set; }
 
     /// <summary>
-    /// Gets or sets how many members this server does not have.
+    /// Gets or sets how many group members this server does not have.
+    /// </summary>
+    [JsonPropertyName("unknownMembers")]
+    public int UnknownMembers { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many users the file targets that this server does not have.
     /// </summary>
     [JsonPropertyName("unknownUsers")]
     public int UnknownUsers { get; set; }

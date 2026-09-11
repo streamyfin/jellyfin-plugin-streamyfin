@@ -561,6 +561,62 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Replaces every targeting level in one go.
+    /// </summary>
+    /// <param name="groups">The groups to keep, each with its members.</param>
+    /// <param name="overrides">The settings targeted at one user each.</param>
+    /// <remarks>
+    /// One transaction, because half of this is worse than none of it. A restore that
+    /// deleted every group and then failed on the third one it was writing back would
+    /// leave a server with neither what it had nor what the file carried.
+    /// </remarks>
+    public void ReplaceTargeting(
+        IEnumerable<(SettingsGroup Group, IReadOnlyList<Guid> Members)> groups,
+        IEnumerable<(Guid UserId, string SettingsJson)> overrides)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(overrides);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        context.SettingsGroupMembers.RemoveRange(context.SettingsGroupMembers);
+        context.SettingsGroups.RemoveRange(context.SettingsGroups);
+        context.UserSettingsOverrides.RemoveRange(context.UserSettingsOverrides);
+        context.SaveChanges();
+
+        foreach (var (group, members) in groups)
+        {
+            // The id the file carries, so restoring one onto the server it came from
+            // changes nothing: groups sharing a priority are ordered by id, and a fresh
+            // one would silently reorder them.
+            group.Id = group.Id == Guid.Empty ? Guid.NewGuid() : group.Id;
+            context.SettingsGroups.Add(group);
+
+            foreach (var member in members.Distinct())
+            {
+                context.SettingsGroupMembers.Add(new SettingsGroupMember
+                {
+                    GroupId = group.Id,
+                    UserId = member
+                });
+            }
+        }
+
+        foreach (var (userId, settingsJson) in overrides)
+        {
+            context.UserSettingsOverrides.Add(new UserSettingsOverride
+            {
+                UserId = userId,
+                SettingsJson = settingsJson
+            });
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+    }
+
+    /// <summary>
     /// Every user who has settings targeted at them.
     /// </summary>
     /// <returns>The overrides, one per user.</returns>

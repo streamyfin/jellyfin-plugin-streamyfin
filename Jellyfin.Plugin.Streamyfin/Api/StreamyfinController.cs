@@ -225,7 +225,7 @@ public class StreamyfinController : ControllerBase
       Plugin = StreamyfinPlugin.Instance!.Version.ToString(),
       TakenAt = DateTimeOffset.UtcNow,
       Config = StreamyfinPlugin.Instance!.Settings.Current,
-      Groups = [.. database.GetSettingsGroups().Select(group => ToDto(group, database.GetGroupMembers(group.Id)))],
+      Groups = [.. GroupsWithMembers()],
       Users = [.. database.GetAllUserSettingsOverrides()
         .Select(stored => new UserBackup
         {
@@ -272,7 +272,7 @@ public class StreamyfinController : ControllerBase
       return BadRequest(new RestoreReport { Problem = $"That file is not a backup this plugin can read. {e.Message}" });
     }
 
-    if (backup is null)
+    if (backup is null || backup.Groups is null || backup.Users is null)
     {
       return BadRequest(new RestoreReport { Problem = "That file is not a backup this plugin can read." });
     }
@@ -287,42 +287,35 @@ public class StreamyfinController : ControllerBase
       }
     }
 
+    // Checked before anything is written, and before anything is deleted.
+    if (backup.Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
+    {
+      return BadRequest(new RestoreReport { Problem = "Every group in a backup needs a name, and one of these has none." });
+    }
+
     var database = StreamyfinPlugin.Instance!.Database;
     var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
     var report = new RestoreReport();
 
-    if (backup.Config is not null)
-    {
-      StreamyfinPlugin.Instance!.Settings.Save(backup.Config);
-      report.Configuration = true;
-    }
-
-    foreach (var group in database.GetSettingsGroups())
-    {
-      database.RemoveSettingsGroup(group.Id);
-    }
+    var groups = new List<(SettingsGroup Group, IReadOnlyList<Guid> Members)>();
 
     foreach (var group in backup.Groups)
     {
-      var members = group.UserIds.Where(known.Contains).ToList();
-      report.UnknownUsers += group.UserIds.Count - members.Count;
+      var members = (group.UserIds ?? []).Where(known.Contains).ToList();
+      report.UnknownMembers += (group.UserIds?.Count ?? 0) - members.Count;
 
-      var stored = database.SaveSettingsGroup(new SettingsGroup
-      {
-        Id = Guid.Empty,
-        Name = group.Name,
-        Priority = group.Priority,
-        SettingsJson = _serializationHelperService.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings())
-      });
-
-      database.SetGroupMembers(stored.Id, members);
-      report.Groups++;
+      groups.Add((
+        new SettingsGroup
+        {
+          Id = group.Id,
+          Name = group.Name,
+          Priority = group.Priority,
+          SettingsJson = _serializationHelperService.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings())
+        },
+        members));
     }
 
-    foreach (var user in database.GetAllUserSettingsOverrides())
-    {
-      database.RemoveUserSettingsOverride(user.UserId);
-    }
+    var overrides = new List<(Guid UserId, string SettingsJson)>();
 
     foreach (var user in backup.Users)
     {
@@ -332,11 +325,35 @@ public class StreamyfinController : ControllerBase
         continue;
       }
 
-      database.SaveUserSettingsOverride(
+      overrides.Add((
         user.UserId,
-        _serializationHelperService.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings()));
-      report.Users++;
+        _serializationHelperService.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings())));
     }
+
+    // The configuration first, then one transaction for the levels: a failure partway
+    // through the levels leaves a server with neither what it had nor what the file
+    // carried, which is worse than either.
+    if (backup.Config is not null)
+    {
+      StreamyfinPlugin.Instance!.Settings.Save(backup.Config);
+      report.Configuration = true;
+    }
+
+    database.ReplaceTargeting(groups, overrides);
+
+    report.Groups = groups.Count;
+    report.Users = overrides.Count;
+
+    _logger.LogInformation(
+      "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
+      + "{Users} user override(s), {UnknownMembers} member(s) and {UnknownUsers} user(s) this server does not have",
+      backup.Plugin,
+      backup.TakenAt,
+      report.Configuration,
+      report.Groups,
+      report.Users,
+      report.UnknownMembers,
+      report.UnknownUsers);
 
     return report;
   }
@@ -644,9 +661,7 @@ public class StreamyfinController : ControllerBase
   {
     var database = StreamyfinPlugin.Instance!.Database;
 
-    return database.GetSettingsGroups()
-      .Select(group => ToDto(group, database.GetGroupMembers(group.Id)))
-      .ToList();
+    return GroupsWithMembers().ToList();
   }
 
   /// <summary>
@@ -915,6 +930,13 @@ public class StreamyfinController : ControllerBase
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId),
       CallerIsApiKey || _userManager.IsAdministrator(callerId));
+  }
+
+  private IEnumerable<SettingsGroupDto> GroupsWithMembers()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return database.GetSettingsGroups().Select(group => ToDto(group, database.GetGroupMembers(group.Id)));
   }
 
   private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()
