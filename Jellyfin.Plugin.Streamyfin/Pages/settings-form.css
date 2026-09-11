@@ -354,11 +354,17 @@
     overflow-wrap: anywhere;
 }
 
-/* No display:none while empty: a live region out of the tree is not announced when
-   its text arrives. It takes no room of its own when it says nothing. */
-.sf-page .sf-said:empty { margin-top: 0; }
+/* No display:none while empty: a live region out of the tree is not announced when its
+   text arrives. Out of the flow instead, so it costs no line and no row gap until it
+   says something. */
+.sf-page .sf-said:empty { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; }
 
 .sf-page .sf-said--quiet { color: var(--sf-ink-3); font-style: italic; }
 .sf-page .sf-said--ok { color: var(--sf-said-ok); font-weight: 600; }
 .sf-page .sf-said--maybe { color: var(--sf-said-maybe); font-weight: 600; }
 .sf-page .sf-said--no { color: var(--sf-said-no); font-weight: 600; }
+
+/* The way out of a page that opens already refusing to save: a stored value can break
+   a rule that did not exist when it was written, and a count alone leaves ninety
+   settings to search. */
+.sf-page .sf-find-problem { flex: none; }

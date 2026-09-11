@@ -112,13 +112,6 @@ const formatBound = (n) => String(n);
 
 // Seerr reports a development build as a full commit hash, forty characters of nothing
 // anyone reads. Enough of it to tell two builds apart.
-const shortVersion = (version) => {
-    if (version.length <= 20) return version;
-    // Not through a surrogate pair, or the last thing shown is half a character.
-    const cut = /[\uD800-\uDBFF]/.test(version[19]) ? 19 : 20;
-    return `${version.slice(0, cut)}\u2026`;
-};
-
 // A refusal the route itself wrote says which of several things to do. Anything else,
 // including losing the session, is the one sentence.
 export const askingFailed = (error) => {
@@ -134,7 +127,9 @@ export const probeText = (health) => {
     if (!health) return "The server gave no answer.";
     switch (health.outcome) {
         case "Ok":
-            return health.version ? `Answered, running ${shortVersion(health.version)}.` : (health.detail ?? "Answered.");
+            // Shown whole. The server bounds it, and a second cut here would put an
+            // ellipsis on a string that had already lost its tail silently.
+            return health.version ? `Answered, running ${health.version}.` : (health.detail ?? "Answered.");
         case "Reachable":
             return health.detail ?? "Something answered, and nothing there says what it is.";
         case "NotConfigured":
@@ -322,10 +317,11 @@ const readControl = (row, cultures) => {
         case "Select":
             return control.value === "" || control.value === APP_DEFAULT ? null : control.value;
         case "Text": case "Secret":
-            // An address pasted with a trailing space was tested trimmed and saved
-            // untrimmed, and a key pasted with a trailing newline fails auth for the
-            // same reason. Neither setting means anything by its edges.
-            return control.value.trim();
+            // Only an address. It is tested trimmed and checked trimmed, so saving it
+            // untrimmed means testing a value the form never stores. Everything else
+            // keeps its edges: a token that ends in a space is a token, and the Yaml tab
+            // would store it.
+            return field?.address ? control.value.trim() : control.value;
         case "List":
             return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
         case "Language": {
@@ -357,10 +353,17 @@ const isWebAddress = (typed) => {
     // so it is answered here rather than handed to one that would refuse it. The
     // contents still have to be an address: "[zzz]" is neither.
     if (authority.startsWith("[")) {
-        const inside = authority.slice(1, authority.indexOf("]"));
-        if (inside.length === 0) return false;
-        const host = inside.split("%25")[0];
-        return /^[0-9a-f:.]+$/i.test(host) && host.includes(":");
+        const close = authority.indexOf("]");
+        if (close < 2) return false;
+
+        const host = authority.slice(1, close).split("%25")[0];
+        if (!/^[0-9a-f:.]+$/i.test(host) || !host.includes(":")) return false;
+
+        const after = authority.slice(close + 1);
+        if (after === "") return true;
+
+        const port = Number(after.slice(1));
+        return after.startsWith(":") && Number.isInteger(port) && port > 0 && port <= 65535;
     }
 
     try {
@@ -815,6 +818,22 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             return out;
         },
         invalid: () => [...rows.values()].filter((row) => row.invalid).map((row) => row.field.key),
+        // A configuration stored before a rule existed can open the page already
+        // refusing to save, and a count alone leaves an administrator hunting through
+        // ninety settings for it.
+        showProblem: () => {
+            const row = [...rows.values()].find((one) => one.invalid);
+            if (!row) return null;
+
+            currentCategory = row.field.category ?? null;
+            query = "";
+            stateFilter = null;
+            applyVisibility();
+            row.el.scrollIntoView({ block: "center" });
+            row.control?.focus?.();
+
+            return { key: row.field.key, title: row.field.title ?? row.field.key, category: currentCategory };
+        },
         dirtyCount: () => [...rows.values()].filter((row) => snapshot(row) !== row.baseline).length,
         reset: () => {
             for (const row of rows.values()) {

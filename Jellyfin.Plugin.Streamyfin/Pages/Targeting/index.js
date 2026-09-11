@@ -195,6 +195,7 @@ export default function (view) {
         // "needs a value" pointed at an empty field, and an address the server refuses
         // has one. What they share is that the save is waiting on them.
         if (invalid) parts.push(`${invalid} to fix`);
+        el("sf-find-problem").hidden = invalid === 0;
 
         el("sf-dock-summary").textContent = parts.join(" · ") || "Nothing to save";
         dock.classList.toggle("is-clean", dirty === 0);
@@ -223,6 +224,14 @@ export default function (view) {
 
     // The same switch as the Application tab, sharing its remembered choice: an
     // administrator who turned the help text off did so for the settings, not for a tab.
+    let findProblemWired = false;
+
+    const wireFindProblem = () => {
+        if (findProblemWired) return;
+        findProblemWired = true;
+        el("sf-find-problem").addEventListener("click", () => form?.showProblem());
+    };
+
     const wireTerse = () => {
         const toggle = el("sf-terse");
         const show = (on) => {
@@ -254,6 +263,7 @@ export default function (view) {
             probe: shared.probeIntegration,
         });
         form.onChange(updateDock);
+        wireFindProblem();
         el("sf-find").value = "";
         el("sf-terse").setAttribute("aria-pressed", String(!readTerse()));
         updateDock();

@@ -23,7 +23,6 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// <param name="Probe">The service that answers at the other end, when it names one.</param>
 /// <param name="IsWebAddress">Whether the value has to be a whole http or https address.</param>
 /// <param name="Value">Where a <see cref="Lockable{T}"/> keeps its value, when it is one.</param>
-/// <param name="Lockable">Whether the property is a <see cref="Lockable{T}"/> at all.</param>
 /// <remarks>
 /// The attributes are resolved here rather than at each use. Validation runs over every
 /// descriptor on every write, on the Yaml tab and on the three targeting routes, and
@@ -43,8 +42,47 @@ public sealed record SettingDescriptor(
     BoundsAttribute? Bounds,
     ProbeAttribute? Probe,
     bool IsWebAddress,
-    PropertyInfo? Value,
-    bool Lockable);
+    PropertyInfo? Value)
+{
+    /// <summary>
+    /// The value this setting holds, whatever shape the property is.
+    /// </summary>
+    /// <param name="settings">The settings to read from.</param>
+    /// <returns>The value, or <c>null</c> when the setting says nothing.</returns>
+    /// <remarks>
+    /// A setting is usually a <see cref="Lockable{T}"/>, which keeps its value one level
+    /// down. One that is not is read directly, or a rule declared on a plain property
+    /// would be one the form applies and the server does not.
+    /// </remarks>
+    public object? Read(Settings? settings)
+    {
+        if (settings is null)
+        {
+            return null;
+        }
+
+        var held = Property.GetValue(settings);
+
+        return IsLockable ? (held is null ? null : Value?.GetValue(held)) : held;
+    }
+
+    /// <summary>
+    /// Replaces the value this setting holds.
+    /// </summary>
+    /// <param name="settings">The settings to write to.</param>
+    /// <param name="value">The value to store.</param>
+    public void Write(Settings settings, object? value)
+    {
+        if (IsLockable)
+        {
+            Value!.SetValue(Property.GetValue(settings), value);
+        }
+        else
+        {
+            Property.SetValue(settings, value);
+        }
+    }
+}
 
 /// <summary>
 /// The settings, as data.
@@ -131,7 +169,6 @@ public static class SettingsSchema
             Bounds: property.GetCustomAttribute<BoundsAttribute>(),
             Probe: probe,
             IsWebAddress: probe is not null || property.GetCustomAttribute<WebAddressAttribute>() is not null,
-            Value: lockable ? underlying.GetProperty("value") : null,
-            Lockable: lockable);
+            Value: lockable ? underlying.GetProperty("value") : null);
     }
 }

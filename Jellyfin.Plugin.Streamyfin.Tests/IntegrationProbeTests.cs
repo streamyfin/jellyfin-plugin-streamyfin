@@ -764,9 +764,72 @@ public class IntegrationProbeTests
         // way round.
         Assert.All(
             SettingsSchema.Descriptors.Where(descriptor => descriptor.IsWebAddress),
-            descriptor => Assert.True(descriptor.Lockable ? descriptor.Value is not null : descriptor.Value is null));
+            descriptor => Assert.True(descriptor.IsLockable ? descriptor.Value is not null : descriptor.Value is null));
 
         Assert.Empty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// An answer is not reused past its half minute, whatever the table holds.
+    /// </summary>
+    /// <remarks>
+    /// The sweep only runs once the table has more than a handful of entries, and a
+    /// server with one address set has one, so freshness has to be read on the way in
+    /// or the first answer is replayed for the life of the process.
+    /// </remarks>
+    [Fact]
+    public async Task AnAnswerIsNotReusedForEver()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = new IntegrationProbe(new OneClient(handler), null, TimeSpan.Zero);
+        var settings = Configured();
+
+        await probe.HealthOf(settings);
+        var reached = handler.Calls;
+        await probe.HealthOf(settings);
+
+        Assert.True(handler.Calls > reached);
+    }
+
+    /// <summary>
+    /// Link-local is not an address the server will open.
+    /// </summary>
+    /// <remarks>
+    /// A private address is the normal case, since the server and the service usually
+    /// share a network. Nothing a person configures lives on link-local, and it is
+    /// where a cloud instance keeps its credentials endpoint.
+    /// </remarks>
+    /// <param name="url">The address.</param>
+    [Theory]
+    [InlineData("http://169.254.169.254/latest/meta-data/")]
+    [InlineData("http://169.254.1.1")]
+    [InlineData("http://[fe80::1]")]
+    public async Task LinkLocalIsNotOpened(string url)
+    {
+        var handler = new Answering(HttpStatusCode.OK, "{}");
+
+        var health = await ProbeWith(handler).Probe(IntegrationKind.Seerr, url);
+
+        Assert.Equal(IntegrationOutcome.NotAUrl, health.Outcome);
+        Assert.Equal(0, handler.Calls);
+    }
+
+    /// <summary>
+    /// A private address is opened, since that is the whole point of probing from the
+    /// server.
+    /// </summary>
+    /// <param name="url">The address.</param>
+    [Theory]
+    [InlineData("http://10.0.20.132:5055")]
+    [InlineData("http://192.168.1.5:5055")]
+    [InlineData("http://127.0.0.1:5055")]
+    public async Task APrivateAddressIsOpened(string url)
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+
+        var health = await ProbeWith(handler).Probe(IntegrationKind.Seerr, url);
+
+        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
     }
 
     private static Settings Configured() => new()

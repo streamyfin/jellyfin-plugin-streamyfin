@@ -32,10 +32,7 @@ public sealed class IntegrationProbe : IDisposable
     /// </summary>
     public const string ClientName = "streamyfin-integrations";
 
-    /// <summary>
-    /// How long an answer is reused.
-    /// </summary>
-    private static readonly TimeSpan _keepFor = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _keepFor;
 
     // A cap on rounds running at once. The cache stops one account in a loop; this
     // stops the fan-out an address overridden per user makes reachable, where every
@@ -51,10 +48,12 @@ public sealed class IntegrationProbe : IDisposable
     /// </summary>
     /// <param name="clients">The factory holding the configured client.</param>
     /// <param name="loggerFactory">Where a probe is reported.</param>
-    public IntegrationProbe(IHttpClientFactory clients, ILoggerFactory? loggerFactory = null)
+    /// <param name="keepFor">How long an answer is reused. Half a minute unless a test says otherwise.</param>
+    public IntegrationProbe(IHttpClientFactory clients, ILoggerFactory? loggerFactory = null, TimeSpan? keepFor = null)
     {
         _clients = clients;
         _logger = loggerFactory?.CreateLogger<IntegrationProbe>();
+        _keepFor = keepFor ?? TimeSpan.FromSeconds(30);
     }
 
     /// <summary>
@@ -153,7 +152,16 @@ public sealed class IntegrationProbe : IDisposable
         {
             Forget(DateTimeOffset.UtcNow);
 
-            if (!_recent.TryGetValue(asked, out var known))
+            // Checked here rather than only in the sweep: a server with one address set
+            // has one entry, the sweep never runs, and the first answer would be
+            // replayed for the life of the process.
+            if (_recent.TryGetValue(asked, out var known) && DateTimeOffset.UtcNow - known.At >= _keepFor)
+            {
+                _recent.Remove(asked);
+                known = null;
+            }
+
+            if (known is null)
             {
                 // The round runs on its own token, since this answer is stored for
                 // everyone and a caller who walks away must not write theirs into it.
@@ -212,9 +220,7 @@ public sealed class IntegrationProbe : IDisposable
                 continue;
             }
 
-            var lockable = settings is null ? null : descriptor.Property.GetValue(settings);
-            var url = lockable is null ? null : descriptor.Value?.GetValue(lockable) as string;
-            found.Add((descriptor.Probe.Kind, url));
+            found.Add((descriptor.Probe.Kind, descriptor.Read(settings) as string));
         }
 
         return found;
@@ -236,6 +242,19 @@ public sealed class IntegrationProbe : IDisposable
         try
         {
             return await ProbeEach(probeable, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            // A stored round that faults is a 500 for everyone who asks while it is
+            // held. Nothing inside a probe throws, so this is the layer around them
+            // failing, and the answer is that nothing was reached.
+            _logger?.LogWarning(exception, "A round of integration probes failed");
+
+            return [.. probeable.Select(one => new IntegrationHealth(
+                one.Kind,
+                IntegrationOutcome.Unreachable,
+                Unnamed,
+                null))];
         }
         finally
         {

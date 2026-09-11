@@ -1,4 +1,6 @@
 using System;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
@@ -34,7 +36,39 @@ public static class WebAddress
             return false;
         }
 
+        // A private address is the normal case here: the server and the service are
+        // usually on the same network, which is the whole reason this runs on the
+        // server. Link-local is the exception, since nothing a person configures lives
+        // there and it is where a cloud instance keeps its credentials endpoint.
+        if (IsLinkLocal(parsed))
+        {
+            return false;
+        }
+
         address = parsed;
         return true;
+    }
+
+    private static bool IsLinkLocal(Uri address)
+    {
+        var host = address.Host.Trim('[', ']');
+
+        if (!IPAddress.TryParse(host, out var ip))
+        {
+            return false;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var octets = ip.GetAddressBytes();
+            return octets[0] == 169 && octets[1] == 254;
+        }
+
+        return ip.IsIPv6LinkLocal;
     }
 }

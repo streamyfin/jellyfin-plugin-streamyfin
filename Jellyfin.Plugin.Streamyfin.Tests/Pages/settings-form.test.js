@@ -1073,18 +1073,26 @@ describe("testing an address", () => {
         expect([...hook.querySelectorAll("button")].some((b) => b.textContent === "Test")).toBe(false);
     });
 
-    test("a key is trimmed the way an address is", () => {
+    test("only an address is trimmed, since a key can mean its edges", () => {
         const mount = document.createElement("div");
         document.body.appendChild(mount);
-        const form = createForm(mount, { fields: FIELDS, values: {}, defaults: DEFAULTS, cultures: CULTURES });
+        const form = createForm(mount, { fields: PROBED, values: {}, defaults: DEFAULTS, cultures: CULTURES });
 
         const key = mount.querySelector('[data-key="jellyseerrApiKey"]');
         key.querySelector('.sf-state button[data-state="suggested"]').click();
-        const input = key.querySelector("input");
-        input.value = "  a-key-with-a-newline\n";
-        input.dispatchEvent(new Event("change", { bubbles: true }));
+        const secret = key.querySelector("input");
+        secret.value = "  a-key ";
+        secret.dispatchEvent(new Event("change", { bubbles: true }));
 
-        expect(form.toSettings().jellyseerrApiKey.value).toBe("a-key-with-a-newline");
+        const marlin = mount.querySelector('[data-key="marlinServerUrl"]');
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const address = marlin.querySelector("input");
+        address.value = "  https://marlin.example.com  ";
+        address.dispatchEvent(new Event("change", { bubbles: true }));
+
+        const saved = form.toSettings();
+        expect(saved.jellyseerrApiKey.value).toBe("  a-key ");
+        expect(saved.marlinServerUrl.value).toBe("https://marlin.example.com");
     });
 
     test("editing while the server is thinking leaves the button usable", async () => {
@@ -1131,13 +1139,15 @@ describe("testing an address", () => {
     });
 
     test("a bracketed authority still has to be an address", () => {
+        // Unterminated, and a port out of range: both parse loosely enough to slip past
+        // a check that stops at the bracket, and .NET refuses both.
         const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
 
         const marlin = row(mount, "marlinServerUrl");
         marlin.querySelector('.sf-state button[data-state="suggested"]').click();
         const input = marlin.querySelector("input");
 
-        for (const bad of ["http://[not-an-ipv6]", "http://[zzz]:80", "http://[]1"]) {
+        for (const bad of ["http://[not-an-ipv6]", "http://[zzz]:80", "http://[]1", "http://[::1", "http://[::1]:99999"]) {
             input.value = bad;
             input.dispatchEvent(new Event("change", { bubbles: true }));
             expect(form.invalid()).toContain("marlinServerUrl");
@@ -1152,16 +1162,37 @@ describe("testing an address", () => {
         expect(askingFailed(new Error("network"))).toBe("The server could not be asked.");
     });
 
-    test("a version is not cut through a character", () => {
-        expect(probeText({ outcome: "Ok", version: `${"v".repeat(19)}🎬tail` }))
-            .toBe(`Answered, running ${"v".repeat(19)}\u2026.`);
+    test("a version is shown whole, since the server is what bounds it", () => {
+        expect(probeText({ outcome: "Ok", version: "develop-68c5bc8c7d85" }))
+            .toBe("Answered, running develop-68c5bc8c7d85.");
+    });
+
+    test("the form can point at the setting that is blocking the save", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        form.showCategory("Playback controls");
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "marlin.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        const found = form.showProblem();
+
+        expect(found).toEqual({ key: "marlinServerUrl", title: "Marlin server", category: "Plugins" });
+        // And it brought the category it lives in with it.
+        expect(marlin.closest(".sf-card").hidden).toBe(false);
+    });
+
+    test("nothing to point at when nothing is wrong", () => {
+        const { form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        expect(form.showProblem()).toBe(null);
     });
 
     test("every outcome reads as a sentence", () => {
         expect(probeText({ outcome: "Ok", version: "2.1.0" })).toBe("Answered, running 2.1.0.");
-        // Seerr reports a development build as a full commit hash.
-        expect(probeText({ outcome: "Ok", version: "develop-68c5bc8c7d8560d295387adeeee73982ea518e8f" }))
-            .toBe("Answered, running develop-68c5bc8c7d85\u2026.");
         expect(probeText({ outcome: "Ok", detail: "Answered with 404." })).toBe("Answered with 404.");
         expect(probeText({ outcome: "NotConfigured" })).toBe("Nothing to try yet.");
         expect(probeText({ outcome: "NotAUrl", detail: "That is not an http address." })).toBe("That is not an http address.");

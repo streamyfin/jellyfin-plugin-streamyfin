@@ -41,7 +41,7 @@ public static class SettingsValidation
     /// </summary>
     /// <param name="settings">The settings, or the part of them a level carries.</param>
     /// <returns>The problems, in declaration order. Empty when there are none.</returns>
-    public static IReadOnlyList<string> Problems(Settings? settings)
+    internal static IReadOnlyList<string> Problems(Settings? settings)
     {
         if (settings is null)
         {
@@ -60,8 +60,8 @@ public static class SettingsValidation
 
             // A level carries a setting or it does not. The absent ones are not this
             // method's business: they fall through to the level below.
-            var value = Read(descriptor, settings);
-            if (value is null && descriptor.Bounds is not null)
+            var value = descriptor.Read(settings);
+            if (value is null)
             {
                 continue;
             }
@@ -122,7 +122,7 @@ public static class SettingsValidation
     /// was then stored with the space. The Yaml tab and the targeting routes have no
     /// form to trim it for them.
     /// </remarks>
-    public static void Tidy(Settings? settings)
+    internal static void Tidy(Settings? settings)
     {
         if (settings is null)
         {
@@ -136,24 +136,15 @@ public static class SettingsValidation
                 continue;
             }
 
-            if (Read(descriptor, settings) is not string address)
+            if (descriptor.Read(settings) is not string address)
             {
                 continue;
             }
 
             var trimmed = address.Trim();
-            if (string.Equals(trimmed, address, StringComparison.Ordinal))
+            if (!string.Equals(trimmed, address, StringComparison.Ordinal))
             {
-                continue;
-            }
-
-            if (descriptor.Lockable)
-            {
-                descriptor.Value!.SetValue(descriptor.Property.GetValue(settings), trimmed);
-            }
-            else
-            {
-                descriptor.Property.SetValue(settings, trimmed);
+                descriptor.Write(settings, trimmed);
             }
         }
     }
@@ -163,21 +154,11 @@ public static class SettingsValidation
     /// </summary>
     /// <param name="settings">The settings to check.</param>
     /// <returns>The message, or <c>null</c>.</returns>
-    public static string? Message(Settings? settings)
+    internal static string? Message(Settings? settings)
     {
         var problems = Problems(settings);
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
-    }
-
-    // A setting is usually a Lockable, which keeps its value one level down. One that
-    // is not is read directly, or [WebAddress] on a plain property would be a rule the
-    // form applies and the server does not.
-    private static object? Read(SettingDescriptor descriptor, Settings settings)
-    {
-        var held = descriptor.Property.GetValue(settings);
-
-        return descriptor.Lockable ? (held is null ? null : descriptor.Value?.GetValue(held)) : held;
     }
 
     private static bool IsNumber(object value) =>

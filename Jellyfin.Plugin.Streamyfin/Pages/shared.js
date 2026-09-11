@@ -14,11 +14,14 @@ export const probeIntegration = (kind, address) =>
         contentType: "application/json",
         data: JSON.stringify({ kind, url: address }),
     }).then((response) => response.json())
-        // The route refuses some requests with a sentence of its own. Losing it behind
-        // "the server could not be asked" hides which of several things to fix.
-        .catch(async (error) => {
-            const body = await error?.response?.text?.().catch(() => null);
-            throw Object.assign(error instanceof Error ? error : new Error("probe failed"), { body });
+        // ApiClient rejects with the Response itself, not with something wrapping one.
+        // The route refuses some requests with a sentence of its own, and losing it
+        // behind "the server could not be asked" hides which of several things to fix.
+        .catch(async (rejected) => {
+            const response = typeof rejected?.text === "function" ? rejected : rejected?.response;
+            const body = await response?.text?.().catch(() => null);
+            const error = rejected instanceof Error ? rejected : new Error("probe failed");
+            throw Object.assign(error, { body, status: response?.status });
         });
 
 // region private variables

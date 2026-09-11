@@ -122,6 +122,7 @@ export default function (view) {
         // "needs a value" pointed at an empty field, and an address the server refuses
         // has one. What they share is that the save is waiting on them.
         if (invalid) parts.push(`${invalid} to fix`);
+        el("sf-find-problem").hidden = invalid === 0;
 
         el("sf-dock-summary").textContent = parts.join(" · ") || "Nothing to save";
         dock.classList.toggle("is-clean", dirty === 0);
@@ -285,6 +286,13 @@ export default function (view) {
         wireSwitch("sf-keys", readKeys, writeKeys, (on) => form.setKeys(on));
     };
 
+    const wireFindProblem = () => {
+        el("sf-find-problem").addEventListener("click", () => {
+            const found = form?.showProblem();
+            if (found) refreshPillCounts?.();
+        });
+    };
+
     const wireDock = (shared) => {
         listen("sf-discard", "click", () => form.reset());
         listen("sf-save", "click", async () => {
@@ -342,6 +350,7 @@ export default function (view) {
         wireTerse();
         wireBanner();
         wireDock(shared);
+        wireFindProblem();
         form.onChange(updateDock);
         updateDock();
         setStatus(null);
