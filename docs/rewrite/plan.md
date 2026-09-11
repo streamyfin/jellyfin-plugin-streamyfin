@@ -222,10 +222,22 @@ open ended promise. See [issue-triage.md](issue-triage.md).
 - **P5.4** Per group section targeting, once P1 is in
 - **P5.5** Migrate existing configurations
 
-P5.1 is what unblocks #78, #21 and every future section kind. Today adding a kind
-means adding a fifth nullable sibling that nothing says is exclusive with the
+P5.1 is what unblocks #78, #21 and every future section kind. Adding a kind used
+to mean adding a fifth nullable sibling that nothing said was exclusive with the
 other four. P5.3 needs the explicit `order` field from #93 to have somewhere to
 write to.
+
+P5.1 kept the payload names. Every copy of the app in the field reads `items`,
+`nextUp`, `latest` and `custom` by name, so renaming them would have emptied the
+home screen of everyone who had not updated. What changed is that the section now
+says which one it is, exactly one is allowed, and the server refuses a layout
+that breaks either rule.
+
+P5.5 turned out to be nothing to migrate. A section written before the kind
+existed carries one payload, which is an unambiguous answer, so it is read as one
+rather than refused. No configuration is rewritten and no version is stamped: the
+kind is filled in on the way out, and the stored copy gains it whenever an
+administrator next saves.
 
 ## P6. Third party integrations
 
@@ -280,6 +292,8 @@ Everything merged below is on `develop`, which reaches `main` through
 | P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), and the Targeting tab on this branch | merged, then this |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
+| P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | this |
+| P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged, then this |
 
 Not a numbered sub part, landed alongside P1:
 [#130](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/130), the
