@@ -112,25 +112,20 @@ public class PluginDatabase
         using var context = CreateContext();
 
         var timestamp = DateTime.UtcNow.ToFileTime();
-        var existing = context.DeviceTokens.FirstOrDefault(t => t.DeviceId == token.DeviceId);
 
-        // Updated in place rather than removed and re-added. Two SaveChanges calls
-        // are two transactions, and a failure between them would leave the device
-        // with no token at all, which the hand written store avoided by doing both
-        // inside one transaction.
-        if (existing is not null)
-        {
-            existing.Token = token.Token;
-            existing.UserId = token.UserId;
-            existing.Timestamp = timestamp;
-        }
-        else
-        {
-            token.Timestamp = timestamp;
-            context.DeviceTokens.Add(token);
-        }
-
-        context.SaveChanges();
+        // One statement, so two registrations of the same device cannot race each
+        // other. The app posts its token twice on sign in, and a lookup followed by an
+        // insert let the second one fail on the device id with a 500 while the first
+        // was still saving. An existing row is updated in place, never removed and
+        // re-added, so a device is never left without a token between two writes.
+        context.Database.ExecuteSqlInterpolated($"""
+            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Timestamp)
+            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {timestamp})
+            ON CONFLICT(DeviceId) DO UPDATE SET
+                Token = excluded.Token,
+                UserId = excluded.UserId,
+                Timestamp = excluded.Timestamp
+            """);
 
         token.Timestamp = timestamp;
         return token;
