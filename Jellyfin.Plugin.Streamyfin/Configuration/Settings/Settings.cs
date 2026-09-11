@@ -180,22 +180,22 @@ public class Settings
 {
     [NotNull]
     [Display(Name = "Home view", Description = "Customize the appearance of the apps home page")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<Home>? home { get; set; }
 
     [NotNull]
     [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<bool>? showHomeTitles { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Show the home backdrop", Description = "Apple TV and Android TV only. Show a backdrop image behind the home screen")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Show the hero carousel", Description = "Show the large rotating carousel at the top of the home screen")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Hero carousel")]
     public Lockable<bool>? showHeroCarousel { get; set; } // = true;
 
     // string[] rather than an array of a declared enum, following hiddenLibraries. An
@@ -203,38 +203,42 @@ public class Settings
     // fail to load the day the app adds a section name the plugin does not know yet.
     [NotNull]
     [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Hero carousel")]
     public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Hero carousel")]
     public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
 
     [NotNull]
     [Display(Name = "Merge Next Up and Continue Watching", Description = "Show both in a single row instead of two")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Next up")]
     public Lockable<bool>? mergeNextUpAndContinueWatching { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Use episode images in Next Up", Description = "Show the episode's own image rather than the series poster")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "Next up")]
     public Lockable<bool>? useEpisodeImagesForNextUp { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Show the series poster on an episode", Description = "Apple TV and Android TV only. Use the series poster rather than the episode image on an episode page")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "TV")]
     public Lockable<bool>? showSeriesPosterOnEpisode { get; set; } // = false;
 
     // Media Controls
     [NotNull]
     [Display(Name = "Forward skip time", Description = "The amount of time in seconds you want to be able to skip forward during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Bounds(0, 60)]
+    [Step(5)]
     public Lockable<int>? forwardSkipTime { get; set; } // = 30;
     
     [NotNull]
     [Display(Name = "Rewind skip time", Description = "The amount of time in seconds you want to be able to rewind during playback")]
     [SettingScope("Playback controls", Group = "Skip and seek")]
+    [Bounds(0, 60)]
+    [Step(5)]
     public Lockable<int>? rewindSkipTime { get; set; } // = 10;
 
     // Media segment skip preferences
@@ -282,6 +286,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
     [SettingScope("Music")]
+    [DependsOn("audioLookaheadEnabled")]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
@@ -318,11 +323,14 @@ public class Settings
     [NotNull]
     [Display(Name = "Allow restarting playback for subtitles when muted", Description = "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
+    [DependsOn("subtitlesOnMute")]
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Bounds(0, 120)]
+    [Step(5)]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
@@ -343,6 +351,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [DependsOn("subtitleBackground")]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
@@ -378,12 +387,12 @@ public class Settings
     
     [NotNull]
     [Display(Name = "Show custom menu links", Description = "Show custom menu links in Jellyfin's web configuration")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "App")]
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
     [Display(Name = "Hidden libraries", Description = "Enter all library Ids you want hidden from users")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "App")]
     public Lockable<string[]>? hiddenLibraries { get; set; } // = [];
 
     [NotNull]
@@ -451,6 +460,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
     [SettingScope("Playback controls", Group = "Gestures")]
+    [DependsOn("enableHoldToSpeed")]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]
@@ -559,7 +569,7 @@ public class Settings
     // never chose.
     [NotNull]
     [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "App")]
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]
@@ -569,7 +579,7 @@ public class Settings
 
     [NotNull]
     [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "App")]
     public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
 
     [NotNull]
@@ -636,17 +646,17 @@ public class Settings
     // TV
     [NotNull]
     [Display(Name = "TV typography scale", Description = "Text size on the TV app: small, default, large or extraLarge")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "TV")]
     public Lockable<TVTypographyScale>? tvTypographyScale { get; set; } // = default;
 
     [NotNull]
     [Display(Name = "TV theme music", Description = "Apple TV and Android TV only. Play a series theme music while browsing it")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "TV")]
     public Lockable<bool>? tvThemeMusicEnabled { get; set; } // = true;
 
     [NotNull]
     [Display(Name = "Hide the remote session button")]
-    [SettingScope("Home and appearance")]
+    [SettingScope("Home and appearance", Group = "App")]
     public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
 
     [NotNull]

@@ -8,6 +8,143 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-11
+
+### P4.2 on a real phone, and what the pass found
+
+#143 merged on the 10th. The receipt half of P4.2 needs a push token a real
+installation registered, so the pass ran with an iPhone 15 Pro Max on the TestFlight
+build, signed in to the beta as a test account with one device:
+
+- The app registered its token. One notification targeted at that account reached the
+  phone; fifteen minutes later the task collected its receipt, `ok`, and forgot the
+  ticket, token kept.
+- After the app was uninstalled, two more sends both came back `ok` from Expo,
+  asked directly, so the token stayed. That is APNs, which on iOS takes hours or
+  days to report an uninstalled app, and the plugin did what the receipts said. The
+  `DeviceNotRegistered` receipt stays covered by the unit tests on `ExpoTickets`,
+  and the send time prune was proven against the real Expo with a token it never
+  issued: `DeviceNotRegistered` in the ticket, row removed, nothing else targeted.
+- Reinstalled, the app registered under a new device id; signing out removed it
+  through `DELETE device/{id}`. The old token stays until APNs speaks, which is the
+  real world case, and the hourly task will log it when it does.
+
+Two things the pass found, neither in P4.2 itself:
+
+- **The app posts its token twice on sign in**, within a second, and the second post
+  failed on the device id with a 500 while the first was still saving. #149 makes the
+  registration one upsert statement, and streamyfin/streamyfin#2068 posts once.
+- **Any signed in account could post a notification to every device.** The route
+  carried a plain `Authorize`; the app never calls it. #148 takes an administrator,
+  and an API key still passes, so integrations keep working.
+
+### Jellyfin 12.0.0, and a report that did not reproduce
+
+Jellyfin 12.0.0 shipped on the 8th; #147 compiles `jf12` against it and makes it the
+default target, as `Directory.Build.props` promised for that day. It needs EF Core
+10.0.11 and, through it, Newtonsoft.Json 13.0.4.
+
+#146 says 0.68.1.0 on 12.0 breaks Home Screen Sections through a bundled Harmony.
+The published zip carries no Harmony at all, checked byte by byte, and on the beta,
+Jellyfin 12.0.0 with File Transformation 3.0.0.0 and Home Screen Sections 3.0.0.0 for
+12, that plugin starts, injects its script and completes its startup task with our
+net10 build present, with the published 0.68.1.0 present, and with Streamyfin absent.
+Whatever fails on that server is not what the report names; asked for the plugin list
+and the exact build.
+
+### A probe on the store
+
+`value: null` on an integer setting is accepted by `config/yaml` and stored as `0`,
+silently. The form now never writes one, which is what the second review of #145
+caught, and a server side validator that refuses it, along with values outside their
+`[Bounds]`, is owed as its own pull request.
+
+The beta carries the production server's plugins since the 10th, binaries only, so a
+pass there sees the same neighbours a real server has.
+
+## 2026-09-10
+
+### P3.6, the audit before the merge
+
+The renderer had sat in #145 for a week with its CI red and a second pass of polish
+uncommitted. Read in full against the rest of the plugin before asking for the merge.
+What it found is recorded in
+[admin-ui-renderer.md](admin-ui-renderer.md#what-the-audit-found); the short version:
+
+**The `[Range]` attributes broke the targeting routes.** ASP.NET validates
+DataAnnotations on every body it binds, and a `[Range]` on a `Lockable<int>` is asked
+about the `Lockable`, not its value. Every group or user override carrying a skip time
+or the subtitle size was refused with a 400 that named the bounds as the reason, for
+any value. Proven on the beta before the fix and after it. The bounds are now a
+`[Bounds]` attribute of the plugin's own, and a test refuses any validation attribute
+on a setting.
+
+**Three smaller things on the page**: the search and the filter outlived the form
+across a tab switch, a page drawn without the configuration could post one without
+its other sections, and clearing a search came back to the first category.
+
+**The CI was red on packaging, not on tests.** The `package.json` that gives the page
+tests a runner declares `"type": "module"`, which turned `scripts/*.js` into ES modules,
+and `make update-manifest` failed on `require`. A `package.json` in `scripts/` pins them
+back to CommonJS.
+
+**The second pass of polish** lands with it: each pill says how many of its settings
+are set, an *All / Set / Locked* filter looks across every category, a *Keys* switch
+shows the YAML keys, the banner can be dismissed for good, Home and appearance is
+subdivided like the other large categories, and the page keeps the dashboard's own
+materials. 45 tests on the renderer, 209 on the plugin.
+
+**Jellyfin 12.0.0 was released on 2026-09-08** and `jf12` still compiles against
+`12.0.0-rc5`. The bump to the release needs EF Core 10.0.11, which is what 12.0 pins,
+and that needs Newtonsoft.Json 13.0.4, or the restore fails on NU1605 under the
+warning policy. Checked on a throwaway worktree: three lines, 0 errors, tests green
+on net10.0. It goes in its own pull request after this one.
+
+## 2026-09-02
+
+### P3.6, the form drawn by the plugin
+
+The Application tab no longer renders through json-editor. The server describes the
+form at `GET v1/settings/form`, one entry per setting with its control, bounds,
+choices and dependency, and `Pages/settings-form.js` draws it. The reasoning, what
+was measured on the way and what is deferred are in
+[admin-ui-renderer.md](admin-ui-renderer.md); the audit that decided the shape is
+[admin-ui-references.md](admin-ui-references.md).
+
+**Why json-editor went.** Seen on the beta after P3.3: its property picker never
+added a setting, so an override could be edited and never created. Its DOM could
+only be styled from outside, four passes reshaped the schema for it alone, and a
+`locked` box shows two states where the app has three. Free, suggested and locked
+are now the three answers every row offers, and a save writes exactly the settings
+that are not free.
+
+**Two things the tests found before the beta did.** A dropdown offered `Left` where
+the store writes `left`, because the first descriptor used the member name and not
+the `EnumMember` value; the round trip test failed on `subtitleAlignX` and the
+choices now carry the stored spelling. And the audit's premise that the accent could
+follow Jellyfin's own CSS variable was wrong: the 12 web client defines four `--jf-*`
+properties, none a colour, and 10.11 none. The page carries Jellyfin's greys and
+accent itself and picks light or dark from the background the theme paints.
+
+**Dependencies are declared, four of them, each read in the app.** A dependent
+setting is inert only while its toggle is locked off at this level; suggested off
+still lets a user turn the toggle on.
+
+**A review of the diff caught four things the beta pass had not reached**: the language
+settings written with the cultures API's spelling where the config wants camel case, a
+whole number accepting `2.5`, a dependent setting that could be inert and invalid at once
+with no way out, and a refused save leaving its edit in the shared config. Each has its
+test now; the detail is in the renderer document.
+
+**The repository tests JavaScript for the first time.** 41 tests on the renderer run
+under a test DOM with `bun test`, in a `pages` job beside the two Jellyfin targets.
+The json-editor form stays as `legacy-settings-form.js` for the Targeting tab, and
+goes with the schema reshaping when that tab moves onto the renderer.
+
+**Seen on the beta**, Jellyfin 12, through a real Chrome: the page renders in the
+dashboard with all 92 settings, and a setting locked from the page, saved, reloaded,
+released and saved again is stored, read back and removed as the states say.
+
 ## 2026-09-01
 
 ### P3.3, the targeting screen
