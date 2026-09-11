@@ -133,9 +133,7 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
-    SettingsValidation.Tidy(p.settings);
-
-    var problem = SettingsValidation.Message(p.settings);
+    var problem = SettingsValidation.Check(p.settings);
     if (problem is not null)
     {
       return new ConfigSaveResponse { Error = true, Message = problem };
@@ -221,10 +219,8 @@ public class StreamyfinController : ControllerBase
     [FromBody, Required] IntegrationProbeRequest request,
     CancellationToken cancellationToken)
   {
-    ArgumentNullException.ThrowIfNull(request);
-
-    // An undeclared value reaches here as an integer the converter accepted. A missing
-    // one is refused by model validation before this runs.
+    // A null body and a missing kind are both refused by model validation before this
+    // runs. An undeclared value reaches here as an integer the converter accepted.
     if (request.Kind is not { } kind || !Enum.IsDefined(kind))
     {
       return BadRequest("Say which service to try: Seerr, Marlin or Streamystats.");
@@ -258,7 +254,15 @@ public class StreamyfinController : ControllerBase
   public async Task<ActionResult<IReadOnlyList<IntegrationHealth>>> GetIntegrationHealth(
     CancellationToken cancellationToken)
   {
-    var settings = ConfigForCaller().settings;
+    // Resolved for the caller even when the caller is an administrator, who would
+    // otherwise be shown the plugin level configuration while every member of a group
+    // that overrides an address is served something else.
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+    var settings = Resolution.Resolve(
+      StreamyfinPlugin.Instance!.Settings.Current?.settings,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId));
 
     return new JsonResult(await _integrations.HealthOf(settings, cancellationToken).ConfigureAwait(false));
   }
@@ -507,9 +511,7 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
-    SettingsValidation.Tidy(request.Settings);
-
-    if (SettingsValidation.Message(request.Settings) is { } problem)
+    if (SettingsValidation.Check(request.Settings) is { } problem)
     {
       return BadRequest(problem);
     }
@@ -552,9 +554,7 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
-    SettingsValidation.Tidy(request.Settings);
-
-    if (SettingsValidation.Message(request.Settings) is { } problem)
+    if (SettingsValidation.Check(request.Settings) is { } problem)
     {
       return BadRequest(problem);
     }
@@ -678,9 +678,7 @@ public class StreamyfinController : ControllerBase
       return NoContent();
     }
 
-    SettingsValidation.Tidy(request.Settings);
-
-    if (SettingsValidation.Message(request.Settings) is { } problem)
+    if (SettingsValidation.Check(request.Settings) is { } problem)
     {
       return BadRequest(problem);
     }

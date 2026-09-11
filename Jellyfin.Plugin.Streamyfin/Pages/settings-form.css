@@ -354,7 +354,9 @@
     overflow-wrap: anywhere;
 }
 
-.sf-page .sf-said:empty { display: none; }
+/* No display:none while empty: a live region out of the tree is not announced when
+   its text arrives. It takes no room of its own when it says nothing. */
+.sf-page .sf-said:empty { margin-top: 0; }
 
 .sf-page .sf-said--quiet { color: var(--sf-ink-3); font-style: italic; }
 .sf-page .sf-said--ok { color: var(--sf-said-ok); font-weight: 600; }

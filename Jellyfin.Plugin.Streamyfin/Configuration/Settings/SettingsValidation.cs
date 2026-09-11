@@ -100,6 +100,22 @@ public static class SettingsValidation
     }
 
     /// <summary>
+    /// Tidies these settings and says what still cannot be stored.
+    /// </summary>
+    /// <param name="settings">The settings, which are trimmed in place.</param>
+    /// <returns>The message to refuse with, or <c>null</c> when they can be stored.</returns>
+    /// <remarks>
+    /// One call, because the two halves have to happen in this order and a write path
+    /// that did only the second stored an address with the space the first removes.
+    /// </remarks>
+    public static string? Check(Settings? settings)
+    {
+        Tidy(settings);
+
+        return Message(settings);
+    }
+
+    /// <summary>
     /// Trims the settings that are addresses, in place.
     /// </summary>
     /// <param name="settings">The settings, which may be null.</param>

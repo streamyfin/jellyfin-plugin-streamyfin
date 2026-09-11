@@ -630,7 +630,9 @@ public class IntegrationProbeTests
     [Fact]
     public async Task ABodyThatEndsExactlyOnTheCapIsWhole()
     {
-        var exact = "{\"x\":\"" + new string('y', 8 * 1024 - 10) + "\"}";
+        // Exactly the cap: 8 characters of JSON around the padding.
+        var exact = "{\"x\":\"" + new string('y', (8 * 1024) - 8) + "\"}";
+        Assert.Equal(8 * 1024, exact.Length);
 
         var health = await ProbeWith(new Answering(HttpStatusCode.OK, exact))
             .Probe(IntegrationKind.Seerr, "https://requests.example.com");
@@ -658,6 +660,67 @@ public class IntegrationProbeTests
 
         Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
         Assert.Empty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// A stored address cannot make one caller's answer be served for another's
+    /// settings.
+    /// </summary>
+    /// <remarks>
+    /// Stored values are not checked again on read, so one written before the address
+    /// rule existed can hold anything, including whatever separates the parts of a
+    /// cache key.
+    /// </remarks>
+    [Fact]
+    public async Task AStoredAddressCannotForgeAnotherSetsKey()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = ProbeWith(handler);
+
+        await probe.HealthOf(new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://one.example\nMarlin=https://two.example" }
+        });
+        var reached = handler.Calls;
+
+        await probe.HealthOf(new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://one.example" },
+            marlinServerUrl = new Lockable<string> { value = "https://two.example" }
+        });
+
+        Assert.True(handler.Calls > reached);
+    }
+
+    /// <summary>
+    /// A version is cut without splitting a character.
+    /// </summary>
+    [Fact]
+    public async Task AVersionIsNotCutThroughACharacter()
+    {
+        var body = $$"""{"version":"{{new string('v', 63)}}🎬🎬"}""";
+
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, body))
+            .Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.NotNull(health.Version);
+        Assert.False(char.IsHighSurrogate(health.Version![^1]));
+    }
+
+    /// <summary>
+    /// Trimming and refusing happen together, so a write path cannot do one without the
+    /// other.
+    /// </summary>
+    [Fact]
+    public void CheckingTrimsAndRefusesInOneCall()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "  https://requests.example.com  " }
+        };
+
+        Assert.Null(SettingsValidation.Check(settings));
+        Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
     }
 
     private static Settings Configured() => new()

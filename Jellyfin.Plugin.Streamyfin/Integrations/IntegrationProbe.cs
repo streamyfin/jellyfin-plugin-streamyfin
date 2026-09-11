@@ -37,6 +37,11 @@ public sealed class IntegrationProbe
     /// </summary>
     private static readonly TimeSpan _keepFor = TimeSpan.FromSeconds(30);
 
+    // A cap on rounds running at once. The cache stops one account in a loop; this
+    // stops the fan-out an address overridden per user makes reachable, where every
+    // caller has their own key and so their own round.
+    private static readonly SemaphoreSlim _atOnce = new(4, 4);
+
     private readonly Dictionary<string, Round> _recent = new(StringComparer.Ordinal);
     private readonly IHttpClientFactory _clients;
     private readonly ILogger<IntegrationProbe>? _logger;
@@ -131,7 +136,9 @@ public sealed class IntegrationProbe
         CancellationToken cancellationToken = default)
     {
         var probeable = Probeable(settings);
-        var asked = string.Join('\n', probeable.Select(one => $"{one.Kind}={one.Url}"));
+        // Lengths rather than a separator: a stored address is not validated on read and
+        // one carrying the separator could otherwise forge another set's key.
+        var asked = string.Concat(probeable.Select(one => $"{(int)one.Kind}:{one.Url?.Length ?? -1}:{one.Url}"));
         Lazy<Task<IReadOnlyList<IntegrationHealth>>> round;
 
         lock (_recent)
@@ -221,9 +228,18 @@ public sealed class IntegrationProbe
         List<(IntegrationKind Kind, string? Url)> probeable,
         CancellationToken cancellationToken)
     {
-        var asking = probeable.Select(one => Probe(one.Kind, one.Url, cancellationToken)).ToList();
+        await _atOnce.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-        return await Task.WhenAll(asking).ConfigureAwait(false);
+        try
+        {
+            var asking = probeable.Select(one => Probe(one.Kind, one.Url, cancellationToken)).ToList();
+
+            return await Task.WhenAll(asking).ConfigureAwait(false);
+        }
+        finally
+        {
+            _atOnce.Release();
+        }
     }
 
     // /api/v1/status is Seerr's own, unauthenticated, and carries a version. It proves
@@ -285,15 +301,26 @@ public sealed class IntegrationProbe
                 return "Something answered, but the server would not accept its certificate.";
             }
 
-            if (cause is SocketException socket && socket.SocketErrorCode is SocketError.HostNotFound or SocketError.NoData)
+            if (cause is SocketException socket)
             {
-                return "That host could not be resolved from this server.";
+                if (socket.SocketErrorCode is SocketError.HostNotFound or SocketError.NoData)
+                {
+                    return "That host could not be resolved from this server.";
+                }
+
+                if (socket.SocketErrorCode is SocketError.TimedOut)
+                {
+                    return "Nothing answered in time from this server.";
+                }
+            }
+
+            if (cause is TimeoutException or TaskCanceledException)
+            {
+                return "Nothing answered in time from this server.";
             }
         }
 
-        return exception is TaskCanceledException
-            ? "Nothing answered in time from this server."
-            : "Nothing answered at that address from this server.";
+        return "Nothing answered at that address from this server.";
     }
 
     // A server error, an access wall and a redirect are each something other than a
@@ -326,12 +353,17 @@ public sealed class IntegrationProbe
 
         if ((int)status >= 300 && (int)status < 400)
         {
+            // Seerr is asked at its status endpoint, where a redirect means the request
+            // never reached it. The others are asked at their root, where a redirect to
+            // a login path or to https is how a service normally answers.
             return new IntegrationHealth(
                 kind,
                 IntegrationOutcome.Reachable,
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "That address answered with {0} and sends the request somewhere else, which was not followed. Use the address it redirects to.",
+                    kind == IntegrationKind.Seerr
+                        ? "That address answered with {0} and sends the request somewhere else, which was not followed. Use the address it redirects to."
+                        : "Answered with {0}, a redirect, which was not followed. Nothing there identifies the service.",
                     (int)status),
                 null);
         }
@@ -411,8 +443,23 @@ public sealed class IntegrationProbe
     // at the address, so it is bounded here where the contract is.
     private const int LongestVersion = 64;
 
-    private static string? Short(string? version) =>
-        version is null || version.Length <= LongestVersion ? version : version[..LongestVersion];
+    private static string? Short(string? version)
+    {
+        if (version is null || version.Length <= LongestVersion)
+        {
+            return version;
+        }
+
+        // Not through a surrogate pair, which would leave half a character for the app
+        // and the page to render as a replacement glyph.
+        var cut = LongestVersion;
+        if (char.IsHighSurrogate(version[cut - 1]))
+        {
+            cut--;
+        }
+
+        return version[..cut];
+    }
 
     private static string? SeerrVersion(string body)
     {

@@ -848,6 +848,78 @@ describe("testing an address", () => {
         expect(marlin.querySelector(".sf-said").textContent).toBe("Answered, running 2.1.0.");
     });
 
+    test("an answer that lands after the address changed is not shown against it", async () => {
+        let answer;
+        const { mount } = withProbe(() => new Promise((resolve) => { answer = resolve; }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://one.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+
+        // The address moves while the server is still thinking about the old one.
+        input.value = "https://two.example.com";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        answer({ outcome: "Ok", version: "2.1.0" });
+        await flush();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("a failure message goes when the address does, not only when someone types", async () => {
+        const { mount, form } = withProbe(() => Promise.reject(new Error("no")));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://one.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+        expect(marlin.querySelector(".sf-said").textContent).toBe("The server could not be asked.");
+
+        form.reset();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("an answer about a free row's empty address goes when Discard empties it", async () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok", version: "2.1.0" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://one.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+
+        // Back to free, where the value is undefined rather than a string.
+        form.reset();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("an address with an IPv6 zone id is not refused", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        // The server accepts it; the browser's own URL parser does not, so the form
+        // answers this shape itself rather than handing it to one that would refuse it.
+        for (const good of ["http://[fe80::1%25eth0]:3000", "http://[::1]:3000", "http://user%40x@host"]) {
+            input.value = good;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            expect(form.invalid()).not.toContain("marlinServerUrl");
+        }
+    });
+
     test("a helper that throws before it returns a promise still frees the button", async () => {
         const { mount } = withProbe(() => { throw new TypeError("ApiClient is not ready"); });
 
@@ -901,9 +973,6 @@ describe("testing an address", () => {
         marlin.querySelector('.sf-state button[data-state="suggested"]').click();
         const input = marlin.querySelector("input");
 
-        // Every one of these parses in a browser and is refused by Uri.TryCreate, so a
-        // form that only asked the browser would pass a value the server then refuses
-        // as a banner over the whole save.
         // Every one of these is refused by Uri.TryCreate on the server. Checked against
         // .NET rather than assumed, since the browser's parser is looser in both
         // directions.

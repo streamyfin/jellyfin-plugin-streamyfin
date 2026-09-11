@@ -330,18 +330,19 @@ const isWebAddress = (typed) => {
     const trimmed = typed.trim();
     if (!/^https?:\/\/[^/\\?#]+/i.test(trimmed)) return false;
 
+    const authority = trimmed.slice(trimmed.indexOf("//") + 2).split(/[/?#]/)[0];
+
+    // What is written, not what a parser decodes: "%41" reads as a host of "a" in a
+    // browser and is refused by the server, so the escapes come out before the check.
+    if (!/[a-z0-9]/i.test(authority.replace(/%[0-9a-f]{2}/gi, ""))) return false;
+
+    // An IPv6 literal, which the server accepts and the browser's own parser does not,
+    // so it is answered here rather than handed to one that would refuse it.
+    if (authority.startsWith("[")) return authority.includes("]");
+
     try {
         const { protocol, hostname } = new URL(trimmed);
-        if (protocol !== "http:" && protocol !== "https:") return false;
-
-        // Hostnames the browser accepts and .NET does not: "." and "..", and anything
-        // written escaped, which the browser decodes before you can see it. Checked on
-        // what was typed rather than on the parsed host for that reason. Refusing them
-        // here keeps the field from passing a value the server then refuses as a banner
-        // over the whole save.
-        const authority = trimmed.slice(trimmed.indexOf("//") + 2).split(/[/?#]/)[0];
-
-        return /[a-z0-9]/i.test(hostname) && !authority.includes("%");
+        return (protocol === "http:" || protocol === "https:") && hostname.length > 0;
     } catch {
         return false;
     }
@@ -478,9 +479,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         setPressed(row);
         // Assigning a control's value fires no input event, so a value put back by
         // Discard would otherwise keep an answer about the one that was there. Pressing
-        // Locked on an address that did not move keeps its answer.
-        const was = row.probedValue;
-        if (was !== undefined && was !== row.value) row.clearProbe?.();
+        // Locked on an address that did not move keeps its answer. An object rather than
+        // the value itself, since a free row's value is undefined and that is not the
+        // same as never having been probed.
+        if (row.probed && row.probed.typed !== String(row.value ?? "").trim()) row.clearProbe?.();
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
@@ -642,13 +644,25 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 row.clearProbe = () => {
                     said.textContent = "";
                     said.className = "sf-said";
-                    row.probedValue = undefined;
+                    row.probed = null;
+                    // Anything still in flight is about an address that is gone.
+                    row.asking = (row.asking ?? 0) + 1;
                 };
 
                 row.control?.addEventListener("input", row.clearProbe);
 
                 test.addEventListener("click", () => {
                     const typed = String(row.control?.value ?? "").trim();
+                    const mine = (row.asking = (row.asking ?? 0) + 1);
+                    const show = (text, tone) => {
+                        // An answer about an address the field no longer holds is not an
+                        // answer about the field.
+                        if (mine !== row.asking) return;
+                        said.textContent = text;
+                        said.className = `sf-said ${tone}`;
+                        row.probed = { typed };
+                    };
+
                     test.disabled = true;
                     said.className = "sf-said";
                     said.textContent = "Asking the server\u2026";
@@ -658,17 +672,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                     // catch and finally, and leave the button disabled on "Asking".
                     Promise.resolve()
                         .then(() => probe(field.probe, typed))
-                        .then((health) => {
-                            said.textContent = probeText(health);
-                            said.className = `sf-said ${probeTone(health)}`;
-                            row.probedValue = row.value;
-                        })
-                        .catch(() => {
-                            said.textContent = "The server could not be asked.";
-                            said.className = "sf-said sf-said--no";
-                        })
+                        .then((health) => show(probeText(health), probeTone(health)))
+                        .catch(() => show("The server could not be asked.", "sf-said--no"))
                         .finally(() => {
-                            test.disabled = false;
+                            if (mine === row.asking) test.disabled = false;
                         });
                 });
 
