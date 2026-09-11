@@ -92,9 +92,10 @@ public static class SettingsValidation
         value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
     // 60 rather than 60.0, since every bound declared today is a whole number and an
-    // administrator reading the message is not thinking in doubles.
+    // administrator reading the message is not thinking in doubles. The comparison is a
+    // difference rather than an equality, which is how a double says "whole".
     private static string Number(double value) =>
-        value == Math.Floor(value) && Math.Abs(value) < 1e15
+        Math.Abs(value - Math.Truncate(value)) < 1e-9 && Math.Abs(value) < 1e15
             ? ((long)value).ToString(CultureInfo.InvariantCulture)
             : value.ToString(CultureInfo.InvariantCulture);
 }
