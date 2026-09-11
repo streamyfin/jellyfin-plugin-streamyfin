@@ -67,6 +67,19 @@ export const themeFromBackground = (color) => {
     return luminance > 0.5 ? "light" : "dark";
 };
 
+// What a level inherits, given the levels above it from the least specific down. The
+// server resolves the same way, most specific wins, so the Targeting tab can say what a
+// group or a user falls through to without asking for a resolution per setting. Pass the
+// app's declared defaults first, then the server's, then the groups a user belongs to in
+// ascending priority, since the highest priority is the last to speak.
+export const inherited = (...layers) => Object.assign({}, ...layers.map((layer) => layer ?? {}));
+
+// The groups a user belongs to, least specific first, which is ascending priority. Two
+// groups of the same priority keep the order the server listed them in.
+export const groupsFor = (groups, userId) => (groups ?? [])
+    .filter((group) => (group.userIds ?? []).includes(userId))
+    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+
 const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -280,7 +293,10 @@ const problemOf = (row) => {
         }
     }
 
-    if (field.control === "Select" && value === null && !(field.options ?? []).some((o) => o.value === null)) {
+    // A choice whose value is null is a real answer, the playback quality's "no cap".
+    // Jellyfin's JSON options omit a null, so that option arrives with no value key at
+    // all: compared strictly it looked absent, and Max was refused as an empty field.
+    if (field.control === "Select" && value === null && !(field.options ?? []).some((o) => (o.value ?? null) === null)) {
         return "Choose a value.";
     }
 
@@ -297,11 +313,19 @@ const problemOf = (row) => {
 // JSON.stringify drops the former, which is what keeps them apart here.
 const snapshot = (row) => JSON.stringify({ state: row.state, value: row.value });
 
-export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true } = {}) => {
+// Two modes. "settings" is the Application tab: every setting, in its category and group,
+// answering "what does this server default to". "overrides" is a level on the Targeting
+// tab, a group or one user: only what the level overrides is listed, in one card, and
+// each override says what it falls through to. In that mode `defaults` is what the level
+// inherits, which for a group is what everyone gets.
+export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true, mode = "settings" } = {}) => {
     const rows = new Map();
     const cards = [];
     const listeners = [];
-    const arranged = sections(fields);
+    const overridesOnly = mode === "overrides";
+    const arranged = overridesOnly
+        ? [{ category: "Current overrides", groups: [{ name: "Current overrides", fields }] }]
+        : sections(fields);
     let currentCategory = null;
     let query = "";
     // null, "set" (suggested or locked) or "locked". Like a search, a filter looks across
@@ -311,6 +335,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     const root = el("div", "sf-form");
     root.classList.toggle("is-terse", Boolean(terse));
     root.classList.toggle("is-keyless", !keys);
+    // A level lists one setting after another, so it reads as a list rather than as a
+    // grid of one-row cards. The page around it supplies the heading and the count.
+    root.classList.toggle("is-overrides", overridesOnly);
     const grid = el("div", "sf-grid");
     root.appendChild(grid);
 
@@ -391,6 +418,24 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     // The value a setting takes when it is set with nothing to start from.
     const firstValue = (field) => (field.control === "Toggle" ? false : typeDefault(field) === undefined ? null : typeDefault(field));
 
+    // What a level falls through to, said for a person: a choice by its label, a toggle
+    // as on or off, a list as its items, and "the app's default" when the level above
+    // declares nothing.
+    const inheritedText = (field) => {
+        const entry = defaults?.[field.key];
+        if (!entry || typeof entry !== "object") return "the app's default";
+        const value = entry.value ?? null;
+        switch (field.control) {
+            case "Toggle": return value ? "on" : "off";
+            case "Select": return (field.options ?? []).find((o) => (o.value ?? null) === value)?.label ?? String(value ?? "nothing");
+            case "List": return Array.isArray(value) && value.length ? value.join(", ") : "nothing";
+            case "Language": return value?.displayName ?? value?.DisplayName ?? "nothing";
+            default: return value === null || value === "" ? "nothing" : String(value);
+        }
+    };
+
+    const overridden = () => [...rows.values()].filter((row) => row.state !== "free").map((row) => row.field.key);
+
     const setState = (row, state) => {
         if (row.state === state) return;
         if (row.field.control === "Composite" && state !== "free" && row.value === undefined) return;
@@ -402,6 +447,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
         row.state = state;
         refreshRow(row);
+        if (overridesOnly) applyVisibility();
         notify();
     };
 
@@ -435,7 +481,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         const states = el("div", "sf-state");
         states.setAttribute("role", "group");
         states.setAttribute("aria-label", "How this setting reaches users");
-        const offered = field.lockable === false ? ["free", "suggested"] : STATES;
+        // A level has no "free": a setting is overridden here or it is not listed. The
+        // way out is the drop button, which is what "free" means on that tab.
+        const offered = (field.lockable === false ? ["free", "suggested"] : STATES)
+            .filter((state) => !overridesOnly || state !== "free");
         for (const state of offered) {
             const button = el("button", null, field.lockable === false && state === "suggested" ? "Set" : STATE_LABELS[state]);
             button.type = "button";
@@ -444,6 +493,14 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             row.buttons.push(button);
         }
         head.appendChild(states);
+        if (overridesOnly) {
+            const drop = el("button", "sf-drop", "\u00d7");
+            drop.type = "button";
+            drop.title = "Stop overriding this setting";
+            drop.setAttribute("aria-label", `Stop overriding ${field.title ?? field.key}`);
+            drop.addEventListener("click", () => setState(row, "free"));
+            head.appendChild(drop);
+        }
         row.el.appendChild(head);
 
         if (field.description) row.el.appendChild(describe(field.description));
@@ -482,6 +539,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             row.el.appendChild(foot);
         }
 
+        if (overridesOnly && field.control !== "Composite") {
+            row.el.appendChild(el("p", "sf-from", `everyone gets ${inheritedText(field)}`));
+        }
+
         row.problem.hidden = true;
         row.el.appendChild(row.problem);
 
@@ -494,12 +555,17 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             const card = el("section", "sf-card");
             card.dataset.category = section.category;
             card.dataset.group = group.name;
-            if (group.fields.length > 6) card.classList.add("sf-card--wide");
+            // A wide card splits its body into two columns, which is right for a
+            // category of short toggles and wrong for a level, where each row carries a
+            // value and the line saying what it falls through to.
+            if (!overridesOnly && group.fields.length > 6) card.classList.add("sf-card--wide");
 
-            const header = el("header");
-            header.appendChild(el("h2", null, group.name));
-            header.appendChild(el("span", "sf-count", String(group.fields.length)));
-            card.appendChild(header);
+            if (!overridesOnly) {
+                const header = el("header");
+                header.appendChild(el("h2", null, group.name));
+                header.appendChild(el("span", "sf-count", String(group.fields.length)));
+                card.appendChild(header);
+            }
 
             const body = el("div", "sf-body");
             for (const field of group.fields) body.appendChild(buildRow(field).el);
@@ -540,9 +606,14 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         for (const row of rows.values()) {
             const { title, key, description } = row.field;
             const matchesQuery = !q || [title, key, description].some((text) => String(text ?? "").toLowerCase().includes(q));
-            row.el.hidden = !(matchesQuery && matchesFilter(row));
+            const listed = !overridesOnly || row.state !== "free";
+            row.el.hidden = !(listed && matchesQuery && matchesFilter(row));
         }
         for (const card of cards) {
+            if (overridesOnly) {
+                card.hidden = false;
+                continue;
+            }
             if (narrowing) {
                 card.hidden = [...card.querySelectorAll(".sf-row")].every((r) => r.hidden);
             } else {
@@ -550,6 +621,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             }
         }
     };
+
+    // A level opens on its overrides alone; the settings tab opens on everything.
+    if (overridesOnly) applyVisibility();
 
     mount.textContent = "";
     mount.appendChild(root);
@@ -592,6 +666,15 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             currentCategory = category ?? null;
             applyVisibility();
         },
+        set: (key, state) => {
+            const row = rows.get(key);
+            if (row) setState(row, state);
+        },
+        overridden,
+        // What a level could still override: every drawable setting it does not yet.
+        candidates: () => [...rows.values()]
+            .filter((row) => row.state === "free" && row.field.control !== "Composite")
+            .map((row) => ({ key: row.field.key, title: row.field.title ?? row.field.key, category: row.field.category ?? "Other" })),
         categories: () => arranged.map((section) => {
             const keys = section.groups.flatMap((group) => group.fields.map((f) => f.key));
             const states = keys.map((key) => rows.get(key)?.state);

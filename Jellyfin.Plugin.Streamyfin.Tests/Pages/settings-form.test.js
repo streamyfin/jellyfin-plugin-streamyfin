@@ -5,6 +5,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
     createForm,
+    groupsFor,
+    inherited,
     sections,
     stateOf,
     themeFromBackground,
@@ -32,7 +34,10 @@ const FIELDS = [
     field("defaultBitrate", "Select", {
         group: "Quality",
         title: "Default playback quality",
-        options: [{ value: null, label: "Max" }, { value: "_1MB", label: "1 MB" }, { value: "_2MB", label: "2 MB" }],
+        // The "no cap" choice as the server actually sends it: Jellyfin's JSON options
+        // omit a null, so the option arrives with no value key at all rather than with
+        // a null one. A fixture that spelled it out would test a shape nothing sends.
+        options: [{ label: "Max" }, { value: "_1MB", label: "1 MB" }, { value: "_2MB", label: "2 MB" }],
     }),
     field("jellyseerrServerUrl", "Text", { category: "Plugins", group: "Jellyseerr", title: "Seerr server" }),
     field("jellyseerrApiKey", "Secret", { category: "Plugins", group: "Jellyseerr", title: "Seerr API key", description: "**Warning** every user can read it" }),
@@ -450,6 +455,19 @@ describe("createForm", () => {
         expect(toggle.title).toBe("");
     });
 
+    // Jellyfin's JSON options omit a null, so the "no cap" choice arrives with no value
+    // key. Compared strictly against null it looked like no such choice existed, and a
+    // quality set to Max was held invalid with "Choose a value".
+    test("the no cap choice is a real answer, not a missing one", () => {
+        const { mount, form } = mountForm({ defaultBitrate: { value: "_2MB", locked: false } });
+
+        change(control(mount, "defaultBitrate"), (el) => { el.value = ""; });
+
+        expect(form.invalid()).toEqual([]);
+        expect(row(mount, "defaultBitrate").querySelector(".sf-problem").hidden).toBe(true);
+        expect(form.toSettings().defaultBitrate).toEqual({ value: null, locked: false });
+    });
+
     test("a description renders its emphasis without the asterisks", () => {
         const { mount } = mountForm();
         const description = row(mount, "jellyseerrApiKey").querySelector(".sf-desc");
@@ -578,7 +596,7 @@ describe("a declared default that is empty", () => {
 
     test("a nullable choice whose default is null opens on its null option", () => {
         const fields = [field("defaultBitrate", "Select", { title: "Quality",
-            options: [{ value: null, label: "Max" }, { value: "_1MB", label: "1 MB" }] })];
+            options: [{ label: "Max" }, { value: "_1MB", label: "1 MB" }] })];
         const { mount, form } = mountForm({}, { fields, defaults: { defaultBitrate: { locked: false } } });
 
         expect(control(mount, "defaultBitrate").selectedOptions[0].textContent).toBe("Max");
@@ -597,5 +615,121 @@ describe("themeFromBackground", () => {
     test("no readable background is treated as the dashboard's default, dark", () => {
         expect(themeFromBackground("")).toBe("dark");
         expect(themeFromBackground("transparent")).toBe("dark");
+    });
+});
+
+// The Targeting tab draws a level, a group or one user, with the same renderer in its
+// overrides mode: only what the level changes is listed, everything else falls through
+// to the level below, and the value it falls through to is shown beside the override.
+describe("overrides mode", () => {
+    const EVERYONE = {
+        forwardSkipTime: { value: 30, locked: false },
+        enableDoubleTapToSeek: { value: false, locked: false },
+        defaultBitrate: { value: "_1MB", locked: false },
+        subtitlesOnMute: { value: true, locked: true },
+    };
+
+    const mountLevel = (values = {}) => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields: FIELDS, values, defaults: EVERYONE, cultures: CULTURES, mode: "overrides" });
+        return { mount, form };
+    };
+
+    // One list, no categories and no card headings: the page around it says whose level
+    // this is and how many of the settings it changes.
+    test("lists only what the level overrides, as one list", () => {
+        const { mount, form } = mountLevel({ forwardSkipTime: { value: 45, locked: true } });
+
+        expect(mount.querySelectorAll(".sf-card")).toHaveLength(1);
+        expect(mount.querySelectorAll(".sf-card header")).toHaveLength(0);
+        expect(mount.querySelector(".sf-form").classList.contains("is-overrides")).toBe(true);
+        expect(row(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(row(mount, "enableDoubleTapToSeek").hidden).toBe(true);
+        expect(form.overridden()).toEqual(["forwardSkipTime"]);
+    });
+
+    test("offers suggested and locked, never free, and a way to stop overriding", () => {
+        const { mount, form } = mountLevel({ forwardSkipTime: { value: 45, locked: true } });
+        const states = [...row(mount, "forwardSkipTime").querySelectorAll(".sf-state button")].map((b) => b.dataset.state);
+        expect(states).toEqual(["suggested", "locked"]);
+
+        row(mount, "forwardSkipTime").querySelector(".sf-drop").click();
+
+        expect(row(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(form.overridden()).toEqual([]);
+        expect(form.toSettings()).not.toHaveProperty("forwardSkipTime");
+        expect(form.dirtyCount()).toBe(1);
+    });
+
+    test("an override starts from what everyone gets, and says what that is", () => {
+        const { mount, form } = mountLevel();
+
+        form.set("forwardSkipTime", "suggested");
+
+        expect(row(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(control(mount, "forwardSkipTime").value).toBe("30");
+        expect(row(mount, "forwardSkipTime").querySelector(".sf-from").textContent).toBe("everyone gets 30");
+        expect(form.toSettings().forwardSkipTime).toEqual({ value: 30, locked: false });
+    });
+
+    test("the hint reads a choice by its label, a toggle as on or off, and nothing when everyone gets the app's default", () => {
+        const { mount, form } = mountLevel();
+        form.set("defaultBitrate", "locked");
+        form.set("subtitlesOnMute", "suggested");
+        form.set("hiddenLibraries", "suggested");
+
+        expect(row(mount, "defaultBitrate").querySelector(".sf-from").textContent).toBe("everyone gets 1 MB");
+        expect(row(mount, "subtitlesOnMute").querySelector(".sf-from").textContent).toBe("everyone gets on");
+        expect(row(mount, "hiddenLibraries").querySelector(".sf-from").textContent).toBe("everyone gets the app's default");
+    });
+
+    test("the settings that can still be added are the ones not overridden, with their category", () => {
+        const { form } = mountLevel({ forwardSkipTime: { value: 45, locked: true } });
+
+        const candidates = form.candidates();
+
+        expect(candidates.map((c) => c.key)).not.toContain("forwardSkipTime");
+        expect(candidates.find((c) => c.key === "defaultBitrate")).toEqual({
+            key: "defaultBitrate", title: "Default playback quality", category: "Playback controls",
+        });
+        expect(candidates.map((c) => c.key)).not.toContain("home");
+    });
+
+    test("a level saves exactly its overrides, and a setting it cannot draw passes through", () => {
+        const { form } = mountLevel({ forwardSkipTime: { value: 45, locked: true }, somethingNewer: { value: 1, locked: false } });
+        form.set("enableDoubleTapToSeek", "suggested");
+
+        expect(form.toSettings()).toEqual({
+            forwardSkipTime: { value: 45, locked: true },
+            enableDoubleTapToSeek: { value: false, locked: false },
+            somethingNewer: { value: 1, locked: false },
+        });
+    });
+});
+
+describe("what a level inherits", () => {
+    const APP = { forwardSkipTime: { value: 30, locked: false }, subtitleSize: { value: 80, locked: false } };
+    const SERVER = { forwardSkipTime: { value: 15, locked: false } };
+    const GROUPS = [
+        { name: "Kids", priority: 10, userIds: ["u1"], settings: { forwardSkipTime: { value: 45, locked: true } } },
+        { name: "TVs", priority: 1, userIds: ["u1", "u2"], settings: { forwardSkipTime: { value: 20, locked: false }, subtitleSize: { value: 120, locked: false } } },
+    ];
+
+    test("the most specific level wins, and the rest falls through", () => {
+        const merged = inherited(APP, SERVER);
+
+        expect(merged.forwardSkipTime).toEqual({ value: 15, locked: false });
+        expect(merged.subtitleSize).toEqual({ value: 80, locked: false });
+    });
+
+    test("a user's groups come in ascending priority, so the highest priority speaks last", () => {
+        expect(groupsFor(GROUPS, "u1").map((g) => g.name)).toEqual(["TVs", "Kids"]);
+        expect(groupsFor(GROUPS, "u2").map((g) => g.name)).toEqual(["TVs"]);
+        expect(groupsFor(GROUPS, "nobody")).toEqual([]);
+
+        const forU1 = inherited(APP, SERVER, ...groupsFor(GROUPS, "u1").map((g) => g.settings));
+        expect(forU1.forwardSkipTime).toEqual({ value: 45, locked: true });
+        expect(forU1.subtitleSize).toEqual({ value: 120, locked: false });
     });
 });
