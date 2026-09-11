@@ -119,7 +119,9 @@ export default function (view) {
         const parts = [];
 
         if (dirty) parts.push(`${dirty} unsaved`);
-        if (invalid) parts.push(`${invalid} need${invalid === 1 ? "s" : ""} a value`);
+        // "needs a value" pointed at an empty field, and an address the server refuses
+        // has one. What they share is that the save is waiting on them.
+        if (invalid) parts.push(`${invalid} to fix`);
 
         el("sf-dock-summary").textContent = parts.join(" · ") || "Nothing to save";
         dock.classList.toggle("is-clean", dirty === 0);

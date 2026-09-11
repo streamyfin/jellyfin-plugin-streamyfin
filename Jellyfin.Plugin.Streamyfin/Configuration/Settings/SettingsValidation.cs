@@ -66,7 +66,7 @@ public static class SettingsValidation
                 continue;
             }
 
-            var value = lockable.GetType().GetProperty("value")?.GetValue(lockable);
+            var value = descriptor.Value?.GetValue(lockable);
 
             if (descriptor.IsWebAddress && value is string address && !string.IsNullOrWhiteSpace(address)
                 && !WebAddress.Parses(address, out _))
@@ -97,6 +97,43 @@ public static class SettingsValidation
         }
 
         return problems;
+    }
+
+    /// <summary>
+    /// Trims the settings that are addresses, in place.
+    /// </summary>
+    /// <param name="settings">The settings, which may be null.</param>
+    /// <remarks>
+    /// The check trims before parsing, so an address pasted with a space passes it and
+    /// was then stored with the space. The Yaml tab and the targeting routes have no
+    /// form to trim it for them.
+    /// </remarks>
+    public static void Tidy(Settings? settings)
+    {
+        if (settings is null)
+        {
+            return;
+        }
+
+        foreach (var descriptor in SettingsSchema.Descriptors)
+        {
+            if (!descriptor.IsWebAddress || descriptor.Value is null)
+            {
+                continue;
+            }
+
+            var lockable = descriptor.Property.GetValue(settings);
+            if (lockable is null || descriptor.Value.GetValue(lockable) is not string address)
+            {
+                continue;
+            }
+
+            var trimmed = address.Trim();
+            if (!string.Equals(trimmed, address, StringComparison.Ordinal))
+            {
+                descriptor.Value.SetValue(lockable, trimmed);
+            }
+        }
     }
 
     /// <summary>

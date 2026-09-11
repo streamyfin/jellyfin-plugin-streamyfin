@@ -22,6 +22,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// <param name="Bounds">The values it accepts, when it declares any.</param>
 /// <param name="Probe">The service that answers at the other end, when it names one.</param>
 /// <param name="IsWebAddress">Whether the value has to be a whole http or https address.</param>
+/// <param name="Value">Where a <see cref="Lockable{T}"/> keeps its value, when it is one.</param>
 /// <remarks>
 /// The attributes are resolved here rather than at each use. Validation runs over every
 /// descriptor on every write, on the Yaml tab and on the three targeting routes, and
@@ -40,7 +41,8 @@ public sealed record SettingDescriptor(
     string? Group,
     BoundsAttribute? Bounds,
     ProbeAttribute? Probe,
-    bool IsWebAddress);
+    bool IsWebAddress,
+    PropertyInfo? Value);
 
 /// <summary>
 /// The settings, as data.
@@ -126,6 +128,7 @@ public static class SettingsSchema
             Group: scope?.Group,
             Bounds: property.GetCustomAttribute<BoundsAttribute>(),
             Probe: probe,
-            IsWebAddress: probe is not null || property.GetCustomAttribute<WebAddressAttribute>() is not null);
+            IsWebAddress: probe is not null || property.GetCustomAttribute<WebAddressAttribute>() is not null,
+            Value: lockable ? underlying.GetProperty("value") : null);
     }
 }

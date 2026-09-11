@@ -129,8 +129,14 @@ export const probeText = (health) => {
             return health.detail ?? "That is not an address the server will open.";
         case "WrongService":
             return health.detail ?? "Something answered, but not this service.";
-        default:
+        case "Down":
+            return health.detail ?? "The service answered that it is not working.";
+        case "Unreachable":
             return health.detail ?? "Nothing answered at that address.";
+        default:
+            // A server that gained an outcome this page does not know about. Saying
+            // nothing answered would send an administrator to their network.
+            return health.detail ?? "The server gave an answer this page does not understand.";
     }
 };
 
@@ -140,7 +146,9 @@ export const probeTone = (health) => {
     switch (health?.outcome) {
         case "Ok": return "sf-said--ok";
         case "NotConfigured": return "sf-said--quiet";
-        case "Reachable": return "sf-said--ok";
+        // Not a pass. The Jellyfin address in the Marlin field answers 200 and lands
+        // here, and green would read as confirmed.
+        case "Reachable": return "sf-said--maybe";
         default: return "sf-said--no";
     }
 };
@@ -324,7 +332,16 @@ const isWebAddress = (typed) => {
 
     try {
         const { protocol, hostname } = new URL(trimmed);
-        return (protocol === "http:" || protocol === "https:") && hostname.length > 0;
+        if (protocol !== "http:" && protocol !== "https:") return false;
+
+        // Hostnames the browser accepts and .NET does not: "." and "..", and anything
+        // written escaped, which the browser decodes before you can see it. Checked on
+        // what was typed rather than on the parsed host for that reason. Refusing them
+        // here keeps the field from passing a value the server then refuses as a banner
+        // over the whole save.
+        const authority = trimmed.slice(trimmed.indexOf("//") + 2).split(/[/?#]/)[0];
+
+        return /[a-z0-9]/i.test(hostname) && !authority.includes("%");
     } catch {
         return false;
     }
@@ -459,9 +476,11 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
 
     const refreshRow = (row) => {
         setPressed(row);
-        // Before the control is rewritten: Discard and the state buttons both land here
-        // and assign the value directly, which fires no input event.
-        row.clearProbe?.();
+        // Assigning a control's value fires no input event, so a value put back by
+        // Discard would otherwise keep an answer about the one that was there. Pressing
+        // Locked on an address that did not move keeps its answer.
+        const was = row.probedValue;
+        if (was !== undefined && was !== row.value) row.clearProbe?.();
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
@@ -613,17 +632,17 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 // Three of these on a page, all reading "Test" to anything that lists
                 // the buttons, unless each says what it tests.
                 test.setAttribute("aria-label", `Test ${field.title ?? field.key}`);
+                // Always in the tree, empty: a live region that was hidden when its text
+                // changed is not announced.
                 const said = el("span", "sf-said");
-                // Announced, or the answer arrives only for someone who can see it.
                 said.setAttribute("role", "status");
-                said.hidden = true;
 
                 // An answer is about the address that was tried, so it goes the moment
                 // the value moves, whether someone typed it or Discard put it back.
                 row.clearProbe = () => {
-                    said.hidden = true;
                     said.textContent = "";
                     said.className = "sf-said";
+                    row.probedValue = undefined;
                 };
 
                 row.control?.addEventListener("input", row.clearProbe);
@@ -631,7 +650,6 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 test.addEventListener("click", () => {
                     const typed = String(row.control?.value ?? "").trim();
                     test.disabled = true;
-                    said.hidden = false;
                     said.className = "sf-said";
                     said.textContent = "Asking the server\u2026";
 
@@ -643,6 +661,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                         .then((health) => {
                             said.textContent = probeText(health);
                             said.className = `sf-said ${probeTone(health)}`;
+                            row.probedValue = row.value;
                         })
                         .catch(() => {
                             said.textContent = "The server could not be asked.";

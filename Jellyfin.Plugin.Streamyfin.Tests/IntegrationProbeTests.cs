@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -219,12 +221,67 @@ public class IntegrationProbeTests
     [InlineData(IntegrationKind.Marlin, HttpStatusCode.BadGateway)]
     [InlineData(IntegrationKind.Marlin, HttpStatusCode.ServiceUnavailable)]
     [InlineData(IntegrationKind.Streamystats, HttpStatusCode.InternalServerError)]
+    [InlineData(IntegrationKind.Seerr, HttpStatusCode.ServiceUnavailable)]
     public async Task AServiceAnsweringWithAServerErrorIsNotHealthy(IntegrationKind kind, HttpStatusCode status)
     {
         var health = await ProbeWith(new Answering(status, "bad gateway")).Probe(kind, "https://inside.example.com");
 
-        Assert.NotEqual(IntegrationOutcome.Ok, health.Outcome);
+        // Down, not WrongService: a service that is restarting is not a wrong address,
+        // and an administrator told otherwise goes editing an address that was right.
+        Assert.Equal(IntegrationOutcome.Down, health.Outcome);
         Assert.Contains("not working", health.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A refused certificate sends an administrator to the certificate, and an
+    /// unresolvable host to their name server.
+    /// </summary>
+    /// <remarks>
+    /// Every transport failure read as "nothing answered at that address", which is the
+    /// wrong place to look when something did answer and its certificate was refused.
+    /// Internal addresses behind a private authority are exactly what this feature is
+    /// for.
+    /// </remarks>
+    /// <param name="thrown">What the transport threw.</param>
+    /// <param name="says">A phrase the answer has to carry.</param>
+    [Theory]
+    [MemberData(nameof(TransportFailures))]
+    public async Task ATransportFailureSaysWhichKind(Exception thrown, string says)
+    {
+        var health = await ProbeWith(new Throwing(thrown)).Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.Equal(IntegrationOutcome.Unreachable, health.Outcome);
+        Assert.Contains(says, health.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Gets the transport failures and what each one should say.
+    /// </summary>
+    public static TheoryData<Exception, string> TransportFailures => new()
+    {
+        { new HttpRequestException("tls", new AuthenticationException("bad cert")), "certificate" },
+        { new HttpRequestException("dns", new SocketException((int)SocketError.HostNotFound)), "could not be resolved" },
+        { new TaskCanceledException("timed out"), "in time" },
+        { new HttpRequestException("refused"), "Nothing answered at that address" },
+    };
+
+    /// <summary>
+    /// A version longer than a version is cut before it is served.
+    /// </summary>
+    /// <remarks>
+    /// It comes from whatever is at the configured address and the health route hands it
+    /// to every signed in account.
+    /// </remarks>
+    [Fact]
+    public async Task AVersionIsBoundedBeforeItIsServed()
+    {
+        var body = $$"""{"version":"{{new string('v', 4000)}}"}""";
+
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, body))
+            .Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+        Assert.True(health.Version!.Length <= 64);
     }
 
     /// <summary>
@@ -272,8 +329,8 @@ public class IntegrationProbeTests
     /// <param name="expected">What that means.</param>
     /// <param name="says">A phrase the message has to carry.</param>
     [Theory]
-    [InlineData(HttpStatusCode.ServiceUnavailable, IntegrationOutcome.WrongService, "not working")]
-    [InlineData(HttpStatusCode.BadGateway, IntegrationOutcome.WrongService, "not working")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, IntegrationOutcome.Down, "not working")]
+    [InlineData(HttpStatusCode.BadGateway, IntegrationOutcome.Down, "not working")]
     [InlineData(HttpStatusCode.Unauthorized, IntegrationOutcome.Reachable, "access layer")]
     [InlineData(HttpStatusCode.Found, IntegrationOutcome.Reachable, "Use the address it redirects to")]
     public async Task SeerrSaysWhichOfThreeThingsWentWrong(HttpStatusCode status, IntegrationOutcome expected, string says)
@@ -579,6 +636,28 @@ public class IntegrationProbeTests
             .Probe(IntegrationKind.Seerr, "https://requests.example.com");
 
         Assert.Equal(IntegrationOutcome.WrongService, health.Outcome);
+    }
+
+    /// <summary>
+    /// An address is stored the way it was checked, on every write path.
+    /// </summary>
+    /// <remarks>
+    /// The check trims before parsing, so an address pasted with a space passed it and
+    /// was stored with the space. The Yaml tab and the targeting routes have no form to
+    /// trim it for them.
+    /// </remarks>
+    [Fact]
+    public void AnAddressIsStoredTheWayItWasChecked()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "  https://requests.example.com  " }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
+        Assert.Empty(SettingsValidation.Problems(settings));
     }
 
     private static Settings Configured() => new()

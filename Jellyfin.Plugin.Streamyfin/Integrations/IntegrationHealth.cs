@@ -39,6 +39,11 @@ public enum IntegrationOutcome
     /// <summary>Something answered, but it is not the service that was expected.</summary>
     WrongService,
 
+    /// <summary>
+    /// Something in front of the service says the service is not working.
+    /// </summary>
+    Down,
+
     /// <summary>Nothing answered.</summary>
     Unreachable,
 

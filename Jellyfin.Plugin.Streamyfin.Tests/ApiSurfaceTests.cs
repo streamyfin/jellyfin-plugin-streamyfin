@@ -155,4 +155,43 @@ public class ApiSurfaceTests
         Assert.NotNull(authorize);
         Assert.Equal(MediaBrowser.Common.Api.Policies.RequiresElevation, authorize!.Policy);
     }
+
+    /// <summary>
+    /// Probing an address the caller chose is for administrators.
+    /// </summary>
+    /// <remarks>
+    /// The route makes the server open an address the caller names and reports the
+    /// status code and the version it read back. Relaxed to a plain Authorize it would
+    /// answer that for any account on the server.
+    /// </remarks>
+    [Fact]
+    public void ProbingAnIntegrationRequiresElevation()
+    {
+        var method = typeof(StreamyfinController).GetMethod(nameof(StreamyfinController.ProbeIntegration));
+
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal(MediaBrowser.Common.Api.Policies.RequiresElevation, authorize!.Policy);
+    }
+
+    /// <summary>
+    /// Reading the health of the integrations is for any signed in account, and for no
+    /// one else.
+    /// </summary>
+    /// <remarks>
+    /// The app changes what it offers by it, and the addresses probed are the ones
+    /// resolved for the caller rather than ones they name, so there is nothing here to
+    /// point anywhere.
+    /// </remarks>
+    [Fact]
+    public void ReadingIntegrationHealthNeedsAnAccountAndNoMore()
+    {
+        var method = typeof(StreamyfinController).GetMethod(nameof(StreamyfinController.GetIntegrationHealth));
+
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Null(authorize!.Policy);
+    }
 }

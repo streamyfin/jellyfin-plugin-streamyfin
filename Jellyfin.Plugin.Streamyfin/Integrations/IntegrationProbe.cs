@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -108,7 +110,7 @@ public sealed class IntegrationProbe
             return new IntegrationHealth(
                 kind,
                 IntegrationOutcome.Unreachable,
-                "Nothing answered at that address from this server.",
+                Why(exception),
                 null);
         }
     }
@@ -128,7 +130,8 @@ public sealed class IntegrationProbe
         Settings? settings,
         CancellationToken cancellationToken = default)
     {
-        var asked = Addresses(settings);
+        var probeable = Probeable(settings);
+        var asked = string.Join('\n', probeable.Select(one => $"{one.Kind}={one.Url}"));
         Lazy<Task<IReadOnlyList<IntegrationHealth>>> round;
 
         lock (_recent)
@@ -139,9 +142,10 @@ public sealed class IntegrationProbe
             {
                 // The round runs on its own token, since this answer is stored for
                 // everyone and a caller who walks away must not write theirs into it.
-                // Lazy, so the lock publishes the task rather than doing its work.
+                // Lazy, so the lock publishes the task rather than doing its work, and
+                // over the addresses rather than the whole settings graph.
                 known = new Round(
-                    new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(() => ProbeAll(settings, CancellationToken.None)),
+                    new Lazy<Task<IReadOnlyList<IntegrationHealth>>>(() => ProbeEach(probeable, CancellationToken.None)),
                     DateTimeOffset.UtcNow);
                 _recent[asked] = known;
             }
@@ -177,20 +181,26 @@ public sealed class IntegrationProbe
         }
     }
 
-    private static string Addresses(Settings? settings) =>
-        string.Join('\n', Probeable(settings).Select(one => $"{one.Kind}={one.Url}"));
-
     // Read from the declarations rather than from a list here, so a fourth integration
     // is an attribute on its property and nothing else.
-    private static IEnumerable<(IntegrationKind Kind, string? Url)> Probeable(Settings? settings) =>
-        SettingsSchema.Descriptors
-            .Where(descriptor => descriptor.Probe is not null)
-            .Select(descriptor => (
-                descriptor.Probe!.Kind,
-                Url: settings is null
-                    ? null
-                    : descriptor.Property.GetValue(settings)?.GetType().GetProperty("value")
-                        ?.GetValue(descriptor.Property.GetValue(settings)) as string));
+    private static List<(IntegrationKind Kind, string? Url)> Probeable(Settings? settings)
+    {
+        var found = new List<(IntegrationKind, string?)>();
+
+        foreach (var descriptor in SettingsSchema.Descriptors)
+        {
+            if (descriptor.Probe is null)
+            {
+                continue;
+            }
+
+            var lockable = settings is null ? null : descriptor.Property.GetValue(settings);
+            var url = lockable is null ? null : descriptor.Value?.GetValue(lockable) as string;
+            found.Add((descriptor.Probe.Kind, url));
+        }
+
+        return found;
+    }
 
     private sealed record Round(Lazy<Task<IReadOnlyList<IntegrationHealth>>> Health, DateTimeOffset At);
 
@@ -204,9 +214,14 @@ public sealed class IntegrationProbe
         Settings? settings,
         CancellationToken cancellationToken = default)
     {
-        var asking = Probeable(settings)
-            .Select(one => Probe(one.Kind, one.Url, cancellationToken))
-            .ToList();
+        return await ProbeEach(Probeable(settings), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<IntegrationHealth>> ProbeEach(
+        List<(IntegrationKind Kind, string? Url)> probeable,
+        CancellationToken cancellationToken)
+    {
+        var asking = probeable.Select(one => Probe(one.Kind, one.Url, cancellationToken)).ToList();
 
         return await Task.WhenAll(asking).ConfigureAwait(false);
     }
@@ -259,13 +274,42 @@ public sealed class IntegrationProbe
                 null);
     }
 
+    // The sentence an administrator can act on. A refused certificate sends them to the
+    // certificate rather than to their firewall, and a timeout is not a wrong name.
+    private static string Why(Exception exception)
+    {
+        for (var cause = exception; cause is not null; cause = cause.InnerException)
+        {
+            if (cause is AuthenticationException)
+            {
+                return "Something answered, but the server would not accept its certificate.";
+            }
+
+            if (cause is SocketException socket && socket.SocketErrorCode is SocketError.HostNotFound or SocketError.NoData)
+            {
+                return "That host could not be resolved from this server.";
+            }
+        }
+
+        return exception is TaskCanceledException
+            ? "Nothing answered in time from this server."
+            : "Nothing answered at that address from this server.";
+    }
+
     // A server error, an access wall and a redirect are each something other than a
     // wrong address.
     private static IntegrationHealth? Ailing(IntegrationKind kind, HttpStatusCode status)
     {
         if ((int)status >= 500)
         {
-            return Refused(kind, status, "which is something in front of the service saying it is not working");
+            return new IntegrationHealth(
+                kind,
+                IntegrationOutcome.Down,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Something answered with {0}, which is the service saying it is not working rather than the address being wrong.",
+                    (int)status),
+                null);
         }
 
         if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
@@ -363,6 +407,13 @@ public sealed class IntegrationProbe
     }
 
     // version or commitTag is a real Seerr. A login page answering 200 is not.
+    // Echoed to every signed in user by the health route, and it comes from whatever is
+    // at the address, so it is bounded here where the contract is.
+    private const int LongestVersion = 64;
+
+    private static string? Short(string? version) =>
+        version is null || version.Length <= LongestVersion ? version : version[..LongestVersion];
+
     private static string? SeerrVersion(string body)
     {
         try
@@ -378,7 +429,7 @@ public sealed class IntegrationProbe
                 && version.ValueKind == JsonValueKind.String
                 && !string.IsNullOrWhiteSpace(version.GetString()))
             {
-                return version.GetString();
+                return Short(version.GetString());
             }
 
             // A commit tag is a version. One that is null or a number said nothing, and
@@ -386,7 +437,7 @@ public sealed class IntegrationProbe
             return document.RootElement.TryGetProperty("commitTag", out var tag)
                 && tag.ValueKind == JsonValueKind.String
                 && !string.IsNullOrWhiteSpace(tag.GetString())
-                    ? tag.GetString()
+                    ? Short(tag.GetString())
                     : null;
         }
         catch (JsonException)

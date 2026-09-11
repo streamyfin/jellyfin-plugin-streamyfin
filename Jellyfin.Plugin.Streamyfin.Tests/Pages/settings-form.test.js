@@ -832,6 +832,22 @@ describe("testing an address", () => {
         expect(marlin.querySelector(".sf-said").className).not.toContain("sf-said--no");
     });
 
+    test("pressing Locked keeps an answer about an address that did not move", async () => {
+        const { mount } = withProbe(() => Promise.resolve({ outcome: "Ok", version: "2.1.0" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "https://marlin.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+
+        marlin.querySelector('.sf-state button[data-state="locked"]').click();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("Answered, running 2.1.0.");
+    });
+
     test("a helper that throws before it returns a promise still frees the button", async () => {
         const { mount } = withProbe(() => { throw new TypeError("ApiClient is not ready"); });
 
@@ -852,12 +868,11 @@ describe("testing an address", () => {
         input.value = "https://marlin.example.com";
         [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
         await flush();
-        expect(marlin.querySelector(".sf-said").hidden).toBe(false);
+        expect(marlin.querySelector(".sf-said").textContent).not.toBe("");
 
         input.value = "https://other.example.com";
         input.dispatchEvent(new Event("input", { bubbles: true }));
 
-        expect(marlin.querySelector(".sf-said").hidden).toBe(true);
         expect(marlin.querySelector(".sf-said").textContent).toBe("");
     });
 
@@ -889,6 +904,9 @@ describe("testing an address", () => {
         // Every one of these parses in a browser and is refused by Uri.TryCreate, so a
         // form that only asked the browser would pass a value the server then refuses
         // as a banner over the whole save.
+        // Every one of these is refused by Uri.TryCreate on the server. Checked against
+        // .NET rather than assumed, since the browser's parser is looser in both
+        // directions.
         const refused = [
             "192.168.1.5:3000",
             "marlin.example.com",
@@ -896,6 +914,9 @@ describe("testing an address", () => {
             "http:/marlin.example.com",
             "http:marlin.example.com",
             "http://",
+            "http://.",
+            "http://..",
+            "http://%41",
             "   ",
         ];
 
@@ -934,7 +955,9 @@ describe("testing an address", () => {
     });
 
     test("something serving HTTP with no signature is not read as confirmed", () => {
-        expect(probeTone({ outcome: "Reachable" })).toBe("sf-said--ok");
+        expect(probeTone({ outcome: "Ok" })).toBe("sf-said--ok");
+        expect(probeTone({ outcome: "Down" })).toBe("sf-said--no");
+        expect(probeTone({ outcome: "Reachable" })).toBe("sf-said--maybe");
         // Without a detail it still has to read as something that answered.
         expect(probeText({ outcome: "Reachable" })).toBe("Something answered, and nothing there says what it is.");
         expect(probeText({ outcome: "Reachable", detail: "Answered with 200. Nothing there identifies the service." }))
@@ -951,11 +974,11 @@ describe("testing an address", () => {
         input.dispatchEvent(new Event("change", { bubbles: true }));
         [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
         await flush();
-        expect(marlin.querySelector(".sf-said").hidden).toBe(false);
+        expect(marlin.querySelector(".sf-said").textContent).not.toBe("");
 
         form.reset();
 
-        expect(marlin.querySelector(".sf-said").hidden).toBe(true);
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
     });
 
     test("a setting that is an address with nothing to ask is still checked", () => {
@@ -1002,6 +1025,10 @@ describe("testing an address", () => {
         expect(probeText({ outcome: "NotAUrl", detail: "That is not an http address." })).toBe("That is not an http address.");
         expect(probeText({ outcome: "WrongService" })).toBe("Something answered, but not this service.");
         expect(probeText({ outcome: "Unreachable" })).toBe("Nothing answered at that address.");
+        expect(probeText({ outcome: "Down" })).toBe("The service answered that it is not working.");
+        // A page that has not caught up with a server that gained an outcome.
+        expect(probeText({ outcome: "SomethingNewer" }))
+            .toBe("The server gave an answer this page does not understand.");
         expect(probeText(null)).toBe("The server gave no answer.");
     });
 });

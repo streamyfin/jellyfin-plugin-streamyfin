@@ -133,6 +133,8 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
+    SettingsValidation.Tidy(p.settings);
+
     var problem = SettingsValidation.Message(p.settings);
     if (problem is not null)
     {
@@ -221,9 +223,8 @@ public class StreamyfinController : ControllerBase
   {
     ArgumentNullException.ThrowIfNull(request);
 
-    // An undeclared value reaches here as an integer the converter accepted, and a
-    // missing one as null. Neither is a service, and answering about the wrong one is
-    // worse than saying so.
+    // An undeclared value reaches here as an integer the converter accepted. A missing
+    // one is refused by model validation before this runs.
     if (request.Kind is not { } kind || !Enum.IsDefined(kind))
     {
       return BadRequest("Say which service to try: Seerr, Marlin or Streamystats.");
@@ -506,6 +507,8 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
+    SettingsValidation.Tidy(request.Settings);
+
     if (SettingsValidation.Message(request.Settings) is { } problem)
     {
       return BadRequest(problem);
@@ -548,6 +551,8 @@ public class StreamyfinController : ControllerBase
     {
       return BadRequest("A group needs a name");
     }
+
+    SettingsValidation.Tidy(request.Settings);
 
     if (SettingsValidation.Message(request.Settings) is { } problem)
     {
@@ -672,6 +677,8 @@ public class StreamyfinController : ControllerBase
       database.RemoveUserSettingsOverride(userId);
       return NoContent();
     }
+
+    SettingsValidation.Tidy(request.Settings);
 
     if (SettingsValidation.Message(request.Settings) is { } problem)
     {
