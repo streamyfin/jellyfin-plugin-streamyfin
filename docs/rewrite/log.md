@@ -8,6 +8,51 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-11, later
+
+### The Targeting tab moves onto the renderer, and json-editor goes
+
+The screen P3.3 built kept its shape and changed what draws a level's overrides. The
+renderer now has two modes: the Application tab asks what this server defaults to and
+lists every setting, a level asks what it changes and lists only that, as one list,
+with Suggested and Locked and a drop button where the other has Free. Adding an
+override is a select and a button, which is what json-editor's property picker never
+managed: it rendered nothing and saved nothing, so an override could be read and
+edited and never created.
+
+Each override says what it falls through to, in words rather than a value: *everyone
+gets 15*, *everyone gets Max*, *everyone gets the app's default*. For a group that is
+the server; for one user it is their groups too, applied in ascending priority, which
+is the order the server resolves in.
+
+**json-editor is gone**, and with it `legacy-settings-form.js`, the four schema
+reshapings that existed only for it, and the five tests that pinned those workarounds.
+The served schema is the generated one again, plus `x-secret` and `x-category`, which
+describe the configuration rather than a form. The assembly is 516 KB smaller. The
+Application page's stylesheet moved to `Pages/settings-form.css`, which both tabs load.
+
+### Two defects the beta pass found
+
+**A level that set the playback quality to Max lost everything it carried.** Max is a
+null; Jellyfin's JSON options omit a null when writing, so the stored document lost the
+`value` key, and reading it back tripped the required `value` on `Lockable<T>`. The
+tolerant read answered null and the level came back empty: the group looked saved until
+the page was reopened, and its members got nothing at all. Proven on the beta, fixed by
+letting an absent value mean null on the plugin's own store, which is what omitting it
+meant.
+
+**The same null was refused by the form.** That choice arrives with no `value` key, so
+compared strictly against null it looked absent and Max was held invalid with *Choose a
+value*. That one had reached the Application tab in #145. The fixtures had spelled the
+option as `{ value: null }`, a shape the server never sends; they carry the wire shape
+now, and three tests failed the moment they did.
+
+The scenario `admin-ui-targeting.md` had been carrying since P3.3 ran and passed: a
+group created from the screen with one member and a locked override reaches exactly
+that member through `config/resolved`, an outsider gets their own group's value, a user
+override wins over their group, and both reopen showing what was stored. The casing gap
+that document flagged is not real.
+
 ## 2026-09-11
 
 ### P4.2 on a real phone, and what the pass found

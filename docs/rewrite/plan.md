@@ -174,7 +174,8 @@ states: locked, pushed once, unmanaged.
 - **P3.6** Draw the form ourselves. Added after P3.3 was seen on the beta: json-editor's
   property picker never added a setting, its DOM could only be styled from the
   outside, and a `locked` box shows two states where the app has three. The server
-  describes the form, the plugin draws it. See
+  describes the form, the plugin draws it. Both settings tabs run on it, and
+  json-editor is gone with the schema reshaping that existed for it. See
   [admin-ui-renderer.md](admin-ui-renderer.md)
 
 P3.5 is a real fork. Today the pages are HTML and JS embedded as resources in the
@@ -270,7 +271,7 @@ Everything merged below is on `develop`, which reaches `main` through
 | P1.7 | [#134](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/134), [#135](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/135) | merged |
 | P3.1 | [#136](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/136), [#139](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/139) | merged |
 | P3.3 | [#142](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/142) | merged |
-| P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145) | open |
+| P3.6 | [#145](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/145), and the Targeting tab on this branch | merged, then this |
 | P4.1 | [#141](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/141) | merged |
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 
