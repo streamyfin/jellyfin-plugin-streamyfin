@@ -952,36 +952,23 @@ describe("testing an address", () => {
         expect(form.invalid()).not.toContain("marlinServerUrl");
     });
 
-    test("the form refuses exactly what the server refuses", () => {
+    test("the form catches the plain mistakes and leaves the rest to the server", () => {
         const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
 
         const marlin = row(mount, "marlinServerUrl");
         marlin.querySelector('.sf-state button[data-state="suggested"]').click();
         const input = marlin.querySelector("input");
 
-        // Every one of these is refused by Uri.TryCreate on the server. Checked against
-        // .NET rather than assumed, since the browser's parser is looser in both
-        // directions.
-        const refused = [
-            "192.168.1.5:3000",
-            "marlin.example.com",
-            "file:///etc/passwd",
-            "http:/marlin.example.com",
-            "http:marlin.example.com",
-            "http://",
-            "http://.",
-            "http://..",
-            "http://%41",
-            "   ",
-        ];
-
-        for (const bad of refused) {
+        for (const bad of ["192.168.1.5:3000", "marlin.example.com", "file:///etc/passwd", "http://", "   "]) {
             input.value = bad;
             input.dispatchEvent(new Event("change", { bubbles: true }));
             expect(form.invalid()).toContain("marlinServerUrl");
         }
 
-        for (const good of ["https://marlin.example.com", "http://10.0.0.1:3000/marlin"]) {
+        // Anything shaped like an address passes the field. What .NET makes of it is
+        // the server's answer, and it names the setting when it refuses one, which is
+        // why keeping a second copy of that rule here was not worth what it cost.
+        for (const good of ["https://marlin.example.com", "http://10.0.0.1:3000/marlin", "http://[::1]:3000"]) {
             input.value = good;
             input.dispatchEvent(new Event("change", { bubbles: true }));
             expect(form.invalid()).not.toContain("marlinServerUrl");
@@ -1121,22 +1108,6 @@ describe("testing an address", () => {
         await flush();
 
         expect(marlin.querySelector(".sf-said").textContent).toBe("");
-    });
-
-    test("a bracketed authority still has to be an address", () => {
-        // Unterminated, and a port out of range: both parse loosely enough to slip past
-        // a check that stops at the bracket, and .NET refuses both.
-        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
-
-        const marlin = row(mount, "marlinServerUrl");
-        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
-        const input = marlin.querySelector("input");
-
-        for (const bad of ["http://[not-an-ipv6]", "http://[zzz]:80", "http://[]1", "http://[::1", "http://[::1]:99999"]) {
-            input.value = bad;
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            expect(form.invalid()).toContain("marlinServerUrl");
-        }
     });
 
     test("a refusal the route wrote is the one shown", () => {

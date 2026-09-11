@@ -325,46 +325,12 @@ const readControl = (row, cultures) => {
 // server's: "http:/host" with one slash, and "http:host", both parse here and are
 // refused by Uri.TryCreate, so the form would pass a value the server then refuses as a
 // banner over the whole save, which is what marking the field exists to avoid.
-// The server refuses these, so the form has to as well, or it passes a value the save
-// then refuses as a banner. A private address is fine and is the normal case; nothing a
-// person configures lives on link-local.
-const isLinkLocal = (host) => /^169\.254\./.test(host) || /^fe[89ab][0-9a-f]:/i.test(host);
-
-const isWebAddress = (typed) => {
-    const trimmed = typed.trim();
-    if (!/^https?:\/\/[^/\\?#]+/i.test(trimmed)) return false;
-
-    const authority = trimmed.slice(trimmed.indexOf("//") + 2).split(/[/?#]/)[0];
-
-    // What is written, not what a parser decodes: "%41" reads as a host of "a" in a
-    // browser and is refused by the server, so the escapes come out before the check.
-    if (!/[a-z0-9]/i.test(authority.replace(/%[0-9a-f]{2}/gi, ""))) return false;
-
-    // An IPv6 literal, which the server accepts and the browser's own parser does not,
-    // so it is answered here rather than handed to one that would refuse it. The
-    // contents still have to be an address: "[zzz]" is neither.
-    if (authority.startsWith("[")) {
-        if (isLinkLocal(authority.slice(1, authority.indexOf("]")).split("%25")[0])) return false;
-        const close = authority.indexOf("]");
-        if (close < 2) return false;
-
-        const host = authority.slice(1, close).split("%25")[0];
-        if (!/^[0-9a-f:.]+$/i.test(host) || !host.includes(":")) return false;
-
-        const after = authority.slice(close + 1);
-        if (after === "") return true;
-
-        const port = Number(after.slice(1));
-        return after.startsWith(":") && Number.isInteger(port) && port > 0 && port <= 65535;
-    }
-
-    try {
-        const { protocol, hostname } = new URL(trimmed);
-        return (protocol === "http:" || protocol === "https:") && hostname.length > 0 && !isLinkLocal(hostname);
-    } catch {
-        return false;
-    }
-};
+// Only the shape anyone can see. The server is the authority on what an address is,
+// and every attempt to keep a second copy of its rule here disagreed with it in one
+// direction or the other: the browser's URL parser accepts things .NET refuses and
+// refuses things it accepts. A save the server turns down names the setting, and the
+// dock's "Show me" goes to it.
+const looksLikeAddress = (typed) => /^https?:\/\/[^/\\?#\s]+/i.test(typed.trim());
 
 // What stops a set value from being saved. A free setting is never invalid, since nothing
 // is written for it. An inert one is checked like any other: its value is still written,
@@ -396,11 +362,9 @@ const problemOf = (row) => {
         return "Enter a value.";
     }
 
-    // The same rule the server applies, so a setting it will refuse is marked on the
-    // field rather than refused as a banner over the whole save. A configuration stored
-    // before the rule existed can carry one of these, and finding it in a list of
-    // ninety settings is the difference between a correction and a wall.
-    if (field.address && !isWebAddress(String(value ?? ""))) {
+    // The obvious half of the server's rule, so a plain mistake is caught on the field.
+    // Anything subtler is the server's to refuse, by name.
+    if (field.address && !looksLikeAddress(String(value ?? ""))) {
         return "Enter a whole address, starting with http:// or https://.";
     }
 
