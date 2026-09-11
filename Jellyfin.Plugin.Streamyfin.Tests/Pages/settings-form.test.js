@@ -343,21 +343,24 @@ describe("createForm", () => {
         expect(row(mount, "subtitlesOnMuteAllowRestart").classList.contains("is-inert")).toBe(false);
     });
 
-    test("a dependent setting is greyed and disabled while its toggle is locked off", () => {
+    test("a dependent setting is greyed, and says why, while its toggle is locked off", () => {
         const { mount } = mountForm({ subtitlesOnMute: { value: false, locked: true } });
         const dependent = row(mount, "subtitlesOnMuteAllowRestart");
 
         expect(dependent.classList.contains("is-inert")).toBe(true);
-        expect(control(mount, "subtitlesOnMuteAllowRestart").disabled).toBe(true);
         expect(dependent.querySelector(".sf-why").textContent).toContain("locked off");
+        // Greyed, not locked: the value can still be corrected.
+        expect(control(mount, "subtitlesOnMuteAllowRestart").disabled).toBe(false);
 
         stateButton(mount, "subtitlesOnMute", "free").click();
 
         expect(dependent.classList.contains("is-inert")).toBe(false);
-        expect(control(mount, "subtitlesOnMuteAllowRestart").disabled).toBe(false);
+        expect(dependent.querySelector(".sf-why").textContent).toContain("Only matters");
     });
 
-    test("an inert setting can always be set free, and is not held invalid", () => {
+    // A null would reach the store as a number it never was, so an inert row is checked
+    // like any other. It is never stuck: its control stays editable and Free is reachable.
+    test("an inert setting is still validated, and can be corrected or set free", () => {
         const fields = [
             field("enableHoldToSpeed", "Toggle", { title: "Hold to speed up" }),
             field("holdToSpeedRate", "Number", { title: "Hold to speed rate", dependsOn: "enableHoldToSpeed" }),
@@ -369,12 +372,18 @@ describe("createForm", () => {
         const { mount, form } = mountForm(values, { fields, defaults: {} });
 
         expect(row(mount, "holdToSpeedRate").classList.contains("is-inert")).toBe(true);
+        expect(form.invalid()).toEqual(["holdToSpeedRate"]);
+        expect(form.toSettings()).not.toHaveProperty("holdToSpeedRate");
+
+        change(control(mount, "holdToSpeedRate"), (el) => { el.value = "2"; });
+
         expect(form.invalid()).toEqual([]);
-        expect(stateButton(mount, "holdToSpeedRate", "free").disabled).toBe(false);
+        expect(form.toSettings().holdToSpeedRate).toEqual({ value: 2, locked: false });
 
         stateButton(mount, "holdToSpeedRate", "free").click();
 
         expect(pressed(mount, "holdToSpeedRate")).toBe("free");
+        expect(form.invalid()).toEqual([]);
         expect(form.toSettings()).not.toHaveProperty("holdToSpeedRate");
     });
 

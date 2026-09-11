@@ -348,17 +348,24 @@ export default function (view) {
         showing?.abort();
         showing = new AbortController();
 
+        const failed = (error) => {
+            console.error(error);
+            setStatus("The settings could not be loaded. The server log has the reason.", true);
+        };
+
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Application");
             renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
 
+            // The tab was left while the modules were still on their way: nothing to draw.
+            if (showing.signal.aborted) return;
+
             try {
                 await load(shared);
             } catch (error) {
-                console.error(error);
-                setStatus("The settings could not be loaded. The server log has the reason.", true);
+                failed(error);
             }
-        });
+        }).catch(failed);
     });
 
     view.addEventListener("viewhide", () => {

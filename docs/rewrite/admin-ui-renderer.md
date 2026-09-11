@@ -111,8 +111,10 @@ what the player does with them is not visible from the TypeScript.
 The three states change what "greyed" means. A dependent setting is inert only when
 its toggle is **locked off** at this level: nobody can turn it on, so the value
 changes nothing. Suggested off is not inert, since a user can still turn the toggle
-on and then meet the value. In every other case the row stays editable and carries
-a hint, *Only matters while "Subtitles on mute" is on*.
+on and then meet the value. Inert is a look and a hint, *"Subtitles on mute" is
+locked off here, so this changes nothing*; the row stays editable and validated,
+since its value is still written. In every other case the hint reads *Only matters
+while "Subtitles on mute" is on*.
 
 ## What a review found before the beta could
 
@@ -130,9 +132,13 @@ pinned by a test:
   field. The descriptor now says `integer`, the input steps by one, and the row says
   *Enter a whole number*.
 - **An inert setting could hold Save hostage.** A dependent setting with no value,
-  under a toggle locked off, was both inert (every button disabled) and invalid (Save
-  disabled), with no way out short of unlocking the parent. An inert setting is never
-  held invalid, and *Free* stays reachable on it.
+  under a toggle locked off, was both inert (control and buttons disabled) and invalid
+  (Save disabled), with no way out short of unlocking the parent. The first answer
+  exempted inert rows from validation, and the review of #145 showed why that was
+  wrong: an inert row's value is still written, so a cleared opacity went to the store
+  as `null` on an integer. Inert now greys the row and says why but locks nothing: the
+  value can be corrected, *Free* is reachable, and validation applies as everywhere
+  else.
 - **A refused save left the refused edit behind.** The page hands the edit to the shared
   config before posting it, since that is what the post reads. On a refusal it put the
   previous config back; before, the next showing of the tab seeded the form from the

@@ -262,10 +262,10 @@ const readControl = (row, cultures) => {
 };
 
 // What stops a set value from being saved. A free setting is never invalid, since nothing
-// is written for it, and neither is an inert one: its value changes nothing while the
-// toggle it depends on is locked off, and holding it invalid would hold Save hostage.
+// is written for it. An inert one is checked like any other: its value is still written,
+// and a null would reach the store as a number it never was.
 const problemOf = (row) => {
-    if (row.state === "free" || row.inert) return null;
+    if (row.state === "free") return null;
     const { field, value } = row;
 
     if (field.control === "Number") {
@@ -342,6 +342,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     // A dependent setting is inert while the toggle it depends on is locked off at this
     // level: nobody can turn the toggle on, so the value changes nothing. Suggested off
     // is not inert, since a user can still turn the toggle on and then meet this value.
+    // Inert greys the row and says why; it locks nothing, so the value can still be
+    // corrected and validation applies as everywhere else. Disabling the control was
+    // how a row could end up both untouchable and invalid, with Save held hostage.
     const refreshGating = (row) => {
         const parent = row.field.dependsOn ? rows.get(row.field.dependsOn) : undefined;
         const inert = parent !== undefined && parent.state === "locked" && parent.value === false;
@@ -354,16 +357,12 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 ? `“${title}” is locked off here, so this changes nothing.`
                 : `Only matters while “${title}” is on.`;
         }
-        if (row.control) row.control.disabled = inert;
 
         // A composite setting has no control here, so it cannot go from free to set:
         // there would be no value to write.
-        // Free stays reachable on an inert row, or a setting stuck there could never be
-        // released without unlocking its parent first.
         const noValueToSet = row.field.control === "Composite" && row.value === undefined;
         for (const button of row.buttons) {
-            const free = button.dataset.state === "free";
-            button.disabled = (inert && !free) || (noValueToSet && !free);
+            button.disabled = noValueToSet && button.dataset.state !== "free";
         }
     };
 
