@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Microsoft.Extensions.Logging;
 
@@ -43,7 +45,7 @@ public sealed class SettingsResolutionService(
 
         foreach (var group in SettingsResolver.InLayerOrder(groups ?? []))
         {
-            levels.Add(ReadLevel(group.SettingsJson, $"group {group.Name}"));
+            levels.Add(ReadLevel(group.SettingsJson, $"group {group.Id}"));
         }
 
         if (userOverride is not null)
@@ -100,7 +102,9 @@ public sealed class SettingsResolutionService(
     /// Reads one stored level, tolerating a level that cannot be read.
     /// </summary>
     /// <param name="json">The stored JSON.</param>
-    /// <param name="what">What it belongs to, for the log line.</param>
+    /// <param name="what">Which level it is, for the log line. An identity rather
+    /// than a name: a group is named by whoever created it, and that name should not
+    /// decide what a log file says.</param>
     /// <returns>The settings, or <c>null</c> when there are none or they are unreadable.</returns>
     /// <remarks>
     /// Every path that reads a stored level goes through here, resolution and the
@@ -127,8 +131,37 @@ public sealed class SettingsResolutionService(
             _logger?.LogWarning(
                 ex,
                 "Could not read the settings stored for {What}. That level was skipped",
-                what);
+                OnOneLine(what));
             return null;
         }
+    }
+
+    // Callers name a level by its id, so nothing typed by an administrator should
+    // reach this line. It is cleaned anyway: a newline in a log message forges a
+    // second entry, and the whole point of this line is that it appears when
+    // something has already gone wrong with stored data.
+    private static string OnOneLine(string? what)
+    {
+        const int Longest = 120;
+
+        if (string.IsNullOrWhiteSpace(what))
+        {
+            return "an unnamed level";
+        }
+
+        var cleaned = new StringBuilder(Math.Min(what.Length, Longest));
+
+        foreach (var character in what)
+        {
+            if (cleaned.Length == Longest)
+            {
+                cleaned.Append('\u2026');
+                break;
+            }
+
+            cleaned.Append(char.IsControl(character) ? ' ' : character);
+        }
+
+        return cleaned.ToString();
     }
 }
