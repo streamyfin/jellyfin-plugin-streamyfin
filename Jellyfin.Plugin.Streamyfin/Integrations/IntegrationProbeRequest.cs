@@ -16,9 +16,14 @@ public class IntegrationProbeRequest
     /// <summary>
     /// Gets or sets which service to try.
     /// </summary>
+    /// <remarks>
+    /// Nullable so that leaving it out is a refusal rather than a silent answer about
+    /// Seerr: <c>Required</c> on a plain enum is satisfied by any value, and the first
+    /// member is what a missing field parses as.
+    /// </remarks>
     [Required]
     [JsonPropertyName("kind")]
-    public IntegrationKind Kind { get; set; }
+    public IntegrationKind? Kind { get; set; }
 
     /// <summary>
     /// Gets or sets the address to try, as it was typed.

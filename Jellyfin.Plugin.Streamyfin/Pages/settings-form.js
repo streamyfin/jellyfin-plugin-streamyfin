@@ -110,17 +110,17 @@ const typeDefault = (field) => {
 
 const formatBound = (n) => String(n);
 
+// Seerr reports a development build as a full commit hash, forty characters of nothing
+// anyone reads. Enough of it to tell two builds apart.
+const shortVersion = (version) => (version.length > 20 ? `${version.slice(0, 20)}\u2026` : version);
+
 // What a probe answer reads as. The server says what it found and why; this only
 // decides the sentence, so a test can hold the wording without a server.
 export const probeText = (health) => {
     if (!health) return "The server gave no answer.";
     switch (health.outcome) {
         case "Ok":
-            // Seerr reports a development build as a full commit hash, which is forty
-            // characters of nothing anyone reads. Enough of it to tell two builds apart.
-            return health.version
-                ? `Answered, running ${health.version.length > 20 ? `${health.version.slice(0, 20)}\u2026` : `${health.version}.`}`
-                : (health.detail ?? "Answered.");
+            return health.version ? `Answered, running ${shortVersion(health.version)}.` : (health.detail ?? "Answered.");
         case "NotConfigured":
             return "Nothing to try yet.";
         case "NotAUrl":
@@ -129,6 +129,16 @@ export const probeText = (health) => {
             return health.detail ?? "Something answered, but not this service.";
         default:
             return health.detail ?? "Nothing answered at that address.";
+    }
+};
+
+// An empty field is not a broken one. Three tones rather than a pass and a fail, or
+// "Nothing to try yet" arrives in the same red as "nothing answered".
+export const probeTone = (health) => {
+    switch (health?.outcome) {
+        case "Ok": return "sf-said--ok";
+        case "NotConfigured": return "sf-said--quiet";
+        default: return "sf-said--no";
     }
 };
 
@@ -296,6 +306,21 @@ const readControl = (row, cultures) => {
     }
 };
 
+// Absolute, and http or https, which is exactly what the server accepts. A host and a
+// port with no scheme is what an administrator types and what the app cannot turn into
+// a request.
+const isWebAddress = (typed) => {
+    const trimmed = typed.trim();
+    if (!trimmed) return false;
+
+    try {
+        const { protocol } = new URL(trimmed);
+        return protocol === "http:" || protocol === "https:";
+    } catch {
+        return false;
+    }
+};
+
 // What stops a set value from being saved. A free setting is never invalid, since nothing
 // is written for it. An inert one is checked like any other: its value is still written,
 // and a null would reach the store as a number it never was.
@@ -324,6 +349,14 @@ const problemOf = (row) => {
 
     if ((field.control === "Text" || field.control === "Secret") && !String(value ?? "").trim()) {
         return "Enter a value.";
+    }
+
+    // The same rule the server applies, so a setting it will refuse is marked on the
+    // field rather than refused as a banner over the whole save. A configuration stored
+    // before the rule existed can carry one of these, and finding it in a list of
+    // ninety settings is the difference between a correction and a wall.
+    if (field.probe && !isWebAddress(String(value ?? ""))) {
+        return "Enter a whole address, starting with http:// or https://.";
     }
 
     if (field.control === "Language" && !value) return "Choose a language.";
@@ -563,26 +596,40 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             // server does the reaching, since it is the one that can see an internal
             // address a phone never will. No button when the page passed no way to ask.
             if (field.probe && probe) {
-                const test = el("button", "sf-reveal", "Test");
+                const test = el("button", "sf-try", "Test");
                 test.type = "button";
-                const said = el("span", "sf-bounds sf-said");
+                const said = el("span", "sf-said");
                 said.hidden = true;
+
+                const clear = () => {
+                    said.hidden = true;
+                    said.textContent = "";
+                    said.className = "sf-said";
+                };
+
+                // An answer is about the address that was tried. Leaving it beside an
+                // address that has since been edited says a different one was verified.
+                row.control?.addEventListener("input", clear);
 
                 test.addEventListener("click", () => {
                     const typed = String(row.control?.value ?? "").trim();
                     test.disabled = true;
                     said.hidden = false;
-                    said.className = "sf-bounds sf-said";
+                    said.className = "sf-said";
                     said.textContent = "Asking the server\u2026";
 
-                    Promise.resolve(probe(field.probe, typed))
+                    // The call itself inside the chain, not only its result: a helper
+                    // that throws before returning a promise would otherwise escape both
+                    // catch and finally, and leave the button disabled on "Asking".
+                    Promise.resolve()
+                        .then(() => probe(field.probe, typed))
                         .then((health) => {
                             said.textContent = probeText(health);
-                            said.className = `sf-bounds sf-said ${health?.outcome === "Ok" ? "sf-said--ok" : "sf-said--no"}`;
+                            said.className = `sf-said ${probeTone(health)}`;
                         })
                         .catch(() => {
                             said.textContent = "The server could not be asked.";
-                            said.className = "sf-bounds sf-said sf-said--no";
+                            said.className = "sf-said sf-said--no";
                         })
                         .finally(() => {
                             test.disabled = false;

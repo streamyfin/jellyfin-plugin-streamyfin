@@ -317,11 +317,39 @@
     .sf-page .sf-search { margin-left: 0; width: 100%; }
 }
 
-/* What the server answered when an address was tested. The colours are the page's own
-   rather than the dashboard's, which exposes none: a light background and a dark one
-   both have to read, so the text carries the colour and the background does not. */
+/* Testing an address: the button and what the server answered. Their own classes
+   rather than the Secret reveal button's and the number hint's, so changing either of
+   those cannot restyle this. The colours are the page's own, since the dashboard
+   exposes none, and they are carried by the text rather than by a background so that a
+   light page and a dark one both read. */
+.sf-page .sf-try {
+    flex: none;
+    cursor: pointer;
+    background: var(--sf-raised);
+    border: 0;
+    color: var(--sf-ink);
+    border-radius: 0.3em;
+    padding: 0.6em 0.9em;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.sf-page .sf-try:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .sf-page .sf-said {
-    font-variant-numeric: tabular-nums;
+    flex-basis: 100%;
+    margin-top: 6px;
+    font-family: var(--sf-mono, ui-monospace, monospace);
+    font-size: 12px;
+    color: var(--sf-ink-3);
+    overflow-wrap: anywhere;
+}
+
+.sf-page .sf-said--quiet {
+    color: var(--sf-ink-3);
 }
 
 .sf-page .sf-said--ok {

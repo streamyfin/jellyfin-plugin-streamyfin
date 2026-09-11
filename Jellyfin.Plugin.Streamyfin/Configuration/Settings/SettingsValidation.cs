@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using Jellyfin.Plugin.Streamyfin.Integrations;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
@@ -72,7 +71,7 @@ public static class SettingsValidation
             var value = lockable.GetType().GetProperty("value")?.GetValue(lockable);
 
             if (probe is not null && value is string address && !string.IsNullOrWhiteSpace(address)
-                && !IntegrationProbe.Address(address, out _))
+                && !WebAddress.Parses(address, out _))
             {
                 problems.Add(string.Format(
                     CultureInfo.InvariantCulture,

@@ -221,7 +221,15 @@ public class StreamyfinController : ControllerBase
   {
     ArgumentNullException.ThrowIfNull(request);
 
-    return await _integrations.Probe(request.Kind, request.Url, cancellationToken).ConfigureAwait(false);
+    // An undeclared value reaches here as an integer the converter accepted, and a
+    // missing one as null. Neither is a service, and answering about the wrong one is
+    // worse than saying so.
+    if (request.Kind is not { } kind || !Enum.IsDefined(kind))
+    {
+      return BadRequest("Say which service to try: Seerr, Marlin or Streamystats.");
+    }
+
+    return await _integrations.Probe(kind, request.Url, cancellationToken).ConfigureAwait(false);
   }
 
   /// <summary>
@@ -234,6 +242,14 @@ public class StreamyfinController : ControllerBase
   /// worse than one that says the server is not answering. The addresses are the ones
   /// resolved for this caller, never ones they supply, and no answer carries a URL or a
   /// key, so a user learns that an integration is down without learning where it lives.
+  ///
+  /// <para>
+  /// The answer is held briefly. Every signed in account may call this, each call
+  /// reaches three third party services from the server's own network position, and an
+  /// unanswering one holds the request for the client timeout. Without the cache a
+  /// handful of apps starting at once, or one account in a loop, turns the plugin into
+  /// something pointed at the administrator's own services.
+  /// </para>
   /// </remarks>
   [HttpGet("v1/integrations/health")]
   [Authorize]
@@ -243,7 +259,7 @@ public class StreamyfinController : ControllerBase
   {
     var settings = ConfigForCaller().settings;
 
-    return new JsonResult(await _integrations.ProbeAll(settings, cancellationToken).ConfigureAwait(false));
+    return new JsonResult(await _integrations.HealthOf(settings, cancellationToken).ConfigureAwait(false));
   }
 
   /// <summary>

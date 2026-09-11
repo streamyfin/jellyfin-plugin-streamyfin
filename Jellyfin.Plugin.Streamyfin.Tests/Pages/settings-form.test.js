@@ -770,6 +770,10 @@ describe("testing an address", () => {
 
     const row = (mount, key) => mount.querySelector(`[data-key="${key}"]`);
 
+    // The button's answer arrives through a promise chain, so a few turns of the
+    // microtask queue rather than a count that has to be kept in step with its length.
+    const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+
     test("only a field that declares a probe gets a button", () => {
         const { mount } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
 
@@ -797,8 +801,7 @@ describe("testing an address", () => {
         input.value = "  https://marlin.example.com  ";
 
         [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
 
         expect(asked).toEqual([["Marlin", "https://marlin.example.com"]]);
         expect(marlin.querySelector(".sf-said").textContent).toBe("Answered, running 2.1.0.");
@@ -810,19 +813,76 @@ describe("testing an address", () => {
 
         const marlin = row(mount, "marlinServerUrl");
         [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
 
         expect(marlin.querySelector(".sf-said").textContent).toBe("The server could not be asked.");
         expect(marlin.querySelector(".sf-said").className).toContain("sf-said--no");
+    });
+
+    test("an empty field does not read as a broken one", async () => {
+        const { mount } = withProbe(() => Promise.resolve({ outcome: "NotConfigured", detail: "Nothing is configured." }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("Nothing to try yet.");
+        expect(marlin.querySelector(".sf-said").className).toContain("sf-said--quiet");
+        expect(marlin.querySelector(".sf-said").className).not.toContain("sf-said--no");
+    });
+
+    test("a helper that throws before it returns a promise still frees the button", async () => {
+        const { mount } = withProbe(() => { throw new TypeError("ApiClient is not ready"); });
+
+        const marlin = row(mount, "marlinServerUrl");
+        const test = [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test");
+        test.click();
+        await flush();
+
+        expect(marlin.querySelector(".sf-said").textContent).toBe("The server could not be asked.");
+        expect(test.disabled).toBe(false);
+    });
+
+    test("editing the address clears an answer that was about the old one", async () => {
+        const { mount } = withProbe(() => Promise.resolve({ outcome: "Ok", version: "2.1.0" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        const input = marlin.querySelector("input");
+        input.value = "https://marlin.example.com";
+        [...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").click();
+        await flush();
+        expect(marlin.querySelector(".sf-said").hidden).toBe(false);
+
+        input.value = "https://other.example.com";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(marlin.querySelector(".sf-said").hidden).toBe(true);
+        expect(marlin.querySelector(".sf-said").textContent).toBe("");
+    });
+
+    test("an address the server would refuse is marked on the field", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+
+        for (const bad of ["192.168.1.5:3000", "marlin.example.com", "file:///etc/passwd", "   "]) {
+            input.value = bad;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            expect(form.invalid()).toContain("marlinServerUrl");
+        }
+
+        input.value = "https://marlin.example.com";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(form.invalid()).not.toContain("marlinServerUrl");
     });
 
     test("every outcome reads as a sentence", () => {
         expect(probeText({ outcome: "Ok", version: "2.1.0" })).toBe("Answered, running 2.1.0.");
         // Seerr reports a development build as a full commit hash.
         expect(probeText({ outcome: "Ok", version: "develop-68c5bc8c7d8560d295387adeeee73982ea518e8f" }))
-            .toBe("Answered, running develop-68c5bc8c7d85\u2026");
+            .toBe("Answered, running develop-68c5bc8c7d85\u2026.");
         expect(probeText({ outcome: "Ok", detail: "Answered with 404." })).toBe("Answered with 404.");
         expect(probeText({ outcome: "NotConfigured" })).toBe("Nothing to try yet.");
         expect(probeText({ outcome: "NotAUrl", detail: "That is not an http address." })).toBe("That is not an http address.");

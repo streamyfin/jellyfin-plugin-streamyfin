@@ -205,6 +205,146 @@ public class IntegrationProbeTests
     }
 
     /// <summary>
+    /// A service answering 502 is not reported as healthy.
+    /// </summary>
+    /// <remarks>
+    /// The failure this whole thing exists to catch: a stopped container behind a
+    /// reverse proxy, painted green, with the app sent at a tab that opens onto
+    /// nothing. Any HTTP answer proves the address is reachable, but a 5xx is something
+    /// in front of the service saying the service is not working.
+    /// </remarks>
+    /// <param name="kind">Which service.</param>
+    /// <param name="status">What the proxy answered.</param>
+    [Theory]
+    [InlineData(IntegrationKind.Marlin, HttpStatusCode.BadGateway)]
+    [InlineData(IntegrationKind.Marlin, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(IntegrationKind.Streamystats, HttpStatusCode.InternalServerError)]
+    public async Task AServiceAnsweringWithAServerErrorIsNotHealthy(IntegrationKind kind, HttpStatusCode status)
+    {
+        var health = await ProbeWith(new Answering(status, "bad gateway")).Probe(kind, "https://inside.example.com");
+
+        Assert.NotEqual(IntegrationOutcome.Ok, health.Outcome);
+        Assert.Contains("not working", health.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A 404 or a 401 still counts as reachable, since neither says the service is
+    /// broken.
+    /// </summary>
+    /// <param name="status">What answered.</param>
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.OK)]
+    public async Task SomethingServingHttpCountsAsReachable(HttpStatusCode status)
+    {
+        var health = await ProbeWith(new Answering(status, "x")).Probe(IntegrationKind.Marlin, "https://inside.example.com");
+
+        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+    }
+
+    /// <summary>
+    /// An address carrying a query or a fragment is still asked about its status
+    /// endpoint rather than having the path glued onto the query.
+    /// </summary>
+    /// <param name="typed">The address as it was pasted.</param>
+    /// <param name="expected">Where the probe should go.</param>
+    [Theory]
+    [InlineData("https://requests.example.com/?instance=1", "https://requests.example.com/api/v1/status")]
+    [InlineData("https://requests.example.com/seerr#top", "https://requests.example.com/seerr/api/v1/status")]
+    [InlineData("https://requests.example.com/seerr/", "https://requests.example.com/seerr/api/v1/status")]
+    public async Task AnAddressWithMoreThanAHostIsStillAskedCorrectly(string typed, string expected)
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+
+        var health = await ProbeWith(handler).Probe(IntegrationKind.Seerr, typed);
+
+        Assert.Equal(expected, handler.LastRequest?.RequestUri?.ToString());
+        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+    }
+
+    /// <summary>
+    /// A version that is not a version is not invented.
+    /// </summary>
+    /// <remarks>
+    /// A key that is present but null or a number said nothing, and shipping the word
+    /// "unknown" as a version would hand the app something it might compare.
+    /// </remarks>
+    /// <param name="body">What the service answered.</param>
+    [Theory]
+    [InlineData("""{"commitTag":null}""")]
+    [InlineData("""{"commitTag":7}""")]
+    [InlineData("""{"version":""}""")]
+    public async Task AVersionThatIsNotOneIsNotInvented(string body)
+    {
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, body)).Probe(IntegrationKind.Seerr, "https://example.com");
+
+        Assert.Null(health.Version);
+    }
+
+    /// <summary>
+    /// A build that reports only a commit tag is still Seerr, and the tag is the
+    /// version.
+    /// </summary>
+    [Fact]
+    public async Task ABuildWithOnlyACommitTagIsStillSeerr()
+    {
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, """{"commitTag":"v2.1.0-4-gabc"}"""))
+            .Probe(IntegrationKind.Seerr, "https://example.com");
+
+        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+        Assert.Equal("v2.1.0-4-gabc", health.Version);
+    }
+
+    /// <summary>
+    /// Health is answered from a recent probe rather than reaching the services again.
+    /// </summary>
+    /// <remarks>
+    /// Every signed in account may ask, and each ask reaches three third party services
+    /// from the server's own network position. Without this, one account in a loop
+    /// points the plugin at the administrator's own services.
+    /// </remarks>
+    [Fact]
+    public async Task HealthIsAnsweredFromARecentProbe()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = ProbeWith(handler);
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" }
+        };
+
+        await probe.HealthOf(settings);
+        var reached = handler.Calls;
+        await probe.HealthOf(settings);
+
+        Assert.Equal(reached, handler.Calls);
+    }
+
+    /// <summary>
+    /// Correcting an address is answered at once rather than after the cache expires.
+    /// </summary>
+    [Fact]
+    public async Task ChangingAnAddressIsAskedAgain()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = ProbeWith(handler);
+
+        await probe.HealthOf(new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://one.example.com" }
+        });
+        var reached = handler.Calls;
+
+        await probe.HealthOf(new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://two.example.com" }
+        });
+
+        Assert.True(handler.Calls > reached);
+    }
+
+    /// <summary>
     /// An address that is not one is refused before it is stored, not only when it is
     /// probed.
     /// </summary>
@@ -256,15 +396,20 @@ public class IntegrationProbeTests
     private static IntegrationProbe ProbeWith(HttpMessageHandler handler) =>
         new(new OneClient(handler));
 
+    // ProbeAll starts three probes before awaiting any of them, so this is driven
+    // concurrently. Calls carries the "never opened a connection" assertion elsewhere in
+    // this file, and a non-atomic increment would let the fixture lie about it.
     private sealed class Answering(HttpStatusCode status, string body) : HttpMessageHandler
     {
-        public int Calls { get; private set; }
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
 
         public HttpRequestMessage? LastRequest { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Calls++;
+            Interlocked.Increment(ref _calls);
             LastRequest = request;
 
             return Task.FromResult(new HttpResponseMessage(status)
