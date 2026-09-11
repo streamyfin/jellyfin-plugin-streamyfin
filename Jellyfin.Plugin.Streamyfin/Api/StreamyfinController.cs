@@ -125,6 +125,12 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = e.ToString() };
     }
 
+    var problem = SettingsValidation.Message(p.settings);
+    if (problem is not null)
+    {
+      return new ConfigSaveResponse { Error = true, Message = problem };
+    }
+
     StreamyfinPlugin.Instance!.Settings.Save(p);
 
     return new ConfigSaveResponse { Error = false };
@@ -413,6 +419,11 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
+    if (SettingsValidation.Message(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
     var database = StreamyfinPlugin.Instance!.Database;
 
     var stored = database.SaveSettingsGroup(new SettingsGroup
@@ -449,6 +460,11 @@ public class StreamyfinController : ControllerBase
     if (string.IsNullOrWhiteSpace(request.Name))
     {
       return BadRequest("A group needs a name");
+    }
+
+    if (SettingsValidation.Message(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
     }
 
     var database = StreamyfinPlugin.Instance!.Database;
@@ -555,6 +571,7 @@ public class StreamyfinController : ControllerBase
   [HttpPut("users/{userId}/settings")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
   public ActionResult SetUserSettingsOverride(
     [FromRoute, Required] Guid userId,
     [FromBody, Required] UserSettingsOverrideDto request)
@@ -567,6 +584,11 @@ public class StreamyfinController : ControllerBase
     {
       database.RemoveUserSettingsOverride(userId);
       return NoContent();
+    }
+
+    if (SettingsValidation.Message(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
     }
 
     database.SaveUserSettingsOverride(userId, _serializationHelperService.SerializeToJson(request.Settings));
