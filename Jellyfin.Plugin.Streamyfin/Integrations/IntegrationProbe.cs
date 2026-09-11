@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -44,12 +45,9 @@ public sealed class IntegrationProbe
     /// </summary>
     private static readonly TimeSpan _keepFor = TimeSpan.FromSeconds(30);
 
-    private readonly List<IntegrationHealth> _recent = [];
+    private readonly Dictionary<string, Round> _recent = new(StringComparer.Ordinal);
     private readonly IHttpClientFactory _clients;
     private readonly ILogger<IntegrationProbe>? _logger;
-
-    private string? _recentFor;
-    private DateTimeOffset _recentAt;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IntegrationProbe"/> class.
@@ -94,7 +92,7 @@ public sealed class IntegrationProbe
                 ? await Seerr(address!, cancellationToken).ConfigureAwait(false)
                 : await Answers(kind, address!, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException)
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or IOException)
         {
             _logger?.LogDebug(exception, "Probing {Kind} did not reach it", kind);
 
@@ -147,26 +145,62 @@ public sealed class IntegrationProbe
             settings?.marlinServerUrl?.value,
             settings?.streamyStatsServerUrl?.value);
 
+        Task<IReadOnlyList<IntegrationHealth>> round;
+
         lock (_recent)
         {
-            if (_recentFor == asked && DateTimeOffset.UtcNow - _recentAt < _keepFor && _recent.Count > 0)
+            Forget(DateTimeOffset.UtcNow);
+
+            if (_recent.TryGetValue(asked, out var known))
             {
-                return [.. _recent];
+                round = known.Health;
+            }
+            else
+            {
+                // Started inside the lock and shared, so the second caller to arrive
+                // before the first finishes waits on the same round rather than opening
+                // three more connections to the administrator's services. Thirty phones
+                // waking at once is one round, which is what the cache is for.
+                //
+                // On its own token: this answer is stored for everyone, and a caller who
+                // walks away must not be able to write "everything is down" into it.
+                round = ProbeAll(settings, CancellationToken.None);
+                _recent[asked] = new Round(round, DateTimeOffset.UtcNow);
             }
         }
 
-        var health = await ProbeAll(settings, cancellationToken).ConfigureAwait(false);
+        var health = await round.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-        lock (_recent)
+        // A round that answered nothing but cancellations says nothing about the
+        // services, and it would be read by everyone asking for the next half minute.
+        if (health.All(one => one.Outcome == IntegrationOutcome.Unreachable))
         {
-            _recent.Clear();
-            _recent.AddRange(health);
-            _recentFor = asked;
-            _recentAt = DateTimeOffset.UtcNow;
+            lock (_recent)
+            {
+                _recent.Remove(asked);
+            }
         }
 
         return health;
     }
+
+    // Anything past its half minute, and anything from an address nobody asks about any
+    // more, so a server whose targeting gives many users their own address does not keep
+    // a slot per address for ever.
+    private void Forget(DateTimeOffset now)
+    {
+        if (_recent.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var stale in _recent.Where(entry => now - entry.Value.At >= _keepFor).Select(entry => entry.Key).ToList())
+        {
+            _recent.Remove(stale);
+        }
+    }
+
+    private sealed record Round(Task<IReadOnlyList<IntegrationHealth>> Health, DateTimeOffset At);
 
     /// <summary>
     /// Asks every service these settings configure.
@@ -209,13 +243,25 @@ public sealed class IntegrationProbe
 
         if (!response.IsSuccessStatusCode)
         {
-            return Refused(IntegrationKind.Seerr, response.StatusCode, "which Seerr's status endpoint would not");
+            // What answered decides which of three different things to say. A 503 from a
+            // Seerr that is restarting is not a wrong address, and telling an
+            // administrator it is sends them editing a correct one.
+            return Ailing(IntegrationKind.Seerr, response.StatusCode)
+                ?? Refused(IntegrationKind.Seerr, response.StatusCode, "which Seerr's status endpoint would not");
         }
 
-        var body = await FirstOf(response, cancellationToken).ConfigureAwait(false);
+        var (body, whole) = await FirstOf(response, cancellationToken).ConfigureAwait(false);
         var version = SeerrVersion(body);
 
-        return version is null
+        if (version is not null)
+        {
+            return new IntegrationHealth(IntegrationKind.Seerr, IntegrationOutcome.Ok, null, version);
+        }
+
+        // A status document is a few hundred bytes, so one that filled the cap is not a
+        // status document. Saying it is not Seerr would be a diagnosis of the address,
+        // which is not what went wrong.
+        return whole
             ? new IntegrationHealth(
                 IntegrationKind.Seerr,
                 IntegrationOutcome.WrongService,
@@ -223,21 +269,61 @@ public sealed class IntegrationProbe
                 null)
             : new IntegrationHealth(
                 IntegrationKind.Seerr,
-                IntegrationOutcome.Ok,
-                null,
-                string.IsNullOrWhiteSpace(version) ? null : version);
+                IntegrationOutcome.Reachable,
+                "Something answered with more than a status document, so this only says the address is reachable.",
+                null);
+    }
+
+    // A server error, and an authentication wall, are both something other than a wrong
+    // address, and each is worth its own sentence.
+    private static IntegrationHealth? Ailing(IntegrationKind kind, HttpStatusCode status)
+    {
+        if ((int)status >= 500)
+        {
+            return Refused(kind, status, "which is something in front of the service saying it is not working");
+        }
+
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            return new IntegrationHealth(
+                kind,
+                IntegrationOutcome.Reachable,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Something answered with {0}, so an access layer is in the way and the service itself could not be asked.",
+                    (int)status),
+                null);
+        }
+
+        if ((int)status >= 300 && (int)status < 400)
+        {
+            return new IntegrationHealth(
+                kind,
+                IntegrationOutcome.Reachable,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "That address answered with {0} and sends the request somewhere else, which was not followed. Use the address it redirects to.",
+                    (int)status),
+                null);
+        }
+
+        return null;
     }
 
     // A status document is a few hundred bytes. Reading whatever answers without a cap
     // would let a mistyped address pointing at a media file or a log tail pull as much
-    // as eight seconds of it into memory, twice over as a string.
-    private static async Task<string> FirstOf(HttpResponseMessage response, CancellationToken cancellationToken)
+    // as eight seconds of it into memory, twice over as a string. Whether it ended says
+    // the difference between "not Seerr" and "more than this could read".
+    private static async Task<(string Body, bool Whole)> FirstOf(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
     {
         const int Enough = 8 * 1024;
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var buffer = new byte[Enough];
         var filled = 0;
+        var whole = false;
 
         while (filled < Enough)
         {
@@ -247,13 +333,14 @@ public sealed class IntegrationProbe
 
             if (read == 0)
             {
+                whole = true;
                 break;
             }
 
             filled += read;
         }
 
-        return Encoding.UTF8.GetString(buffer, 0, filled);
+        return (Encoding.UTF8.GetString(buffer, 0, filled), whole);
     }
 
     private static IntegrationHealth Refused(IntegrationKind kind, HttpStatusCode status, string why) =>
@@ -275,14 +362,19 @@ public sealed class IntegrationProbe
         // front of the service, saying the service is not working. Reported as reachable
         // it would paint a stopped container green and send the app at a dead tab, which
         // is the failure this exists to catch.
-        if ((int)response.StatusCode >= 500)
+        var ailing = Ailing(kind, response.StatusCode);
+        if (ailing is not null)
         {
-            return Refused(kind, response.StatusCode, "which is something in front of the service saying it is not working");
+            return ailing;
         }
 
+        // Reachable rather than Ok, and the difference is the whole point: nothing at
+        // this address says what it is, so the Jellyfin address typed into the Marlin
+        // field answers 200 and lands here. An app that read that as confirmed would
+        // open a Marlin tab onto Jellyfin.
         return new IntegrationHealth(
             kind,
-            IntegrationOutcome.Ok,
+            IntegrationOutcome.Reachable,
             string.Format(
                 CultureInfo.InvariantCulture,
                 "Answered with {0}. Nothing there identifies the service, so this only says the address is reachable.",

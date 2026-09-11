@@ -138,6 +138,7 @@ export const probeTone = (health) => {
     switch (health?.outcome) {
         case "Ok": return "sf-said--ok";
         case "NotConfigured": return "sf-said--quiet";
+        case "Reachable": return "sf-said--ok";
         default: return "sf-said--no";
     }
 };
@@ -293,6 +294,12 @@ const readControl = (row, cultures) => {
             return control.value.trim() === "" ? null : Number(control.value);
         case "Select":
             return control.value === "" || control.value === APP_DEFAULT ? null : control.value;
+        case "Text":
+            // Trimmed, because everything else on this path already is: the Test button
+            // sends a trimmed address and the server trims before checking one, so an
+            // address pasted with a trailing space was verified in a form it was never
+            // saved in.
+            return control.value.trim();
         case "List":
             return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
         case "Language": {
@@ -306,16 +313,17 @@ const readControl = (row, cultures) => {
     }
 };
 
-// Absolute, and http or https, which is exactly what the server accepts. A host and a
-// port with no scheme is what an administrator types and what the app cannot turn into
-// a request.
+// Absolute, http or https, with a host. The browser's parser alone is looser than the
+// server's: "http:/host" with one slash, and "http:host", both parse here and are
+// refused by Uri.TryCreate, so the form would pass a value the server then refuses as a
+// banner over the whole save, which is what marking the field exists to avoid.
 const isWebAddress = (typed) => {
     const trimmed = typed.trim();
-    if (!trimmed) return false;
+    if (!/^https?:\/\/[^/\\?#]+/i.test(trimmed)) return false;
 
     try {
-        const { protocol } = new URL(trimmed);
-        return protocol === "http:" || protocol === "https:";
+        const { protocol, hostname } = new URL(trimmed);
+        return (protocol === "http:" || protocol === "https:") && hostname.length > 0;
     } catch {
         return false;
     }
@@ -598,7 +606,12 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             if (field.probe && probe) {
                 const test = el("button", "sf-try", "Test");
                 test.type = "button";
+                // Three of these on a page, all reading "Test" to anything that lists
+                // the buttons, unless each says what it tests.
+                test.setAttribute("aria-label", `Test ${field.title ?? field.key}`);
                 const said = el("span", "sf-said");
+                // Announced, or the answer arrives only for someone who can see it.
+                said.setAttribute("role", "status");
                 said.hidden = true;
 
                 const clear = () => {

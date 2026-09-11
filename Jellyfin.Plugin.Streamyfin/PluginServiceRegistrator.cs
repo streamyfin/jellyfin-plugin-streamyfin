@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
@@ -37,7 +38,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // the app's own probes: an administrator is watching a button, and a service that
         // has not answered in eight seconds is not one the app will wait for either.
         serviceCollection
-            .AddHttpClient(IntegrationProbe.ClientName, client => client.Timeout = TimeSpan.FromSeconds(8));
+            .AddHttpClient(IntegrationProbe.ClientName, client => client.Timeout = TimeSpan.FromSeconds(8))
+            // A probe reports on the address that was typed. Following a redirect makes
+            // it report on somewhere else: a Seerr behind an SSO proxy sends the status
+            // request to a login page, which answers 200 and does not look like Seerr,
+            // and the administrator is sent to fix an address that was right.
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
         // Event listeners
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartEvent>();

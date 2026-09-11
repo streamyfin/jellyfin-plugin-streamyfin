@@ -246,6 +246,10 @@ export default function (view) {
             cultures: level.cultures ?? [],
             terse: readTerse(),
             mode: "overrides",
+            // A level overriding an address gets the same refusal the Application tab
+            // gets, so it gets the same way to check one. A per group address is the
+            // most likely to be internal, which is exactly what a browser cannot reach.
+            probe: shared.probeIntegration,
         });
         form.onChange(updateDock);
         el("sf-find").value = "";

@@ -8,6 +8,7 @@ import {
     groupsFor,
     inherited,
     probeText,
+    probeTone,
     sections,
     stateOf,
     themeFromBackground,
@@ -876,6 +877,66 @@ describe("testing an address", () => {
         input.value = "https://marlin.example.com";
         input.dispatchEvent(new Event("change", { bubbles: true }));
         expect(form.invalid()).not.toContain("marlinServerUrl");
+    });
+
+    test("the form refuses exactly what the server refuses", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+
+        // Every one of these parses in a browser and is refused by Uri.TryCreate, so a
+        // form that only asked the browser would pass a value the server then refuses
+        // as a banner over the whole save.
+        const refused = [
+            "192.168.1.5:3000",
+            "marlin.example.com",
+            "file:///etc/passwd",
+            "http:/marlin.example.com",
+            "http:marlin.example.com",
+            "http://",
+            "   ",
+        ];
+
+        for (const bad of refused) {
+            input.value = bad;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            expect(form.invalid()).toContain("marlinServerUrl");
+        }
+
+        for (const good of ["https://marlin.example.com", "http://10.0.0.1:3000/marlin"]) {
+            input.value = good;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            expect(form.invalid()).not.toContain("marlinServerUrl");
+        }
+    });
+
+    test("what is saved is what was tested, without the space that came with the paste", () => {
+        const { mount, form } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        marlin.querySelector('.sf-state button[data-state="suggested"]').click();
+        const input = marlin.querySelector("input");
+        input.value = "  https://marlin.example.com  ";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(form.toSettings().marlinServerUrl.value).toBe("https://marlin.example.com");
+    });
+
+    test("the answer is announced and each button says what it tests", () => {
+        const { mount } = withProbe(() => Promise.resolve({ outcome: "Ok" }));
+
+        const marlin = row(mount, "marlinServerUrl");
+        expect(marlin.querySelector(".sf-said").getAttribute("role")).toBe("status");
+        expect([...marlin.querySelectorAll("button")].find((b) => b.textContent === "Test").getAttribute("aria-label"))
+            .toBe("Test Marlin server");
+    });
+
+    test("something serving HTTP with no signature is not read as confirmed", () => {
+        expect(probeTone({ outcome: "Reachable" })).toBe("sf-said--ok");
+        expect(probeText({ outcome: "Reachable", detail: "Answered with 200. Nothing there identifies the service." }))
+            .toBe("Answered with 200. Nothing there identifies the service.");
     });
 
     test("every outcome reads as a sentence", () => {

@@ -350,6 +350,7 @@
 
 .sf-page .sf-said--quiet {
     color: var(--sf-ink-3);
+    font-style: italic;
 }
 
 .sf-page .sf-said--ok {

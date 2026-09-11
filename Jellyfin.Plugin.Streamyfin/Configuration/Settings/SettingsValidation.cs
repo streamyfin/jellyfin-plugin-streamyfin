@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
@@ -53,9 +52,8 @@ public static class SettingsValidation
 
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
-            var bounds = descriptor.Property.GetCustomAttribute<BoundsAttribute>();
-            var probe = descriptor.Property.GetCustomAttribute<ProbeAttribute>();
-            if (bounds is null && probe is null)
+            var bounds = descriptor.Bounds;
+            if (bounds is null && !descriptor.IsWebAddress)
             {
                 continue;
             }
@@ -70,7 +68,7 @@ public static class SettingsValidation
 
             var value = lockable.GetType().GetProperty("value")?.GetValue(lockable);
 
-            if (probe is not null && value is string address && !string.IsNullOrWhiteSpace(address)
+            if (descriptor.IsWebAddress && value is string address && !string.IsNullOrWhiteSpace(address)
                 && !WebAddress.Parses(address, out _))
             {
                 problems.Add(string.Format(

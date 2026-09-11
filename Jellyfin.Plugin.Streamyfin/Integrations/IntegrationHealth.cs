@@ -30,6 +30,18 @@ public enum IntegrationOutcome
     /// <summary>The service answered and is the one it was meant to be.</summary>
     Ok,
 
+    /// <summary>
+    /// Something is serving HTTP at that address, and nothing there says what it is.
+    /// </summary>
+    /// <remarks>
+    /// Apart from <see cref="Ok"/> because a consumer has to be able to tell them
+    /// apart. Marlin and Streamystats have no endpoint that identifies them, so the
+    /// Jellyfin address typed into the Marlin field answers 200 and is reachable; an
+    /// app that read that as confirmed would open a Marlin tab onto Jellyfin, which is
+    /// the failure this exists to prevent.
+    /// </remarks>
+    Reachable,
+
     /// <summary>Something answered, but it is not the service that was expected.</summary>
     WrongService,
 

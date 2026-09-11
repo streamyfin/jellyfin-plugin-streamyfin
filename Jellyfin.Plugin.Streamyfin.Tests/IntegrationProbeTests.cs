@@ -86,7 +86,7 @@ public class IntegrationProbeTests
         var health = await ProbeWith(new Answering(HttpStatusCode.NotFound, "nope"))
             .Probe(kind, "https://inside.example.com");
 
-        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+        Assert.Equal(IntegrationOutcome.Reachable, health.Outcome);
         Assert.Contains("only says the address is reachable", health.Detail!, StringComparison.Ordinal);
     }
 
@@ -240,7 +240,123 @@ public class IntegrationProbeTests
     {
         var health = await ProbeWith(new Answering(status, "x")).Probe(IntegrationKind.Marlin, "https://inside.example.com");
 
-        Assert.Equal(IntegrationOutcome.Ok, health.Outcome);
+        Assert.Equal(IntegrationOutcome.Reachable, health.Outcome);
+    }
+
+    /// <summary>
+    /// Something serving HTTP with nothing identifying it is not the same answer as a
+    /// service that confirmed what it is.
+    /// </summary>
+    /// <remarks>
+    /// The app branches on the outcome to decide whether to offer a tab. The Jellyfin
+    /// address typed into the Marlin field answers 200, and read as confirmed it would
+    /// open a Marlin tab onto Jellyfin, which is the failure this route exists to stop.
+    /// </remarks>
+    [Fact]
+    public async Task ReachableIsNotTheSameAnswerAsConfirmed()
+    {
+        var probe = ProbeWith(new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}"""));
+
+        Assert.Equal(IntegrationOutcome.Ok, (await probe.Probe(IntegrationKind.Seerr, "https://requests.example.com")).Outcome);
+        Assert.Equal(IntegrationOutcome.Reachable, (await probe.Probe(IntegrationKind.Marlin, "https://requests.example.com")).Outcome);
+    }
+
+    /// <summary>
+    /// A Seerr that is restarting is not described as the wrong address.
+    /// </summary>
+    /// <remarks>
+    /// A 503 through a reverse proxy told an administrator they had typed the wrong URL,
+    /// which sends them editing a correct one. So does an access layer answering 401.
+    /// </remarks>
+    /// <param name="status">What answered.</param>
+    /// <param name="expected">What that means.</param>
+    /// <param name="says">A phrase the message has to carry.</param>
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable, IntegrationOutcome.WrongService, "not working")]
+    [InlineData(HttpStatusCode.BadGateway, IntegrationOutcome.WrongService, "not working")]
+    [InlineData(HttpStatusCode.Unauthorized, IntegrationOutcome.Reachable, "access layer")]
+    [InlineData(HttpStatusCode.Found, IntegrationOutcome.Reachable, "Use the address it redirects to")]
+    public async Task SeerrSaysWhichOfThreeThingsWentWrong(HttpStatusCode status, IntegrationOutcome expected, string says)
+    {
+        var health = await ProbeWith(new Answering(status, "x")).Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.Equal(expected, health.Outcome);
+        Assert.Contains(says, health.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A body too large to read is reported as unreadable rather than as the wrong
+    /// service.
+    /// </summary>
+    /// <remarks>
+    /// A status document is a few hundred bytes, so one that filled the cap is not a
+    /// status document. Calling it the wrong service is a diagnosis of the address,
+    /// which is not what went wrong.
+    /// </remarks>
+    [Fact]
+    public async Task ABodyTooLargeToReadIsNotCalledTheWrongService()
+    {
+        var huge = new string('x', 32 * 1024);
+
+        var health = await ProbeWith(new Answering(HttpStatusCode.OK, huge))
+            .Probe(IntegrationKind.Seerr, "https://requests.example.com");
+
+        Assert.Equal(IntegrationOutcome.Reachable, health.Outcome);
+        Assert.Contains("more than a status document", health.Detail!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A caller that goes away does not leave everyone else told that nothing is
+    /// answering.
+    /// </summary>
+    /// <remarks>
+    /// The answer is shared, so a phone backgrounded a second into the request would
+    /// otherwise write three cancellations into it and take the Seerr tab away from the
+    /// whole server for half a minute.
+    /// </remarks>
+    [Fact]
+    public async Task ACallerWhoWalksAwayDoesNotSpeakForEveryoneElse()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = ProbeWith(handler);
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" }
+        };
+
+        using var gone = new CancellationTokenSource();
+        handler.Hold();
+
+        var walkedAway = probe.HealthOf(settings, gone.Token);
+        await gone.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => walkedAway);
+
+        handler.Release();
+
+        var health = await probe.HealthOf(settings);
+
+        Assert.Equal(IntegrationOutcome.Ok, Find(health, IntegrationKind.Seerr).Outcome);
+    }
+
+    /// <summary>
+    /// Callers arriving together share one round rather than each opening its own.
+    /// </summary>
+    [Fact]
+    public async Task CallersArrivingTogetherShareOneRound()
+    {
+        var handler = new Answering(HttpStatusCode.OK, """{"version":"2.1.0"}""");
+        var probe = ProbeWith(handler);
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://requests.example.com" },
+            marlinServerUrl = new Lockable<string> { value = "https://marlin.example.com" }
+        };
+
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => probe.HealthOf(settings)));
+
+        // Two configured services, asked once between them however many callers arrived.
+        Assert.Equal(2, handler.Calls);
     }
 
     /// <summary>
@@ -401,21 +517,39 @@ public class IntegrationProbeTests
     // this file, and a non-atomic increment would let the fixture lie about it.
     private sealed class Answering(HttpStatusCode status, string body) : HttpMessageHandler
     {
+        private readonly TaskCompletionSource _held = new();
         private int _calls;
+        private bool _holding;
 
         public int Calls => Volatile.Read(ref _calls);
 
         public HttpRequestMessage? LastRequest { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        /// <summary>
+        /// Answers nothing until released, so a test can watch what happens while a
+        /// round is still in flight.
+        /// </summary>
+        public void Hold() => _holding = true;
+
+        /// <summary>
+        /// Lets the held answers through.
+        /// </summary>
+        public void Release() => _held.TrySetResult();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _calls);
             LastRequest = request;
 
-            return Task.FromResult(new HttpResponseMessage(status)
+            if (_holding)
+            {
+                await _held.Task.ConfigureAwait(false);
+            }
+
+            return new HttpResponseMessage(status)
             {
                 Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
-            });
+            };
         }
     }
 

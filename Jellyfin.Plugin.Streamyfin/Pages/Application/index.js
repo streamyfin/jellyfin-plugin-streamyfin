@@ -54,18 +54,6 @@ const readJson = (path) =>
     window.ApiClient.ajax({ type: "GET", url: url(path), contentType: "application/json" })
         .then((response) => response.json());
 
-// The server does the reaching, not this page: an address that only resolves inside the
-// server's network is exactly the one an administrator gets wrong, and the browser is on
-// the wrong side of it. Sends what is typed rather than what is saved, so the answer
-// arrives while the field is still on screen.
-const probeIntegration = (kind, address) =>
-    window.ApiClient.ajax({
-        type: "POST",
-        url: url("v1/integrations/probe"),
-        contentType: "application/json",
-        data: JSON.stringify({ kind, url: address }),
-    }).then((response) => response.json());
-
 const readVersion = async () => {
     try {
         const plugins = await window.ApiClient.getInstalledPlugins();
@@ -343,7 +331,7 @@ export default function (view) {
             cultures,
             terse: readTerse(),
             keys: readKeys(),
-            probe: probeIntegration,
+            probe: shared.probeIntegration,
         });
 
         el("sf-meta").textContent = [version, `${fields.length} settings`].filter(Boolean).join(" · ");

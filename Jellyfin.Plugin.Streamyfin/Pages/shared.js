@@ -4,6 +4,17 @@ export const DEFAULT_URL = window.ApiClient.getUrl('streamyfin/config/default');
 export const NOTIFICATION_URL = window.ApiClient.getUrl('streamyfin/notification');
 export const tools = {jsYaml: undefined};
 
+// Asking the server to try an address, for whichever page drew the button. Here rather
+// than in each page because both tabs draw the same form from the same description, and
+// a third hand rolled ApiClient wrapper is a third place to forget when this changes.
+export const probeIntegration = (kind, address) =>
+    window.ApiClient.ajax({
+        type: "POST",
+        url: window.ApiClient.getUrl("streamyfin/v1/integrations/probe"),
+        contentType: "application/json",
+        data: JSON.stringify({ kind, url: address }),
+    }).then((response) => response.json());
+
 // region private variables
 let schema = undefined;
 let config = undefined;
