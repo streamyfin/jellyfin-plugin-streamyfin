@@ -121,8 +121,10 @@ public class StreamyfinController : ControllerBase
     }
     catch (Exception e)
     {
-
-      return new ConfigSaveResponse { Error = true, Message = e.ToString() };
+      // The message and what caused it, not the stack. YamlDotNet says where in the
+      // document it gave up, which is the useful half, and this string is shown to an
+      // administrator in a banner above the editor.
+      return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
     var problem = SettingsValidation.Message(p.settings);
@@ -369,6 +371,18 @@ public class StreamyfinController : ControllerBase
 
   private const string UserIdClaim = "Jellyfin-UserId";
   private const string IsApiKeyClaim = "Jellyfin-IsApiKey";
+
+  private static string Because(Exception thrown)
+  {
+    var said = thrown.Message;
+
+    for (var inner = thrown.InnerException; inner is not null; inner = inner.InnerException)
+    {
+      said += " " + inner.Message;
+    }
+
+    return said;
+  }
 
   private Guid CallerId =>
     Guid.TryParse(User?.FindFirst(UserIdClaim)?.Value, out var id) ? id : Guid.Empty;

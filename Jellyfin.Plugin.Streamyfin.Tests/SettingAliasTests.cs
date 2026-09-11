@@ -87,6 +87,72 @@ public class SettingAliasTests
     }
 
     /// <summary>
+    /// One setting written under two of its names is refused, whichever order they come
+    /// in.
+    /// </summary>
+    /// <remarks>
+    /// YamlDotNet's own answer is that the later key wins, silently, and the whole
+    /// stored pair goes with it, <c>locked</c> included. Silence is what made #95 worth
+    /// reporting, so the collision says so and names both spellings.
+    /// </remarks>
+    /// <param name="first">The name written first.</param>
+    /// <param name="second">The name written second.</param>
+    [Theory]
+    [InlineData("jellyseerrServerUrl", "seerrServerUrl")]
+    [InlineData("seerrServerUrl", "jellyseerrServerUrl")]
+    public void OneSettingUnderTwoNamesIsRefused(string first, string second)
+    {
+        var thrown = Assert.ThrowsAny<System.Exception>(() => _serialization.Deserialize<Config>($"""
+            settings:
+              {first}:
+                value: https://one.example.com
+                locked: true
+              {second}:
+                value: https://two.example.com
+            """));
+
+        var said = Said(thrown);
+
+        Assert.Contains("jellyseerrServerUrl", said, System.StringComparison.Ordinal);
+        Assert.Contains(second, said, System.StringComparison.Ordinal);
+        Assert.Contains("written under one name", said, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The same setting written twice under the same name is YamlDotNet's own business,
+    /// and this does not change it.
+    /// </summary>
+    [Fact]
+    public void TwoSettingsThatAreNotTheSameAreFine()
+    {
+        var config = _serialization.Deserialize<Config>("""
+            settings:
+              seerrServerUrl:
+                value: https://requests.example.com
+              seerrApiKey:
+                value: a-key
+              marlinServerUrl:
+                value: https://marlin.example.com
+            """);
+
+        Assert.Equal("https://requests.example.com", config.settings?.jellyseerrServerUrl?.value);
+        Assert.Equal("a-key", config.settings?.jellyseerrApiKey?.value);
+        Assert.Equal("https://marlin.example.com", config.settings?.marlinServerUrl?.value);
+    }
+
+    private static string Said(System.Exception thrown)
+    {
+        var said = thrown.Message;
+
+        for (var inner = thrown.InnerException; inner is not null; inner = inner.InnerException)
+        {
+            said += " " + inner.Message;
+        }
+
+        return said;
+    }
+
+    /// <summary>
     /// A key that is neither a name nor an alias is still refused, and says which key it
     /// was.
     /// </summary>
