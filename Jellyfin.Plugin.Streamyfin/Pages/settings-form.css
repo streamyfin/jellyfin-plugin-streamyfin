@@ -23,6 +23,9 @@
     --sf-glow: 0 0 0 4px color-mix(in srgb, var(--sf-ac) 22%, transparent);
     --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 22%, transparent), transparent 70%);
     --sf-pin: #e2a33c;
+    --sf-said-ok: #7fd18a;
+    --sf-said-maybe: #e2a33c;
+    --sf-said-no: #ff8a80;
     --sf-pin-ink: #241700;
     --sf-pin-wash: color-mix(in srgb, var(--sf-pin) 12%, transparent);
     --sf-danger: #e0706a;
@@ -48,6 +51,9 @@
     --sf-ink-2: rgba(0, 0, 0, 0.68);
     --sf-ink-3: rgba(0, 0, 0, 0.5);
     --sf-key: rgba(0, 0, 0, 0.56);
+    --sf-said-ok: #2e7d32;
+    --sf-said-maybe: #9a6300;
+    --sf-said-no: #c62828;
     --sf-wash: color-mix(in srgb, var(--sf-ac) 10%, transparent);
     --sf-edge: color-mix(in srgb, var(--sf-ac) 40%, transparent);
     --sf-legend: linear-gradient(to right, color-mix(in srgb, var(--sf-ac) 16%, transparent), transparent 70%);
@@ -316,3 +322,49 @@
     .sf-page .sf-card--wide .sf-body { column-count: 1; }
     .sf-page .sf-search { margin-left: 0; width: 100%; }
 }
+
+/* Testing an address: the button and what the server answered. Their own classes
+   rather than the Secret reveal button's and the number hint's, so changing either of
+   those cannot restyle this. The colours are the page's own, since the dashboard
+   exposes none, and they are carried by the text rather than by a background so that a
+   light page and a dark one both read. */
+.sf-page .sf-try {
+    flex: none;
+    cursor: pointer;
+    background: var(--sf-raised);
+    border: 0;
+    color: var(--sf-ink);
+    border-radius: 0.3em;
+    padding: 0.6em 0.9em;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.sf-page .sf-try:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.sf-page .sf-said {
+    flex-basis: 100%;
+    margin-top: 6px;
+    font-family: var(--sf-mono);
+    font-size: 12px;
+    color: var(--sf-ink-3);
+    overflow-wrap: anywhere;
+}
+
+/* No display:none while empty: a live region out of the tree is not announced when its
+   text arrives. Out of the flow instead, so it costs no line and no row gap until it
+   says something. */
+.sf-page .sf-said:empty { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; }
+
+.sf-page .sf-said--quiet { color: var(--sf-ink-3); font-style: italic; }
+.sf-page .sf-said--ok { color: var(--sf-said-ok); font-weight: 600; }
+.sf-page .sf-said--maybe { color: var(--sf-said-maybe); font-weight: 600; }
+.sf-page .sf-said--no { color: var(--sf-said-no); font-weight: 600; }
+
+/* The way out of a page that opens already refusing to save: a stored value can break
+   a rule that did not exist when it was written, and a count alone leaves ninety
+   settings to search. */
+.sf-page .sf-find-problem { flex: none; }

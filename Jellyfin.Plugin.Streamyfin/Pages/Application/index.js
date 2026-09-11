@@ -119,7 +119,10 @@ export default function (view) {
         const parts = [];
 
         if (dirty) parts.push(`${dirty} unsaved`);
-        if (invalid) parts.push(`${invalid} need${invalid === 1 ? "s" : ""} a value`);
+        // "needs a value" pointed at an empty field, and an address the server refuses
+        // has one. What they share is that the save is waiting on them.
+        if (invalid) parts.push(`${invalid} to fix`);
+        el("sf-find-problem").hidden = invalid === 0;
 
         el("sf-dock-summary").textContent = parts.join(" · ") || "Nothing to save";
         dock.classList.toggle("is-clean", dirty === 0);
@@ -141,6 +144,10 @@ export default function (view) {
             badge.hidden = set === 0;
         }
     };
+
+    // Set by buildNavigation, so the dock's "Show me" can put the page where the
+    // setting is using the same controls a click on a pill would.
+    let goTo = null;
 
     const buildNavigation = () => {
         const pills = el("sf-pills");
@@ -183,6 +190,14 @@ export default function (view) {
                 }, { signal: showing.signal });
                 chips.appendChild(chip);
             }
+        };
+
+        goTo = (category) => {
+            find.value = "";
+            form.search("");
+            pressFilter("all");
+            form.filter(null);
+            select(category);
         };
 
         const select = (category) => {
@@ -331,6 +346,7 @@ export default function (view) {
             cultures,
             terse: readTerse(),
             keys: readKeys(),
+            probe: shared.probeIntegration,
         });
 
         el("sf-meta").textContent = [version, `${fields.length} settings`].filter(Boolean).join(" · ");
@@ -339,6 +355,10 @@ export default function (view) {
         wireTerse();
         wireBanner();
         wireDock(shared);
+        shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
+            goTo?.(found.category);
+            form.reveal(found.key);
+        });
         form.onChange(updateDock);
         updateDock();
         setStatus(null);

@@ -192,7 +192,10 @@ export default function (view) {
         const parts = [];
 
         if (dirty) parts.push(`${dirty} unsaved`);
-        if (invalid) parts.push(`${invalid} need${invalid === 1 ? "s" : ""} a value`);
+        // "needs a value" pointed at an empty field, and an address the server refuses
+        // has one. What they share is that the save is waiting on them.
+        if (invalid) parts.push(`${invalid} to fix`);
+        el("sf-find-problem").hidden = invalid === 0;
 
         el("sf-dock-summary").textContent = parts.join(" · ") || "Nothing to save";
         dock.classList.toggle("is-clean", dirty === 0);
@@ -218,6 +221,15 @@ export default function (view) {
 
         return changed;
     };
+
+    const wireFindProblem = () =>
+        shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
+            // One card here, so nothing to open: clear what is narrowing the list and
+            // put the row on screen.
+            el("sf-find").value = "";
+            form.search("");
+            form.reveal(found.key);
+        });
 
     // The same switch as the Application tab, sharing its remembered choice: an
     // administrator who turned the help text off did so for the settings, not for a tab.
@@ -246,6 +258,10 @@ export default function (view) {
             cultures: level.cultures ?? [],
             terse: readTerse(),
             mode: "overrides",
+            // A level overriding an address gets the same refusal the Application tab
+            // gets, so it gets the same way to check one. A per group address is the
+            // most likely to be internal, which is exactly what a browser cannot reach.
+            probe: shared.probeIntegration,
         });
         form.onChange(updateDock);
         el("sf-find").value = "";
@@ -392,6 +408,7 @@ export default function (view) {
         });
         listen("sf-find", "input", (event) => form.search(event.target.value));
         wireTerse();
+        wireFindProblem();
         listen("sf-member-find", "input", (event) => filterMembers(event.target.value));
         listen("sf-save", "click", commit(save));
         listen("sf-delete", "click", commit(remove));

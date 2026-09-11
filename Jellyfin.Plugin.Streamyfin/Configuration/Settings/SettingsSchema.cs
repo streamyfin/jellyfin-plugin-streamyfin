@@ -19,6 +19,20 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 /// <param name="Description">Help text for a form, when the property carries one.</param>
 /// <param name="Category">The section of the form it belongs to. See <see cref="SettingScopeAttribute"/>.</param>
 /// <param name="Group">The subdivision within that category, when it has one.</param>
+/// <param name="Bounds">The values it accepts, when it declares any.</param>
+/// <param name="Probe">The service that answers at the other end, when it names one.</param>
+/// <param name="IsWebAddress">
+/// Whether the value has to be a whole http or https address. Implied by naming a
+/// service, which is the only way a setting says so today; a setting that is an address
+/// with nothing to ask at the end of it would want its own marker.
+/// </param>
+/// <param name="Value">Where a <see cref="Lockable{T}"/> keeps its value, when it is one.</param>
+/// <remarks>
+/// The attributes are resolved here rather than at each use. Validation runs over every
+/// descriptor on every write, on the Yaml tab and on the three targeting routes, and
+/// asking reflection the same immutable question ninety times per save is a cost that
+/// grows with every setting added.
+/// </remarks>
 public sealed record SettingDescriptor(
     string Key,
     PropertyInfo Property,
@@ -28,7 +42,51 @@ public sealed record SettingDescriptor(
     string? DisplayName,
     string? Description,
     string? Category,
-    string? Group);
+    string? Group,
+    BoundsAttribute? Bounds,
+    ProbeAttribute? Probe,
+    bool IsWebAddress,
+    PropertyInfo? Value)
+{
+    /// <summary>
+    /// The value this setting holds, whatever shape the property is.
+    /// </summary>
+    /// <param name="settings">The settings to read from.</param>
+    /// <returns>The value, or <c>null</c> when the setting says nothing.</returns>
+    /// <remarks>
+    /// A setting is usually a <see cref="Lockable{T}"/>, which keeps its value one level
+    /// down. One that is not is read directly, or a rule declared on a plain property
+    /// would be one the form applies and the server does not.
+    /// </remarks>
+    public object? Read(Settings? settings)
+    {
+        if (settings is null)
+        {
+            return null;
+        }
+
+        var held = Property.GetValue(settings);
+
+        return IsLockable ? (held is null ? null : Value?.GetValue(held)) : held;
+    }
+
+    /// <summary>
+    /// Replaces the value this setting holds.
+    /// </summary>
+    /// <param name="settings">The settings to write to.</param>
+    /// <param name="value">The value to store.</param>
+    public void Write(Settings settings, object? value)
+    {
+        if (IsLockable)
+        {
+            Value!.SetValue(Property.GetValue(settings), value);
+        }
+        else
+        {
+            Property.SetValue(settings, value);
+        }
+    }
+}
 
 /// <summary>
 /// The settings, as data.
@@ -100,6 +158,7 @@ public static class SettingsSchema
         var valueType = lockable ? underlying.GetGenericArguments()[0] : underlying;
         var display = property.GetCustomAttribute<DisplayAttribute>();
         var scope = property.GetCustomAttribute<SettingScopeAttribute>();
+        var probe = property.GetCustomAttribute<ProbeAttribute>();
 
         return new SettingDescriptor(
             Key: property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? property.Name,
@@ -110,6 +169,10 @@ public static class SettingsSchema
             DisplayName: display?.Name,
             Description: display?.Description,
             Category: scope?.Category,
-            Group: scope?.Group);
+            Group: scope?.Group,
+            Bounds: property.GetCustomAttribute<BoundsAttribute>(),
+            Probe: probe,
+            IsWebAddress: probe is not null,
+            Value: lockable ? underlying.GetProperty("value") : null);
     }
 }

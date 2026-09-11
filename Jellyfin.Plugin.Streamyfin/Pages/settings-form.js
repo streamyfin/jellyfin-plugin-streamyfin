@@ -110,6 +110,47 @@ const typeDefault = (field) => {
 
 const formatBound = (n) => String(n);
 
+// A refusal the route itself wrote says which of several things to do. Anything else,
+// including losing the session, is the one sentence.
+export const askingFailed = (error) => {
+    const said = typeof error?.body === "string" ? error.body.trim() : "";
+    const plain = said.startsWith("\"") && said.endsWith("\"") ? said.slice(1, -1) : said;
+
+    return plain && plain.length < 200 && !plain.startsWith("{") ? plain : "The server could not be asked.";
+};
+
+// What a probe answer reads as. The server says what it found and why; this only
+// decides the sentence, so a test can hold the wording without a server.
+// What each answer reads as and reads like. One table, since a tone and a sentence that
+// disagree is how a hard failure ends up in the quiet italics of "nothing to try".
+const OUTCOMES = {
+    Ok: { tone: "sf-said--ok", said: "Answered." },
+    // Not a pass. The Jellyfin address in the Marlin field answers 200 and lands here,
+    // and green would read as confirmed.
+    Reachable: { tone: "sf-said--maybe", said: "Something answered, and nothing there says what it is." },
+    NotConfigured: { tone: "sf-said--quiet", said: "Nothing to try yet." },
+    NotAUrl: { tone: "sf-said--no", said: "That is not an address the server will open." },
+    WrongService: { tone: "sf-said--no", said: "Something answered, but not this service." },
+    Down: { tone: "sf-said--no", said: "The service answered that it is not working." },
+    Unreachable: { tone: "sf-said--no", said: "Nothing answered at that address." },
+};
+
+// A server that gained an outcome this page does not know. Red would call a healthy
+// integration broken.
+const UNKNOWN = { tone: "sf-said--quiet", said: "The server gave an answer this page does not understand." };
+
+export const probeText = (health) => {
+    if (!health) return "The server gave no answer.";
+
+    // Shown whole. The server bounds it, and a second cut here would put an ellipsis on
+    // a string that had already lost its tail silently.
+    if (health.outcome === "Ok" && health.version) return `Answered, running ${health.version}.`;
+
+    return health.detail ?? (OUTCOMES[health.outcome] ?? UNKNOWN).said;
+};
+
+export const probeTone = (health) => (OUTCOMES[health?.outcome] ?? UNKNOWN).tone;
+
 const boundsHint = (field) => {
     const parts = [];
     if (field.minimum !== null && field.minimum !== undefined && field.maximum !== null && field.maximum !== undefined) {
@@ -261,6 +302,12 @@ const readControl = (row, cultures) => {
             return control.value.trim() === "" ? null : Number(control.value);
         case "Select":
             return control.value === "" || control.value === APP_DEFAULT ? null : control.value;
+        case "Text": case "Secret":
+            // Only an address. It is tested trimmed and checked trimmed, so saving it
+            // untrimmed means testing a value the form never stores. Everything else
+            // keeps its edges: a token that ends in a space is a token, and the Yaml tab
+            // would store it.
+            return field?.address ? control.value.trim() : control.value;
         case "List":
             return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
         case "Language": {
@@ -271,6 +318,51 @@ const readControl = (row, cultures) => {
         }
         default:
             return control.value;
+    }
+};
+
+// Absolute, http or https, with a host. The browser's parser alone is looser than the
+// server's: "http:/host" with one slash, and "http:host", both parse here and are
+// refused by Uri.TryCreate, so the form would pass a value the server then refuses as a
+// banner over the whole save, which is what marking the field exists to avoid.
+// The server refuses these, so the form has to as well, or it passes a value the save
+// then refuses as a banner. A private address is fine and is the normal case; nothing a
+// person configures lives on link-local.
+const isLinkLocal = (host) => /^169\.254\./.test(host) || /^fe[89ab][0-9a-f]:/i.test(host);
+
+const isWebAddress = (typed) => {
+    const trimmed = typed.trim();
+    if (!/^https?:\/\/[^/\\?#]+/i.test(trimmed)) return false;
+
+    const authority = trimmed.slice(trimmed.indexOf("//") + 2).split(/[/?#]/)[0];
+
+    // What is written, not what a parser decodes: "%41" reads as a host of "a" in a
+    // browser and is refused by the server, so the escapes come out before the check.
+    if (!/[a-z0-9]/i.test(authority.replace(/%[0-9a-f]{2}/gi, ""))) return false;
+
+    // An IPv6 literal, which the server accepts and the browser's own parser does not,
+    // so it is answered here rather than handed to one that would refuse it. The
+    // contents still have to be an address: "[zzz]" is neither.
+    if (authority.startsWith("[")) {
+        if (isLinkLocal(authority.slice(1, authority.indexOf("]")).split("%25")[0])) return false;
+        const close = authority.indexOf("]");
+        if (close < 2) return false;
+
+        const host = authority.slice(1, close).split("%25")[0];
+        if (!/^[0-9a-f:.]+$/i.test(host) || !host.includes(":")) return false;
+
+        const after = authority.slice(close + 1);
+        if (after === "") return true;
+
+        const port = Number(after.slice(1));
+        return after.startsWith(":") && Number.isInteger(port) && port > 0 && port <= 65535;
+    }
+
+    try {
+        const { protocol, hostname } = new URL(trimmed);
+        return (protocol === "http:" || protocol === "https:") && hostname.length > 0 && !isLinkLocal(hostname);
+    } catch {
+        return false;
     }
 };
 
@@ -304,6 +396,14 @@ const problemOf = (row) => {
         return "Enter a value.";
     }
 
+    // The same rule the server applies, so a setting it will refuse is marked on the
+    // field rather than refused as a banner over the whole save. A configuration stored
+    // before the rule existed can carry one of these, and finding it in a list of
+    // ninety settings is the difference between a correction and a wall.
+    if (field.address && !isWebAddress(String(value ?? ""))) {
+        return "Enter a whole address, starting with http:// or https://.";
+    }
+
     if (field.control === "Language" && !value) return "Choose a language.";
 
     return null;
@@ -318,7 +418,7 @@ const snapshot = (row) => JSON.stringify({ state: row.state, value: row.value })
 // tab, a group or one user: only what the level overrides is listed, in one card, and
 // each override says what it falls through to. In that mode `defaults` is what the level
 // inherits, which for a group is what everyone gets.
-export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true, mode = "settings" } = {}) => {
+export const createForm = (mount, { fields = [], values = {}, defaults = {}, cultures = [], terse = false, keys = true, mode = "settings", probe = null } = {}) => {
     const rows = new Map();
     const cards = [];
     const listeners = [];
@@ -395,6 +495,15 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
 
     const refreshRow = (row) => {
         setPressed(row);
+        // Assigning a control's value fires no input event, so a value put back by
+        // Discard would otherwise keep an answer about the one that was there. Pressing
+        // Locked on an address that did not move keeps its answer. An object rather than
+        // the value itself, since a free row's value is undefined and that is not the
+        // same as never having been probed.
+        // Waiting counts: an ask in flight is about the address that was there, and the
+        // answer would otherwise be painted next to the one that replaced it.
+        const probed = row.probed;
+        if (probed && (probed.waiting || probed.typed !== String(row.value ?? "").trim())) row.clearProbe?.();
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
@@ -536,6 +645,67 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 const hint = boundsHint(field);
                 if (hint) foot.appendChild(el("span", "sf-bounds", hint));
             }
+            // An address is the one setting that can be wrong in a way nobody notices:
+            // it saves, it looks right, and it shows up as an empty tab days later. The
+            // server does the reaching, since it is the one that can see an internal
+            // address a phone never will. No button when the page passed no way to ask.
+            if (field.probe && probe) {
+                const test = el("button", "sf-try", "Test");
+                test.type = "button";
+                // Three of these on a page, all reading "Test" to anything that lists
+                // the buttons, unless each says what it tests.
+                test.setAttribute("aria-label", `Test ${field.title ?? field.key}`);
+                // Always in the tree, empty: a live region that was hidden when its text
+                // changed is not announced.
+                const said = el("span", "sf-said");
+                said.setAttribute("role", "status");
+
+                // An answer is about the address that was tried, so it goes the moment
+                // the value moves, whether someone typed it or Discard put it back.
+                row.clearProbe = () => {
+                    said.textContent = "";
+                    said.className = "sf-said";
+                    row.probed = null;
+                    // Anything still in flight is about an address that is gone.
+                    row.asking = (row.asking ?? 0) + 1;
+                    test.disabled = false;
+                };
+
+                row.control?.addEventListener("input", row.clearProbe);
+
+                test.addEventListener("click", () => {
+                    const typed = String(row.control?.value ?? "").trim();
+                    const mine = (row.asking = (row.asking ?? 0) + 1);
+                    // What is being asked about, from the click rather than from the
+                    // answer, so a Discard that lands first knows there is one in flight.
+                    row.probed = { typed, waiting: true };
+
+                    const show = (text, tone) => {
+                        // An answer about an address the field no longer holds is not an
+                        // answer about the field.
+                        if (mine !== row.asking) return;
+                        said.textContent = text;
+                        said.className = `sf-said ${tone}`;
+                        row.probed = { typed };
+                        test.disabled = false;
+                    };
+
+                    test.disabled = true;
+                    said.className = "sf-said";
+                    said.textContent = "Asking the server\u2026";
+
+                    // The call itself inside the chain, not only its result: a helper
+                    // that throws before returning a promise would otherwise escape both
+                    // catch and finally, and leave the button disabled on "Asking".
+                    Promise.resolve()
+                        .then(() => probe(field.probe, typed))
+                        .then((health) => show(probeText(health), probeTone(health)))
+                        .catch((error) => show(askingFailed(error), "sf-said--no"));
+                });
+
+                foot.appendChild(test);
+                foot.appendChild(said);
+            }
             row.el.appendChild(foot);
         }
 
@@ -640,6 +810,25 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             return out;
         },
         invalid: () => [...rows.values()].filter((row) => row.invalid).map((row) => row.field.key),
+        // A configuration stored before a rule existed can open the page already
+        // refusing to save, and a count alone leaves an administrator hunting through
+        // ninety settings for it. The page owns its search box, its filter and its
+        // pills, so this names the setting and the page does the moving.
+        firstProblem: () => {
+            const row = [...rows.values()].find((one) => one.invalid);
+
+            return row
+                ? { key: row.field.key, title: row.field.title ?? row.field.key, category: row.field.category ?? "Other" }
+                : null;
+        },
+        reveal: (key) => {
+            const row = rows.get(key);
+            if (!row) return false;
+
+            row.el.scrollIntoView({ block: "center" });
+            row.control?.focus?.();
+            return true;
+        },
         dirtyCount: () => [...rows.values()].filter((row) => snapshot(row) !== row.baseline).length,
         reset: () => {
             for (const row of rows.values()) {

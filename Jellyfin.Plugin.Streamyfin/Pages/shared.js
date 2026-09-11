@@ -4,6 +4,41 @@ export const DEFAULT_URL = window.ApiClient.getUrl('streamyfin/config/default');
 export const NOTIFICATION_URL = window.ApiClient.getUrl('streamyfin/notification');
 export const tools = {jsYaml: undefined};
 
+// Asking the server to try an address, for whichever page drew the button. Here rather
+// than in each page because both tabs draw the same form from the same description, and
+// a third hand rolled ApiClient wrapper is a third place to forget when this changes.
+// The dock's way out of a page that opens already refusing to save. Here rather than in
+// each page because both tabs draw the same form and the same dock, and writing it twice
+// is what let one copy leak a listener per tab switch.
+export const wireFindProblem = (button, form, signal, goTo) => {
+    if (!button) return;
+
+    button.addEventListener(
+        "click",
+        () => {
+            const found = form()?.firstProblem();
+            if (found) goTo(found);
+        },
+        signal ? { signal } : undefined);
+};
+
+export const probeIntegration = (kind, address) =>
+    window.ApiClient.ajax({
+        type: "POST",
+        url: window.ApiClient.getUrl("streamyfin/v1/integrations/probe"),
+        contentType: "application/json",
+        data: JSON.stringify({ kind, url: address }),
+    }).then((response) => response.json())
+        // ApiClient rejects with the Response itself, not with something wrapping one.
+        // The route refuses some requests with a sentence of its own, and losing it
+        // behind "the server could not be asked" hides which of several things to fix.
+        .catch(async (rejected) => {
+            const response = typeof rejected?.text === "function" ? rejected : rejected?.response;
+            const body = await response?.text?.().catch(() => null);
+            const error = rejected instanceof Error ? rejected : new Error("probe failed");
+            throw Object.assign(error, { body, status: response?.status });
+        });
+
 // region private variables
 let schema = undefined;
 let config = undefined;
