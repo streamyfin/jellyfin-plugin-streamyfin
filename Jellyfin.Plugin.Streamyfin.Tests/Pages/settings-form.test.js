@@ -820,6 +820,9 @@ describe("testing an address", () => {
 
     test("every outcome reads as a sentence", () => {
         expect(probeText({ outcome: "Ok", version: "2.1.0" })).toBe("Answered, running 2.1.0.");
+        // Seerr reports a development build as a full commit hash.
+        expect(probeText({ outcome: "Ok", version: "develop-68c5bc8c7d8560d295387adeeee73982ea518e8f" }))
+            .toBe("Answered, running develop-68c5bc8c7d85\u2026");
         expect(probeText({ outcome: "Ok", detail: "Answered with 404." })).toBe("Answered with 404.");
         expect(probeText({ outcome: "NotConfigured" })).toBe("Nothing to try yet.");
         expect(probeText({ outcome: "NotAUrl", detail: "That is not an http address." })).toBe("That is not an http address.");

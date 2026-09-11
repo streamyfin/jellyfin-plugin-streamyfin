@@ -116,7 +116,11 @@ export const probeText = (health) => {
     if (!health) return "The server gave no answer.";
     switch (health.outcome) {
         case "Ok":
-            return health.version ? `Answered, running ${health.version}.` : (health.detail ?? "Answered.");
+            // Seerr reports a development build as a full commit hash, which is forty
+            // characters of nothing anyone reads. Enough of it to tell two builds apart.
+            return health.version
+                ? `Answered, running ${health.version.length > 20 ? `${health.version.slice(0, 20)}\u2026` : `${health.version}.`}`
+                : (health.detail ?? "Answered.");
         case "NotConfigured":
             return "Nothing to try yet.";
         case "NotAUrl":
