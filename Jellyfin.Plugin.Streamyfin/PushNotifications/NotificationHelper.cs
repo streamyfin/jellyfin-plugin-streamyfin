@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -14,29 +15,72 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications;
 
 public class NotificationHelper
 {
+    /// <summary>
+    /// The name of the configured client that talks to Expo. Its timeout lives with the
+    /// registration in <c>PluginServiceRegistrator</c> rather than at this call site.
+    /// </summary>
+    public const string ExpoClientName = "streamyfin-expo";
+
+    private const string SendUri = "https://exp.host/--/api/v2/push/send";
+
+    private const string ReceiptsUri = "https://exp.host/--/api/v2/push/getReceipts";
+
+    /// <summary>
+    /// How many ticket ids Expo takes in one receipts request.
+    /// </summary>
+    public const int MaxReceiptsPerRequest = 1000;
+
     private readonly ILogger<NotificationHelper>? _logger;
     private readonly SerializationHelper _serializationHelper;
     private readonly IUserManager? _userManager;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ExpoRetry _retry;
+    private readonly ExpoRetry _retryReads;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NotificationHelper"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">Where the sends are reported.</param>
+    /// <param name="userManager">Jellyfin's users, for the admin recipients.</param>
+    /// <param name="serializationHelper">The plugin's serializer.</param>
+    /// <param name="httpClientFactory">The factory holding the configured Expo client.</param>
+    /// <param name="retry">
+    /// When a refused request is worth making again. Defaults to
+    /// <see cref="ExpoRetry.Default"/>; a test passes <see cref="ExpoRetry.Immediate"/>
+    /// rather than sleeping through its own retries.
+    /// </param>
     public NotificationHelper(
         ILoggerFactory? loggerFactory,
         IUserManager? userManager,
-        SerializationHelper serializationHelper)
+        SerializationHelper serializationHelper,
+        IHttpClientFactory httpClientFactory,
+        ExpoRetry? retry = null)
     {
         _logger = loggerFactory?.CreateLogger<NotificationHelper>();
         _userManager = userManager;
         _serializationHelper = serializationHelper;
+        _httpClientFactory = httpClientFactory;
+        _retry = retry ?? ExpoRetry.Default;
+        _retryReads = _retry.ForSomethingThatOnlyReads();
     }
 
     /// <summary>
     /// Ability to send a batch of notifications directly to jellyfin admins
     /// </summary>
-    /// <param name="notification"></param>
-    /// <returns></returns>
+    /// <param name="notifications">The notifications to send.</param>
+    /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToAdmins(params Notification[] notifications)
     {
+        // Declared nullable and dereferenced all the same. A null here threw inside an event
+        // handler the server was waiting on, rather than skipping a notification.
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
+            return null;
+        }
+
         var adminTokens = _userManager.GetAdminTokens();
-        
+
         _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
 
         // No admin tokens found.
@@ -99,7 +143,13 @@ public class NotificationHelper
     {
         _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
 
-        var excludedIds = excludedUserIds ?? Array.Empty<Guid>().ToList(); 
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
+            return null;
+        }
+
+        var excludedIds = excludedUserIds ?? Array.Empty<Guid>().ToList();
         var adminTokens = _userManager.GetAdminDeviceTokens()
             .FindAll(deviceToken => !excludedIds.Contains(deviceToken.UserId))
             .Select(deviceToken => deviceToken.Token)
@@ -123,25 +173,223 @@ public class NotificationHelper
         return await Send(expoNotifications).ConfigureAwait(false);
     }
 
-    public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications) =>
-        await SendNotificationToExpo(_serializationHelper.ToJson(notifications)).ConfigureAwait(false);
-
-    private async Task<ExpoNotificationResponse?> SendNotificationToExpo(string serializedRequest)
+    /// <summary>
+    /// Sends messages to the devices they name, in as many requests as Expo needs.
+    /// </summary>
+    /// <param name="notifications">The messages, each already addressed.</param>
+    /// <returns>
+    /// The tickets from the batches Expo answered, in the order those recipients went
+    /// out, or null when none was answered. A refused batch contributes no tickets, so
+    /// the list lines up with the recipients batch by batch and not as a whole: nothing
+    /// outside this method should match a ticket to a device by its index.
+    /// </returns>
+    /// <remarks>
+    /// Expo takes a hundred recipients per request and refuses a body past that, whole.
+    /// A server with more devices than that had its library notifications refused
+    /// entirely, so nobody was told rather than everybody.
+    ///
+    /// <para>
+    /// Each batch is reconciled against its own recipients rather than all of them at
+    /// the end. A refused batch then costs only its own devices their pruning, instead
+    /// of shifting every later ticket by one position and making the counts disagree,
+    /// which <see cref="ExpoTickets.Reconcile"/> answers by doing nothing at all.
+    /// </para>
+    /// </remarks>
+    public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications)
     {
-        _logger?.LogDebug("Preparing to send notification");
-        using HttpClient client = new();
-        var httpRequest = GetHttpRequestMessage(serializedRequest);
-        var rawResponse = await client.SendAsync(httpRequest).ConfigureAwait(false);
-        _logger?.LogDebug("Received response");
-        httpRequest.Dispose();
+        ArgumentNullException.ThrowIfNull(notifications);
 
-        return await rawResponse.Content.ReadFromJsonAsync<ExpoNotificationResponse>().ConfigureAwait(false);
+        var batches = ExpoBatching.Chunk(notifications);
+
+        if (batches.Count > 1)
+        {
+            _logger?.LogInformation(
+                "Sending to {Recipients} device(s) in {Batches} requests, since Expo takes {Limit} at a time",
+                batches.Sum(batch => batch.Sum(notification => notification.To.Count)),
+                batches.Count,
+                ExpoBatching.MaxRecipientsPerRequest);
+        }
+
+        var tickets = new List<TicketStatus>();
+        var errors = new List<Errors>();
+        var answered = false;
+
+        for (var sent = 0; sent < batches.Count; sent++)
+        {
+            var batch = batches[sent];
+
+            // The order Expo answers in. One ticket comes back per recipient, and that
+            // position is the only thing tying an error ticket to the device it came from.
+            var recipients = batch.SelectMany(notification => notification.To).ToList();
+
+            // No token to pass: a send happens inside a synchronous Jellyfin event handler,
+            // which has none to give. The client timeout is what bounds it.
+            var response = await PostToExpo<ExpoNotificationResponse>(
+                SendUri,
+                _serializationHelper.ToJson(batch),
+                _retry,
+                CancellationToken.None).ConfigureAwait(false);
+
+            PruneAndQueue(recipients, response);
+
+            // Expo refusing one batch after its retries is Expo refusing this send. The
+            // rest would be nine more batches of the same request, each with its own
+            // waits, and PostNotifications blocks on this: a thousand recipients against
+            // a server answering 429 would hold an event handler for twenty minutes to
+            // reach nobody.
+            if (response is null)
+            {
+                _logger?.LogWarning(
+                    "Expo did not answer a batch, so the remaining {Batches} were not sent",
+                    batches.Count - sent - 1);
+                break;
+            }
+
+            answered = true;
+            tickets.AddRange(response.Data);
+
+            // What Expo says about the request rather than about a delivery. The caller
+            // is handed this response and the notifications route serializes it, so a
+            // batch's errors would otherwise be dropped on the way out.
+            errors.AddRange(response.Errors);
+        }
+
+        return answered ? new ExpoNotificationResponse { Data = tickets, Errors = errors } : null;
     }
 
-    private static HttpRequestMessage GetHttpRequestMessage(string content) => new()
+    /// <summary>
+    /// Asks Expo what became of pushes it accepted earlier.
+    /// </summary>
+    /// <param name="ticketIds">The ticket ids to ask about, at most a thousand.</param>
+    /// <param name="cancellationToken">Stops the call when the server is shutting down.</param>
+    /// <returns>The receipts, or null when the request was refused.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">More ids than Expo takes at once.</exception>
+    /// <remarks>
+    /// A ticket only says Expo took the message. Whether it arrived, and above all
+    /// whether the device is gone, is only ever in the receipt. Nothing called this
+    /// before P4.2, so a token stayed in the database after its app was uninstalled and
+    /// every later send to it went nowhere.
+    /// </remarks>
+    public async Task<ExpoReceiptResponse?> FetchReceipts(
+        IReadOnlyList<string> ticketIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ticketIds);
+
+        if (ticketIds.Count == 0)
+        {
+            return null;
+        }
+
+        // Expo rejects the request past its cap, and a rejection is not an answer, so the
+        // rows would simply be asked about again every hour until they expired unread.
+        // Louder than a caller quietly never collecting anything.
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(ticketIds.Count, MaxReceiptsPerRequest);
+
+        // Asking what became of a ticket changes nothing, so unlike a send it is worth
+        // asking again when Expo answers 500 or never answers at all.
+        return await PostToExpo<ExpoReceiptResponse>(
+            ReceiptsUri,
+            _serializationHelper.ToJson(new ExpoReceiptRequest { Ids = [.. ticketIds] }),
+            _retryReads,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Acts on what a send answer said about its recipients.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately silent when there is no plugin instance, which is the case in a unit
+    /// test: the decision itself is in <see cref="ExpoTickets"/> and is tested there,
+    /// without a database.
+    /// </remarks>
+    private void PruneAndQueue(IReadOnlyList<string> recipients, ExpoNotificationResponse? response)
+    {
+        var outcome = ExpoTickets.Reconcile(recipients, response, _logger);
+
+        var database = StreamyfinPlugin.Instance?.Database;
+        if (database is null)
+        {
+            return;
+        }
+
+        if (outcome.DeadTokens.Count > 0)
+        {
+            var removed = database.RemoveDeviceTokensNamed(outcome.DeadTokens);
+
+            _logger?.LogInformation(
+                "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
+                outcome.DeadTokens.Count,
+                removed);
+        }
+
+        if (outcome.Pending.Count > 0)
+        {
+            database.AddExpoReceipts(
+                outcome.Pending.Select(pending => (pending.TicketId, pending.Token)),
+                DateTime.UtcNow);
+        }
+    }
+
+    private async Task<T?> PostToExpo<T>(
+        string uri,
+        string serializedRequest,
+        ExpoRetry retry,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        _logger?.LogDebug("Preparing to call {Uri}", uri);
+
+        for (var tried = 1; ; tried++)
+        {
+            // From the factory, never a new HttpClient per send: one built inline gets its own
+            // connection pool every time and carries the default hundred second timeout, inside
+            // an event handler that Jellyfin is waiting on.
+            var client = _httpClientFactory.CreateClient(ExpoClientName);
+            using var httpRequest = GetHttpRequestMessage(uri, serializedRequest);
+            using var rawResponse = await client.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
+
+            // Expo answers 429 when it is being asked too often, and the body is then not a
+            // ticket list. Read as one anyway it yields a response with no tickets, which every
+            // caller reads as a delivery that simply had nothing to report.
+            if (rawResponse.IsSuccessStatusCode)
+            {
+                _logger?.LogDebug("Received response");
+
+                return await rawResponse.Content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
+            }
+
+            var body = await rawResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var shown = body.Length > 500 ? body[..500] : body;
+            var wait = retry.Wait(rawResponse.StatusCode, rawResponse.Headers.RetryAfter, tried, DateTimeOffset.UtcNow);
+
+            if (wait is null)
+            {
+                _logger?.LogError(
+                    "Expo refused the request to {Uri} with {Status} after {Tries} tr(ies): {Body}",
+                    uri,
+                    (int)rawResponse.StatusCode,
+                    tried,
+                    shown);
+
+                return null;
+            }
+
+            _logger?.LogWarning(
+                "Expo answered {Status} for {Uri}, trying again in {Wait}: {Body}",
+                (int)rawResponse.StatusCode,
+                uri,
+                wait.Value,
+                shown);
+
+            await Task.Delay(wait.Value, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static HttpRequestMessage GetHttpRequestMessage(string uri, string content) => new()
     {
         Method = HttpMethod.Post,
-        RequestUri = new Uri("https://exp.host/--/api/v2/push/send"),
+        RequestUri = new Uri(uri),
         Headers =
         {
             { "Host", "exp.host" },

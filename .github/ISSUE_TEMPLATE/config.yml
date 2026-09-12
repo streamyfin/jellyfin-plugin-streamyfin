@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: A question about the app rather than the plugin
+    url: https://github.com/streamyfin/streamyfin/issues
+    about: Playback, downloads, the interface on a phone or a TV. The plugin is the server half.
+  - name: Ask the community
+    url: https://discord.gg/rgGVfjmnyM
+    about: Faster than an issue when you are not sure whether something is a bug.

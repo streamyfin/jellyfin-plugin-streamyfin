@@ -2,10 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
+using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
-using Jellyfin.Plugin.Streamyfin.Storage.Models;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
@@ -42,8 +47,32 @@ public class ConfigSaveResponse
 //}
 
 /// <summary>
-/// CollectionImportController.
+/// The plugin's HTTP surface.
 /// </summary>
+/// <remarks>
+/// Every route exists twice: once under <c>v1/</c>, which is canonical, and once at
+/// the path it has always had. The unversioned ones are shims and nothing new should
+/// use them.
+///
+/// <para>
+/// They are extra attributes on the same action rather than separate methods that
+/// delegate. Two methods drift: one gets a fix, the other does not, and the shim
+/// quietly stops behaving like the route it stands in for.
+/// </para>
+///
+/// <para>
+/// The prefix is what makes the next change to this surface a choice rather than a
+/// breaking one. Every app in the field calls the unversioned paths, and until now
+/// renaming any of them would have broken every installed copy at once. That is also
+/// why <c>device</c> and <c>notification</c> keep working alongside the plural names
+/// they should have had.
+/// </para>
+///
+/// <para>
+/// <c>ApiSurfaceTests</c> is what keeps this true, since a route dropped from a shim
+/// is not a failure anything else would notice until an old client hits a 404.
+/// </para>
+/// </remarks>
 [ApiController]
 [Route("streamyfin")]
 public class StreamyfinController : ControllerBase
@@ -56,6 +85,7 @@ public class StreamyfinController : ControllerBase
   private readonly IDtoService _dtoService;
   private readonly SerializationHelper _serializationHelperService;
   private readonly NotificationHelper _notificationHelper;
+  private readonly IntegrationProbe _integrations;
 
   public StreamyfinController(
     ILoggerFactory loggerFactory,
@@ -64,7 +94,8 @@ public class StreamyfinController : ControllerBase
     IUserManager userManager,
     ILibraryManager libraryManager,
     SerializationHelper serializationHelper,
-    NotificationHelper notificationHelper
+    NotificationHelper notificationHelper,
+    IntegrationProbe integrations
   )
   {
     _loggerFactory = loggerFactory;
@@ -75,9 +106,12 @@ public class StreamyfinController : ControllerBase
     _libraryManager = libraryManager;
     _serializationHelperService = serializationHelper;
     _notificationHelper = notificationHelper;
+    _integrations = integrations;
 
     _logger.LogInformation("StreamyfinController Loaded");
   }
+
+  [HttpPost("v1/config/yaml")]
 
   [HttpPost("config/yaml")]
   [Authorize(Policy = Policies.RequiresElevation)]
@@ -93,25 +127,43 @@ public class StreamyfinController : ControllerBase
     }
     catch (Exception e)
     {
-
-      return new ConfigSaveResponse { Error = true, Message = e.ToString() };
+      // The message and what caused it, not the stack. YamlDotNet says where in the
+      // document it gave up, which is the useful half, and this string is shown to an
+      // administrator in a banner above the editor.
+      return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
-    var c = StreamyfinPlugin.Instance!.Configuration;
-    c.Config = p;
-    StreamyfinPlugin.Instance!.UpdateConfiguration(c);
+    var problem = SettingsValidation.Check(p.settings);
+    if (problem is not null)
+    {
+      return new ConfigSaveResponse { Error = true, Message = problem };
+    }
+
+    StreamyfinPlugin.Instance!.Settings.Save(p);
 
     return new ConfigSaveResponse { Error = false };
   }
 
+  /// <summary>
+  /// The configuration, as the calling user should receive it.
+  /// </summary>
+  /// <returns>The configuration.</returns>
+  /// <remarks>
+  /// An administrator gets it untouched. Anyone else gets their settings resolved
+  /// across the three targeting levels, with credentials removed and the server side
+  /// blocks left out. Until P1.4 this served the whole configuration, Seerr admin key
+  /// included, to every account on the server.
+  /// </remarks>
+  [HttpGet("v1/config")]
   [HttpGet("config")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult getConfig()
   {
-    var config = StreamyfinPlugin.Instance!.Configuration.Config;
-    return new JsonStringResult(_serializationHelperService.SerializeToJson(config));
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(ConfigForCaller()));
   }
+
+  [HttpGet("v1/config/schema")]
 
   [HttpGet("config/schema")]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -121,6 +173,279 @@ public class StreamyfinController : ControllerBase
     return new JsonStringResult(SerializationHelper.GetJsonSchema<Config>());
   }
 
+  /// <summary>
+  /// The admin form, one entry per setting.
+  /// </summary>
+  /// <returns>The fields the form draws, in the order the settings are declared.</returns>
+  /// <remarks>
+  /// Beside <c>config/schema</c> rather than replacing it: the schema describes the
+  /// configuration for anything that wants to validate or edit it, notably the YAML
+  /// page, and this describes how to draw it. P3.1 asked the schema to do both, which
+  /// meant reshaping it four ways for one browser library and left the choice of control
+  /// happening in JavaScript where nothing could test it.
+  ///
+  /// <para>
+  /// Elevated, because the descriptions are written for an administrator and some of
+  /// them name what a credential grants.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/settings/form")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<IReadOnlyList<SettingsFormField>> GetSettingsForm() =>
+    new JsonResult(SettingsForm.Describe());
+
+  /// <summary>
+  /// Everything an administrator set, as one file.
+  /// </summary>
+  /// <returns>The backup.</returns>
+  /// <remarks>
+  /// The configuration alone is not the work. The targeting levels are, and they live
+  /// in the plugin's database rather than in Jellyfin's XML, so nothing a server
+  /// administrator backs up today carries them.
+  ///
+  /// <para>
+  /// It carries the credentials the configuration carries, because a backup that cannot
+  /// restore a working server is not one. Elevated, and the page says so before it
+  /// hands the file over.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/backup")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult GetBackup()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    // Through the plugin's own serializer, which is the one that reads it back. MVC
+    // writes an enum as its name and this reader expects the number it stores, so a
+    // backup taken through the route was a file the restore refused.
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(new ConfigurationBackup
+    {
+      Plugin = StreamyfinPlugin.Instance!.Version.ToString(),
+      TakenAt = DateTimeOffset.UtcNow,
+      Config = StreamyfinPlugin.Instance!.Settings.Current,
+      Groups = [.. GroupsWithMembers()],
+      Users = [.. database.GetAllUserSettingsOverrides()
+        .Select(stored => new UserBackup
+        {
+          UserId = stored.UserId,
+          Settings = Resolution.ReadLevel(stored.SettingsJson, $"user {stored.UserId}")
+        })]
+    }));
+  }
+
+  /// <summary>
+  /// Puts a backup back, replacing what is there.
+  /// </summary>
+  /// <returns>What was restored, and what this server had never heard of.</returns>
+  /// <remarks>
+  /// Replaces rather than merges: half a restore is worse than none, and an
+  /// administrator reaching for a backup wants the server it came from.
+  ///
+  /// <para>
+  /// A file taken on another server names users this one does not have. Those are
+  /// skipped and counted rather than refusing the file, since the rest of it is still
+  /// the work.
+  /// </para>
+  /// </remarks>
+  [HttpPost("v1/backup")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [Consumes("application/json")]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<ActionResult<RestoreReport>> Restore()
+  {
+    // Read rather than bound. A setting is a required member on a Lockable, the
+    // serializer omits a null when it writes, and model validation then refuses a file
+    // this plugin produced itself: taking a backup and putting it straight back was a
+    // 400 about four notification fields. The plugin's own reader is the tolerant one.
+    ConfigurationBackup? backup;
+    try
+    {
+      using var reader = new System.IO.StreamReader(Request.Body);
+      backup = _serializationHelperService.DeserializeJson<ConfigurationBackup>(
+        await reader.ReadToEndAsync().ConfigureAwait(false));
+    }
+    catch (System.Text.Json.JsonException e)
+    {
+      return BadRequest(new RestoreReport { Problem = $"That file is not a backup this plugin can read. {e.Message}" });
+    }
+
+    if (backup is null || backup.Groups is null || backup.Users is null)
+    {
+      return BadRequest(new RestoreReport { Problem = "That file is not a backup this plugin can read." });
+    }
+
+    // Everything it carries is checked before anything is written, so a file with one
+    // bad level does not leave the server half restored.
+    foreach (var settings in Levels(backup))
+    {
+      if (SettingsValidation.Check(settings) is { } problem)
+      {
+        return BadRequest(new RestoreReport { Problem = problem });
+      }
+    }
+
+    // Checked before anything is written, and before anything is deleted.
+    if (backup.Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
+    {
+      return BadRequest(new RestoreReport { Problem = "Every group in a backup needs a name, and one of these has none." });
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+    var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
+    var report = new RestoreReport();
+
+    var groups = new List<(SettingsGroup Group, IReadOnlyList<Guid> Members)>();
+
+    foreach (var group in backup.Groups)
+    {
+      var members = (group.UserIds ?? []).Where(known.Contains).ToList();
+      report.UnknownMembers += (group.UserIds?.Count ?? 0) - members.Count;
+
+      groups.Add((
+        new SettingsGroup
+        {
+          Id = group.Id,
+          Name = group.Name,
+          Priority = group.Priority,
+          SettingsJson = _serializationHelperService.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings())
+        },
+        members));
+    }
+
+    var overrides = new List<(Guid UserId, string SettingsJson)>();
+
+    foreach (var user in backup.Users)
+    {
+      if (!known.Contains(user.UserId))
+      {
+        report.UnknownUsers++;
+        continue;
+      }
+
+      overrides.Add((
+        user.UserId,
+        _serializationHelperService.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings())));
+    }
+
+    // The configuration first, then one transaction for the levels: a failure partway
+    // through the levels leaves a server with neither what it had nor what the file
+    // carried, which is worse than either.
+    if (backup.Config is not null)
+    {
+      StreamyfinPlugin.Instance!.Settings.Save(backup.Config);
+      report.Configuration = true;
+    }
+
+    database.ReplaceTargeting(groups, overrides);
+
+    report.Groups = groups.Count;
+    report.Users = overrides.Count;
+
+    _logger.LogInformation(
+      "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
+      + "{Users} user override(s), {UnknownMembers} member(s) and {UnknownUsers} user(s) this server does not have",
+      backup.Plugin,
+      backup.TakenAt,
+      report.Configuration,
+      report.Groups,
+      report.Users,
+      report.UnknownMembers,
+      report.UnknownUsers);
+
+    return report;
+  }
+
+  private static IEnumerable<Configuration.Settings.Settings?> Levels(ConfigurationBackup backup) =>
+    new[] { backup.Config?.settings }
+      .Concat(backup.Groups.Select(group => group.Settings))
+      .Concat(backup.Users.Select(user => user.Settings));
+
+  /// <summary>
+  /// Asks one integration whether it is there, at an address that has not been saved yet.
+  /// </summary>
+  /// <param name="request">Which service, and the address to try.</param>
+  /// <param name="cancellationToken">Stops the probe when the caller goes away.</param>
+  /// <returns>What the probe found.</returns>
+  /// <remarks>
+  /// The server is the only thing that can answer this. An administrator types an
+  /// address their server reaches and a phone on mobile data never will, saves it, and
+  /// finds out it was wrong when a user reports an empty tab.
+  ///
+  /// <para>
+  /// Elevated, because it makes the server open an address the caller chose. That is
+  /// already within what an administrator can do here, and it is not within what anyone
+  /// else can.
+  /// </para>
+  /// </remarks>
+  [HttpPost("v1/integrations/probe")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public async Task<ActionResult<IntegrationHealth>> ProbeIntegration(
+    [FromBody, Required] IntegrationProbeRequest request,
+    CancellationToken cancellationToken)
+  {
+    // A null body and a missing kind are both refused by model validation before this
+    // runs. An undeclared value reaches here as an integer the converter accepted.
+    if (request.Kind is not { } kind || !Enum.IsDefined(kind))
+    {
+      return BadRequest("Say which service to try: Seerr, Marlin or Streamystats.");
+    }
+
+    return await _integrations.Probe(kind, request.Url, cancellationToken).ConfigureAwait(false);
+  }
+
+  /// <summary>
+  /// Whether the integrations this caller is pointed at are answering.
+  /// </summary>
+  /// <param name="cancellationToken">Stops the probes when the caller goes away.</param>
+  /// <returns>One answer per service, configured or not.</returns>
+  /// <remarks>
+  /// The app changes what it offers by this: a Seerr tab that opens onto nothing is
+  /// worse than one that says the server is not answering. The addresses are the ones
+  /// resolved for this caller, never ones they supply, and no answer carries a URL or a
+  /// key, so a user learns that an integration is down without learning where it lives.
+  /// The version goes with them for anyone who is not an administrator, since the exact
+  /// build of a private service is how a published vulnerability is picked for it.
+  ///
+  /// <para>
+  /// The answer is held briefly. Every signed in account may call this, each call
+  /// reaches three third party services from the server's own network position, and an
+  /// unanswering one holds the request for the client timeout. Without the cache a
+  /// handful of apps starting at once, or one account in a loop, turns the plugin into
+  /// something pointed at the administrator's own services.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/integrations/health")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public async Task<ActionResult<IReadOnlyList<IntegrationHealth>>> GetIntegrationHealth(
+    CancellationToken cancellationToken)
+  {
+    // Resolved for the caller even when the caller is an administrator, who would
+    // otherwise be shown the plugin level configuration while every member of a group
+    // that overrides an address is served something else.
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+    var settings = Resolution.Resolve(
+      StreamyfinPlugin.Instance!.Settings.Current?.settings,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId));
+
+    var health = await _integrations.HealthOf(settings, cancellationToken).ConfigureAwait(false);
+
+    return new JsonResult(CallerIsApiKey || _userManager.IsAdministrator(callerId)
+      ? health
+      : IntegrationProbe.WithoutVersions(health));
+  }
+
+  /// <summary>
+  /// The configuration as YAML, filtered the same way as the JSON.
+  /// </summary>
+  /// <returns>The configuration.</returns>
+  [HttpGet("v1/config/yaml")]
   [HttpGet("config/yaml")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -128,9 +453,11 @@ public class StreamyfinController : ControllerBase
   {
     return new ConfigYamlRes
     {
-      Value = _serializationHelperService.SerializeToYaml(StreamyfinPlugin.Instance!.Configuration.Config)
+      Value = _serializationHelperService.SerializeToYaml(ConfigForCaller())
     };
   }
+  
+  [HttpGet("v1/config/default")]
   
   [HttpGet("config/default")]
   [Authorize]
@@ -144,9 +471,11 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Post expo push tokens for a specific user & device 
+  /// Post expo push tokens for a specific user and device
   /// </summary>
   /// <param name="deviceToken"></param>
+  [HttpPost("v1/devices")]
+  [HttpPost("v1/device")]
   [HttpPost("device")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -162,6 +491,8 @@ public class StreamyfinController : ControllerBase
   /// Delete expo push tokens for a specific device 
   /// </summary>
   /// <param name="deviceId"></param>
+  [HttpDelete("v1/devices/{deviceId}")]
+  [HttpDelete("v1/device/{deviceId}")]
   [HttpDelete("device/{deviceId}")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
@@ -176,12 +507,21 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Forward notifications to expos push service using persisted device tokens
+  /// Forward notifications to Expo's push service using the persisted device tokens.
   /// </summary>
-  /// <param name="notifications"></param>
-  /// <returns></returns>
+  /// <param name="notifications">What to send, each with an optional target.</param>
+  /// <returns>Expo's answer, or 202 when there was nobody to send to.</returns>
+  /// <remarks>
+  /// Elevated. A notification with no target goes to every registered device, so with a
+  /// plain <c>Authorize</c> any account on the server could push to everyone. The app
+  /// never calls this route: it registers and removes its own device and nothing else.
+  /// The callers are administrators and integrations holding an API key, which Jellyfin
+  /// treats as an administrator, so the webhook senders keep working.
+  /// </remarks>
+  [HttpPost("v1/notifications")]
+  [HttpPost("v1/notification")]
   [HttpPost("notification")]
-  [Authorize]
+  [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
   public ActionResult PostNotifications([FromBody, Required] List<Notification> notifications)
@@ -273,4 +613,340 @@ public class StreamyfinController : ControllerBase
     task.Wait();
     return new JsonResult(_serializationHelperService.ToJson(task.Result));
   }
+
+  // region Settings groups
+  //
+  // The three targeting levels of P1: what the server declares for everyone, the
+  // groups an administrator defines, and anything aimed at one user. Everything
+  // that writes is elevation only. The one route that reads is the caller's own
+  // resolved set.
+
+  private const string UserIdClaim = "Jellyfin-UserId";
+  private const string IsApiKeyClaim = "Jellyfin-IsApiKey";
+
+  private static string Because(Exception thrown)
+  {
+    var said = thrown.Message;
+
+    for (var inner = thrown.InnerException; inner is not null; inner = inner.InnerException)
+    {
+      said += " " + inner.Message;
+    }
+
+    return said;
+  }
+
+  private Guid CallerId =>
+    Guid.TryParse(User?.FindFirst(UserIdClaim)?.Value, out var id) ? id : Guid.Empty;
+
+  // An API key is granted by an administrator and carries no user, which is why
+  // Jellyfin's own RequiresElevation accepts one. Treated the same here, or the
+  // routes an admin can call with their account would answer differently to the
+  // key they created for a script.
+  private bool CallerIsApiKey =>
+    bool.TryParse(User?.FindFirst(IsApiKeyClaim)?.Value, out var isApiKey) && isApiKey;
+
+  private SettingsResolutionService Resolution =>
+    new(_serializationHelperService, _loggerFactory.CreateLogger<SettingsResolutionService>());
+
+  /// <summary>
+  /// Lists the settings groups.
+  /// </summary>
+  /// <returns>The groups, least specific first, each with its members.</returns>
+  [HttpGet("v1/groups")]
+  [HttpGet("groups")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<List<SettingsGroupDto>> GetSettingsGroups()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return GroupsWithMembers().ToList();
+  }
+
+  /// <summary>
+  /// Creates a settings group.
+  /// </summary>
+  /// <param name="request">The group to create. Its id is ignored.</param>
+  /// <returns>The created group.</returns>
+  [HttpPost("v1/groups")]
+  [HttpPost("groups")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public ActionResult<SettingsGroupDto> CreateSettingsGroup([FromBody, Required] SettingsGroupDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+      return BadRequest("A group needs a name");
+    }
+
+    if (SettingsValidation.Check(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    var stored = database.SaveSettingsGroup(new SettingsGroup
+    {
+      Id = Guid.Empty,
+      Name = request.Name,
+      Priority = request.Priority,
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+    });
+
+    database.SetGroupMembers(stored.Id, request.UserIds);
+
+    return ToDto(stored, database.GetGroupMembers(stored.Id));
+  }
+
+  /// <summary>
+  /// Updates a settings group.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <param name="request">What it should become. Members are left alone.</param>
+  /// <returns>The updated group.</returns>
+  [HttpPut("v1/groups/{id}")]
+  [HttpPut("groups/{id}")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public ActionResult<SettingsGroupDto> UpdateSettingsGroup(
+    [FromRoute, Required] Guid id,
+    [FromBody, Required] SettingsGroupDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+      return BadRequest("A group needs a name");
+    }
+
+    if (SettingsValidation.Check(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    if (database.GetSettingsGroup(id) is null)
+    {
+      return NotFound();
+    }
+
+    var stored = database.SaveSettingsGroup(new SettingsGroup
+    {
+      Id = id,
+      Name = request.Name,
+      Priority = request.Priority,
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+    });
+
+    return ToDto(stored, database.GetGroupMembers(id));
+  }
+
+  /// <summary>
+  /// Deletes a settings group and everyone's membership of it.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <returns>No content.</returns>
+  [HttpDelete("v1/groups/{id}")]
+  [HttpDelete("groups/{id}")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public ActionResult DeleteSettingsGroup([FromRoute, Required] Guid id)
+  {
+    StreamyfinPlugin.Instance!.Database.RemoveSettingsGroup(id);
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Replaces the membership of a group.
+  /// </summary>
+  /// <param name="id">The group id.</param>
+  /// <param name="request">Who should be in it afterwards.</param>
+  /// <returns>The group, with its new members.</returns>
+  [HttpPut("v1/groups/{id}/members")]
+  [HttpPut("groups/{id}/members")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public ActionResult<SettingsGroupDto> SetSettingsGroupMembers(
+    [FromRoute, Required] Guid id,
+    [FromBody, Required] SettingsGroupMembersDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    var database = StreamyfinPlugin.Instance!.Database;
+    var group = database.GetSettingsGroup(id);
+
+    if (group is null)
+    {
+      return NotFound();
+    }
+
+    database.SetGroupMembers(id, request.UserIds);
+    return ToDto(group, database.GetGroupMembers(id));
+  }
+
+  /// <summary>
+  /// The settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <returns>The settings, in an object that carries none when the user has no override.</returns>
+  /// <remarks>
+  /// Always a JSON object and never an empty body: a user with no override answers with
+  /// the settings simply absent. That is what lets the targeting screen read every answer
+  /// the same way instead of special casing one of them.
+  ///
+  /// <para>
+  /// The only one of the targeting routes with no unversioned shim, because it is the
+  /// only one that was never served: P1.2 gave this level a write and a delete and no
+  /// read, which left the targeting screen nothing to open an existing override with.
+  /// Read through the same tolerant path the resolution uses, so an override whose JSON
+  /// cannot be read still answers rather than failing, and an administrator can see it
+  /// to repair it.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<UserSettingsOverrideDto> GetUserSettingsOverride([FromRoute, Required] Guid userId)
+  {
+    var stored = StreamyfinPlugin.Instance!.Database.GetUserSettingsOverride(userId);
+
+    return new UserSettingsOverrideDto
+    {
+      Settings = stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {userId}")
+    };
+  }
+
+  /// <summary>
+  /// Sets the settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <param name="request">The settings. Send an empty body to clear them.</param>
+  /// <returns>No content.</returns>
+  [HttpPut("v1/users/{userId}/settings")]
+  [HttpPut("users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public ActionResult SetUserSettingsOverride(
+    [FromRoute, Required] Guid userId,
+    [FromBody, Required] UserSettingsOverrideDto request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    if (request.Settings is null)
+    {
+      database.RemoveUserSettingsOverride(userId);
+      return NoContent();
+    }
+
+    if (SettingsValidation.Check(request.Settings) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    database.SaveUserSettingsOverride(userId, _serializationHelperService.SerializeToJson(request.Settings));
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Clears the settings targeted at one user.
+  /// </summary>
+  /// <param name="userId">The Jellyfin user id.</param>
+  /// <returns>No content.</returns>
+  [HttpDelete("v1/users/{userId}/settings")]
+  [HttpDelete("users/{userId}/settings")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public ActionResult ClearUserSettingsOverride([FromRoute, Required] Guid userId)
+  {
+    StreamyfinPlugin.Instance!.Database.RemoveUserSettingsOverride(userId);
+    return NoContent();
+  }
+
+  /// <summary>
+  /// The settings the calling user actually gets, with the three levels resolved.
+  /// </summary>
+  /// <returns>The resolved settings.</returns>
+  /// <remarks>
+  /// Credentials are stripped unless the caller administers the server. That is not
+  /// P1.4, which is about retiring the behaviour of <c>GET config</c> and dealing
+  /// with what the app does about it. It is this route not being a second way to
+  /// read the Seerr key.
+  ///
+  /// <para>
+  /// A caller authenticating with an API key has no user, so there is nothing to
+  /// resolve beyond what the server declares for everyone. The key is granted by an
+  /// administrator, and Jellyfin's own elevation policy accepts one, so it is treated
+  /// as elevated here too rather than as an anonymous caller.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/config/resolved")]
+  [HttpGet("config/resolved")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult GetResolvedSettings()
+  {
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    var resolved = Resolution.Resolve(
+      StreamyfinPlugin.Instance!.Settings.Current.settings,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId));
+
+    if (!CallerIsApiKey && !_userManager.IsAdministrator(callerId))
+    {
+      resolved = SettingsResolver.Redact(resolved);
+    }
+
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(resolved));
+  }
+
+  // Through the same tolerant read the resolution uses. Nothing validates the JSON
+  // on the way in, and a group whose settings cannot be read has to still appear in
+  // the list, or an administrator cannot see it to repair it.
+  /// <summary>
+  /// The configuration the caller is allowed to see, with their levels resolved.
+  /// </summary>
+  /// <returns>The configuration.</returns>
+  private Configuration.Config ConfigForCaller()
+  {
+    var callerId = CallerId;
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return Resolution.ForCaller(
+      StreamyfinPlugin.Instance!.Settings.Current,
+      database.GetGroupsForUser(callerId),
+      database.GetUserSettingsOverride(callerId),
+      CallerIsApiKey || _userManager.IsAdministrator(callerId));
+  }
+
+  private IEnumerable<SettingsGroupDto> GroupsWithMembers()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return database.GetSettingsGroups().Select(group => ToDto(group, database.GetGroupMembers(group.Id)));
+  }
+
+  private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()
+  {
+    Id = group.Id,
+    Name = group.Name,
+    Priority = group.Priority,
+    Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Id}"),
+    UserIds = members
+  };
+
+  // endregion Settings groups
 }

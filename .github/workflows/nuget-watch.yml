@@ -1,0 +1,96 @@
+name: Watch for a new Jellyfin line
+
+# The 12.0 packages appeared on NuGet before anyone here noticed, and the plugin spent
+# three days compiling against a release candidate that had been superseded. This looks
+# once a day and opens an issue the first time a version the build does not know about
+# is published. It reads a public API and touches nothing else.
+on:
+  schedule:
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-watch
+  cancel-in-progress: true
+
+jobs:
+  look:
+    name: Jellyfin.Controller on NuGet
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Compare what is published against what is built
+        id: look
+        run: |
+          set -euo pipefail
+
+          # What this repository builds against, read from the file that decides it
+          # rather than from a list kept here, which would drift the day a target moves.
+          known=$(grep -o '<JellyfinVersion>[^<]*</JellyfinVersion>' Directory.Build.props \
+            | sed 's/<[^>]*>//g' | cut -d. -f1 | sort -u | tr '\n' ' ')
+          echo "Built against major versions: $known"
+
+          published=$(curl -fsS https://api.nuget.org/v3-flatcontainer/jellyfin.controller/index.json \
+            | jq -r '.versions[]' | cut -d. -f1 | sort -un | tr '\n' ' ')
+          echo "Published major versions: $published"
+
+          new=""
+          for major in $published; do
+            case " $known " in
+              *" $major "*) ;;
+              *) new="$new $major" ;;
+            esac
+          done
+
+          # A major older than everything built here is a line that was dropped on
+          # purpose, not news. Only something newer than the newest is.
+          newest_known=$(echo $known | tr ' ' '\n' | sort -n | tail -1)
+          worth=""
+          for major in $new; do
+            if [ "$major" -gt "$newest_known" ]; then worth="$worth $major"; fi
+          done
+
+          echo "worth=$(echo $worth | xargs)" >> "$GITHUB_OUTPUT"
+
+      - name: Say so, once
+        if: steps.look.outputs.worth != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          WORTH: ${{ steps.look.outputs.worth }}
+        with:
+          script: |
+            const majors = process.env.WORTH.trim().split(/\s+/);
+            const title = `Jellyfin ${majors.join(' and ')} packages are on NuGet`;
+
+            // One issue per line, reopened rather than duplicated: this runs every day.
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} in:title "${title}" type:issue`,
+            });
+            if (existing.data.total_count > 0) {
+              core.info(`Already said: #${existing.data.items[0].number}`);
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['dependencies'],
+              body: [
+                `\`Jellyfin.Controller\` now publishes ${majors.length > 1 ? 'versions' : 'a version'} this repository does not build against: **${majors.join(', ')}**.`,
+                '',
+                'Adding a target is four steps, written down in',
+                '[`Jellyfin.Plugin.Streamyfin/Compat/README.md`](../blob/develop/Jellyfin.Plugin.Streamyfin/Compat/README.md#adding-a-jellyfin-line-when-the-time-comes),',
+                'along with the two things that are worth checking before assuming a target is only a version number.',
+                '',
+                'Opened automatically by `nuget-watch.yml`. Closing it is the right answer if the line is not one this plugin will follow.',
+              ].join('\n'),
+            });

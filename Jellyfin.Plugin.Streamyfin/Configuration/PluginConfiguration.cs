@@ -15,17 +15,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration;
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
 {
-  //public string Yaml { get; set; }
   public Config Config { get; set; }
-  private readonly SerializationHelper _serializationHelper;
-
-  public PluginConfiguration(
-    SerializationHelper serializationHelper
-  )
-  {
-    _serializationHelper = serializationHelper;
-  }
-
 
   public PluginConfiguration()
   {
@@ -62,21 +52,65 @@ public class PluginConfiguration : BasePluginConfiguration
   public static Settings.Settings DefaultSettings() => new()
   {
     forwardSkipTime = new() { value = 30 },
-    rewindSkipTime = new() { value = 15 },
-    rememberAudioSelections = new() { value = false },
+    rewindSkipTime = new() { value = 10 },
+    rememberAudioSelections = new() { value = true },
     subtitleMode = new() { value = SubtitlePlaybackMode.Default },
-    rememberSubtitleSelections = new() { value = false },
-    subtitleSize = new() { value = 80 },
+    rememberSubtitleSelections = new() { value = true },
+    subtitlesOnMute = new() { value = true },
+    subtitlesOnMuteAllowRestart = new() { value = false },
+    subtitleSize = new() { value = 100 },
+    subtitleFont = new() { value = "System" },
+    subtitleColor = new() { value = "#FFFFFF" },
+    subtitleBackground = new() { value = false },
+    subtitleBackgroundOpacity = new() { value = 60 },
+    subtitleBackgroundPadding = new() { value = 8 },
+    subtitleMarginY = new() { value = 25 },
+    subtitleAlignX = new() { value = SubtitleAlignX.Center },
+    subtitleAlignY = new() { value = SubtitleAlignY.Bottom },
     defaultVideoOrientation = new() { value = OrientationLock.Default },
     safeAreaInControlsEnabled = new() { value = true },
     showCustomMenuLinks = new() { value = false },
-    hiddenLibraries = new() { value = new[] { "Enter library id(s)" } },
+    showHomeTitles = new() { value = true },
+    showHomeBackdrop = new() { value = true },
+    showHeroCarousel = new() { value = true },
+    hiddenHomeHeroSections = new() { value = [] },
+    hiddenHomeHeroMediaTypes = new() { value = [] },
+    mergeNextUpAndContinueWatching = new() { value = false },
+    useEpisodeImagesForNextUp = new() { value = false },
+    showSeriesPosterOnEpisode = new() { value = false },
+    usePopularPlugin = new() { value = true },
+    wikidataAwardsEnabled = new() { value = true },
+    openSubtitlesEnabled = new() { value = true },
+    autoLoginJellyseerr = new() { value = true },
+    mediaListCollectionIds = new() { value = [] },
+    showDownloadLiveActivity = new() { value = true },
+    enableH265ForChromecast = new() { value = false },
+    mpvCacheEnabled = new() { value = MpvCacheMode.Auto },
+    mpvCacheSeconds = new() { value = 10 },
+    mpvVoDriver = new() { value = MpvVoDriver.GpuNext },
+    deviceProfile = new() { value = DeviceProfile.Expo },
+    sentryEnabled = new() { value = true },
+    hiddenLibraries = new() { value = [] },
     disableHapticFeedback = new() { value = false },
+    enableDoubleTapToSeek = new() { value = false },
+    enableHoldToSpeed = new() { value = true },
+    holdToSpeedRate = new() { value = 2.0 },
+    enablePinchToZoom = new() { value = true },
+    showResumeDialog = new() { value = false },
+    autoPlayEpisodeCount = new() { value = 0 },
+    playDefaultAudioTrack = new() { value = true },
+    audioTranscodeMode = new() { value = AudioTranscodeMode.Auto },
     defaultBitrate = new() { value = null },
-    jellyseerrServerUrl = new() { value = "Enter jellyseerr server url" },
+    jellyseerrServerUrl = new() { value = "" },
     searchEngine = new() { value = SearchEngine.Jellyfin },
-    marlinServerUrl = new() { value = "Enter Marlin server URL" },
+    marlinServerUrl = new() { value = "" },
     libraryOptions = new() { value = new LibraryOptions() },
+    tvTypographyScale = new() { value = TVTypographyScale.Default },
+    tvThemeMusicEnabled = new() { value = true },
+    hideRemoteSessionButton = new() { value = false },
+    inactivityTimeout = new() { value = InactivityTimeout.Disabled },
+    nativeVideoPlayerTV = new() { value = true },
+    nativeVideoPlayerAndroidTV = new() { value = false },
     home = new()
     {
       value = new Home

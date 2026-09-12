@@ -48,11 +48,12 @@ public class SessionStartEvent(
             }
         ];
 
-        _notificationHelper
-            .SendToAdmins(
+        SendDetached(
+            _notificationHelper.SendToAdmins(
                 excludedUserIds: [eventArgs.Argument.UserId],
                 notifications: notifications
-            );
+            ),
+            "session started");
     }
 
     /// <inheritdoc />

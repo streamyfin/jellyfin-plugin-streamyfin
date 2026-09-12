@@ -52,9 +52,29 @@ function applyBump([major, minor, patch], bump) {
   return [major, minor, patch + 1, 0];
 }
 
-const tag = lastVersionTag();
-const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
-const next = applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
+// An explicit version wins over the computed one. The conventional commit rule answers
+// "what does this change deserve", which is the right answer for a routine release and
+// the wrong one when a release is a decision: the rewrite is a minor bump by the rule
+// and a bigger number by intent, and there is no commit subject that says 0.70 without
+// also claiming a breaking change.
+function chosen() {
+  const explicit = (process.env.RELEASE_VERSION || '').trim();
+  if (!explicit) return null;
+  if (!VERSION_TAG_RE.test(explicit)) {
+    throw new Error(`RELEASE_VERSION is not a version: ${explicit}`);
+  }
+  return parseVersion(explicit);
+}
+
+function computed() {
+  const tag = lastVersionTag();
+  const current = tag ? parseVersion(tag) : [0, 0, 0, 0];
+  return applyBump(current, tag ? determineBump(commitsSince(tag)) : 'minor');
+}
+
+// One write and one exit path, and no process.exit: on a pipe, which is how the release
+// workflow reads this, exiting can cut a write that has not flushed.
+const next = chosen() ?? computed();
 
 if (next.some((n) => !Number.isInteger(n) || n < 0)) {
   throw new Error(`Computed invalid version: ${next.join('.')}`);

@@ -1,0 +1,76 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-controller="__plugin/Targeting.js">
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
+
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Targeting</h1>
+            <span class="sf-meta" id="sf-meta"></span>
+            <button type="button" class="sf-toggle" id="sf-terse" aria-pressed="true">Descriptions <span class="sf-pip">ON</span></button>
+            <label class="sf-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <input class="sf-find" id="sf-find" type="search" placeholder="Search this level's overrides" aria-label="Search this level's overrides" autocomplete="off">
+            </label>
+        </div>
+
+        <div class="sf-scope" id="sf-scope" role="tablist" aria-label="Which users these settings reach">
+            <span class="sf-scope-label">Applies to</span>
+            <a class="sf-lv" id="sf-everyone" href="#/configurationpage?name=Application">Everyone</a>
+            <span class="sf-arrow" aria-hidden="true">&rsaquo;</span>
+            <span id="sf-groups"></span>
+            <button type="button" class="sf-lv sf-lv--add" id="sf-new">+ Group</button>
+            <span class="sf-arrow" aria-hidden="true">&rsaquo;</span>
+            <span class="sf-lv sf-lv--user">One user
+                <select id="sf-user" aria-label="Settings for one user"></select>
+            </span>
+        </div>
+
+        <div class="sf-status" id="sf-status">Loading the groups…</div>
+
+        <div class="sf-grid sf-grid--one" id="sf-level" hidden>
+            <section class="sf-card" id="sf-level-card">
+                <header><h2 id="sf-level-title">The group</h2></header>
+                <div class="sf-body">
+                    <div class="sf-level" id="sf-group-fields">
+                        <label>Name <input class="sf-text" id="sf-group-name" type="text" autocomplete="off" aria-label="Group name"></label>
+                        <label>Priority <input class="sf-number" id="sf-group-priority" type="number" step="1" aria-label="Priority"></label>
+                    </div>
+                    <p class="sf-desc" id="sf-level-help">When a user is in more than one group, the higher priority wins.</p>
+                    <details class="sf-people" id="sf-people">
+                        <summary><span id="sf-members-count">No members</span></summary>
+                        <input class="sf-text sf-member-find" id="sf-member-find" type="search" placeholder="Find a user" aria-label="Find a user" autocomplete="off">
+                        <div class="sf-members" id="sf-members"></div>
+                    </details>
+                    <div class="sf-foot">
+                        <button type="button" class="sf-danger" id="sf-delete">Delete this group</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sf-card">
+                <header><h2>Current overrides</h2><span class="sf-count" id="sf-overrides-count">0 of 0</span></header>
+                <div class="sf-body">
+                    <div id="sf-editor"></div>
+                    <div class="sf-blank" id="sf-blank" hidden>
+                        <b>This level changes nothing yet</b>
+                        <p>Its users get what everyone gets. Add an override to change a setting for them, and for nobody else.</p>
+                    </div>
+                    <div class="sf-adder">
+                        <select class="sf-select" id="sf-add" aria-label="Setting to override"></select>
+                        <button type="button" class="sf-btn" id="sf-add-go">Add an override</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="sf-dock is-clean" id="sf-dock" hidden>
+            <span class="sf-dock-text"><span class="sf-dot"></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn sf-find-problem" id="sf-find-problem" hidden>Show me</button>
+            <button type="button" class="sf-btn" id="sf-discard" disabled>Discard</button>
+            <button type="button" class="sf-btn sf-btn--primary" id="sf-save" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
+            </button>
+        </div>
+    </div>
+</div>

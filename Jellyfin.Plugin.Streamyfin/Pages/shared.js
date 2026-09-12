@@ -4,6 +4,54 @@ export const DEFAULT_URL = window.ApiClient.getUrl('streamyfin/config/default');
 export const NOTIFICATION_URL = window.ApiClient.getUrl('streamyfin/notification');
 export const tools = {jsYaml: undefined};
 
+// Asking the server to try an address, for whichever page drew the button. Here rather
+// than in each page because both tabs draw the same form from the same description, and
+// a third hand rolled ApiClient wrapper is a third place to forget when this changes.
+// Asking before something that cannot be undone. Jellyfin's own dialog when the
+// dashboard offers one, the browser's otherwise, and a refusal on anything unexpected
+// so a broken dialog never reads as a yes.
+export const confirmed = (message) => {
+    if (window.Dashboard?.confirm) {
+        return Promise.resolve(window.Dashboard.confirm(message, "Streamyfin")).then(
+            (answer) => answer !== false,
+            () => false);
+    }
+
+    return Promise.resolve(window.confirm(message));
+};
+
+// The dock's way out of a page that opens already refusing to save. Here rather than in
+// each page because both tabs draw the same form and the same dock, and writing it twice
+// is what let one copy leak a listener per tab switch.
+export const wireFindProblem = (button, form, signal, goTo) => {
+    if (!button) return;
+
+    button.addEventListener(
+        "click",
+        () => {
+            const found = form()?.firstProblem();
+            if (found) goTo(found);
+        },
+        signal ? { signal } : undefined);
+};
+
+export const probeIntegration = (kind, address) =>
+    window.ApiClient.ajax({
+        type: "POST",
+        url: window.ApiClient.getUrl("streamyfin/v1/integrations/probe"),
+        contentType: "application/json",
+        data: JSON.stringify({ kind, url: address }),
+    }).then((response) => response.json())
+        // ApiClient rejects with the Response itself, not with something wrapping one.
+        // The route refuses some requests with a sentence of its own, and losing it
+        // behind "the server could not be asked" hides which of several things to fix.
+        .catch(async (rejected) => {
+            const response = typeof rejected?.text === "function" ? rejected : rejected?.response;
+            const body = await response?.text?.().catch(() => null);
+            const error = rejected instanceof Error ? rejected : new Error("probe failed");
+            throw Object.assign(error, { body, status: response?.status });
+        });
+
 // region private variables
 let schema = undefined;
 let config = undefined;
@@ -64,32 +112,39 @@ export const setPage = (resource) => {
     LibraryMenu.setTabs(tabs[index].resource, index, StreamyfinTabs)
 }
 
+// Resolves to true once the server has stored the configuration, and to false when it
+// refused it or the request failed, so a page can keep its unsaved state on a refusal.
 export const saveConfig = () => {
     Dashboard.showLoadingMsg();
     
-    if (config) {
-        //todo: potentially just keep it as json? we only need to convert only for editor reasons
-        // convert config back to yaml 
-        const data = JSON.stringify({
-            Value: tools.jsYaml.dump(config),
-        });
-    
-        window.ApiClient.ajax({type: 'POST', url: YAML_URL, data, contentType: 'application/json'})
-            .then(async (response) => {
-                const {Error, Message} = await response.json();
-    
-                if (Error) {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert(Message);
-                    return;
-                } 
-    
-                Dashboard.processPluginConfigurationUpdateResult();
-            })
-            .catch((error) => console.error(error))
-            .finally(Dashboard.hideLoadingMsg);
+    if (!config) {
+        Dashboard.hideLoadingMsg();
+        return Promise.resolve(false);
     }
 
+    //todo: potentially just keep it as json? we only need to convert only for editor reasons
+    // convert config back to yaml 
+    const data = JSON.stringify({
+        Value: tools.jsYaml.dump(config),
+    });
+
+    return window.ApiClient.ajax({type: 'POST', url: YAML_URL, data, contentType: 'application/json'})
+        .then(async (response) => {
+            const {Error, Message} = await response.json();
+
+            if (Error) {
+                Dashboard.alert(Message);
+                return false;
+            } 
+
+            Dashboard.processPluginConfigurationUpdateResult();
+            return true;
+        })
+        .catch((error) => {
+            console.error(error);
+            return false;
+        })
+        .finally(Dashboard.hideLoadingMsg);
 }
 
 export const getElValue = (el) => {
@@ -155,6 +210,11 @@ export const StreamyfinTabs = () => [
         name: "Application"
     },
     {
+        href: "configurationpage?name=Targeting",
+        resource: "Targeting",
+        name: "Targeting"
+    },
+    {
         href: "configurationpage?name=Notifications",
         resource: "Notifications",
         name: "Notifications"
@@ -177,8 +237,10 @@ if (!window.Streamyfin?.shared) {
     await import(window.ApiClient.getUrl("web/configurationpage?name=js-yaml.js")).then(async (jsYaml) => {
         tools.jsYaml = jsYaml;
         
-        //fetch default configuration
-        window.ApiClient.ajax({type: 'GET', url: DEFAULT_URL, contentType: 'application/json'})
+        // The default configuration is awaited with the rest, so a page that imports this
+        // module can read getDefaultConfig() as soon as the import resolves. The Application
+        // page shows a free setting's default from it.
+        await window.ApiClient.ajax({type: 'GET', url: DEFAULT_URL, contentType: 'application/json'})
             .then(async function (response) {
                 const {Value} = await response.json();
                 defaultConfig = jsYaml.load(Value)

@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  auto_review:
+    # The default branch is always included. The rewrite lands on develop, and
+    # stacked pull requests target the branch below them, so both need to be
+    # listed or CodeRabbit skips every pull request in the stack.
+    base_branches:
+      - "develop"
+      - "refonte/.*"
+  path_instructions:
+    - path: "Jellyfin.Plugin.Streamyfin/Configuration/Settings/Settings.cs"
+      instructions: |
+        A property here is a setting the Streamyfin app reads. Three rules, all
+        enforced by SettingsParityTests, so say which one a change breaks:
+
+        1. The property name is the app's key in utils/atoms/settings.ts,
+           character for character. Pull request #109 shipped
+           autoSubtitlesOnMute while the app read subtitlesOnMute, so two keys
+           nothing reads went out and the lock they existed to enable did
+           nothing.
+        2. A default in PluginConfiguration.DefaultSettings() equals the app's
+           own. An unlocked value is applied once as a default, so a
+           disagreement silently flips the setting for every user who has not
+           already chosen one. Help text is not a default: three settings once
+           shipped "Enter jellyseerr server url" and the like as their value.
+        3. A setting whose app default varies by platform gets no default at
+           all. Two do today, mpvDemuxerMaxBytes and mpvDemuxerMaxBackBytes.
+
+        A new property also needs a row in AppSettingsManifest.json and an entry
+        in examples/full.yml, which claims to list every setting. A property
+        holding a credential needs [Secret], and the pinned set in
+        SettingsSchemaTests updated with it.

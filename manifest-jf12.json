@@ -1,0 +1,12 @@
+[
+    {
+        "guid": "1e9e5d38-6e67-4615-8719-e98a5c34f004",
+        "name": "Streamyfin",
+        "overview": "",
+        "description": "",
+        "owner": "streamyfin",
+        "category": "General",
+        "imageUrl": "https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/logo.png",
+        "versions": []
+    }
+]

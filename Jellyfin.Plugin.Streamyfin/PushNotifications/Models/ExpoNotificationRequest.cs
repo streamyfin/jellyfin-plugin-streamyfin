@@ -14,7 +14,7 @@ public class ExpoNotificationRequest
     /// An array of Expo push tokens specifying the recipient(s) of this message.
     /// </summary>
     [JsonProperty("to", DefaultValueHandling = DefaultValueHandling.Ignore)]
-    public List<string> To { get; set; }
+    public List<string> To { get; set; } = [];
 
     /// <summary>
     /// iOS Only
@@ -48,7 +48,7 @@ public class ExpoNotificationRequest
     /// Maps to AndroidNotification.body and aps.alert.body.
     /// </summary>
     [JsonProperty(PropertyName = "body")]
-    public string Body { get; set; }
+    public string? Body { get; set; }
 
     /// <summary>
     /// The number of seconds for which the message may be kept around for redelivery if it hasn't been delivered yet.
@@ -132,4 +132,34 @@ public class ExpoNotificationRequest
     /// </summary>
     [JsonProperty(PropertyName = "mutableContent")]
     public bool MutableContent { get; set; }
+
+    /// <summary>
+    /// The same message, addressed to some of its recipients.
+    /// </summary>
+    /// <param name="recipients">Who this copy is for.</param>
+    /// <returns>A copy carrying every other field unchanged.</returns>
+    /// <remarks>
+    /// A shallow copy rather than a field by field one, so a message gains a field
+    /// without this quietly dropping it from every split send. Expo takes a hundred
+    /// recipients per request and a server can have more devices than that.
+    /// </remarks>
+    public ExpoNotificationRequest WithRecipients(List<string> recipients)
+    {
+        var copy = (ExpoNotificationRequest)MemberwiseClone();
+        copy.To = recipients;
+        return copy;
+    }
+}
+
+/// <summary>
+/// Asking Expo for the receipts of tickets it handed back earlier.
+/// see: https://exp.host/--/api/v2/push/getReceipts
+/// </summary>
+public class ExpoReceiptRequest
+{
+    /// <summary>
+    /// Gets or sets the ticket ids to ask about. Expo takes a thousand per request.
+    /// </summary>
+    [JsonProperty("ids")]
+    public List<string> Ids { get; set; } = [];
 }

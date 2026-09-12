@@ -1,0 +1,13 @@
+<Project>
+
+  <!--
+    A typo in -p:JellyfinTarget leaves TargetFramework empty, and MSBuild then
+    fails deep in restore with an error that says nothing about the real cause.
+    Fail here instead, with the accepted values.
+  -->
+  <Target Name="ValidateJellyfinTarget" BeforeTargets="PrepareForBuild;Restore">
+    <Error Condition="'$(JellyfinTarget)' != 'jf11' AND '$(JellyfinTarget)' != 'jf12'"
+           Text="Unknown JellyfinTarget '$(JellyfinTarget)'. Use jf11 (Jellyfin 10.11, .NET 9) or jf12 (Jellyfin 12, .NET 10)." />
+  </Target>
+
+</Project>

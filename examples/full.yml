@@ -16,7 +16,7 @@ settings:
   
   rewindSkipTime:
     locked: false
-    value: 15  # Seconds to skip backward (0-60)
+    value: 10  # Seconds to skip backward (0-60)
   
   defaultBitrate:
     locked: false
@@ -51,7 +51,7 @@ settings:
   # ==================== Audio Settings ====================
   rememberAudioSelections:
     locked: false
-    value: false  # Remember audio language from previous playback
+    value: true  # Remember audio language from previous playback
 
   # ==================== Subtitle Settings ====================
   subtitleMode:
@@ -60,16 +60,70 @@ settings:
   
   rememberSubtitleSelections:
     locked: false
-    value: false  # Remember subtitle language from previous playback
+    value: true  # Remember subtitle language from previous playback
+  
+  subtitlesOnMute:
+    locked: false
+    value: true  # Turn subtitles on automatically while the sound is off
+  
+  subtitlesOnMuteAllowRestart:
+    locked: false
+    value: false  # Allow subtitle formats that need the server to re-process the stream
   
   subtitleSize:
     locked: false
-    value: 80  # Subtitle size percentage (0-120)
+    value: 100  # Subtitle size percentage (0-120)
+  
+  # No default is shipped for either. The app follows what the server or the media
+  # offers until the user picks a language, so setting one chooses for everyone.
+  defaultAudioLanguage:
+    locked: false
+    value:
+      ThreeLetterISOLanguageName: fra
+      DisplayName: French
+  
+  defaultSubtitleLanguage:
+    locked: false
+    value:
+      ThreeLetterISOLanguageName: fra
+      DisplayName: French
+  
+  subtitleFont:
+    locked: false
+    value: System  # Font family used to render subtitles
+  
+  subtitleColor:
+    locked: false
+    value: "#FFFFFF"  # Subtitle text colour
+  
+  subtitleBackground:
+    locked: false
+    value: false  # Draw a box behind the subtitles
+  
+  subtitleBackgroundOpacity:
+    locked: false
+    value: 60  # 0 to 100
+  
+  subtitleBackgroundPadding:
+    locked: false
+    value: 8
+  
+  subtitleMarginY:
+    locked: false
+    value: 25  # Distance from the edge of the video
+  
+  subtitleAlignX:
+    locked: false
+    value: center  # left, center or right
+  
+  subtitleAlignY:
+    locked: false
+    value: bottom  # top, center or bottom
 
   # ==================== Video Orientation ====================
   defaultVideoOrientation:
     locked: false
-    value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
+    value: Default  # Options: Default, PortraitUp, Landscape, LandscapeLeft, LandscapeRight
 
   # ==================== UI & Controls ====================
   safeAreaInControlsEnabled:
@@ -104,12 +158,45 @@ settings:
   hideBrightnessSlider:
     locked: false
     value: false  # Hide the brightness slider in the video controls
+  
+  enableDoubleTapToSeek:
+    locked: false
+    value: false
+  
+  enableHoldToSpeed:
+    locked: false
+    value: true
+  
+  holdToSpeedRate:
+    locked: false
+    value: 2.0  # Speed multiplier while the screen is held
+  
+  enablePinchToZoom:
+    locked: false
+    value: true
+  
+  showResumeDialog:
+    locked: false
+    value: false  # Ask resume or start over
+  
+  autoPlayEpisodeCount:
+    locked: false
+    value: 0
+  
+  playDefaultAudioTrack:
+    locked: false
+    value: true
+  
+  audioTranscodeMode:
+    locked: false
+    value: auto  # auto, stereo, 5.1 or passthrough
+  # Hide the brightness slider in the video controls
 
   # ==================== Library Management ====================
   hiddenLibraries:
     locked: false
     value:
-      - "Enter library id(s)"  # Array of library IDs to hide from users
+      []  # Array of library IDs to hide from users
   
   libraryOptions:
     locked: false
@@ -125,7 +212,7 @@ settings:
   # Jellyseerr (Media Request Management)
   jellyseerrServerUrl:
     locked: false
-    value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
+    value: ""  # e.g., https://jellyseerr.example.com
   # Optional: Seerr admin API key (Seerr Settings > General). Lets Streamyfin
   # sign each user in to Seerr without a password (works with Quick Connect).
   # WARNING: every authenticated Jellyfin user can read this key and it grants
@@ -141,7 +228,7 @@ settings:
   
   marlinServerUrl:
     locked: false
-    value: "Enter Marlin server URL"  # e.g., https://marlin.example.com
+    value: ""  # e.g., https://marlin.example.com
   
   # Streamystats (Recommendations & Analytics)
   streamyStatsServerUrl:
@@ -169,6 +256,114 @@ settings:
     locked: false
     value: false  # Enable the KefinTweaks watchlist integration
 
+  usePopularPlugin:
+    locked: false
+    value: true  # Popular Lists plugin
+  
+  wikidataAwardsEnabled:
+    locked: false
+    value: true
+  
+  openSubtitlesEnabled:
+    locked: false
+    value: true
+  
+  autoLoginJellyseerr:
+    locked: false
+    value: true
+  
+  # No default is shipped. The app follows the device language until the user
+  # picks one, so setting this imposes a language on everyone who never chose.
+  preferedLanguage:
+    locked: false
+    value: en
+  
+  mediaListCollectionIds:
+    locked: false
+    value: []  # Collection ids
+  
+  showDownloadLiveActivity:
+    locked: false
+    value: true
+  
+  enableH265ForChromecast:
+    locked: false
+    value: false  # Only some Chromecast models decode HEVC
+
+  # ==================== Device-bound and consent ====================
+  # The five mpv settings and deviceProfile describe what a device can do rather
+  # than what a user prefers. Locking a value chosen for a phone also applies it
+  # to a TV box with less memory to spare.
+  mpvCacheEnabled:
+    locked: false
+    value: auto  # auto, yes or no
+  
+  mpvCacheSeconds:
+    locked: false
+    value: 10
+  
+  # No default is shipped. The app uses 150 MB on a phone and 75 MB on Android TV,
+  # so one number here applies to both.
+  mpvDemuxerMaxBytes:
+    locked: false
+    value: 150
+  
+  # No default is shipped. The app uses 50 MB on a phone and 30 MB on Android TV.
+  mpvDemuxerMaxBackBytes:
+    locked: false
+    value: 50
+  
+  mpvVoDriver:
+    locked: false
+    value: gpu-next  # gpu-next or gpu
+  
+  deviceProfile:
+    locked: false
+    value: Expo  # Expo, Native or Old
+  
+  # Turning crash reporting off for everyone is a policy. Turning it on takes a
+  # consent decision away from the user.
+  sentryEnabled:
+    locked: false
+    value: true
+  
+  # Overwrites the key a user entered themselves, which may be one they pay for.
+  openSubtitlesApiKey:
+    locked: false
+    value: ""
+
+  # ==================== TV and player ====================
+  tvTypographyScale:
+    locked: false
+    value: default  # small, default, large or extraLarge
+  
+  tvThemeMusicEnabled:
+    locked: false
+    value: true
+  
+  hideRemoteSessionButton:
+    locked: false
+    value: false
+  
+  inactivityTimeout:
+    locked: false
+    value: 0  # Milliseconds. 0 never signs out
+  
+  nativeVideoPlayerTV:
+    locked: false
+    value: true  # Apple TV
+  
+  nativeVideoPlayerAndroidTV:
+    locked: false
+    value: false
+  
+  # No default is shipped for this one. The app picks a player at runtime so an
+  # existing install keeps what it has been using. Set it only to decide for
+  # everyone, including devices that never chose.
+  videoPlayer:
+    locked: false
+    value: 0  # 0 mpv, 1 ExoPlayer (Android TV only), 2 native
+
   # ==================== Playback & Audio ====================
   autoPlayNextEpisode:
     locked: false
@@ -193,6 +388,39 @@ settings:
   audioMaxCacheSizeMB:
     locked: false
     value: 500  # Maximum disk space (MB) for audio look-ahead caching
+
+  # ==================== Home Screen Composition ====================
+  showHomeTitles:
+    locked: false
+    value: true  # Show the title under each card
+  
+  showHomeBackdrop:
+    locked: false
+    value: true
+  
+  showHeroCarousel:
+    locked: false
+    value: true  # The large rotating carousel at the top
+  
+  hiddenHomeHeroSections:
+    locked: false
+    value: []  # continueWatching, nextUp, recentlyAdded
+  
+  hiddenHomeHeroMediaTypes:
+    locked: false
+    value: []  # movie, tv
+  
+  mergeNextUpAndContinueWatching:
+    locked: false
+    value: false  # One row instead of two
+  
+  useEpisodeImagesForNextUp:
+    locked: false
+    value: false  # Episode image rather than series poster
+  
+  showSeriesPosterOnEpisode:
+    locked: false
+    value: false
 
   # ==================== Custom Home Screen ====================
   home:
@@ -221,6 +449,14 @@ settings:
               - DateCreated
             sortOrder:
               - Descending
+            # Jellyfin's own item kind names, not the words used in the UI.
+            # A collection is a BoxSet, a folder is a Folder, a music album is a
+            # MusicAlbum. Common values: Movie, Series, Season, Episode, BoxSet,
+            # Playlist, MusicAlbum, MusicArtist, Audio, Book, Photo, PhotoAlbum,
+            # LiveTvChannel, LiveTvProgram, Folder, CollectionFolder.
+            # A name that is not one of these is ignored rather than reported,
+            # so the section simply comes back with the wrong contents.
+            # The full list is served at GET /streamyfin/config/schema.
             includeItemTypes:
               - Series
               - Movie
