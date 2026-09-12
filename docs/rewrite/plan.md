@@ -170,7 +170,7 @@ states: locked, pushed once, unmanaged.
   written by hand was duplication. See
   [admin-ui-targeting.md](admin-ui-targeting.md)
 - **P3.4** JSON export and import
-- **P3.5** Decide between embedded pages and `jellyfin-plugin-pages`
+- **P3.5** Decide between embedded pages and `jellyfin-plugin-pages`. Settled: they stay embedded
 - **P3.6** Draw the form ourselves. Added after P3.3 was seen on the beta: json-editor's
   property picker never added a setting, its DOM could only be styled from the
   outside, and a `locked` box shows two states where the app has three. The server
@@ -178,12 +178,31 @@ states: locked, pushed once, unmanaged.
   json-editor is gone with the schema reshaping that existed for it. See
   [admin-ui-renderer.md](admin-ui-renderer.md)
 
-P3.5 is a real fork. Today the pages are HTML and JS embedded as resources in the
-DLL, 16 MB of it. `jellyfin-plugin-pages` and `jellyfin-plugin-custom-tabs` are
-both built on File Transformation, which lets a plugin change what jellyfin-web
-serves without touching its files. The call has to go through reflection, since
-every plugin lives in its own `AssemblyLoadContext`, which is a real cost to
-weigh against dropping the embedded page machinery.
+P3.4 carries more than the configuration. The targeting levels are the work, and
+they live in the plugin's own database rather than in Jellyfin's XML, so nothing a
+server administrator backs up today carries them. The file holds the credentials
+the configuration holds, because a backup that cannot restore a working server is
+not one, and the page says so before it hands it over.
+
+P3.5 is settled, and the measurement settled it. The pages stay embedded. What
+looked like a reason to move, the fifteen megabyte DLL, turned out to be Monaco
+rather than the pages: this plugin's own pages are 168 KB and the vendored editor
+and its three web workers are 14.8 MB. Moving to File Transformation would have
+moved the 168 KB and left the rest.
+
+What staying keeps: `IHasWebPages` is Jellyfin's own interface, it works on both
+lines this plugin targets, and it needs nothing installed beside it.
+`jellyfin-plugin-pages` and `jellyfin-plugin-custom-tabs` are built on File
+Transformation, which an administrator would have to install first, and reaching
+it means reflection across `AssemblyLoadContext` boundaries because every plugin
+loads into its own.
+
+The size is a separate question and it is Monaco: a code editor with a language
+server and completion, shipped so an administrator can edit the one part of the
+configuration the form does not draw. Once P3.2 gives the home sections an editor
+of their own the Yaml tab is a fallback, and fifteen megabytes for a fallback is
+the wrong shape. Worth revisiting then, against CodeMirror, which does the same
+job for about 200 KB.
 
 **Server side validation** is not a numbered sub part and landed alongside P3.6:
 `SettingsValidation` refuses a value outside the `[Bounds]` a setting declares, on the
@@ -327,7 +346,8 @@ Everything merged below is on `develop`, which reaches `main` through
 | P4.2 | [#143](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/143) | merged |
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
 | P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
-| P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160) | this |
+| P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160), simplified in [#161](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161) | merged |
+| P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged |
 

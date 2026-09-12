@@ -196,6 +196,174 @@ public class StreamyfinController : ControllerBase
     new JsonResult(SettingsForm.Describe());
 
   /// <summary>
+  /// Everything an administrator set, as one file.
+  /// </summary>
+  /// <returns>The backup.</returns>
+  /// <remarks>
+  /// The configuration alone is not the work. The targeting levels are, and they live
+  /// in the plugin's database rather than in Jellyfin's XML, so nothing a server
+  /// administrator backs up today carries them.
+  ///
+  /// <para>
+  /// It carries the credentials the configuration carries, because a backup that cannot
+  /// restore a working server is not one. Elevated, and the page says so before it
+  /// hands the file over.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/backup")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult GetBackup()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    // Through the plugin's own serializer, which is the one that reads it back. MVC
+    // writes an enum as its name and this reader expects the number it stores, so a
+    // backup taken through the route was a file the restore refused.
+    return new JsonStringResult(_serializationHelperService.SerializeToJson(new ConfigurationBackup
+    {
+      Plugin = StreamyfinPlugin.Instance!.Version.ToString(),
+      TakenAt = DateTimeOffset.UtcNow,
+      Config = StreamyfinPlugin.Instance!.Settings.Current,
+      Groups = [.. GroupsWithMembers()],
+      Users = [.. database.GetAllUserSettingsOverrides()
+        .Select(stored => new UserBackup
+        {
+          UserId = stored.UserId,
+          Settings = Resolution.ReadLevel(stored.SettingsJson, $"user {stored.UserId}")
+        })]
+    }));
+  }
+
+  /// <summary>
+  /// Puts a backup back, replacing what is there.
+  /// </summary>
+  /// <returns>What was restored, and what this server had never heard of.</returns>
+  /// <remarks>
+  /// Replaces rather than merges: half a restore is worse than none, and an
+  /// administrator reaching for a backup wants the server it came from.
+  ///
+  /// <para>
+  /// A file taken on another server names users this one does not have. Those are
+  /// skipped and counted rather than refusing the file, since the rest of it is still
+  /// the work.
+  /// </para>
+  /// </remarks>
+  [HttpPost("v1/backup")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [Consumes("application/json")]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<ActionResult<RestoreReport>> Restore()
+  {
+    // Read rather than bound. A setting is a required member on a Lockable, the
+    // serializer omits a null when it writes, and model validation then refuses a file
+    // this plugin produced itself: taking a backup and putting it straight back was a
+    // 400 about four notification fields. The plugin's own reader is the tolerant one.
+    ConfigurationBackup? backup;
+    try
+    {
+      using var reader = new System.IO.StreamReader(Request.Body);
+      backup = _serializationHelperService.DeserializeJson<ConfigurationBackup>(
+        await reader.ReadToEndAsync().ConfigureAwait(false));
+    }
+    catch (System.Text.Json.JsonException e)
+    {
+      return BadRequest(new RestoreReport { Problem = $"That file is not a backup this plugin can read. {e.Message}" });
+    }
+
+    if (backup is null || backup.Groups is null || backup.Users is null)
+    {
+      return BadRequest(new RestoreReport { Problem = "That file is not a backup this plugin can read." });
+    }
+
+    // Everything it carries is checked before anything is written, so a file with one
+    // bad level does not leave the server half restored.
+    foreach (var settings in Levels(backup))
+    {
+      if (SettingsValidation.Check(settings) is { } problem)
+      {
+        return BadRequest(new RestoreReport { Problem = problem });
+      }
+    }
+
+    // Checked before anything is written, and before anything is deleted.
+    if (backup.Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
+    {
+      return BadRequest(new RestoreReport { Problem = "Every group in a backup needs a name, and one of these has none." });
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+    var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
+    var report = new RestoreReport();
+
+    var groups = new List<(SettingsGroup Group, IReadOnlyList<Guid> Members)>();
+
+    foreach (var group in backup.Groups)
+    {
+      var members = (group.UserIds ?? []).Where(known.Contains).ToList();
+      report.UnknownMembers += (group.UserIds?.Count ?? 0) - members.Count;
+
+      groups.Add((
+        new SettingsGroup
+        {
+          Id = group.Id,
+          Name = group.Name,
+          Priority = group.Priority,
+          SettingsJson = _serializationHelperService.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings())
+        },
+        members));
+    }
+
+    var overrides = new List<(Guid UserId, string SettingsJson)>();
+
+    foreach (var user in backup.Users)
+    {
+      if (!known.Contains(user.UserId))
+      {
+        report.UnknownUsers++;
+        continue;
+      }
+
+      overrides.Add((
+        user.UserId,
+        _serializationHelperService.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings())));
+    }
+
+    // The configuration first, then one transaction for the levels: a failure partway
+    // through the levels leaves a server with neither what it had nor what the file
+    // carried, which is worse than either.
+    if (backup.Config is not null)
+    {
+      StreamyfinPlugin.Instance!.Settings.Save(backup.Config);
+      report.Configuration = true;
+    }
+
+    database.ReplaceTargeting(groups, overrides);
+
+    report.Groups = groups.Count;
+    report.Users = overrides.Count;
+
+    _logger.LogInformation(
+      "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
+      + "{Users} user override(s), {UnknownMembers} member(s) and {UnknownUsers} user(s) this server does not have",
+      backup.Plugin,
+      backup.TakenAt,
+      report.Configuration,
+      report.Groups,
+      report.Users,
+      report.UnknownMembers,
+      report.UnknownUsers);
+
+    return report;
+  }
+
+  private static IEnumerable<Configuration.Settings.Settings?> Levels(ConfigurationBackup backup) =>
+    new[] { backup.Config?.settings }
+      .Concat(backup.Groups.Select(group => group.Settings))
+      .Concat(backup.Users.Select(user => user.Settings));
+
+  /// <summary>
   /// Asks one integration whether it is there, at an address that has not been saved yet.
   /// </summary>
   /// <param name="request">Which service, and the address to try.</param>
@@ -493,9 +661,7 @@ public class StreamyfinController : ControllerBase
   {
     var database = StreamyfinPlugin.Instance!.Database;
 
-    return database.GetSettingsGroups()
-      .Select(group => ToDto(group, database.GetGroupMembers(group.Id)))
-      .ToList();
+    return GroupsWithMembers().ToList();
   }
 
   /// <summary>
@@ -764,6 +930,13 @@ public class StreamyfinController : ControllerBase
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId),
       CallerIsApiKey || _userManager.IsAdministrator(callerId));
+  }
+
+  private IEnumerable<SettingsGroupDto> GroupsWithMembers()
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    return database.GetSettingsGroups().Select(group => ToDto(group, database.GetGroupMembers(group.Id)));
   }
 
   private SettingsGroupDto ToDto(SettingsGroup group, List<Guid> members) => new()

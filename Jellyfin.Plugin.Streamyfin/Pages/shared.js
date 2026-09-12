@@ -7,6 +7,19 @@ export const tools = {jsYaml: undefined};
 // Asking the server to try an address, for whichever page drew the button. Here rather
 // than in each page because both tabs draw the same form from the same description, and
 // a third hand rolled ApiClient wrapper is a third place to forget when this changes.
+// Asking before something that cannot be undone. Jellyfin's own dialog when the
+// dashboard offers one, the browser's otherwise, and a refusal on anything unexpected
+// so a broken dialog never reads as a yes.
+export const confirmed = (message) => {
+    if (window.Dashboard?.confirm) {
+        return Promise.resolve(window.Dashboard.confirm(message, "Streamyfin")).then(
+            (answer) => answer !== false,
+            () => false);
+    }
+
+    return Promise.resolve(window.confirm(message));
+};
+
 // The dock's way out of a page that opens already refusing to save. Here rather than in
 // each page because both tabs draw the same form and the same dock, and writing it twice
 // is what let one copy leak a listener per tab switch.

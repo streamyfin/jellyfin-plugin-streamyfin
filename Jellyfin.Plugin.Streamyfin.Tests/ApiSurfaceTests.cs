@@ -176,6 +176,27 @@ public class ApiSurfaceTests
     }
 
     /// <summary>
+    /// A backup, and putting one back, are both for administrators.
+    /// </summary>
+    /// <remarks>
+    /// The file carries the Seerr admin key, and restoring one replaces every setting
+    /// on the server.
+    /// </remarks>
+    /// <param name="route">The method on the controller.</param>
+    [Theory]
+    [InlineData(nameof(StreamyfinController.GetBackup))]
+    [InlineData(nameof(StreamyfinController.Restore))]
+    public void BackupIsForAdministrators(string route)
+    {
+        var method = typeof(StreamyfinController).GetMethod(route);
+
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal(MediaBrowser.Common.Api.Policies.RequiresElevation, authorize!.Policy);
+    }
+
+    /// <summary>
     /// Reading the health of the integrations is for any signed in account, and for no
     /// one else.
     /// </summary>
