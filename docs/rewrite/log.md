@@ -10,6 +10,52 @@ lives only in a comment thread is a decision nobody will find.
 
 ## 2026-09-12
 
+### A probe that grew too big, and what cutting it back taught
+
+P6.2 and P6.3 landed in #160 and then lost 188 lines in #161, which is worth
+writing down because the second half is the lesson.
+
+The feature is small: ask a service whether it answers, say what came back, and
+let the app know. What it grew instead was a cache of lazily started rounds each
+timing its own completion, and a copy of the server's address rule in the browser
+so a bad address could be marked on the field. Those two blocks carried ten of
+the defects found while reviewing it, including a cache that never expired on a
+normal server and a client rule that disagreed with .NET in both directions at
+every revision.
+
+Both are gone. The cache is one answer kept for half a minute. The form checks
+that a value starts with a scheme and leaves the rest to the server, which
+already refuses an address by name. Nothing an administrator sees changed.
+
+The rule that came out of it: reviewing the same branch over and over stops
+paying once the corrections start introducing as many defects as they remove. On
+three of those rounds, three to four of the findings were regressions from the
+round before.
+
+### P3.4, and the backup Jellyfin does not take
+
+Jellyfin backs up its own XML, which holds the plugin's configuration. It does
+not back up the plugin's database, which holds the targeting levels, and those
+are the work: the groups, who is in them, and what each one overrides.
+
+The Other tab hands over one file with all three and takes one back. It carries
+the Seerr key, because a backup that cannot restore a working server is not one,
+and the page says so above the button.
+
+Two things only a real server showed, both found by taking a backup of the beta
+and putting it straight back. The restore reads the body itself rather than
+letting the framework bind it, because a setting is a required member on
+`Lockable<T>` and the serializer omits a null, so model validation refused a file
+this plugin had produced. And the backup is written with the plugin's own
+serializer, since the framework writes an enum as its name where the reader
+expects the number it stores.
+
+The review found two more that matter. The restore was five separate writes with
+no rollback, so a failure partway through left a server with neither what it had
+nor what the file carried; the levels are replaced in one transaction now. And a
+restored group kept a fresh id, which silently reorders groups that share a
+priority, so restoring a file onto the server it came from was not a no-op.
+
 ### P3.5, and the fifteen megabytes that are not what they looked like
 
 The question was whether to keep serving the admin pages as resources embedded in
