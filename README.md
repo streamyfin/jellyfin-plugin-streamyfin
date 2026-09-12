@@ -77,24 +77,58 @@ Tailor the library experience:
 1. Open **Jellyfin Dashboard** → **Plugins** → **Catalog**
 2. Click the **⚙️ Settings icon** (next to "Catalog" title)
 3. Click **➕ Add** to add a new repository
-4. Enter the repository URL:
-   ```
-   https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest.json
-   ```
+4. Enter the repository URL **for your Jellyfin version**:
+
+   | Your Jellyfin | Repository URL |
+   |---|---|
+   | 10.11.9 and later | `https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest.json` |
+   | 12.0 and later | `https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest-jf12.json` |
+
 5. Go back to **Catalog** and search for **"Streamyfin"**
 6. Click **Install**
 7. **Restart Jellyfin** to complete installation
 
+Adding the wrong one is not dangerous: a server only offers a build whose
+`targetAbi` it accepts, so the catalogue simply lists nothing.
+
 ### Method 2: Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/streamyfin/jellyfin-plugin-streamyfin/releases)
-2. Extract the `.dll` file to your Jellyfin plugins directory:
-   - **Linux**: `/var/lib/jellyfin/plugins/Streamyfin/`
-   - **Windows**: `%AppData%\Jellyfin\Server\plugins\Streamyfin\`
-   - **Docker**: `/config/plugins/Streamyfin/`
-3. **Restart Jellyfin**
+Use this only when the catalogue is not an option. Jellyfin writes a `meta.json`
+for you when it installs a plugin, and refuses a plugin folder that has none, so a
+manual install has one more step than it looks.
 
-> Requires .NET 9 / Jellyfin 10.11 or newer (as of plugin 0.64.0.0).
+1. Download the `.zip` for your Jellyfin version from
+   [GitHub Releases](https://github.com/streamyfin/jellyfin-plugin-streamyfin/releases):
+   `-jf11` for 10.11, `-jf12` for 12.
+2. Create a folder named `Streamyfin_<version>` in your plugins directory:
+   - **Linux**: `/var/lib/jellyfin/plugins/Streamyfin_0.70.0.0/`
+   - **Windows**: `%AppData%\Jellyfin\Server\plugins\Streamyfin_0.70.0.0\`
+   - **Docker**: `/config/plugins/Streamyfin_0.70.0.0/`
+3. Extract **everything** from the zip into it, not only
+   `Jellyfin.Plugin.Streamyfin.dll`. The other assemblies beside it are required,
+   and without them Jellyfin logs "Failed to load assembly" and disables the
+   plugin.
+4. Add a `meta.json` in the same folder, with the `targetAbi` of the line you
+   downloaded (`10.11.9.0` for `-jf11`, `12.0.0.0` for `-jf12`):
+
+   ```json
+   {
+     "guid": "1e9e5d38-6e67-4615-8719-e98a5c34f004",
+     "name": "Streamyfin",
+     "version": "0.70.0.0",
+     "targetAbi": "12.0.0.0",
+     "status": "Active",
+     "autoUpdate": false,
+     "assemblies": []
+   }
+   ```
+
+5. **Restart Jellyfin**
+
+> **Jellyfin 10.11.9 or later, or Jellyfin 12.** 10.11.9 is the floor for the
+> 10.11 line rather than 10.11.0, because `IUserManager.Users` became
+> `GetUsers()` inside that patch line. An older server refuses the plugin rather
+> than loading it, and keeps running.
 
 ---
 
