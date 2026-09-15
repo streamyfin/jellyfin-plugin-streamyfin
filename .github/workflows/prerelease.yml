@@ -48,6 +48,24 @@ jobs:
         with:
           node-version: "lts/*"
 
+      # The ref decides which Makefile and which scripts the publish job runs, and that
+      # job holds a token with contents: write. Left open, anyone able to dispatch this
+      # could push a branch, put anything in those scripts, and have the workflow tag,
+      # release and commit with them. main carries no branch protection today so this
+      # grants nothing not already available, but that is an argument that expires the
+      # day it does, and the fix is four lines.
+      #
+      # So: the commit has to be one that is already on develop. An older develop commit
+      # still works, which is the flexibility the input is for.
+      - name: The ref has to be on develop
+        run: |
+          set -euo pipefail
+          git fetch origin develop --quiet
+          if ! git merge-base --is-ancestor HEAD origin/develop; then
+            echo "::error::$(git rev-parse HEAD) is not on develop. This publishes from develop's history and nothing else." >&2
+            exit 1
+          fi
+
       - id: compute
         env:
           CHANNEL: unstable
@@ -66,10 +84,13 @@ jobs:
       matrix:
         target: [jf11, jf12]
     steps:
+      # No credential left in this checkout: this job builds and uploads an artifact and
+      # never pushes, so a token sitting in .git/config is surface with no purpose.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.version.outputs.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
@@ -166,23 +187,47 @@ jobs:
           tag="unstable-${VERSION}"
 
           # The revision is a commit count, so dispatching twice against the same commit
-          # asks for a tag that already exists. Said here, where it is one line to read,
-          # rather than as a git failure after both targets have been built.
-          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
-            || git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "::error::$tag already exists. This commit has already been published as an unstable build; there is nothing new to publish." >&2
+          # asks for a tag that already exists. That is two different situations and they
+          # were treated as one, which turned a half finished run into something no rerun
+          # could repair: the tag and the release are created before the manifest is
+          # pushed, so anything failing in between left a release nobody could reach and
+          # a guard that refused to try again.
+          #
+          # A tag on this very commit means a previous attempt got at least this far, so
+          # carry on and let the steps below finish what it started. A tag on a different
+          # commit is a real collision and still stops here.
+          # An annotated tag answers with the id of the tag object, not of the commit it
+          # points at; the commit only comes back on the peeled `^{}` line, which an exact
+          # query does not match. Ours are lightweight, so this changes nothing today, but
+          # a tag pushed by hand would otherwise read as a collision with itself.
+          existing=$(git ls-remote --tags origin "refs/tags/$tag*" | awk -v ref="refs/tags/$tag" '
+            $2 == ref { direct = $1 }
+            $2 == ref "^{}" { peeled = $1 }
+            END { print (peeled != "" ? peeled : direct) }
+          ')
+          if [ -n "$existing" ] && [ "$existing" != "$SHA" ]; then
+            echo "::error::$tag already exists and points at $existing, not at $SHA." >&2
             exit 1
           fi
 
-          git tag "$tag" "$SHA"
-          git push origin "refs/tags/$tag"
+          if [ -z "$existing" ]; then
+            git tag "$tag" "$SHA"
+            git push origin "refs/tags/$tag"
+          else
+            echo "$tag already points at $SHA, so a previous run got this far. Carrying on."
+          fi
 
-          gh release create "$tag" dist/*.zip \
-            --title "Unstable ${VERSION}" \
-            --prerelease \
-            --verify-tag \
-            --notes "Built from \`${REF}\` at \`${SHA}\`. This is not a release: it is a build of work in progress, published so it can be tested on a real server. The stable channel is unaffected." \
-            --target "$SHA"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "The release exists already. Replacing its assets rather than creating it."
+            gh release upload "$tag" dist/*.zip --clobber
+          else
+            gh release create "$tag" dist/*.zip \
+              --title "Unstable ${VERSION}" \
+              --prerelease \
+              --verify-tag \
+              --notes "Built from \`${REF}\` at \`${SHA}\`. This is not a release: it is a build of work in progress, published so it can be tested on a real server. The stable channel is unaffected." \
+              --target "$SHA"
+          fi
 
       # The manifest is served from `main`, so that the URL a tester configures does not
       # move when a branch does. It is read from `main` before being updated and written

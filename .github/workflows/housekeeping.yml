@@ -40,7 +40,21 @@ jobs:
     name: Close what is waiting on nobody
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+
+    # Serialised, because a manual dispatch can land while the schedule is running.
+    # actions/stale keeps its progress in the Actions cache, so two runs at once
+    # overwrite each other's place in the queue and items get processed twice or not
+    # at all. Not cancel-in-progress: the run already under way is the one holding
+    # the state, and killing it is what loses the progress.
+    concurrency:
+      group: housekeeping-stale
+      cancel-in-progress: false
+
     permissions:
+      # actions/stale saves its place through the Actions cache once it hits the
+      # thirty operation limit, and writing that cache needs this. Without it every
+      # run restarts from the first item and the tail is never reached.
+      actions: write
       issues: write
       pull-requests: write
 
