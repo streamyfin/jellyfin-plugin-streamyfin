@@ -1035,15 +1035,15 @@ existed. The tag and the release are created before the manifest is pushed, so a
 failure between those two steps left a release nobody could reach and a rerun that
 stopped on the guard. A publication could get stuck half way with no way out.
 
-#170 splits the two cases the guard confused: a tag on the very commit being published
-means an earlier attempt got that far, so the run carries on and replaces the assets;
-a tag on a different commit is a real collision and still stops. It also bounds what
-the publish job will run, since that job holds `contents: write` and the dispatch input
-decides which `Makefile` and which scripts it executes: the ref now has to be an
-ancestor of `develop`. `persist-credentials: false` on the build checkout, which never
-pushes. And `housekeeping.yml` gets `actions: write`, without which `actions/stale`
-cannot save its place and starts from the first item every time, plus a concurrency
-group so a manual dispatch cannot overlap the schedule.
+On `main`, where these workflows live and fire from, #170 splits the two cases the guard
+confused: a tag on the very commit being published means an earlier attempt got that far,
+so the run carries on and replaces the assets; a tag on a different commit is a real
+collision and still stops. It also bounds what the publish job will run, since that job
+holds `contents: write` and the dispatch input decides which `Makefile` and which scripts
+it executes: the ref has to be an ancestor of `develop`. `persist-credentials: false` on
+the build checkout, which never pushes. And `housekeeping.yml` gets `actions: write`,
+without which `actions/stale` cannot save its place and starts from the first item every
+time, plus a concurrency group so a manual dispatch cannot overlap the schedule.
 
 One of the five was wrong: CodeRabbit read the `Makefile` as naming both targets'
 archives identically. It names them per target and has since #126, and the published
@@ -1065,7 +1065,8 @@ replaced and `manifest-unstable.json` was rewritten with two entries and no dupl
 
 #171 carries the same two files back to `develop`, since #170 had to land on `main`
 and the copies would otherwise drift until the integration branch silently reverted
-them.
+them. Until that one merges, the branch this entry is written on still carries the old
+workflow, which is why the paragraph above says where each change lives.
 
 ### The admin pages, on Jellyfin 13
 
