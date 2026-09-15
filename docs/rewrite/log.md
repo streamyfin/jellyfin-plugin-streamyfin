@@ -1019,3 +1019,86 @@ on the server.
 Verified end to end on the beta: 401 without a key, 202 on an issue event, and a
 `MEDIA_APPROVED` that reached one iPhone, in French, with the deliberately planted
 email appearing nowhere in the log.
+
+## 2026-09-15, later: the findings nobody had read, and a pass on Jellyfin 13
+
+### Merged on a green check that says nothing
+
+#165 to #168 went in on `CodeRabbit: pass` in `gh pr checks`. That check passes with
+ten findings open; it says a review ran, not that it found nothing. The reviews on
+#166 and #167 had been rate limited when the branches were pushed and arrived later,
+and nobody looked again before merging.
+
+#168 was carrying five. Four were real, and the worst of them was mine. The guard I
+had added against publishing the same commit twice refused every tag that already
+existed. The tag and the release are created before the manifest is pushed, so a
+failure between those two steps left a release nobody could reach and a rerun that
+stopped on the guard. A publication could get stuck half way with no way out.
+
+On `main`, where these workflows live and fire from, #170 splits the two cases the guard
+confused: a tag on the very commit being published means an earlier attempt got that far,
+so the run carries on and replaces the assets; a tag on a different commit is a real
+collision and still stops. It also bounds what the publish job will run, since that job
+holds `contents: write` and the dispatch input decides which `Makefile` and which scripts
+it executes: the ref has to be an ancestor of `develop`. `persist-credentials: false` on
+the build checkout, which never pushes. And `housekeeping.yml` gets `actions: write`,
+without which `actions/stale` cannot save its place and starts from the first item every
+time, plus a concurrency group so a manual dispatch cannot overlap the schedule.
+
+One of the five was wrong: CodeRabbit read the `Makefile` as naming both targets'
+archives identically. It names them per target and has since #126, and the published
+release carries both zips. Answered with that and resolved, without a commit to make
+the bot happy.
+
+The review of #170 itself then found something real in the repair. `git ls-remote`
+against an exact tag ref answers with the id of the tag object, not of the commit,
+so an annotated tag would have compared unequal to the commit it points at and read
+as a collision with itself. Ours are lightweight and the published tag answers with
+the commit, so nothing was broken, but a tag pushed by hand would have been. The probe
+now takes the peeled line when it is there, checked on a scratch repository against no
+tag, a lightweight tag, an annotated tag and a sibling tag sharing the prefix.
+
+The catch-up path is not argued, it ran: the workflow was dispatched twice against a
+commit that already carried its tag, and the log says `unstable-0.68.1.59 already
+points at d95c6ed..., so a previous run got this far. Carrying on.` Both zips were
+replaced and `manifest-unstable.json` was rewritten with two entries and no duplicate.
+
+#171 carries the same two files back to `develop`, since #170 had to land on `main`
+and the copies would otherwise drift until the integration branch silently reverted
+them. Until that one merges, the branch this entry is written on still carries the old
+workflow, which is why the paragraph above says where each change lives.
+
+### The admin pages, on Jellyfin 13
+
+All five, in a real dashboard on the beta, captured rather than asserted: Application
+with its 92 settings and the three states, Targeting with a group and a locked
+override, Notifications, Other with the backup section, and the Yaml editor. Dark and
+light for the first four.
+
+The Yaml editor looked dead at first and is not. `monaco-editor.bundle.js` is 11.1 MB.
+The server hands it over in 7 ms from inside the container and in 47 seconds across a
+VPN link, so a page that waits twelve seconds sees an empty editor and concludes it is
+broken. Worth saying in the release notes for an administrator working remotely.
+
+### The app against the plugin, end to end
+
+The chain that had only ever been checked one half at a time. A build of the app's
+`develop` on an iOS 27 simulator, signed in to the beta on Jellyfin 13.0.0, its
+"refresh settings from the server" reaching the plugin controller. Then a per user
+override, `PUT v1/users/{id}/settings` with `defaultVideoOrientation` set to landscape
+and locked: the app moves to that value and greys the row out. Override removed, the
+app goes back to its own value and the row is editable again.
+
+An ordinary account gets no secret from any of the four read paths, `config`,
+`v1/config`, `v1/config/resolved` and `config/yaml`, all answering 200 with no key or
+token anywhere in the body.
+
+The app half of #110 is settled by the same screen: it offers five orientations and
+one of them is the automatic landscape, which is what the reporter said in the first
+place.
+
+One thing that is app side and worth recording because it decides how this gets tested
+from now on. A local build with Xcode 27 links against the iOS 27 SDK, and iOS 27
+refuses to launch an app that has not adopted the UIKit scene life cycle. Expo adopts
+it in SDK 58; the app is on 57. Until it moves, a local iOS build needs a scene
+delegate added by hand in the generated `ios/` folder, which is not in the repository.
