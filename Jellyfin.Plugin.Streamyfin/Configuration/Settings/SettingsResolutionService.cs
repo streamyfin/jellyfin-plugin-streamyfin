@@ -91,6 +91,7 @@ public sealed class SettingsResolutionService(
         // the stored copy does. Nothing is written back: a GET does not rewrite the
         // database, and the kind a payload implies is the same answer every time.
         Sections.Declare(config?.settings);
+        Sections.Sort(config?.settings);
 
         if (isElevated)
         {
@@ -131,6 +132,7 @@ public sealed class SettingsResolutionService(
         {
             var settings = _serialization.DeserializeJson<Settings>(json);
             Sections.Declare(settings);
+            Sections.Sort(settings);
             return settings;
         }
         catch (System.Text.Json.JsonException ex)

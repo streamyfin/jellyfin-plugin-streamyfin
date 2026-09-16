@@ -64,6 +64,51 @@ public static class Sections
     }
 
     /// <summary>
+    /// Puts the sections in the order the home screen shows them.
+    /// </summary>
+    /// <param name="home">The home layout, which may be null.</param>
+    /// <remarks>
+    /// A section that declares an <c>order</c> is placed by it, lowest first. One that
+    /// does not is placed where it was written, since its position is its number, so a
+    /// configuration that never mentions <c>order</c> comes out exactly as it went in.
+    /// The two scales are the same one, and where they meet the written number wins:
+    /// <c>order: 0</c> pins a section above the one that merely happens to be written
+    /// first. Two sections claiming the same number keep the order they were written in,
+    /// which is what a stable sort is for: an administrator who numbers two the same has
+    /// said they do not mind, not that the server may shuffle them on each answer.
+    ///
+    /// <para>
+    /// Done on the way out, next to the kind, and nothing is written back: a GET does
+    /// not rewrite the database.
+    /// </para>
+    /// </remarks>
+    public static void Sort(Home? home)
+    {
+        var sections = home?.sections;
+        if (sections is null || sections.Length < 2)
+        {
+            return;
+        }
+
+        home!.sections = sections
+            .Select((section, index) => (section, index))
+            .OrderBy(pair => pair.section?.order ?? pair.index)
+            // A number that was written wins the tie against one that was inferred from a
+            // position: an administrator who writes `order: 0` to pin a section to the top
+            // means it, and the section that merely happens to sit first does not.
+            .ThenBy(pair => pair.section?.order is null ? 1 : 0)
+            .ThenBy(pair => pair.index)
+            .Select(pair => pair.section)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Puts the sections of these settings in the order the home screen shows them.
+    /// </summary>
+    /// <param name="settings">The settings, which may be null.</param>
+    public static void Sort(Settings? settings) => Sort(settings?.home?.value);
+
+    /// <summary>
     /// Fills in the kind of every section in these settings.
     /// </summary>
     /// <param name="settings">The settings, which may be null.</param>

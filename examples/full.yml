@@ -428,7 +428,11 @@ settings:
     value:
       sections:
         # Continue Watching Section
+        # `order` is optional. A section that declares one is placed by it, lowest
+        # first; one that does not keeps the place it is written in. Where the two meet,
+        # the written number wins, so `order: 0` pins a section to the top.
         - title: Continue Watching
+          order: 0
           orientation: horizontal # Options: vertical, horizontal
           custom:
             endpoint: /UserItems/Resume
