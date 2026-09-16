@@ -8,6 +8,7 @@ import {
     add,
     blank,
     fieldsFor,
+    inOrder,
     move,
     orientations,
     remove,
@@ -136,6 +137,35 @@ describe("the list", () => {
         expect(move(null, 0, 1)).toEqual([]);
         expect(remove(undefined, 0)).toEqual([]);
         expect(add(null, "items")).toHaveLength(1);
+    });
+});
+
+describe("inOrder", () => {
+    test("a declared number decides, and one that declares nothing keeps its place", () => {
+        const sections = [
+            { title: "written first" },
+            { title: "pinned", order: 0 },
+            { title: "written third", order: 1 },
+        ];
+
+        expect(inOrder(sections).map((section) => section.title))
+            .toEqual(["pinned", "written first", "written third"]);
+    });
+
+    test("nothing declared means nothing moves", () => {
+        const sections = [{ title: "one" }, { title: "two" }, { title: "three" }];
+
+        expect(inOrder(sections).map((section) => section.title)).toEqual(["one", "two", "three"]);
+    });
+
+    test("the same number twice keeps the written order", () => {
+        const sections = [{ title: "a", order: 5 }, { title: "b", order: 5 }];
+
+        expect(inOrder(sections).map((section) => section.title)).toEqual(["a", "b"]);
+    });
+
+    test("nothing to sort is not a failure", () => {
+        expect(inOrder(null)).toEqual([]);
     });
 });
 

@@ -89,6 +89,23 @@ export const blank = (kind) => ({
     [kind]: kind === "custom" ? { endpoint: "" } : {},
 });
 
+/// The sections in the order the app draws them, which is the order the server sorts
+/// them into: by the number a section declares, and by where it is written when it
+/// declares none. The stored file is not in that order, so a tab that read the array as
+/// it comes would show a different home screen from the one the app draws.
+export const inOrder = (sections) => (sections ?? [])
+    .map((section, index) => ({ section, index }))
+    .sort((left, right) => {
+        const byOrder = (left.section?.order ?? left.index) - (right.section?.order ?? right.index);
+        if (byOrder !== 0) return byOrder;
+        // A number that was written wins against one taken from a position, the way the
+        // server breaks the same tie.
+        const declared = (left.section?.order === undefined || left.section?.order === null ? 1 : 0)
+            - (right.section?.order === undefined || right.section?.order === null ? 1 : 0);
+        return declared !== 0 ? declared : left.index - right.index;
+    })
+    .map((pair) => pair.section);
+
 /// The same sections, numbered from zero in the order they are in.
 export const renumber = (sections) => (sections ?? []).map((section, index) => ({ ...section, order: index }));
 

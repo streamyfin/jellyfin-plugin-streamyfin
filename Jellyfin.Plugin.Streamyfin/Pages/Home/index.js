@@ -7,6 +7,7 @@
 
 export default function (view, params) {
     let drawn = false;
+    let loading = false;
 
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
@@ -27,11 +28,13 @@ export default function (view, params) {
             renderer.applyTheme(find("sf-app"));
 
             // The dashboard keeps this page between tab switches and fires viewshow on
-            // each one. Drawn once; the runs after that only redraw what is there.
-            if (drawn) {
+            // each one. Drawn once, and only once it is: a load that failed has to be
+            // allowed to try again on the next showing rather than leaving a page that
+            // says nothing until the browser is reloaded.
+            if (drawn || loading) {
                 return;
             }
-            drawn = true;
+            loading = true;
 
             const home = await import(window.ApiClient.getUrl("web/configurationpage?name=home-editor.js"));
 
@@ -46,6 +49,7 @@ export default function (view, params) {
                 console.error(error);
                 status.textContent = renderer.askingFailed(error);
                 status.classList.add("is-error");
+                loading = false;
                 return;
             }
 
@@ -57,7 +61,16 @@ export default function (view, params) {
             };
 
             const stored = () => shared.getConfig()?.settings?.home?.value?.sections ?? [];
-            let sections = home.renumber(structuredClone(stored()));
+
+            // What the app draws is the stored list put in order, so the tab starts from
+            // the same order rather than from the order the file happens to be written in.
+            const asDrawn = () => home.renumber(home.inOrder(structuredClone(stored())));
+
+            // The list a discard goes back to. Not stored(), which is whatever was last
+            // written into the shared configuration: a save that the server refused left
+            // its own edits there, so discarding restored them.
+            let baseline = asDrawn();
+            let sections = structuredClone(baseline);
             let dirty = false;
 
             const said = () => {
@@ -147,6 +160,20 @@ export default function (view, params) {
 
                         box.append(head, list);
                         return box;
+                    }
+                    case "Select": {
+                        const select = el("select", "sf-select");
+                        const blankOption = el("option", null, "Nothing chosen");
+                        blankOption.value = "";
+                        select.appendChild(blankOption);
+                        for (const option of field.options) {
+                            const node = el("option", null, option);
+                            node.value = option;
+                            select.appendChild(node);
+                        }
+                        select.value = value ?? "";
+                        select.addEventListener("change", () => onChange(select.value === "" ? null : select.value));
+                        return select;
                     }
                     default:
                         return el("span", "sf-note", "Written in the Yaml tab");
@@ -270,7 +297,7 @@ export default function (view, params) {
             });
 
             discardBtn.addEventListener("click", () => {
-                sections = home.renumber(structuredClone(stored()));
+                sections = structuredClone(baseline);
                 settled();
                 redraw();
             });
@@ -278,6 +305,8 @@ export default function (view, params) {
             saveBtn.addEventListener("click", () => {
                 const config = shared.getConfig() ?? {};
                 const settings = config.settings ?? {};
+                const before = structuredClone(config);
+
                 shared.setConfig({
                     ...config,
                     settings: {
@@ -285,8 +314,18 @@ export default function (view, params) {
                         home: { ...(settings.home ?? { locked: false }), value: { sections } },
                     },
                 });
+
                 shared.saveConfig().then((saved) => {
-                    if (saved) settled();
+                    if (saved) {
+                        baseline = structuredClone(sections);
+                        settled();
+                        return;
+                    }
+
+                    // The server refused it. What is on screen is still what the
+                    // administrator wrote, so it stays, but the shared configuration goes
+                    // back to what is stored: it is what every other tab reads.
+                    shared.setConfig(before);
                 });
             });
 
@@ -294,6 +333,8 @@ export default function (view, params) {
             dock.hidden = false;
             settled();
             redraw();
+            drawn = true;
+            loading = false;
         });
     });
 }
