@@ -1,9 +1,33 @@
-const homePage = () => document.getElementById('home-page');
-const saveBtn = () => document.getElementById('save-other-btn');
-const backupBtn = () => document.getElementById('backup-btn');
-const restoreBtn = () => document.getElementById('restore-btn');
-const restoreFile = () => document.getElementById('restore-file');
-const said = () => document.getElementById('backup-said');
+// The dashboard keeps the views it has already shown, so more than one page can carry
+// an element with the same id. Everything here is looked up inside this view.
+let page = null;
+
+const homePage = () => page.querySelector('#home-page');
+const saveBtn = () => page.querySelector('#save-other-btn');
+const backupBtn = () => page.querySelector('#backup-btn');
+const restoreBtn = () => page.querySelector('#restore-btn');
+const restoreFile = () => page.querySelector('#restore-file');
+const said = () => page.querySelector('#backup-said');
+
+// The dock only has one thing to save here, so it says so rather than counting.
+const edited = () => {
+    page.querySelector('#sf-dot').hidden = false;
+    page.querySelector('#sf-dock-summary').textContent = 'Start page changed';
+    saveBtn().disabled = false;
+};
+
+const saved = () => {
+    page.querySelector('#sf-dot').hidden = true;
+    page.querySelector('#sf-dock-summary').textContent = 'Nothing to save';
+    saveBtn().disabled = true;
+};
+
+// Says it and colours it in one call, so a caller cannot set one without the other.
+const say = (text, tone) => {
+    said().textContent = text;
+    said().classList.toggle('sf-said--ok', tone === 'ok');
+    said().classList.toggle('sf-said--no', tone === 'no');
+};
 
 // The name says which server and when, since a folder of backups with the same name is
 // a folder of files nobody can tell apart.
@@ -51,18 +75,19 @@ const restored = (report) => {
         : sentence;
 };
 
-const getValues = () => ({
-    other: {
-        homePage: homePage()?.value
-    }
-})
-
 export default function (view, params) {
 
     // init code here
     view.addEventListener('viewshow', (e) => {
-        import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then((shared) => {
+        import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Other");
+
+            page = view;
+
+            // The dashboard's theme is a user choice and its stylesheet only sets a
+            // background, so the page reads that rather than guessing.
+            const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
+            renderer.applyTheme(view.querySelector("#sf-app"));
 
             homePage().options.length = 0;
             shared.StreamyfinTabs().forEach(tab => homePage().add(new Option(tab.name, tab.resource)))
@@ -76,14 +101,30 @@ export default function (view, params) {
                 homePage().value = other.homePage
             })
 
+            // The value has to reach the configuration, not just the dock: saving writes
+            // what the page holds, so a select nobody wrote back saved nothing at all.
+            shared.keyedEventListener(homePage(), 'change', function () {
+                const config = shared.getConfig() ?? {};
+                shared.setConfig({
+                    ...config,
+                    other: {
+                        ...(config.other ?? {}),
+                        homePage: homePage().value,
+                    },
+                });
+                edited();
+            })
+
             shared.keyedEventListener(saveBtn(), 'click', function (e) {
                 e.preventDefault();
-                shared.saveConfig()
+                shared.saveConfig().then((stored) => {
+                    if (stored) saved();
+                })
             })
 
             shared.keyedEventListener(backupBtn(), 'click', async function (e) {
                 e.preventDefault();
-                said().textContent = 'Collecting…';
+                say('Collecting…');
                 try {
                     const backup = await window.ApiClient.ajax({
                         type: 'GET',
@@ -93,16 +134,16 @@ export default function (view, params) {
 
                     try {
                         download(backup, fileName());
-                        said().textContent = 'Downloaded.';
+                        say('Downloaded.', 'ok');
                     } catch (error) {
                         // The server answered. Saying it did not would send an
                         // administrator to the wrong place.
                         console.error(error);
-                        said().textContent = 'The backup could not be saved by this browser.';
+                        say('The backup could not be saved by this browser.', 'no');
                     }
                 } catch (error) {
                     console.error(error);
-                    said().textContent = 'The server could not be asked for a backup.';
+                    say('The server could not be asked for a backup.', 'no');
                 }
             })
 
@@ -124,7 +165,7 @@ export default function (view, params) {
                 const file = restoreFile().files?.[0];
                 if (!file) return;
 
-                said().textContent = 'Restoring…';
+                say('Restoring…');
                 try {
                     const report = await window.ApiClient.ajax({
                         type: 'POST',
@@ -135,14 +176,14 @@ export default function (view, params) {
 
                     // Read before the page is reloaded, since the tabs hold what they
                     // read at load and a reload on the same turn paints nothing.
-                    said().textContent = `${restored(report)} Reload the page to see it.`;
+                    say(`${restored(report)} Reload the page to see it.`, 'ok');
                 } catch (rejected) {
                     console.error(rejected);
                     const response = typeof rejected?.text === 'function' ? rejected : rejected?.response;
                     const body = await response?.text?.().catch(() => null);
                     let problem = null;
                     try { problem = JSON.parse(body ?? '').problem; } catch { /* not ours */ }
-                    said().textContent = problem ?? 'That file could not be restored.';
+                    say(problem ?? 'That file could not be restored.', 'no');
                 }
             })
         })

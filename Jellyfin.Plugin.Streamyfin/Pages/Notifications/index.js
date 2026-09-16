@@ -1,28 +1,31 @@
-const saveBtn = document.getElementById('save-notification-btn');
-const libraryContainer = document.getElementById('item-library-container');
-const hiddenLibraryInput = document.getElementById('hidden-library-input');
+// The dashboard keeps the views it has already shown, so more than one page can carry
+// an element with the same id. Everything here is looked up inside this view.
+const dock = (view) => {
+    const summary = view.querySelector('#sf-dock-summary');
+    const dot = view.querySelector('#sf-dot');
+    const button = view.querySelector('#save-notification-btn');
 
-const getValues = () => ({
-    notifications: Array.from(document.querySelectorAll('[data-key-name][data-prop-name]')).reduce((acc, el) => {
-        if (el.offsetParent === null) return acc;
-        
-        const notification = el.getAttribute('data-key-name');
-        const property = el.getAttribute('data-prop-name');
-        
-        
-        console.log("Notification", notification, el.offsetParent)
+    // The dock says what a click will do, so it has to know whether anything changed.
+    // Counting the edits rather than diffing the configuration: every control here
+    // writes through one path, and a count is enough to say how many.
+    let edits = 0;
 
-        const value = window.Streamyfin.shared.getElValue(el);
-        acc[notification] = acc[notification] ?? {}
-
-        if (value != null) {
-            acc[notification][property] = value;
-        }
-        else delete acc[notification]
-
-        return acc
-    }, {})
-})
+    return {
+        button,
+        edited: () => {
+            edits += 1;
+            dot.hidden = false;
+            summary.textContent = edits === 1 ? '1 change to save' : `${edits} changes to save`;
+            button.disabled = false;
+        },
+        saved: () => {
+            edits = 0;
+            dot.hidden = true;
+            summary.textContent = 'Nothing to save';
+            button.disabled = true;
+        },
+    };
+};
 
 // region helpers
 const updateNotificationConfig = (name, config, valueName, value) => ({
@@ -43,15 +46,24 @@ export default function (view, params) {
     view.addEventListener('viewshow', (e) => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Notifications");
-            
-            document.getElementById("notification-endpoint").innerText = shared.NOTIFICATION_URL
 
-            shared.setDomValues(document, shared.getConfig()?.notifications)
+            const libraryContainer = view.querySelector('#item-library-container');
+            const hiddenLibraryInput = view.querySelector('#hidden-library-input');
+            const { button: saveBtn, edited, saved } = dock(view);
+
+            // The dashboard's theme is a user choice and its stylesheet only sets a
+            // background, so the page reads that rather than guessing.
+            const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
+            renderer.applyTheme(view.querySelector("#sf-app"));
+            
+            view.querySelector("#notification-endpoint").innerText = shared.NOTIFICATION_URL
+
+            shared.setDomValues(view, shared.getConfig()?.notifications)
             shared.setOnConfigUpdatedListener('notifications', (config) => {
                 console.log("updating dom for notifications")
 
                 const {notifications} = config;
-                shared.setDomValues(document, notifications);
+                shared.setDomValues(view, notifications);
             })
 
             const folders = await window.ApiClient.get("/Library/VirtualFolders")
@@ -62,16 +74,16 @@ export default function (view, params) {
             }
 
             folders.forEach(folder => {
-                if (!document.getElementById(folder.ItemId)) {
+                if (!view.querySelector(`#${CSS.escape(folder.ItemId)}`)) {
                     const checkboxContainer = document.createElement("label")
                     const checkboxInput = document.createElement("input")
                     const checkboxLabel = document.createElement("span")
 
-                    checkboxContainer.className = "emby-checkbox-label"
+                    checkboxContainer.className = "sf-checkline"
 
                     checkboxInput.setAttribute("id", folder.ItemId)
                     checkboxInput.setAttribute("type", "checkbox")
-                    checkboxInput.setAttribute("is", "emby-checkbox")
+                    checkboxInput.className = "sf-check"
                     
                     const libraries = shared.getConfig()?.notifications?.['itemAdded']?.['enabledLibraries'] ?? []
                     checkboxInput.checked = libraries.includes(folder.ItemId) === true
@@ -93,9 +105,9 @@ export default function (view, params) {
                             "enabledLibraries",
                             shared.getElValue(hiddenLibraryInput)
                         ));
+                        edited();
                     })
 
-                    checkboxLabel.className = "checkboxLabel"
                     checkboxLabel.innerText = folder.Name
 
                     checkboxContainer.append(
@@ -107,7 +119,7 @@ export default function (view, params) {
                 }
             })
 
-            document.querySelectorAll('[data-key-name][data-prop-name]').forEach(el => {
+            view.querySelectorAll('[data-key-name][data-prop-name]').forEach(el => {
                 shared.keyedEventListener(el, 'change', function () {
                     shared.setConfig(updateNotificationConfig(
                         el.getAttribute('data-key-name'),
@@ -115,12 +127,15 @@ export default function (view, params) {
                         el.getAttribute('data-prop-name'),
                         shared.getElValue(el)
                     ));
+                    edited();
                 })
             })
 
             shared.keyedEventListener(saveBtn, 'click', function (e) {
                 e.preventDefault();
-                shared.saveConfig()
+                shared.saveConfig().then((stored) => {
+                    if (stored) saved();
+                })
             })
         })
     });

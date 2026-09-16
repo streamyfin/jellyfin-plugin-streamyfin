@@ -67,6 +67,57 @@ export const themeFromBackground = (color) => {
     return luminance > 0.5 ? "light" : "dark";
 };
 
+// The dashboard applies its theme stylesheet after the view is shown, so a page that
+// asks at once reads the background of the theme being replaced and stays dark on a
+// light dashboard. Nothing announces the swap, so this watches for it: the stylesheet
+// arriving in the head, or a class landing on the root. The frames are the belt to that
+// brace, since a theme already applied fires no mutation at all. The callback is for
+// what cannot re-read a CSS variable, like the Monaco editor.
+export const applyTheme = (element, changed, frames = 90, raf = globalThis.requestAnimationFrame) => {
+    if (!element) return () => {};
+
+    const read = () => themeFromBackground(
+        globalThis.getComputedStyle(globalThis.document.documentElement).backgroundColor);
+
+    const settle = () => {
+        const theme = read();
+        if (element.dataset.sfTheme === theme) return;
+        element.dataset.sfTheme = theme;
+        if (typeof changed === "function") changed(theme);
+    };
+
+    element.dataset.sfTheme = read();
+
+    let observer = null;
+    const Observer = globalThis.MutationObserver;
+    if (typeof Observer === "function") {
+        observer = new Observer(settle);
+        observer.observe(globalThis.document.head, { childList: true, subtree: true });
+        observer.observe(globalThis.document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+    }
+
+    const stop = () => observer?.disconnect();
+
+    if (typeof raf !== "function") {
+        return stop;
+    }
+
+    let left = frames;
+    const again = () => {
+        settle();
+        if (--left > 0) {
+            raf(again);
+            return;
+        }
+        // The theme is decided by the time the dashboard has painted this many frames.
+        // Watching for the rest of the session would outlive the page itself.
+        stop();
+    };
+    raf(again);
+
+    return stop;
+};
+
 // What a level inherits, given the levels above it from the least specific down. The
 // server resolves the same way, most specific wins, so the Targeting tab can say what a
 // group or a user falls through to without asking for a resolution per setting. Pass the

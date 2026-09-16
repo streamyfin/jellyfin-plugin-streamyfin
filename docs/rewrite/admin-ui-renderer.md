@@ -322,6 +322,44 @@ Five more, each fixed with the change that caused it:
   one it started with, and an abandoned run could draw over the new one. Each showing
   keeps its own.
 
+## The three pages that are not the form
+
+Application and Targeting are drawn from a description the server serves. Notifications,
+Other and the Yaml editor are written by hand, and until now they were still wearing the
+dashboard's own form controls: fieldsets with a legend, checkbox labels, a submit button
+at the bottom of the page. Two tabs of one plugin looked like two different plugins.
+
+They now borrow the same vocabulary rather than a second one: the top row with the page's
+name, a card per subject, a row per setting with its key underneath, and the save dock,
+which says what a click will do instead of offering a button that is always ready.
+
+![Notifications: one card per event, the libraries an event may come from, and the dock saying nothing has changed](images/admin-notifications-dark.png)
+
+![The same page in the dashboard's light theme](images/admin-notifications-light.png)
+
+![Other: the start page and the backup pair](images/admin-other-dark.png)
+
+![The Yaml editor, filling its card, with Monaco following the page's theme](images/admin-yaml-light.png)
+
+Doing it turned up two defects that had nothing to do with the styling.
+
+**The start page select never reached the configuration.** The Other tab wrote the
+selected value nowhere, and saving dumped the configuration it already held, so the
+setting could not be changed from the page that offers it. It is written on change now,
+and a save was watched storing `Targeting` and surviving a reload.
+
+**Every page looked its elements up in the whole document.** The dashboard keeps the
+views it has already shown, so once Application had been opened, its hidden copy of an id
+answered first: the theme attribute landed on the wrong page, which then stayed dark on a
+light dashboard, and the dock these pages gained would have written into Application's.
+Each page resolves inside its own view now, which is what Application was already doing
+with `view.querySelector`.
+
+The theme itself is no longer read once and hoped for. The dashboard swaps its stylesheet
+after the view is shown and announces nothing, so `applyTheme` watches the head for the
+swap, settles over the first frames for a theme that was already applied, and tells the
+Yaml editor when it changes, since Monaco cannot re-read a CSS variable.
+
 ## Delivery
 
 Branch `refonte/p3-6-renderer`, stacked on `refonte/p3-6-form-descriptor`, one pull

@@ -124,6 +124,7 @@
 }
 .sf-page .sf-banner svg { flex: none; color: var(--sf-ac); margin-top: 0.2rem; width: 20px; height: 20px; }
 .sf-page .sf-banner b { color: var(--sf-ink); }
+.sf-page .sf-banner a { color: var(--sf-ac); }
 .sf-page .sf-banner-close {
     margin-left: auto; flex: none; align-self: flex-start; cursor: pointer; border: 0; background: none;
     color: var(--sf-ink-3); font-size: 1.2rem; line-height: 1; padding: 0.1rem 0.4rem; border-radius: 4px;
@@ -368,3 +369,28 @@
    a rule that did not exist when it was written, and a count alone leaves ninety
    settings to search. */
 .sf-page .sf-find-problem { flex: none; }
+
+/* The three pages that are not the settings form: Notifications, Other and the Yaml
+   editor. They are hand written rather than drawn from a description, so they borrow
+   the cards, rows and controls above and add only what they alone need. */
+
+/* A list of boxes that are one choice each, like the libraries an event is restricted
+   to. Wrapping columns rather than a stack: twelve libraries as a stack is a wall. */
+.sf-page .sf-checks { display: flex; flex-wrap: wrap; gap: 0.55rem 1.1rem; margin-top: 0.7rem; }
+.sf-page .sf-checkline { display: inline-flex; align-items: center; gap: 0.55rem; font-size: 0.95rem; color: var(--sf-ink-2); cursor: pointer; }
+.sf-page .sf-checkline .sf-check { width: 1.25rem; height: 1.25rem; }
+.sf-page .sf-checkline .sf-check:checked::after { left: 0.33rem; top: 0.08rem; width: 0.34rem; height: 0.68rem; border-width: 0 2px 2px 0; }
+
+/* Actions that belong to the page rather than to a row: the Yaml editor's help,
+   examples and example loader. They sit at the end of the top row. */
+.sf-page .sf-actions { display: flex; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
+.sf-page .sf-actions .sf-btn { padding: 0.55em 1.1em; font-size: 0.94rem; }
+.sf-page a.sf-btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* The editor fills the card. It is Monaco, which wants an explicit height, and 70vh
+   keeps the save dock in view on a laptop. */
+.sf-page .sf-editor { height: min(70vh, 46rem); min-height: 22rem; }
+.sf-page .sf-card--plain > .sf-body { padding: 0; column-count: 1; }
+
+/* Two buttons that do the same kind of thing, side by side, like the backup pair. */
+.sf-page .sf-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; }
