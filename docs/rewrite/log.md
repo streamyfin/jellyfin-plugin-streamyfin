@@ -1102,3 +1102,59 @@ from now on. A local build with Xcode 27 links against the iOS 27 SDK, and iOS 2
 refuses to launch an app that has not adopted the UIKit scene life cycle. Expo adopts
 it in SDK 58; the app is on 57. Until it moves, a local iOS build needs a scene
 delegate added by hand in the generated `ios/` folder, which is not in the repository.
+
+## 2026-09-16, the last three pages, and the admin UI put through its paces
+
+### One plugin, not two
+
+Application and Targeting had been on the cards, rows and three state segments of
+`settings-form.css` since P3.6. Notifications, Other and the Yaml editor were still
+wearing the dashboard's own form controls, so two tabs of the same plugin looked like two
+different plugins. They now share the vocabulary: the top row with the page's name, a
+card per subject, a row per setting with its key underneath, and the save dock that says
+whether there is anything to save rather than offering a button that is always ready.
+
+Porting them turned up two defects that had nothing to do with styling.
+
+**The start page select never reached the configuration.** The Other tab wrote the chosen
+value nowhere, and a save dumps the configuration the page is holding, so Save on that tab
+stored what was already there. The setting could not be changed from the page that offers
+it. It is written on change now, and a save was watched storing `Targeting` and surviving
+a reload.
+
+**Every page looked its elements up in the whole document.** The dashboard keeps the views
+it has already shown. Once Application had been opened, its hidden copy of a shared id
+answered first, so the theme attribute landed on the wrong page and the page behind it
+stayed dark on a light dashboard. The dock these pages gained would have written into
+Application's for the same reason. Each page resolves inside its own view now, which is
+what Application was already doing.
+
+The theme is no longer read once and hoped for either: the dashboard swaps its stylesheet
+after the view is shown and announces nothing, so `applyTheme` watches the head for the
+swap, settles over the first frames when the theme was already applied, and tells the Yaml
+editor when it changes, since Monaco cannot re-read a CSS variable.
+
+### The pass
+
+Section 2 of the release checklist, done as a script rather than by hand, on the beta in
+Jellyfin 13.0.0, in both themes. Fifteen scenarios, fifteen green, each one acting in the
+page and then asking the server what it stored.
+
+A toggle through all three states and the key disappearing when it goes back to free. A
+number refusing 100 against its bounds and 2.5 against its integer, the dock saying
+`1 unsaved · 1 to fix`, Save going dark and `Show me` appearing, then 30 stored. Text
+stored as typed. A select locked on its value. A list of two lines arriving as an array of
+two. A secret revealing and hiding with nothing to save behind it. A dependency inert only
+while its parent is locked off, with Free still reachable. A setting the app declares no
+default for saying `App default` and refusing an empty suggestion. The search reaching
+across categories and the Set filter showing only what is set. The two switches and the
+banner surviving a reload. One column at 760px with nothing hanging off the side. An
+ordinary account seeing a save at once and no key anywhere in what it receives. A broken
+Yaml file refused with the configuration unchanged. Five tabs in a row with no ghost Monaco
+editor, one dock in view and a clean console. And a group created on Targeting with an
+override, found on the server afterwards.
+
+The configuration was backed up through the plugin's own route before the pass and restored
+after it, and the backup taken afterwards matches the one taken before section for section.
+The throwaway accounts are deleted. The harness stays out of the repository: it carries a
+server address and two passwords.
