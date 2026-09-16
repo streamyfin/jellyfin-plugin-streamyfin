@@ -142,6 +142,18 @@ public static class SettingsValidation
             }
 
             var trimmed = address.Trim();
+
+            // An address with nothing in it is not a value. Stored as one it reads as
+            // "the server suggests you use no server", which the form then refuses as
+            // empty, so an administrator who never touched Seerr arrived on a page with
+            // two problems to fix and a save button that would not move. The key goes
+            // back to being absent, which is what "the app decides" is spelled as.
+            if (trimmed.Length == 0)
+            {
+                descriptor.Property.SetValue(settings, null);
+                continue;
+            }
+
             if (!string.Equals(trimmed, address, StringComparison.Ordinal))
             {
                 descriptor.Write(settings, trimmed);
