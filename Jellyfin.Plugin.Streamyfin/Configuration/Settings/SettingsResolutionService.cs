@@ -53,7 +53,16 @@ public sealed class SettingsResolutionService(
             levels.Add(ReadLevel(userOverride.SettingsJson, $"user {userOverride.UserId}"));
         }
 
-        return SettingsResolver.Resolve([.. levels]);
+        var resolved = SettingsResolver.Resolve([.. levels]);
+
+        // The home sections leave here as the app has to draw them: each saying what
+        // kind it is, and in the order the administrator asked for. A level that adds a
+        // section can only append it, so without this the order would be whichever
+        // level happened to speak last.
+        Sections.Declare(resolved);
+        Sections.Sort(resolved);
+
+        return resolved;
     }
 
     /// <summary>
@@ -91,6 +100,7 @@ public sealed class SettingsResolutionService(
         // the stored copy does. Nothing is written back: a GET does not rewrite the
         // database, and the kind a payload implies is the same answer every time.
         Sections.Declare(config?.settings);
+        Sections.Sort(config?.settings);
 
         if (isElevated)
         {
@@ -131,6 +141,7 @@ public sealed class SettingsResolutionService(
         {
             var settings = _serialization.DeserializeJson<Settings>(json);
             Sections.Declare(settings);
+            Sections.Sort(settings);
             return settings;
         }
         catch (System.Text.Json.JsonException ex)

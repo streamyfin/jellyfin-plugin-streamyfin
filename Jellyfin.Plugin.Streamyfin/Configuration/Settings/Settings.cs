@@ -78,6 +78,20 @@ public class Section
   [Display(Name = "Kind", Description = "Which query fills this section: items, nextUp, latest or custom")]
   public SectionKind? kind { get; set; }
 
+  /// <summary>
+  /// Where this section sits on the home screen.
+  /// </summary>
+  /// <remarks>
+  /// The position was the order the sections happened to be written in, which is fine
+  /// until something else writes them: a section moved by hand in the YAML moved
+  /// everything under it, and a targeting level that adds one could only append. A
+  /// section that declares an order is placed by it; one that does not keeps the place
+  /// it was written in, so a configuration that never mentions this reads exactly as it
+  /// did before.
+  /// </remarks>
+  [Display(Name = "Order", Description = "Where this section sits, lowest first. Leave it out to keep the order the sections are written in")]
+  public int? order { get; set; }
+
   [NotNull]
   [Display(Name = "Items", Description = "Customize the Items API query")]
   public Items? items { get; set; }
