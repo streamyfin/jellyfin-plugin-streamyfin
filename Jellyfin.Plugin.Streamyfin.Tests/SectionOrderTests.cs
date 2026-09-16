@@ -111,6 +111,37 @@ public class SectionOrderTests
         Assert.Equal(new[] { "first", "second" }, Titles(settings.home.value));
     }
 
+    /// <summary>
+    /// Two routes both sort the same objects, so sorting twice has to give the same
+    /// answer. It did not: the second pass read the place the first pass had moved a
+    /// section to as if the administrator had asked for it.
+    /// </summary>
+    [Fact]
+    public void SortingTwiceGivesTheSameAnswer()
+    {
+        var home = HomeOf(("written first", null), ("pinned to the top", 0), ("written third", 1));
+
+        Sections.Sort(home);
+        var once = Titles(home);
+        Sections.Sort(home);
+
+        Assert.Equal(once, Titles(home));
+        Assert.Equal(new[] { "pinned to the top", "written first", "written third" }, Titles(home));
+    }
+
+    /// <summary>
+    /// A section says where it ended up, which is what makes a second pass a no-op.
+    /// </summary>
+    [Fact]
+    public void EverySectionLeavesSayingWhereItSits()
+    {
+        var home = HomeOf(("second", null), ("first", -3));
+
+        Sections.Sort(home);
+
+        Assert.Equal(new int?[] { 0, 1 }, (home.sections ?? []).Select(section => section.order).ToArray());
+    }
+
     private static Home HomeOf(params (string Title, int? Order)[] sections) => new()
     {
         sections = sections

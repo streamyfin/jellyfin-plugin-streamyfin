@@ -78,6 +78,13 @@ public static class Sections
     /// said they do not mind, not that the server may shuffle them on each answer.
     ///
     /// <para>
+    /// Every section comes out carrying its position, so sorting an answer twice gives
+    /// the same answer: the rule reads a section's place from its number, and a pass
+    /// that moved it would otherwise leave the next pass reading the new place as if it
+    /// had been asked for.
+    /// </para>
+    ///
+    /// <para>
     /// Done on the way out, next to the kind, and nothing is written back: a GET does
     /// not rewrite the database.
     /// </para>
@@ -90,7 +97,7 @@ public static class Sections
             return;
         }
 
-        home!.sections = sections
+        var sorted = sections
             .Select((section, index) => (section, index))
             .OrderBy(pair => pair.section?.order ?? pair.index)
             // A number that was written wins the tie against one that was inferred from a
@@ -100,6 +107,20 @@ public static class Sections
             .ThenBy(pair => pair.index)
             .Select(pair => pair.section)
             .ToArray();
+
+        // Each section leaves saying where it ended up. Without that, a second pass over
+        // the same objects would read a position that the first pass had already moved,
+        // and two routes that both sort would answer differently: the legacy shim and the
+        // resolved route disagreed exactly that way before this line existed.
+        for (var index = 0; index < sorted.Length; index++)
+        {
+            if (sorted[index] is { } section)
+            {
+                section.order = index;
+            }
+        }
+
+        home!.sections = sorted;
     }
 
     /// <summary>

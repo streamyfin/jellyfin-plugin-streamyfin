@@ -53,7 +53,16 @@ public sealed class SettingsResolutionService(
             levels.Add(ReadLevel(userOverride.SettingsJson, $"user {userOverride.UserId}"));
         }
 
-        return SettingsResolver.Resolve([.. levels]);
+        var resolved = SettingsResolver.Resolve([.. levels]);
+
+        // The home sections leave here as the app has to draw them: each saying what
+        // kind it is, and in the order the administrator asked for. A level that adds a
+        // section can only append it, so without this the order would be whichever
+        // level happened to speak last.
+        Sections.Declare(resolved);
+        Sections.Sort(resolved);
+
+        return resolved;
     }
 
     /// <summary>
