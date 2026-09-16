@@ -1,0 +1,37 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+     data-require="emby-button,emby-input,emby-select,emby-checkbox"
+     data-controller="__plugin/Home.js">
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
+
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Streamyfin</h1>
+            <span class="sf-meta" id="sf-meta">Home</span>
+            <div class="sf-actions">
+                <label class="sf-name" for="sf-new-kind">Add</label>
+                <select class="sf-select" id="sf-new-kind" aria-label="What fills the new section"></select>
+                <button type="button" class="sf-btn" id="sf-add">Add a section</button>
+            </div>
+        </div>
+
+        <div class="sf-banner">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div>The rows of the app's home screen, in the order they appear. A section is filled by
+                one query: the items query, what a viewer is part way through, what arrived most
+                recently, or an endpoint you name. Headers and query parameters for a custom
+                endpoint are still written in the Yaml tab.</div>
+        </div>
+
+        <div class="sf-status" id="sf-status">Loading the home screen…</div>
+        <div id="sf-editor"></div>
+
+        <div class="sf-dock" id="sf-dock" hidden>
+            <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn" id="sf-discard" disabled>Discard</button>
+            <button type="button" class="sf-btn sf-btn--primary" id="sf-save" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
+            </button>
+        </div>
+    </div>
+</div>

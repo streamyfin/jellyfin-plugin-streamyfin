@@ -107,6 +107,18 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
         new PluginPageInfo
         {
+            Name = "Home",
+            EmbeddedResourcePath = _prefix + ".Pages.Home.index.html"
+        },
+
+        new PluginPageInfo
+        {
+            Name = "Home.js",
+            EmbeddedResourcePath = _prefix + ".Pages.Home.index.js"
+        },
+
+        new PluginPageInfo
+        {
             Name = "Notifications",
             EmbeddedResourcePath = _prefix + ".Pages.Notifications.index.html"
         },
@@ -295,6 +307,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             Name = "settings-form.js",
             EmbeddedResourcePath = _prefix + ".Pages.settings-form.js"
+        };
+
+        // What a home section is, and what editing one means, without a DOM.
+        yield return new PluginPageInfo
+        {
+            Name = "home-editor.js",
+            EmbeddedResourcePath = _prefix + ".Pages.home-editor.js"
         };
 
         // Shared by the Application and Targeting pages, which draw the same rows.
