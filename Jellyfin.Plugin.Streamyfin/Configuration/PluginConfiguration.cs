@@ -101,9 +101,9 @@ public class PluginConfiguration : BasePluginConfiguration
     playDefaultAudioTrack = new() { value = true },
     audioTranscodeMode = new() { value = AudioTranscodeMode.Auto },
     defaultBitrate = new() { value = null },
-    jellyseerrServerUrl = new() { value = "" },
+    // No address is seeded. An empty one is not a value, and suggesting it to every
+    // client says the server has an opinion about a Seerr it does not have.
     searchEngine = new() { value = SearchEngine.Jellyfin },
-    marlinServerUrl = new() { value = "" },
     libraryOptions = new() { value = new LibraryOptions() },
     tvTypographyScale = new() { value = TVTypographyScale.Default },
     tvThemeMusicEnabled = new() { value = true },

@@ -102,6 +102,11 @@ public sealed class SettingsResolutionService(
         Sections.Declare(config?.settings);
         Sections.Sort(config?.settings);
 
+        // A server that stored an empty address before one stopped being storable would
+        // otherwise hand the admin page two problems it did not make, on every load,
+        // until somebody saved. Tidied on the way out as well as on the way in.
+        SettingsValidation.Tidy(config?.settings);
+
         if (isElevated)
         {
             return config ?? new Config();
@@ -142,6 +147,7 @@ public sealed class SettingsResolutionService(
             var settings = _serialization.DeserializeJson<Settings>(json);
             Sections.Declare(settings);
             Sections.Sort(settings);
+            SettingsValidation.Tidy(settings);
             return settings;
         }
         catch (System.Text.Json.JsonException ex)

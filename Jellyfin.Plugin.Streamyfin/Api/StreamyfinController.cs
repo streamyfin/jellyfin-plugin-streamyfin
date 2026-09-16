@@ -137,7 +137,7 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
-    var problem = SettingsValidation.Check(p.settings);
+    var problem = SettingsValidation.Check(p.settings) ?? NotificationsValidation.Check(p.notifications);
     if (problem is not null)
     {
       return new ConfigSaveResponse { Error = true, Message = problem };

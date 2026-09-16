@@ -68,6 +68,11 @@ const control = (field) => {
     }
 };
 
+// A number field carries its floor, so the browser knows the value is out of range
+// before the server does. An invalid one is not written: the page says so on the row and
+// keeps what was there, rather than sending a wait of minus one to the scheduler.
+const valid = (node) => typeof node.checkValidity !== "function" || node.checkValidity();
+
 const readControl = (field, node) => {
     switch (field.control) {
         case "Toggle": return node.checked;
@@ -115,9 +120,19 @@ const writeControl = (field, node, value) => {
 };
 
 export default function (view, params) {
+    // The dashboard keeps this page between tab switches and fires viewshow again on
+    // each one. Drawn once: a second run would find the status line it had already
+    // removed and throw on the way past.
+    let drawn = null;
+
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Notifications");
+
+            if (drawn) {
+                drawn(shared.getConfig()?.notifications);
+                return;
+            }
 
             const find = (id) => view.querySelector(`#${id}`);
             const status = find("sf-status");
@@ -218,12 +233,19 @@ export default function (view, params) {
             };
 
             draw(shared.getConfig()?.notifications);
+            drawn = draw;
             shared.setOnConfigUpdatedListener("notifications", (config) => draw(config?.notifications));
 
             grid.addEventListener("change", (event) => {
                 const row = [...rows.values()].find(
                     (candidate) => candidate.node === event.target || candidate.node.contains(event.target));
                 if (!row) return;
+
+                const ok = valid(row.node);
+                row.el.classList.toggle("is-invalid", !ok);
+                if (!ok) {
+                    return;
+                }
 
                 const config = shared.getConfig() ?? {};
                 shared.setConfig({

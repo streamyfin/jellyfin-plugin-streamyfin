@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Reflection;
+using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
 using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
@@ -135,5 +136,59 @@ public class SettingsValidationTests
             Assert.Equal(field.Minimum, bounds!.Minimum);
             Assert.Equal(field.Maximum, bounds.Maximum);
         }
+    }
+
+    /// <summary>
+    /// An address with nothing in it is not a value. Stored as one it says the server
+    /// suggests using no server, and the form refuses it as empty, so a fresh install
+    /// opened on two problems nobody made.
+    /// </summary>
+    [Fact]
+    public void AnEmptyAddressIsNotStoredAtAll()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "" },
+            marlinServerUrl = new Lockable<string> { value = "   " }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+    }
+
+    /// <summary>
+    /// An address that is one is kept, with its spaces taken off.
+    /// </summary>
+    [Fact]
+    public void AnAddressThatIsOneSurvivesTidying()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "  https://requests.example.com  " }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
+    }
+
+    /// <summary>
+    /// The configuration a fresh server starts from carries no address, so an
+    /// administrator who has never opened the plugin has nothing to fix.
+    /// </summary>
+    [Fact]
+    public void TheSeededConfigurationCarriesNoEmptyAddress()
+    {
+        var seeded = PluginConfiguration.DefaultSettings();
+
+        var empty = SettingsSchema.Descriptors
+            .Where(descriptor => descriptor.IsWebAddress)
+            .Where(descriptor => descriptor.Read(seeded) is string address && string.IsNullOrWhiteSpace(address))
+            .Select(descriptor => descriptor.Key)
+            .ToArray();
+
+        Assert.Empty(empty);
     }
 }

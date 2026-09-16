@@ -116,6 +116,13 @@ public static class NotificationsForm
     }
 
     /// <summary>
+    /// The key an event is known by, which is the name it carries in the payload.
+    /// </summary>
+    /// <param name="eventProperty">The property holding the event.</param>
+    /// <returns>Its JSON name.</returns>
+    public static string KeyOf(PropertyInfo eventProperty) => JsonNameOf(eventProperty);
+
+    /// <summary>
     /// The name a field carries in the payload, which is the name the page has to send
     /// back and the name the YAML is written in.
     /// </summary>
