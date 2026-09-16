@@ -1,49 +1,56 @@
 <div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
      data-require="emby-button,emby-select,emby-checkbox"
      data-controller="__plugin/Other.js">
-    <div class="content-primary" style="max-width: 53em; height: 100%">
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h1 class="sectionTitle">Streamyfin</h1>
-            </div>
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Other</h2>
-            </div>
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
+
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Streamyfin</h1>
+            <span class="sf-meta">Other</span>
         </div>
 
-        <div class="verticalSection-extrabottompadding">
-            <div class="inputContainer">
-                <label class="inputLabel" for="home-page">Home page</label>
-                <select id="home-page" is="emby-select" class="emby-select-withcolor emby-select"></select>
-                <div class="fieldDescription">The plugin page you want to always load first.</div>
-            </div>
+        <div class="sf-grid">
+            <section class="sf-card">
+                <header><h2>Start page</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="home-page">Open this tab first
+                                <span class="sf-key">other.homePage</span></label>
+                            <select class="sf-select" id="home-page"></select>
+                        </div>
+                        <p class="sf-desc">Where the plugin lands when it is opened from the
+                            dashboard.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sf-card">
+                <header><h2>Backup</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head"><span class="sf-name">One file for all of it</span></div>
+                        <p class="sf-desc">The configuration, the groups and their members, and the
+                            settings aimed at one user. Jellyfin's own backup does not carry the last
+                            two. <strong>The file contains the Seerr API key, so treat it the way you treat
+                            that key.</strong></p>
+                        <div class="sf-foot sf-buttons">
+                            <button type="button" class="sf-btn" id="backup-btn">Download a backup</button>
+                            <button type="button" class="sf-btn" id="restore-btn">Restore from a file</button>
+                            <input id="restore-file" type="file" accept="application/json,.json" hidden>
+                        </div>
+                        <p class="sf-said" id="backup-said" role="status"></p>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <div id="config-layout">
-            <button id="save-other-btn" is="emby-button" type="submit" class="raised button-submit block">
-                <span>Save</span>
+        <div class="sf-dock" id="sf-dock">
+            <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn sf-btn--primary" id="save-other-btn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
             </button>
-        </div>
-
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Backup</h2>
-            </div>
-            <p class="fieldDescription">
-                Everything you set here, in one file: the configuration, the groups and their members, and the
-                settings targeted at one user. Jellyfin's own backup does not carry the last two.
-                <strong>The file contains the Seerr API key, so treat it the way you treat that key.</strong>
-            </p>
-            <div class="inputContainer">
-                <button id="backup-btn" is="emby-button" type="button" class="raised block">
-                    <span>Download a backup</span>
-                </button>
-                <button id="restore-btn" is="emby-button" type="button" class="raised block">
-                    <span>Restore from a file</span>
-                </button>
-                <input id="restore-file" type="file" accept="application/json,.json" hidden>
-                <div id="backup-said" class="fieldDescription" role="status"></div>
-            </div>
         </div>
     </div>
 </div>

@@ -1,119 +1,150 @@
 <div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
-     data-require="emby-button,emby-select,emby-checkbox"
+     data-require="emby-button,emby-input,emby-checkbox"
      data-controller="__plugin/Notifications.js">
-    <div class="content-primary" style="max-width: 53em; height: 100%">
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h1 class="sectionTitle">Streamyfin</h1>
-            </div>
-            <div class="sectionTitleContainer">
-                <h2 class="sectionTitle">Notifications</h2>
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
+
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Streamyfin</h1>
+            <span class="sf-meta">Notifications</span>
+        </div>
+
+        <div class="sf-banner">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div>
+                These are Jellyfin's own events, sent to the phones and tablets signed in to this
+                server. Something else can post a notification instead, which
+                <a target="_blank" rel="noreferrer"
+                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/blob/main/NOTIFICATIONS.md">NOTIFICATIONS.md</a>
+                describes.
+                <span class="sf-key">Endpoint <span id="notification-endpoint"></span></span>
             </div>
         </div>
 
-        <p>
-            These are jellyfin events as notifications for your android or ios device.<br><br>
-            <span style="color: orange">
-                If you need more extensibility, 
-                like consuming webhook from an external service, 
-                checkout the more advanced documentation 
-                <a style="color: inherit !important;" target="_blank"
-                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/blob/main/NOTIFICATIONS.md">
-                    NOTIFICATION.md
-                </a><br><br>
-                
-                Notification endpoint<br>
-                <code style="font-size: 1.25em" id="notification-endpoint"></code>
-            </span>
-        </p>
+        <div class="sf-grid">
+            <section class="sf-card">
+                <header><h2>Item added</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="item-added-enabled">Send this one
+                                <span class="sf-key">itemAdded.enabled</span></label>
+                            <input class="sf-check" id="item-added-enabled" type="checkbox"
+                                   data-key-name="itemAdded" data-prop-name="enabled">
+                        </div>
+                        <p class="sf-desc">Everyone is notified when a new movie or episode arrives.
+                            Episodes added to one season are gathered into a single notification where
+                            that is possible.</p>
+                    </div>
 
-        <fieldset class="verticalSection-extrabottompadding">
-            <legend>Item Added</legend>
-            <div class="checkboxContainer checkboxContainer-withDescription">
-                <label class="emby-checkbox-label">
-                    <input id="item-added-enabled" data-key-name="itemAdded" data-prop-name="enabled" type="checkbox" is="emby-checkbox"/>
-                    <span class="checkboxLabel">Enabled</span>
-                </label>
-                <div class="fieldDescription">
-                    If enabled, all users will be notified when new movies or episodes are available.
-                    <br>
-                    <br>
-                    This notification consolidates the amount of episodes added for a season into one notification if possible to prevent spam.
-                </div>
-            </div>
-            <p>Enabled Libraries</p>
-            <div class="fieldDescription">
-                Restrict notifications to specific libraries or leave <strong>ALL</strong> unchecked to provide no restriction.
-            </div>
-            <input id="hidden-library-input" type="hidden" data-key-name="itemAdded" data-prop-name="enabledLibraries" data-is-array="true"/>
-            <div id="item-library-container" class="checkboxContainer checkboxContainer-withDescription" style="margin-top: 16px">
-            </div>
-            <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="item-added-threshold">Recent Event Threshold</label>
-                <input id="item-added-threshold" data-key-name="itemAdded" data-prop-name="recentEventThreshold" min="0" type="number" is="emby-input">
-                <div class="fieldDescription">
-                    How long we want to wait in seconds until allowing a duplicate event from being processed
-                </div>
-            </div>
-        </fieldset>
+                    <div class="sf-row">
+                        <div class="sf-head"><span class="sf-name">Libraries</span></div>
+                        <p class="sf-desc">Pick the ones this event may come from. Leave every box
+                            unchecked and it comes from all of them.</p>
+                        <input id="hidden-library-input" type="hidden"
+                               data-key-name="itemAdded" data-prop-name="enabledLibraries" data-is-array="true">
+                        <div class="sf-checks" id="item-library-container"></div>
+                    </div>
 
-        <fieldset class="verticalSection-extrabottompadding">
-            <legend>Session Started</legend>
-            <div class="checkboxContainer checkboxContainer-withDescription">
-                <label class="emby-checkbox-label">
-                    <input id="session-started-enabled" data-key-name="sessionStarted" data-prop-name="enabled" type="checkbox" is="emby-checkbox"/>
-                    <span class="checkboxLabel">Enabled</span>
-                </label>
-                <div class="fieldDescription">If enabled, admins will be notified when users are online</div>
-            </div>
-            <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="session-started-threshold">Recent Event Threshold</label>
-                <input id="session-started-threshold" data-key-name="sessionStarted" data-prop-name="recentEventThreshold" type="number" min="0" is="emby-input">
-                <div class="fieldDescription">
-                    How long we want to wait in seconds until allowing a duplicate event from being processed
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="item-added-threshold">Wait before repeating
+                                <span class="sf-key">itemAdded.recentEventThreshold</span></label>
+                            <input class="sf-number" id="item-added-threshold" type="number" min="0"
+                                   data-key-name="itemAdded" data-prop-name="recentEventThreshold">
+                        </div>
+                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
+                            again.</p>
+                    </div>
                 </div>
-            </div>
-        </fieldset>
+            </section>
 
-        <fieldset class="verticalSection-extrabottompadding">
-            <legend>Playback Started</legend>
-            <div class="checkboxContainer checkboxContainer-withDescription">
-                <label class="emby-checkbox-label">
-                    <input id="playback-started-enabled" data-key-name="playbackStarted" data-prop-name="enabled" type="checkbox" is="emby-checkbox"/>
-                    <span class="checkboxLabel">Enabled</span>
-                </label>
-                <div class="fieldDescription">If enabled, admins will be notified when users begin to play media</div>
-            </div>
-            <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="playback-started-threshold">Recent Event Threshold</label>
-                <input id="playback-started-threshold" data-key-name="playbackStarted" data-prop-name="recentEventThreshold" type="number" min="0" is="emby-input">
-                <div class="fieldDescription">
-                    How long we want to wait in seconds until allowing a duplicate event from being processed
+            <section class="sf-card">
+                <header><h2>Session started</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="session-started-enabled">Send this one
+                                <span class="sf-key">sessionStarted.enabled</span></label>
+                            <input class="sf-check" id="session-started-enabled" type="checkbox"
+                                   data-key-name="sessionStarted" data-prop-name="enabled">
+                        </div>
+                        <p class="sf-desc">Administrators are notified when someone comes online.</p>
+                    </div>
+
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="session-started-threshold">Wait before repeating
+                                <span class="sf-key">sessionStarted.recentEventThreshold</span></label>
+                            <input class="sf-number" id="session-started-threshold" type="number" min="0"
+                                   data-key-name="sessionStarted" data-prop-name="recentEventThreshold">
+                        </div>
+                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
+                            again.</p>
+                    </div>
                 </div>
-            </div>
-        </fieldset>
+            </section>
 
-        <fieldset class="verticalSection-extrabottompadding">
-            <legend>User locked out</legend>
-            <div class="checkboxContainer checkboxContainer-withDescription">
-                <label class="emby-checkbox-label">
-                    <input id="user-locked-enabled" data-key-name="userLockedOut" data-prop-name="enabled" type="checkbox" is="emby-checkbox"/>
-                    <span class="checkboxLabel">Enabled</span>
-                </label>
-                <div class="fieldDescription">If enabled, admins & locked user will be notified when users requires a reset</div>
-            </div>
-            <div class="inputContainer">
-                <label class="inputLabel inputLabelUnfocused" for="user-locked-threshold">Recent Event Threshold</label>
-                <input id="user-locked-threshold" data-key-name="userLockedOut" data-prop-name="recentEventThreshold" type="number" min="0" is="emby-input">
-                <div class="fieldDescription">
-                    How long we want to wait in seconds until allowing a duplicate event from being processed
+            <section class="sf-card">
+                <header><h2>Playback started</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="playback-started-enabled">Send this one
+                                <span class="sf-key">playbackStarted.enabled</span></label>
+                            <input class="sf-check" id="playback-started-enabled" type="checkbox"
+                                   data-key-name="playbackStarted" data-prop-name="enabled">
+                        </div>
+                        <p class="sf-desc">Administrators are notified when someone starts playing
+                            something.</p>
+                    </div>
+
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="playback-started-threshold">Wait before repeating
+                                <span class="sf-key">playbackStarted.recentEventThreshold</span></label>
+                            <input class="sf-number" id="playback-started-threshold" type="number" min="0"
+                                   data-key-name="playbackStarted" data-prop-name="recentEventThreshold">
+                        </div>
+                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
+                            again.</p>
+                    </div>
                 </div>
-            </div>
-        </fieldset>
+            </section>
 
-        <div id="config-layout">
-            <button id="save-notification-btn" is="emby-button" type="submit" class="raised button-submit block">
-                <span>Save</span>
+            <section class="sf-card">
+                <header><h2>User locked out</h2></header>
+                <div class="sf-body">
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="user-locked-enabled">Send this one
+                                <span class="sf-key">userLockedOut.enabled</span></label>
+                            <input class="sf-check" id="user-locked-enabled" type="checkbox"
+                                   data-key-name="userLockedOut" data-prop-name="enabled">
+                        </div>
+                        <p class="sf-desc">The locked out account and the administrators are notified
+                            that it needs a reset.</p>
+                    </div>
+
+                    <div class="sf-row">
+                        <div class="sf-head">
+                            <label class="sf-name" for="user-locked-threshold">Wait before repeating
+                                <span class="sf-key">userLockedOut.recentEventThreshold</span></label>
+                            <input class="sf-number" id="user-locked-threshold" type="number" min="0"
+                                   data-key-name="userLockedOut" data-prop-name="recentEventThreshold">
+                        </div>
+                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
+                            again.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="sf-dock" id="sf-dock">
+            <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn sf-btn--primary" id="save-notification-btn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
             </button>
         </div>
     </div>

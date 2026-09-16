@@ -4,6 +4,7 @@
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
+    applyTheme,
     createForm,
     groupsFor,
     inherited,
@@ -1161,5 +1162,49 @@ describe("testing an address", () => {
         expect(probeText({ outcome: "SomethingNewer" }))
             .toBe("The server gave an answer this page does not understand.");
         expect(probeText(null)).toBe("The server gave no answer.");
+    });
+});
+
+describe("applyTheme", () => {
+    const withBackgrounds = (colours) => {
+        let call = 0;
+        return () => ({ backgroundColor: colours[Math.min(call++, colours.length - 1)] });
+    };
+
+    const underBackground = (colours, body) => {
+        const saved = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = withBackgrounds(colours);
+        try {
+            return body();
+        } finally {
+            globalThis.getComputedStyle = saved;
+        }
+    };
+
+    test("takes the background the dashboard is showing", () => {
+        const element = { dataset: {} };
+        underBackground(["rgb(250, 250, 250)"], () => applyTheme(element, undefined, 0, undefined));
+        expect(element.dataset.sfTheme).toBe("light");
+    });
+
+    // The dashboard swaps its stylesheet after the view is shown, so the first answer is
+    // the theme being replaced. The page has to take the second one.
+    test("corrects itself when the theme arrives late, and says so once", () => {
+        const element = { dataset: {} };
+        const told = [];
+        const frames = [];
+
+        underBackground(["rgb(16, 16, 16)", "rgb(250, 250, 250)"], () => {
+            applyTheme(element, (theme) => told.push(theme), 3, (fn) => frames.push(fn));
+            expect(element.dataset.sfTheme).toBe("dark");
+            while (frames.length) frames.shift()();
+        });
+
+        expect(element.dataset.sfTheme).toBe("light");
+        expect(told).toEqual(["light"]);
+    });
+
+    test("does nothing without an element", () => {
+        expect(() => applyTheme(null)).not.toThrow();
     });
 });
