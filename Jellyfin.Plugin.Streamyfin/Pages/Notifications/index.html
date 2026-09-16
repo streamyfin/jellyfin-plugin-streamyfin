@@ -6,7 +6,7 @@
     <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
         <div class="sf-top">
             <h1>Streamyfin</h1>
-            <span class="sf-meta">Notifications</span>
+            <span class="sf-meta" id="sf-meta">Notifications</span>
         </div>
 
         <div class="sf-banner">
@@ -21,126 +21,10 @@
             </div>
         </div>
 
-        <div class="sf-grid">
-            <section class="sf-card">
-                <header><h2>Item added</h2></header>
-                <div class="sf-body">
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="item-added-enabled">Send this one
-                                <span class="sf-key">itemAdded.enabled</span></label>
-                            <input class="sf-check" id="item-added-enabled" type="checkbox"
-                                   data-key-name="itemAdded" data-prop-name="enabled">
-                        </div>
-                        <p class="sf-desc">Everyone is notified when a new movie or episode arrives.
-                            Episodes added to one season are gathered into a single notification where
-                            that is possible.</p>
-                    </div>
+        <div class="sf-status" id="sf-status">Loading the events…</div>
+        <div id="sf-editor"></div>
 
-                    <div class="sf-row">
-                        <div class="sf-head"><span class="sf-name">Libraries</span></div>
-                        <p class="sf-desc">Pick the ones this event may come from. Leave every box
-                            unchecked and it comes from all of them.</p>
-                        <input id="hidden-library-input" type="hidden"
-                               data-key-name="itemAdded" data-prop-name="enabledLibraries" data-is-array="true">
-                        <div class="sf-checks" id="item-library-container"></div>
-                    </div>
-
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="item-added-threshold">Wait before repeating
-                                <span class="sf-key">itemAdded.recentEventThreshold</span></label>
-                            <input class="sf-number" id="item-added-threshold" type="number" min="0"
-                                   data-key-name="itemAdded" data-prop-name="recentEventThreshold">
-                        </div>
-                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
-                            again.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="sf-card">
-                <header><h2>Session started</h2></header>
-                <div class="sf-body">
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="session-started-enabled">Send this one
-                                <span class="sf-key">sessionStarted.enabled</span></label>
-                            <input class="sf-check" id="session-started-enabled" type="checkbox"
-                                   data-key-name="sessionStarted" data-prop-name="enabled">
-                        </div>
-                        <p class="sf-desc">Administrators are notified when someone comes online.</p>
-                    </div>
-
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="session-started-threshold">Wait before repeating
-                                <span class="sf-key">sessionStarted.recentEventThreshold</span></label>
-                            <input class="sf-number" id="session-started-threshold" type="number" min="0"
-                                   data-key-name="sessionStarted" data-prop-name="recentEventThreshold">
-                        </div>
-                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
-                            again.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="sf-card">
-                <header><h2>Playback started</h2></header>
-                <div class="sf-body">
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="playback-started-enabled">Send this one
-                                <span class="sf-key">playbackStarted.enabled</span></label>
-                            <input class="sf-check" id="playback-started-enabled" type="checkbox"
-                                   data-key-name="playbackStarted" data-prop-name="enabled">
-                        </div>
-                        <p class="sf-desc">Administrators are notified when someone starts playing
-                            something.</p>
-                    </div>
-
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="playback-started-threshold">Wait before repeating
-                                <span class="sf-key">playbackStarted.recentEventThreshold</span></label>
-                            <input class="sf-number" id="playback-started-threshold" type="number" min="0"
-                                   data-key-name="playbackStarted" data-prop-name="recentEventThreshold">
-                        </div>
-                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
-                            again.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="sf-card">
-                <header><h2>User locked out</h2></header>
-                <div class="sf-body">
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="user-locked-enabled">Send this one
-                                <span class="sf-key">userLockedOut.enabled</span></label>
-                            <input class="sf-check" id="user-locked-enabled" type="checkbox"
-                                   data-key-name="userLockedOut" data-prop-name="enabled">
-                        </div>
-                        <p class="sf-desc">The locked out account and the administrators are notified
-                            that it needs a reset.</p>
-                    </div>
-
-                    <div class="sf-row">
-                        <div class="sf-head">
-                            <label class="sf-name" for="user-locked-threshold">Wait before repeating
-                                <span class="sf-key">userLockedOut.recentEventThreshold</span></label>
-                            <input class="sf-number" id="user-locked-threshold" type="number" min="0"
-                                   data-key-name="userLockedOut" data-prop-name="recentEventThreshold">
-                        </div>
-                        <p class="sf-desc">Seconds to wait before the same event is allowed to send
-                            again.</p>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <div class="sf-dock" id="sf-dock">
+        <div class="sf-dock" id="sf-dock" hidden>
             <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
             <button type="button" class="sf-btn sf-btn--primary" id="save-notification-btn" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>

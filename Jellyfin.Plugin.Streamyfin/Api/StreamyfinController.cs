@@ -8,6 +8,7 @@ using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -197,6 +198,33 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult<IReadOnlyList<SettingsFormField>> GetSettingsForm() =>
     new JsonResult(SettingsForm.Describe());
+
+  /// <summary>
+  /// The notification events, as the admin page needs them.
+  /// </summary>
+  /// <returns>One field per property of every declared event.</returns>
+  /// <remarks>
+  /// The same device as <c>v1/settings/form</c>, for the same reason: the four events
+  /// were written twice, once as properties here and once as markup in the page, and the
+  /// two could disagree about what a field was called. The page draws what it is handed.
+  ///
+  /// <para>
+  /// The libraries an event can be restricted to are choices this server has, so they
+  /// are sent with the description rather than fetched separately and matched by a name
+  /// the page had to know.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/notifications/form")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<IReadOnlyList<SettingsFormField>> GetNotificationsForm()
+  {
+    var libraries = _libraryManager.GetVirtualFolders()
+      .Select(folder => new SettingsChoice(folder.ItemId, folder.Name))
+      .ToList();
+
+    return new JsonResult(NotificationsForm.Describe(libraries));
+  }
 
   /// <summary>
   /// Everything an administrator set, as one file.
