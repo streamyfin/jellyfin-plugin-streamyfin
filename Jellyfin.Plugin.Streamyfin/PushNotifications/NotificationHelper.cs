@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -66,53 +67,6 @@ public class NotificationHelper
         _httpClientFactory = httpClientFactory;
         _retry = retry ?? ExpoRetry.Default;
         _retryReads = _retry.ForSomethingThatOnlyReads();
-    }
-
-    /// <summary>
-    /// Ability to send a batch of notifications directly to jellyfin admins
-    /// </summary>
-    /// <param name="notifications">The notifications to send.</param>
-    /// <returns>Expo's response, or null when there is nobody to send to.</returns>
-    public async Task<ExpoNotificationResponse?> SendToAdmins(params Notification[] notifications)
-    {
-        // Declared nullable and dereferenced all the same. A null here threw inside an event
-        // handler the server was waiting on, rather than skipping a notification.
-        if (_userManager is null)
-        {
-            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
-            return null;
-        }
-
-        var adminTokens = _userManager.GetAdminTokens();
-
-        _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
-
-        // No admin tokens found.
-        if (adminTokens.Count == 0)
-        {
-            _logger?.LogInformation("No admins found");
-            return await Task.FromResult<ExpoNotificationResponse?>(null).ConfigureAwait(false);
-        }
-
-        var expoNotifications = notifications.Select(notification =>
-        {
-            List<String> userDeviceTokens = [];
-            var expoNotification = notification.ToExpoNotification();
-            
-            // Also send to target user if specified
-            if (notification.UserId.HasValue)
-            {
-                userDeviceTokens = StreamyfinPlugin.Instance?.Database
-                    .GetUserDeviceTokens(notification.UserId.Value)
-                    .Select(token => token.Token)
-                    .ToList() ?? [];
-            }
-
-            expoNotification.To = adminTokens.Concat(userDeviceTokens).Distinct().ToList();
-            return expoNotification;
-        }).ToArray();
-
-        return await Send(expoNotifications).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -221,10 +175,81 @@ public class NotificationHelper
     }
 
     /// <summary>
-    /// The devices of every administrator.
+    /// Whether an event is worth building at all.
     /// </summary>
-    /// <returns>Their registered devices, or nothing when there is no user manager.</returns>
-    public List<DeviceToken> AdminDevices() => _userManager?.GetAdminDeviceTokens() ?? [];
+    /// <param name="eventKey">The event, by the key the configuration and the page use.</param>
+    /// <param name="server">What the server says about it, which may be nothing.</param>
+    /// <returns>True when the server wants it, or when some level asked for it.</returns>
+    /// <remarks>
+    /// Asked at the top of an event, where it used to be enough to read the server's own
+    /// switch. It is the cheap half of the same question <see cref="SendForEvent"/> asks
+    /// per account, and it exists so that an event nobody wants costs a read of two small
+    /// tables rather than a message and a place in its own dedupe.
+    /// </remarks>
+    public bool Wants(string eventKey, NotificationConfiguration? server) =>
+        NotificationTargets
+            .From(StreamyfinPlugin.Instance?.Database)
+            .AnybodyWants(eventKey, server is { Enabled: true });
+
+    /// <summary>
+    /// Sends an event to everyone it reaches, once the groups and the users have had their
+    /// say about it.
+    /// </summary>
+    /// <param name="eventKey">The event, by the key the configuration and the page use.</param>
+    /// <param name="server">What the server says about it, which may be nothing.</param>
+    /// <param name="byDefault">
+    /// Who the event is for when no level says otherwise: the administrators for the ones
+    /// about the server itself, anybody for a new item.
+    /// </param>
+    /// <param name="andAlso">
+    /// A rule the event cannot be given away from, or <c>null</c>. A new item is only
+    /// announced to people who may open it, whatever a level says.
+    /// </param>
+    /// <param name="write">Writes the messages for one audience, called once per audience.</param>
+    /// <returns>Expo's response, or null when nobody is to be told.</returns>
+    public async Task<ExpoNotificationResponse?> SendForEvent(
+        string eventKey,
+        NotificationConfiguration? server,
+        Func<User, bool> byDefault,
+        Func<User, bool>? andAlso,
+        Func<Audience, ExpoNotificationRequest[]> write)
+    {
+        ArgumentNullException.ThrowIfNull(byDefault);
+        ArgumentNullException.ThrowIfNull(write);
+
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out who {Event} reaches", eventKey);
+            return null;
+        }
+
+        var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
+        var targets = NotificationTargets.From(StreamyfinPlugin.Instance?.Database);
+        var serverEnabled = server is { Enabled: true };
+
+        var recipients = DevicesWho(devices, userId =>
+        {
+            if (userId.Equals(default))
+            {
+                return false;
+            }
+
+            var user = _userManager.GetUserById(userId);
+
+            return user is not null
+                && !user.IsDisabled()
+                && targets.Reaches(eventKey, userId, serverEnabled, byDefault(user))
+                && (andAlso?.Invoke(user) ?? true);
+        });
+
+        if (recipients.Count == 0)
+        {
+            _logger?.LogInformation("Nobody is to be told about {Event}, so nothing was sent", eventKey);
+            return null;
+        }
+
+        return await SendToDevices(recipients, write).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Sends to these devices, each in the language it asked for.
@@ -303,110 +328,6 @@ public class NotificationHelper
         ArgumentNullException.ThrowIfNull(items);
 
         return user => items.All(item => item.IsVisibleStandalone(user));
-    }
-
-    /// <summary>
-    /// Sends messages about an item to the devices of every user who may open it.
-    /// </summary>
-    /// <param name="item">What the messages are about.</param>
-    /// <param name="write">Writes the messages for one audience, called once per audience.</param>
-    /// <returns>Expo's response, or null when nobody may be told.</returns>
-    /// <remarks>
-    /// A new movie or episode used to go to every registered device, so its title reached
-    /// people who cannot open the library it is in, or are not allowed its rating. Jellyfin
-    /// filtered its own new content notifications the same way before it dropped them, with
-    /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
-    /// rating and the tags.
-    /// </remarks>
-    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, Func<Audience, ExpoNotificationRequest[]> write)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        return SendToWhoCanOpen([item], write);
-    }
-
-    /// <summary>
-    /// Sends messages about several items to the devices of every user who may open all of
-    /// them.
-    /// </summary>
-    /// <param name="items">
-    /// Everything the messages describe. A user who may not open one of them is not told,
-    /// since the message names it.
-    /// </param>
-    /// <param name="write">Writes the messages for one audience, called once per audience.</param>
-    /// <returns>Expo's response, or null when nobody may be told.</returns>
-    /// <remarks>
-    /// A new movie or episode used to go to every registered device, so its title reached
-    /// people who cannot open the library it is in, or are not allowed its rating. Jellyfin
-    /// filtered its own new content notifications the same way before it dropped them, with
-    /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
-    /// rating and the tags.
-    /// </remarks>
-    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(
-        IReadOnlyCollection<BaseItem> items,
-        Func<Audience, ExpoNotificationRequest[]> write)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(write);
-
-        var subject = items.Count == 0 ? Guid.Empty : items.First().Id;
-
-        if (_userManager is null)
-        {
-            _logger?.LogWarning("No user manager available, cannot work out who may be told about {Item}", subject);
-            return null;
-        }
-
-        var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
-        var canOpen = CanOpenEvery(items);
-
-        // An empty id is no user, and GetUserById throws on it.
-        var recipients = DevicesWho(devices, userId =>
-            !userId.Equals(default)
-            && MayBeTold(_userManager.GetUserById(userId), canOpen));
-
-        if (recipients.Count == 0)
-        {
-            _logger?.LogInformation(
-                "No registered device belongs to a user who may open all {Count} item(s) of {Item}, so nothing was sent",
-                items.Count,
-                subject);
-            return null;
-        }
-
-        _logger?.LogInformation(
-            "Sending to {Recipients} of {Devices} registered device(s), those whose user may open all {Count} item(s) of {Item}",
-            recipients.Count,
-            devices.Select(device => device.Token).Distinct(StringComparer.Ordinal).Count(),
-            items.Count,
-            subject);
-
-        return await SendToDevices(recipients, write).ConfigureAwait(false);
-    }
-
-    public async Task<ExpoNotificationResponse?> SendToAdmins(
-        List<Guid>? excludedUserIds,
-        Func<Audience, ExpoNotificationRequest[]> write)
-    {
-        ArgumentNullException.ThrowIfNull(write);
-
-        if (_userManager is null)
-        {
-            _logger?.LogWarning("No user manager available, cannot work out which admins to notify");
-            return null;
-        }
-
-        var excludedIds = excludedUserIds ?? [];
-        var admins = _userManager.GetAdminDeviceTokens()
-            .FindAll(deviceToken => !excludedIds.Contains(deviceToken.UserId));
-
-        if (admins.Count == 0)
-        {
-            _logger?.LogInformation("No admins found");
-            return null;
-        }
-
-        return await SendToDevices(admins, write).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Events.Authentication;
@@ -61,8 +62,11 @@ public class SignInFailedEvent(
         _logger.LogInformation("A sign in was refused, telling the administrators");
 
         SendDetached(
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: null,
+            _notificationHelper.SendForEvent(
+                "signInFailed",
+                Config?.notifications?.SignInFailed,
+                byDefault: user => user.IsAdministrator(),
+                andAlso: null,
                 write: audience => [AdminEvents.SignInFailed(_localization, eventArgs.Username, eventArgs.RemoteEndPoint, audience.Culture)]),
             "sign in failed");
 

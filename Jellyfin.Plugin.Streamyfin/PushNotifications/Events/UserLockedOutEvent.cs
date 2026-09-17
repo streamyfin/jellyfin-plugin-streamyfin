@@ -25,21 +25,21 @@ public class UserLockedOutEvent(
     /// <inheritdoc />
     public async Task OnEvent(UserLockedOutEventArgs? eventArgs)
     {
-        if (eventArgs?.Argument == null || Config?.notifications?.UserLockedOut is not { Enabled: true })
+        if (eventArgs?.Argument == null
+            || !_notificationHelper.Wants("userLockedOut", Config?.notifications?.UserLockedOut))
         {
             _logger.LogInformation("UserLockedOutEvent received but currently disabled.");
             return;
         }
 
-        // The administrators and the account that was locked out, each device in the
-        // language it asked for.
-        var devices = _notificationHelper.AdminDevices()
-            .Concat(StreamyfinPlugin.Instance?.Database.GetUserDeviceTokens(eventArgs.Argument.Id) ?? [])
-            .ToList();
-
-        await _notificationHelper.SendToDevices(
-            devices,
-            audience =>
+        // The administrators and the account that was locked out, unless a level says
+        // otherwise. Each device in the language it asked for.
+        await _notificationHelper.SendForEvent(
+            "userLockedOut",
+            Config?.notifications?.UserLockedOut,
+            byDefault: user => user.IsAdministrator() || user.Id.Equals(eventArgs.Argument.Id),
+            andAlso: null,
+            write: audience =>
             [
                 new()
                 {

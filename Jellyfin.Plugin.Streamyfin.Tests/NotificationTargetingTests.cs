@@ -145,4 +145,41 @@ public class NotificationTargetingTests
         Assert.Equal(5, NotificationTargeting.WaitOf(Event, serverWait: 5, []));
         Assert.Null(NotificationTargeting.WaitOf(Event, serverWait: null, []));
     }
+
+    /// <summary>
+    /// Before an event is built at all, there is a cheaper question: does anybody want it?
+    /// An event switched off on the server is still worth building when a group or a user
+    /// asked for it, and worth skipping when nobody did.
+    /// </summary>
+    [Fact]
+    public void WhetherAnybodyWantsItAtAll()
+    {
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+
+        var nobodySaid = new NotificationTargets(new Dictionary<Guid, List<string>>
+        {
+            [alice] = [],
+            [bob] = [""]
+        });
+
+        Assert.True(nobodySaid.AnybodyWants(Event, serverEnabled: true));
+        Assert.False(nobodySaid.AnybodyWants(Event, serverEnabled: false));
+
+        var someoneAsked = new NotificationTargets(new Dictionary<Guid, List<string>>
+        {
+            [alice] = ["""{"taskFailed": {"enabled": false}}"""],
+            [bob] = ["""{"taskFailed": {"enabled": true}}"""]
+        });
+
+        Assert.True(someoneAsked.AnybodyWants(Event, serverEnabled: false));
+
+        var onlyRefused = new NotificationTargets(new Dictionary<Guid, List<string>>
+        {
+            [alice] = ["""{"taskFailed": {"enabled": false}}"""],
+            [bob] = ["""{"sessionStarted": {"enabled": true}}"""]
+        });
+
+        Assert.False(onlyRefused.AnybodyWants(Event, serverEnabled: false));
+    }
 }

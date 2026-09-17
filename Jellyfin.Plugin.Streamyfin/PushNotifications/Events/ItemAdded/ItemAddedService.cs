@@ -131,11 +131,14 @@ public class ItemAddedService : BaseEvent, IHostedService
         if (
             itemChangeEventArgs.Item.IsVirtualItem || 
             itemChangeEventArgs.Item.IsFolder || 
-            Config?.notifications?.ItemAdded is not { Enabled: true }
+            !_notificationHelper.Wants("itemAdded", Config?.notifications?.ItemAdded)
         ) return;
 
         var item = itemChangeEventArgs.Item;
-        var enabledLibraries = Config.notifications.ItemAdded.EnabledLibraries;
+        // Read through: with targeting the event can run while the server itself has it
+        // off, so nothing here may assume the block exists. An absent list means every
+        // library, which is what IsLibraryEnabled already answers.
+        var enabledLibraries = Config?.notifications?.ItemAdded?.EnabledLibraries;
         var virtualFolder = _libraryManager.GetVirtualFolders()
             .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
 
@@ -154,7 +157,14 @@ public class ItemAddedService : BaseEvent, IHostedService
         {
             case Movie movie:
                 SendDetached(
-                    _notificationHelper.SendToWhoCanOpen(item, audience => MovieMessage(item, audience)),
+                    _notificationHelper.SendForEvent(
+                        "itemAdded",
+                        Config?.notifications?.ItemAdded,
+                        byDefault: _ => true,
+                        // Not negotiable, whatever a level says: a title only goes to
+                        // somebody who may open it (#69).
+                        andAlso: NotificationHelper.CanOpenEvery([item]),
+                        write: audience => MovieMessage(item, audience)),
                     "item added");
                 break;
             case Episode episode:
@@ -233,7 +243,12 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(
-            _notificationHelper.SendToWhoCanOpen(named, audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
+            _notificationHelper.SendForEvent(
+                "itemAdded",
+                Config?.notifications?.ItemAdded,
+                byDefault: _ => true,
+                andAlso: NotificationHelper.CanOpenEvery(named),
+                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
             "episodes added");
     }
 

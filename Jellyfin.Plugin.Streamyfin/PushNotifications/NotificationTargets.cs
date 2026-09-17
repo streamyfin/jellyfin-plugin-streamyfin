@@ -42,6 +42,29 @@ public sealed class NotificationTargets
         new(database?.NotificationLevels() ?? []);
 
     /// <summary>
+    /// Whether the event is worth building at all.
+    /// </summary>
+    /// <param name="eventKey">The event, by the key the configuration and the page use.</param>
+    /// <param name="serverEnabled">Whether the server has the event on at all.</param>
+    /// <returns>
+    /// True when the server has it on, or when any level asked for it although the server
+    /// has not.
+    /// </returns>
+    /// <remarks>
+    /// The cheap question, asked before an event does its work. An event switched off on
+    /// the server used to mean nothing happened, and with targeting it only means nothing
+    /// happens unless somebody asked for it. Without this, every event would build its
+    /// message and count towards its own wait on a server where it is off and nobody
+    /// wants it.
+    /// </remarks>
+    public bool AnybodyWants(string eventKey, bool serverEnabled) =>
+        serverEnabled
+        || _levels.Values.Any(levels => levels.Any(level =>
+            level is not null
+            && level.TryGetValue(eventKey, out var said)
+            && said?.Enabled == true));
+
+    /// <summary>
     /// Whether an event reaches someone.
     /// </summary>
     /// <param name="eventKey">The event, by the key the configuration and the page use.</param>
