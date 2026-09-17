@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Xunit;
@@ -28,6 +29,26 @@ public class ExpoReceiptStoreTests : IDisposable
     }
 
     private static DateTime Now => new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>
+    /// Tokens Expo has reported as gone, each with when the push it answered was sent.
+    /// </summary>
+    private static Dictionary<string, DateTime> Dead(params string[] tokens) =>
+        tokens.ToDictionary(token => token, _ => DateTime.UtcNow, StringComparer.Ordinal);
+
+    private static Dictionary<string, DateTime> Dead(string token, DateTime sentAt) =>
+        new(StringComparer.Ordinal) { [token] = sentAt };
+
+    /// <summary>
+    /// Writes rows as they are, the way a build before one owner per token could have left
+    /// them.
+    /// </summary>
+    private void Store(params DeviceToken[] rows)
+    {
+        using var context = _db.CreateContext();
+        context.DeviceTokens.AddRange(rows);
+        context.SaveChanges();
+    }
 
     /// <summary>
     /// A push is only asked about once Expo has had time to produce a receipt. Asking
@@ -133,25 +154,74 @@ public class ExpoReceiptStoreTests : IDisposable
         _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = Guid.NewGuid() });
         _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "alive", UserId = Guid.NewGuid() });
 
-        var removed = _db.RemoveDeviceTokensNamed(["dead"]);
+        var removed = _db.RemoveDeviceTokensNamed(Dead("dead"));
 
         Assert.Equal(1, removed);
         Assert.Equal(["alive"], _db.GetAllDeviceTokens().Select(t => t.Token));
     }
 
     /// <summary>
-    /// One token can sit on more than one row, from a device that re-registered under a
-    /// new id without the old row ever being cleaned up. That is the accumulation this
-    /// part removes, so every match goes.
+    /// A receipt says nothing about a device that registered after the push it answers
+    /// was sent.
+    /// </summary>
+    /// <remarks>
+    /// The timeline this pair of changes is about: a push goes to a device, the app is
+    /// reinstalled, and somebody signs in on it before Expo's answer about the push is
+    /// collected. Expo reports the token as gone, which was true of the installation that
+    /// was sent to, and removing every row carrying it would take the registration made
+    /// since with it.
+    /// </remarks>
+    [Fact]
+    public void ADeviceRegisteredAfterThePushKeepsItsRow()
+    {
+        Store(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = Guid.NewGuid(), Timestamp = Now.ToFileTimeUtc() });
+
+        var removed = _db.RemoveDeviceTokensNamed(Dead("dead", Now.AddHours(-1)));
+
+        Assert.Equal(0, removed);
+        Assert.Single(_db.GetAllDeviceTokens());
+    }
+
+    /// <summary>
+    /// The device that was sent to does go, which is the point of collecting the receipt.
+    /// </summary>
+    [Fact]
+    public void TheDeviceThePushWasSentToGoes()
+    {
+        Store(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = Guid.NewGuid(), Timestamp = Now.AddHours(-2).ToFileTimeUtc() });
+
+        Assert.Equal(1, _db.RemoveDeviceTokensNamed(Dead("dead", Now.AddHours(-1))));
+        Assert.Empty(_db.GetAllDeviceTokens());
+    }
+
+    /// <summary>
+    /// The moment a push was sent is read back from the database without a kind, and it is
+    /// a moment in UTC, as the row it is compared with was written in UTC.
+    /// </summary>
+    [Fact]
+    public void TheMomentAPushWasSentIsReadAsUtc()
+    {
+        _db.AddExpoReceipts([("ticket", "dead")], Now);
+        Store(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = Guid.NewGuid(), Timestamp = Now.AddMinutes(-1).ToFileTimeUtc() });
+
+        var stored = Assert.Single(_db.GetExpoReceiptsSentBefore(Now.AddHours(1), 10));
+
+        Assert.Equal(1, _db.RemoveDeviceTokensNamed(Dead("dead", stored.CreatedAt)));
+    }
+
+    /// <summary>
+    /// Every row carrying a dead token goes, including the rows a build before one owner
+    /// per token left behind.
     /// </summary>
     [Fact]
     public void EveryRowCarryingADeadTokenGoes()
     {
         var userId = Guid.NewGuid();
-        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
-        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
+        Store(
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId, Timestamp = Now.AddHours(-3).ToFileTimeUtc() },
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId, Timestamp = Now.AddHours(-2).ToFileTimeUtc() });
 
-        Assert.Equal(2, _db.RemoveDeviceTokensNamed(["dead"]));
+        Assert.Equal(2, _db.RemoveDeviceTokensNamed(Dead("dead")));
         Assert.Empty(_db.GetAllDeviceTokens());
     }
 
@@ -170,15 +240,16 @@ public class ExpoReceiptStoreTests : IDisposable
         for (var round = 0; round < 30; round++)
         {
             var userId = Guid.NewGuid();
-            for (var row = 0; row < 3; row++)
+            string[] dead = ["dead-0", "dead-1", "dead-2"];
+            foreach (var token in dead)
             {
-                _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
+                _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = token, UserId = userId });
             }
 
             var removed = new int[2];
             System.Threading.Tasks.Parallel.Invoke(
-                () => removed[0] = _db.RemoveDeviceTokensNamed(["dead"]),
-                () => removed[1] = _db.RemoveDeviceTokensNamed(["dead"]));
+                () => removed[0] = _db.RemoveDeviceTokensNamed(Dead(dead)),
+                () => removed[1] = _db.RemoveDeviceTokensNamed(Dead(dead)));
 
             Assert.Equal(3, removed.Sum());
             Assert.Empty(_db.GetAllDeviceTokens());
@@ -194,8 +265,8 @@ public class ExpoReceiptStoreTests : IDisposable
     {
         _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "alive", UserId = Guid.NewGuid() });
 
-        Assert.Equal(0, _db.RemoveDeviceTokensNamed([]));
-        Assert.Equal(0, _db.RemoveDeviceTokensNamed(["never-registered"]));
+        Assert.Equal(0, _db.RemoveDeviceTokensNamed(Dead()));
+        Assert.Equal(0, _db.RemoveDeviceTokensNamed(Dead("never-registered")));
         Assert.Single(_db.GetAllDeviceTokens());
     }
 
