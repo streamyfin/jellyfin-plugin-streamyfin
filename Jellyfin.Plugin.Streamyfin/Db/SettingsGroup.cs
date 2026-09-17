@@ -44,4 +44,15 @@ public class SettingsGroup
     /// migration.
     /// </remarks>
     public string SettingsJson { get; set; } = "{}";
+
+    /// <summary>
+    /// Gets or sets what this group says about notification events, as JSON.
+    /// </summary>
+    /// <remarks>
+    /// A map of event key to what the group says about it, such as
+    /// <c>{"taskFailed": {"enabled": true}}</c>. Kept apart from the settings because the
+    /// app reads those and never these: a user is served their settings, and who receives
+    /// which notification is the administrator's business.
+    /// </remarks>
+    public string NotificationsJson { get; set; } = "{}";
 }

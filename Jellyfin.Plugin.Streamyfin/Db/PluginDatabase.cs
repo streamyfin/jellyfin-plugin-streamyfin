@@ -639,6 +639,57 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// What every level says about notification events, per user.
+    /// </summary>
+    /// <returns>
+    /// For each user who has anything said about them, the levels in the order they are
+    /// layered: the groups they are in, least specific first, then their own.
+    /// </returns>
+    /// <remarks>
+    /// Read in three queries rather than two per user, since deciding who an event reaches
+    /// asks about every user on the server at once.
+    /// </remarks>
+    public Dictionary<Guid, List<string>> NotificationLevels()
+    {
+        using var context = CreateContext();
+
+        var groups = SettingsResolver
+            .InLayerOrder(context.SettingsGroups.AsNoTracking().ToList())
+            .ToList();
+
+        var members = context.SettingsGroupMembers.AsNoTracking().ToList();
+        var overrides = context.UserSettingsOverrides.AsNoTracking().ToList();
+
+        var levels = new Dictionary<Guid, List<string>>();
+
+        List<string> For(Guid userId)
+        {
+            if (!levels.TryGetValue(userId, out var said))
+            {
+                said = [];
+                levels[userId] = said;
+            }
+
+            return said;
+        }
+
+        foreach (var group in groups)
+        {
+            foreach (var member in members.Where(m => m.GroupId == group.Id))
+            {
+                For(member.UserId).Add(group.NotificationsJson);
+            }
+        }
+
+        foreach (var user in overrides)
+        {
+            For(user.UserId).Add(user.NotificationsJson);
+        }
+
+        return levels;
+    }
+
+    /// <summary>
     /// Replaces every targeting level in one go.
     /// </summary>
     /// <param name="groups">The groups to keep, each with its members.</param>
