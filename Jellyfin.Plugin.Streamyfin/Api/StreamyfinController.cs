@@ -270,6 +270,20 @@ public class StreamyfinController : ControllerBase
     new JsonResult(NotificationsForm.Events());
 
   /// <summary>
+  /// Every sentence the plugin can write, for a page that offers to rewrite them.
+  /// </summary>
+  /// <returns>The sentences, with what they say today and what they name.</returns>
+  /// <remarks>
+  /// Read from the plugin's English resources rather than from a list written beside
+  /// them, so a sentence added to an event appears here without being written twice.
+  /// </remarks>
+  [HttpGet("v1/notifications/sentences")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<IReadOnlyList<Wording.Sentence>> GetNotificationSentences() =>
+    new JsonResult(Wording.Sentences());
+
+  /// <summary>
   /// Everything an administrator set, as one file.
   /// </summary>
   /// <returns>The backup.</returns>

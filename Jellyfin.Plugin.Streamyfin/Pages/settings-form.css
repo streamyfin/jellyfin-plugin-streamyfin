@@ -408,3 +408,11 @@
     font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px;
     background: var(--sf-pin-wash); color: var(--sf-pin); white-space: nowrap;
 }
+
+/* The Wording card on the Notifications tab: one row per sentence written differently. */
+.sf-page .sf-wording .sf-head { flex-wrap: wrap; gap: 0.5rem; }
+.sf-page .sf-wording .sf-wording-locale { width: 9rem; flex: none; }
+.sf-page .sf-wording .sf-wording-text { flex: 1 1 18rem; min-width: 12rem; }
+.sf-page .sf-wording .sf-wording-drop { flex: none; }
+.sf-page .sf-card--wording .sf-adder { display: flex; gap: 0.6rem; padding: 0.4rem 0 0.8rem; }
+.sf-page .sf-card--wording .sf-adder .sf-select { flex: 1 1 auto; min-width: 0; }
