@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Database.Implementations.Entities;
+using MediaBrowser.Controller.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -325,7 +326,42 @@ public class VisibleLibrariesTests
         Assert.False(NotificationHelper.MayBeTold(null, _ => true));
     }
 
+    /// <summary>
+    /// A batch about several items is told only to the users who can open every one of
+    /// them. A season can be visible while an episode in it is not: an episode carries its
+    /// own rating and its own tags, and <c>IsVisibleStandalone</c> looks at the item it is
+    /// given and its parents, never at its children.
+    /// </summary>
+    [Fact]
+    public void ABatchIsToldOnlyToWhoCanOpenEveryItemInIt()
+    {
+        var season = new Seen(Alice, Bob);
+        var episode = new Seen(Alice);
+
+        var theSeason = NotificationHelper.CanOpenEvery([season]);
+        var bothOfThem = NotificationHelper.CanOpenEvery([season, episode]);
+
+        Assert.True(theSeason(Account(Bob)));
+        Assert.False(bothOfThem(Account(Bob)));
+        Assert.True(bothOfThem(Account(Alice)));
+    }
+
     private static User Account() => new("zz-test", "provider", "reset");
+
+    private static User Account(Guid id)
+    {
+        var user = Account();
+        user.Id = id;
+        return user;
+    }
+
+    /// <summary>
+    /// An item the named users may open, and nobody else.
+    /// </summary>
+    private sealed class Seen(params Guid[] users) : BaseItem
+    {
+        public override bool IsVisibleStandalone(User user) => users.Contains(user.Id);
+    }
 
     private static DeviceToken Device(Guid user, string token) => new()
     {

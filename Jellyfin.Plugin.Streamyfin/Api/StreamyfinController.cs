@@ -1028,7 +1028,11 @@ public class StreamyfinController : ControllerBase
   /// Whether the caller may open a library, asked the way Jellyfin asks it for its own
   /// routes.
   /// </summary>
-  /// <returns>The question, or <c>null</c> for an API key, which carries no user.</returns>
+  /// <returns>
+  /// The question, or <c>null</c> when nothing is filtered: an API key, which carries no
+  /// user, and an administrator, who edits what the server serves and has to see all of it
+  /// whatever their own libraries are.
+  /// </returns>
   /// <remarks>
   /// <c>GetItemById</c> with a user answers only an item that user may see: the library
   /// they were given, within their parental rating and tags. A caller who is no longer a
@@ -1036,12 +1040,15 @@ public class StreamyfinController : ControllerBase
   /// </remarks>
   private Func<Guid, bool>? LibrariesTheCallerCanOpen()
   {
-    if (CallerIsApiKey)
+    var callerId = CallerId;
+
+    // Answered here rather than at each route, or the two that resolve settings would have
+    // to agree on it twice, and one of them did not.
+    if (CallerIsApiKey || _userManager.IsAdministrator(callerId))
     {
       return null;
     }
 
-    var callerId = CallerId;
     var user = callerId.Equals(default) ? null : _userManager.GetUserById(callerId);
 
     return user is null

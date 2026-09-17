@@ -112,14 +112,17 @@ public class PluginDatabase
 
         using var context = CreateContext();
 
-        var timestamp = DateTime.UtcNow.ToFileTime();
-
         // A token is one installation of the app, so it has one owner: the device that
         // registered it last. Expo keeps an iOS token through a reinstall while the app
         // starts over with a new device id, and the row left behind sent the previous
         // account's notifications to whoever signed in next. One transaction, or two
         // devices registering the same token could both find nothing to remove.
         using var transaction = context.Database.BeginTransaction();
+
+        // Stamped once the write lock is held rather than before waiting for it. A
+        // registration that waited stamped itself with the moment it started, and the
+        // pruning of a push sent in between then took it for the device that push went to.
+        var timestamp = DateTime.UtcNow.ToFileTime();
 
         // A row carrying no token is nobody's installation, so it neither takes the others
         // with it nor is taken by them. The route refuses such a registration; this is for

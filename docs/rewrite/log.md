@@ -79,6 +79,17 @@ installation a push went to, and a receipt is collected up to a day later, so a 
 registered the same token in between was removed by an answer that said nothing about it.
 Each dead token now carries the moment its push was sent, and a row written after it stays.
 
+Three more from the second review. The resolved settings route filtered an administrator's
+own sections as well, since it passed the library question whatever the caller was, while
+the configuration route skipped it for an elevated one: the question is now answered in one
+place, and it is no question at all for an administrator or an API key. A registration
+stamped itself before waiting for the write lock, so a push sent in between could take the
+row that landed after it for the device it was sent to; it is stamped once the lock is
+held. And a message about a season's episodes was authorized on the season alone, while it
+names how many arrived and, for a single one, its number and its id: an episode carries its
+own rating and its own tags, and `IsVisibleStandalone` looks at what it is given and its
+parents, never at its children, so every episode in the batch is checked now.
+
 On both throwaways, a token stored under the administrator and then the restricted user was
 cut to the user's row at the next start, and a movie in the other library went to one of
 two devices, the administrator's own. The same token registered by the administrator and
@@ -87,7 +98,8 @@ device of the administrator. The routes answered the same way on both lines: the
 user registering under the administrator was refused with a 403, a registration with no
 token with a 400, one naming nobody was stored as the user's own, and the user's attempt to
 remove the administrator's device left it where it was, which the administrator then removed
-themselves.
+themselves. Two episodes of one season added together were sent as one message, to the
+devices of the users who may open all three of the items it names.
 
 ### Proven
 

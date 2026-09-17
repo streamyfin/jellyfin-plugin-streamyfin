@@ -167,6 +167,24 @@ public class NotificationHelper
     }
 
     /// <summary>
+    /// Whether a user may be told about every one of these items.
+    /// </summary>
+    /// <param name="items">Everything the message describes.</param>
+    /// <returns>The question to ask about a user.</returns>
+    /// <remarks>
+    /// A message about a batch names more than the one item it was authorized on. A season
+    /// can be visible while an episode in it is not, since an episode carries its own
+    /// rating and its own tags and <c>IsVisibleStandalone</c> looks at the item it is given
+    /// and its parents, never at its children.
+    /// </remarks>
+    internal static Func<User, bool> CanOpenEvery(IReadOnlyCollection<BaseItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        return user => items.All(item => item.IsVisibleStandalone(user));
+    }
+
+    /// <summary>
     /// Sends messages about an item to the devices of every user who may open it.
     /// </summary>
     /// <param name="item">What the messages are about.</param>
@@ -179,35 +197,66 @@ public class NotificationHelper
     /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
     /// rating and the tags.
     /// </remarks>
-    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, params ExpoNotificationRequest[] notifications)
+    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, params ExpoNotificationRequest[] notifications)
     {
         ArgumentNullException.ThrowIfNull(item);
+
+        return SendToWhoCanOpen([item], notifications);
+    }
+
+    /// <summary>
+    /// Sends messages about several items to the devices of every user who may open all of
+    /// them.
+    /// </summary>
+    /// <param name="items">
+    /// Everything the messages describe. A user who may not open one of them is not told,
+    /// since the message names it.
+    /// </param>
+    /// <param name="notifications">The messages.</param>
+    /// <returns>Expo's response, or null when nobody may be told.</returns>
+    /// <remarks>
+    /// A new movie or episode used to go to every registered device, so its title reached
+    /// people who cannot open the library it is in, or are not allowed its rating. Jellyfin
+    /// filtered its own new content notifications the same way before it dropped them, with
+    /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
+    /// rating and the tags.
+    /// </remarks>
+    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(IReadOnlyCollection<BaseItem> items, params ExpoNotificationRequest[] notifications)
+    {
+        ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(notifications);
+
+        var subject = items.Count == 0 ? Guid.Empty : items.First().Id;
 
         if (_userManager is null)
         {
-            _logger?.LogWarning("No user manager available, cannot work out who may be told about {Item}", item.Id);
+            _logger?.LogWarning("No user manager available, cannot work out who may be told about {Item}", subject);
             return null;
         }
 
         var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
+        var canOpen = CanOpenEvery(items);
 
         // An empty id is no user, and GetUserById throws on it.
         var recipients = RecipientsWho(devices, userId =>
             !userId.Equals(default)
-            && MayBeTold(_userManager.GetUserById(userId), item.IsVisibleStandalone));
+            && MayBeTold(_userManager.GetUserById(userId), canOpen));
 
         if (recipients.Count == 0)
         {
-            _logger?.LogInformation("No registered device belongs to a user who may open {Item}, so nothing was sent", item.Id);
+            _logger?.LogInformation(
+                "No registered device belongs to a user who may open all {Count} item(s) of {Item}, so nothing was sent",
+                items.Count,
+                subject);
             return null;
         }
 
         _logger?.LogInformation(
-            "Sending to {Recipients} of {Devices} registered device(s), those whose user may open {Item}",
+            "Sending to {Recipients} of {Devices} registered device(s), those whose user may open all {Count} item(s) of {Item}",
             recipients.Count,
             devices.Select(device => device.Token).Distinct(StringComparer.Ordinal).Count(),
-            item.Id);
+            items.Count,
+            subject);
 
         foreach (var notification in notifications)
         {
