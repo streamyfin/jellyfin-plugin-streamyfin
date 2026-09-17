@@ -147,15 +147,15 @@ public class ExpoReceiptTask : IScheduledTask
                 break;
             }
 
-            var ticketToToken = new Dictionary<string, string>(StringComparer.Ordinal);
+            var tickets = new HashSet<string>(pending.Count, StringComparer.Ordinal);
             foreach (var receipt in pending)
             {
                 asked.Add(receipt.TicketId);
-                ticketToToken[receipt.TicketId] = receipt.Token;
+                tickets.Add(receipt.TicketId);
             }
 
             var response = await _notifications
-                .FetchReceipts([.. ticketToToken.Keys], cancellationToken)
+                .FetchReceipts([.. tickets], cancellationToken)
                 .ConfigureAwait(false);
 
             // A refused request is not an answer about anybody's token. The rows stay, and
@@ -168,19 +168,15 @@ public class ExpoReceiptTask : IScheduledTask
                 break;
             }
 
-            var dead = ExpoTickets.DeadTokensFrom(response, ticketToToken);
+            // Each dead token with the moment the push Expo answered about was sent, so a
+            // device that registered the same token after it is left alone: Expo is
+            // answering about the installation that was sent to, not about the one that
+            // replaced it.
+            var dead = ExpoTickets.DeadSendsFrom(response, pending);
 
             if (dead.Count > 0)
             {
-                // With the moment each push was sent, so a device that registered the same
-                // token after it is left alone: Expo is answering about the installation
-                // that was sent to, not about the one that replaced it.
-                var sentAt = pending
-                    .Where(receipt => dead.Contains(receipt.Token))
-                    .GroupBy(receipt => receipt.Token, StringComparer.Ordinal)
-                    .ToDictionary(sends => sends.Key, sends => sends.Max(receipt => receipt.CreatedAt), StringComparer.Ordinal);
-
-                var removed = database.RemoveDeviceTokensNamed(sentAt);
+                var removed = database.RemoveDeviceTokensNamed(dead);
 
                 _logger.LogInformation(
                     "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
@@ -191,7 +187,7 @@ public class ExpoReceiptTask : IScheduledTask
             // Every ticket that was answered is done with, whatever it said. One that is
             // still pending on Expo's side is absent from the answer and keeps its row,
             // which is also why the next batch has to skip what this one already asked.
-            var answered = response.Data.Keys.Where(ticketToToken.ContainsKey).ToList();
+            var answered = response.Data.Keys.Where(tickets.Contains).ToList();
             database.RemoveExpoReceipts(answered);
             collected += answered.Count;
 

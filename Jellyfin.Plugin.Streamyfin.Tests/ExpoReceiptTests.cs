@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Xunit;
@@ -116,12 +118,12 @@ public class ExpoReceiptTests
     /// <summary>
     /// The delivery can fail after the ticket said ok, which is the case the plugin never
     /// looked at: a receipt is the only place a token that died between the two is
-    /// reported.
+    /// reported. What comes back is the token and the moment the push it answers was sent.
     /// </summary>
     [Fact]
     public void AReceiptSayingDeviceNotRegisteredKillsItsToken()
     {
-        var dead = ExpoTickets.DeadTokensFrom(
+        var dead = ExpoTickets.DeadSendsFrom(
             new ExpoReceiptResponse
             {
                 Data = new Dictionary<string, TicketStatus>
@@ -130,13 +132,10 @@ public class ExpoReceiptTests
                     ["ticket-b"] = Failed(ExpoTickets.DeviceNotRegistered)
                 }
             },
-            new Dictionary<string, string>
-            {
-                ["ticket-a"] = "token-a",
-                ["ticket-b"] = "token-b"
-            });
+            [Sent("ticket-a", "token-a", Now), Sent("ticket-b", "token-b", Now)]);
 
-        Assert.Equal(["token-b"], dead);
+        Assert.Equal(["token-b"], dead.Keys);
+        Assert.Equal(Now, dead["token-b"]);
     }
 
     /// <summary>
@@ -146,7 +145,7 @@ public class ExpoReceiptTests
     [Fact]
     public void AReceiptForAnUnknownTicketIsIgnored()
     {
-        var dead = ExpoTickets.DeadTokensFrom(
+        var dead = ExpoTickets.DeadSendsFrom(
             new ExpoReceiptResponse
             {
                 Data = new Dictionary<string, TicketStatus>
@@ -154,7 +153,7 @@ public class ExpoReceiptTests
                     ["ticket-nobody-sent"] = Failed(ExpoTickets.DeviceNotRegistered)
                 }
             },
-            new Dictionary<string, string> { ["ticket-a"] = "token-a" });
+            [Sent("ticket-a", "token-a", Now)]);
 
         Assert.Empty(dead);
     }
@@ -166,27 +165,23 @@ public class ExpoReceiptTests
     [Fact]
     public void AReceiptThatIsNotAboutTheDeviceKeepsItsToken()
     {
-        var dead = ExpoTickets.DeadTokensFrom(
+        var dead = ExpoTickets.DeadSendsFrom(
             new ExpoReceiptResponse
             {
-                Data = new Dictionary<string, TicketStatus>
-                {
-                    ["ticket-a"] = Failed("MessageRateExceeded")
-                }
+                Data = new Dictionary<string, TicketStatus> { ["ticket-a"] = Failed("MessageRateExceeded") }
             },
-            new Dictionary<string, string> { ["ticket-a"] = "token-a" });
+            [Sent("ticket-a", "token-a", Now)]);
 
         Assert.Empty(dead);
     }
 
     /// <summary>
-    /// The same token can be queued more than once, from two notifications sent to the
-    /// same device, and it should be reported dead once.
+    /// A token reported dead twice is reported once, with the later of the two sends.
     /// </summary>
     [Fact]
-    public void ATokenReportedDeadTwiceIsReportedOnce()
+    public void ATokenReportedDeadTwiceCarriesTheLaterSend()
     {
-        var dead = ExpoTickets.DeadTokensFrom(
+        var dead = ExpoTickets.DeadSendsFrom(
             new ExpoReceiptResponse
             {
                 Data = new Dictionary<string, TicketStatus>
@@ -195,12 +190,34 @@ public class ExpoReceiptTests
                     ["ticket-b"] = Failed(ExpoTickets.DeviceNotRegistered)
                 }
             },
-            new Dictionary<string, string>
-            {
-                ["ticket-a"] = "token-a",
-                ["ticket-b"] = "token-a"
-            });
+            [Sent("ticket-a", "token-a", Now.AddHours(-2)), Sent("ticket-b", "token-a", Now.AddHours(-1))]);
 
-        Assert.Equal(["token-a"], dead);
+        Assert.Equal(["token-a"], dead.Keys);
+        Assert.Equal(Now.AddHours(-1), dead["token-a"]);
     }
+
+    /// <summary>
+    /// A send Expo has not answered about does not move the moment the dead one carries.
+    /// </summary>
+    /// <remarks>
+    /// Otherwise a device that registered the same token between the dead send and the one
+    /// still pending is removed by an answer that says nothing about it.
+    /// </remarks>
+    [Fact]
+    public void APendingSendDoesNotMoveTheMomentOfTheDeadOne()
+    {
+        var dead = ExpoTickets.DeadSendsFrom(
+            new ExpoReceiptResponse
+            {
+                Data = new Dictionary<string, TicketStatus> { ["old"] = Failed(ExpoTickets.DeviceNotRegistered) }
+            },
+            [Sent("old", "token-a", Now.AddHours(-3)), Sent("recent", "token-a", Now)]);
+
+        Assert.Equal(Now.AddHours(-3), dead["token-a"]);
+    }
+
+    private static DateTime Now => new(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
+
+    private static ExpoReceipt Sent(string ticketId, string token, DateTime createdAt) =>
+        new() { TicketId = ticketId, Token = token, CreatedAt = createdAt };
 }

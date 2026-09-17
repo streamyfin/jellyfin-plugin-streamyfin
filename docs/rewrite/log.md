@@ -8,6 +8,29 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, after the merge: two the review found late
+
+CodeRabbit answered #181 a minute after it landed, with two things outside the diff it had
+been shown. Both were real.
+
+**A batch nobody could check was still sent.** The message about a season counts the
+episodes that arrived, and each of them is read back from the library to be checked against
+a user. An episode that has gone in the meantime reads back as nothing, and it was dropped
+from the list while the count still named it, so a user who could not open that episode
+could be told it existed. Nothing is sent now when one of them cannot be read.
+
+**A push still waiting for its answer moved the cutoff of one that had died.** A dead token
+carries the moment the push Expo answered about was sent, and that moment was taken as the
+latest of every ripe receipt for the token rather than of the dead one. A device that
+registered the same token between the dead send and the pending one was deleted by an
+answer that said nothing about it. The receipts are now read one by one, and only the ones
+Expo reported dead give the moment.
+
+On a throwaway 12.0.0: two episodes added, one of them deleted before the batch timer
+fired, and the log says `One of the 2 episode(s) added to Gone ... is no longer in the
+library, so nothing was sent`. The other half is held by tests, with a pending send beside
+a dead one.
+
 ## 2026-09-17, later: what a user is told about libraries they cannot open
 
 ### Home sections, #69
