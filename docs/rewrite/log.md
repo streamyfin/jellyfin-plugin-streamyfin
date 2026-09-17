@@ -76,6 +76,43 @@ address was not.
 A server that was already running has the three off, since its stored configuration does
 not mention them, which the throwaways showed before they were turned on. A fresh install
 has them on.
+## 2026-09-17, after the merge: two the review found late
+
+CodeRabbit answered #181 a minute after it landed, with two things outside the diff it had
+been shown. Both were real.
+
+**A batch nobody could check was still sent.** The message about a season counts the
+episodes that arrived, and each of them is read back from the library to be checked against
+a user. An episode that has gone in the meantime reads back as nothing, and it was dropped
+from the list while the count still named it, so a user who could not open that episode
+could be told it existed. Nothing is sent now when one of them cannot be read.
+
+**A push still waiting for its answer moved the cutoff of one that had died.** A dead token
+carries the moment the push Expo answered about was sent, and that moment was taken as the
+latest of every ripe receipt for the token rather than of the dead one. A device that
+registered the same token between the dead send and the pending one was deleted by an
+answer that said nothing about it. The receipts are now read one by one, and only the ones
+Expo reported dead give the moment.
+
+On a throwaway 12.0.0: two episodes added, one of them deleted before the batch timer
+fired, and the log says `One of the 2 episode(s) added to Gone ... is no longer in the
+library, so nothing was sent`. The other half is held by tests, with a pending send beside
+a dead one.
+
+### What one owner per token was worth, measured
+
+The build went onto a real server, a beta on Jellyfin 13 carrying 37 registrations from 16
+accounts. The start removed 12 of them: six tokens were each on more than one row, and one
+of those six was on six rows, five under an administrator and the last under the restricted
+account the phone is signed in as now. That phone had been receiving the administrator's
+notifications, session by session, for a year. After the sweep the administrator's account
+had no registered device left, which is right: the device is the phone, and the phone is
+signed in as somebody else.
+
+A new movie in a library only that account can open reached it. A scheduled task made to
+fail reached the two devices of the other administrator and not that phone. Neither would
+have been true a day earlier.
+
 ## 2026-09-17, later: what a user is told about libraries they cannot open
 
 ### Home sections, #69

@@ -8,6 +8,7 @@ using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using Xunit;
 using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
 
@@ -344,6 +345,22 @@ public class VisibleLibrariesTests
         Assert.True(theSeason(Account(Bob)));
         Assert.False(bothOfThem(Account(Bob)));
         Assert.True(bothOfThem(Account(Alice)));
+    }
+
+    /// <summary>
+    /// A message counting a season's episodes is not sent when one of them cannot be read
+    /// back, since it names that episode all the same and nothing can say who may open it.
+    /// </summary>
+    [Fact]
+    public void AMessageNamingAnEpisodeThatCannotBeReadIsNotSent()
+    {
+        var season = new Seen(Alice);
+        var episode = new Seen(Alice);
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+
+        Assert.Null(ItemAddedService.EverythingNamed(season, [first, second], id => id == first ? episode : null));
+        Assert.Equal([season, episode], ItemAddedService.EverythingNamed(season, [first], _ => episode));
     }
 
     private static User Account() => new("zz-test", "provider", "reset");

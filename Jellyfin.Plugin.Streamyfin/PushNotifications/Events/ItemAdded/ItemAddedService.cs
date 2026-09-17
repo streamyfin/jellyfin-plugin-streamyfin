@@ -66,6 +66,45 @@ public class ItemAddedService : BaseEvent, IHostedService
         return message is null ? [] : [message];
     }
 
+    /// <summary>
+    /// Everything a message about a season names, or <c>null</c> when the library no longer
+    /// holds one of them.
+    /// </summary>
+    /// <param name="season">The season the message is about.</param>
+    /// <param name="episodes">The episodes it counts.</param>
+    /// <param name="lookup">How to read an item back, which answers null for one that is gone.</param>
+    /// <returns>The season and its episodes, or <c>null</c>.</returns>
+    /// <remarks>
+    /// An episode that cannot be read cannot be checked against a user, and the message
+    /// counts it all the same, so nothing goes out rather than a message authorized on less
+    /// than it says.
+    /// </remarks>
+    internal static List<BaseItem>? EverythingNamed(
+        BaseItem season,
+        IEnumerable<Guid> episodes,
+        Func<Guid, BaseItem?> lookup)
+    {
+        ArgumentNullException.ThrowIfNull(season);
+        ArgumentNullException.ThrowIfNull(episodes);
+        ArgumentNullException.ThrowIfNull(lookup);
+
+        List<BaseItem> named = [season];
+
+        foreach (var id in episodes)
+        {
+            var episode = lookup(id);
+
+            if (episode is null)
+            {
+                return null;
+            }
+
+            named.Add(episode);
+        }
+
+        return named;
+    }
+
     private void ItemAddedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
     {
         if (
@@ -157,10 +196,19 @@ public class ItemAddedService : BaseEvent, IHostedService
         // The season and every episode the message counts. A season can be visible while an
         // episode in it is not, and this message names how many arrived and, for a single
         // one, its number and its id.
-        List<BaseItem> named = [refreshedSeason];
-        named.AddRange(countdown.Episodes
-            .Select(added => _libraryManager.GetItemById(added.Id))
-            .OfType<BaseItem>());
+        var named = EverythingNamed(
+            refreshedSeason,
+            countdown.Episodes.Select(added => added.Id),
+            id => _libraryManager.GetItemById(id));
+
+        if (named is null)
+        {
+            _logger.LogInformation(
+                "One of the {Count} episode(s) added to {Season} is no longer in the library, so nothing was sent",
+                total,
+                name);
+            return;
+        }
 
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(
