@@ -50,6 +50,11 @@ export default function (view) {
     let fields = [];
     let users = [];
     let groups = [];
+    // The events this server has, and what this level says about them. Kept beside the
+    // settings rather than in the form: the settings are served to the app and these are
+    // the server's own business, and they are two columns on the level for that reason.
+    let events = [];
+    let saidBefore = {};
     // The level being edited: a group, or one user. Never null once the page has loaded,
     // since a server with no group opens on a new one.
     let level = null;
@@ -83,6 +88,147 @@ export default function (view) {
     };
 
     const memberIds = () => [...el("sf-members").querySelectorAll("input:checked")].map((input) => input.value);
+
+    // Who at this level does not administer the server. An event that names somebody else
+    // is for administrators by default, and handing one to anybody else tells them about
+    // other people, so the page says whose names those are before it does it.
+    const notAdministrators = () => {
+        const named = (id) => users.find((candidate) => candidate.Id === id);
+
+        const here = level.kind === "user"
+            ? [named(level.userId)]
+            : memberIds().map(named);
+
+        return here.filter((user) => user && !user.Policy?.IsAdministrator).map((user) => user.Name);
+    };
+
+    // What this level says about the events, read off the rows. An event left following
+    // the level above is left out entirely, which is what saying nothing means.
+    const saidNow = () => {
+        const said = {};
+
+        for (const row of el("sf-events").children) {
+            const key = row.dataset.event;
+            const enabled = row.querySelector(".sf-event-state").value;
+            const wait = row.querySelector(".sf-wait").value;
+            const one = {};
+
+            if (enabled) one.enabled = enabled === "on";
+            if (wait !== "") one.recentEventThreshold = Number(wait);
+            if (Object.keys(one).length > 0) said[key] = one;
+        }
+
+        return said;
+    };
+
+    const changedSaid = () => {
+        const now = saidNow();
+        const keys = new Set([...Object.keys(now), ...Object.keys(saidBefore)]);
+        let changed = 0;
+
+        for (const key of keys) {
+            if (JSON.stringify(now[key] ?? null) !== JSON.stringify(saidBefore[key] ?? null)) changed += 1;
+        }
+
+        el("sf-events-count").textContent = changed === 0
+            ? `${Object.keys(now).length || "nothing"} set`
+            : `${changed} changed`;
+
+        return changed;
+    };
+
+    const renderEvents = (said) => {
+        const host = el("sf-events");
+        host.textContent = "";
+
+        for (const one of events) {
+            const row = document.createElement("div");
+            const text = document.createElement("div");
+            const title = document.createElement("div");
+            const controls = document.createElement("div");
+            const state = document.createElement("select");
+            const wait = document.createElement("input");
+            const theirs = said?.[one.key] ?? {};
+
+            row.className = "sf-event";
+            row.dataset.event = one.key;
+
+            title.className = "sf-event-title";
+            title.appendChild(document.createTextNode(one.title));
+
+            if (one.aboutSomebodyElse) {
+                const mark = document.createElement("span");
+                mark.className = "sf-names";
+                mark.textContent = "names somebody else";
+                title.appendChild(mark);
+            }
+
+            text.className = "sf-event-text";
+            text.appendChild(title);
+
+            if (one.description) {
+                const said_ = document.createElement("div");
+                said_.className = "sf-desc";
+                said_.textContent = one.description;
+                text.appendChild(said_);
+            }
+
+            state.className = "sf-select sf-event-state";
+            state.setAttribute("aria-label", `Who gets ${one.title}`);
+            for (const [value, label] of [["", "Follows the level above"], ["on", "Send it to them"], ["off", "Do not send it"]]) {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = label;
+                state.appendChild(option);
+            }
+            state.value = theirs.enabled === undefined ? "" : (theirs.enabled ? "on" : "off");
+
+            wait.type = "number";
+            wait.min = "0";
+            wait.step = "1";
+            wait.className = "sf-number sf-wait";
+            wait.placeholder = "wait";
+            wait.title = "How long two of the same event wait, in seconds. Empty follows the level above.";
+            wait.setAttribute("aria-label", `How long two of ${one.title} wait, in seconds`);
+            wait.value = theirs.recentEventThreshold ?? "";
+
+            const mark = () => row.classList.toggle("is-set", Boolean(state.value) || wait.value !== "");
+
+            state.addEventListener("change", async () => {
+                // Asked once, when it is turned on, and only for the events that carry
+                // somebody else's name. Declining puts the row back rather than saving
+                // something the administrator did not mean.
+                if (state.value === "on" && one.aboutSomebodyElse) {
+                    const named = notAdministrators();
+
+                    const who = named.length === 1
+                        ? `${named[0]}, who does not administer this server`
+                        : `${named.length} accounts that do not administer this server`;
+
+                    if (named.length > 0 && !await shared.confirmed(
+                        `"${one.title}" names other people. Send it to ${who}?`)) {
+                        state.value = theirs.enabled === undefined ? "" : (theirs.enabled ? "on" : "off");
+                    }
+                }
+
+                mark();
+                updateDock();
+            }, { signal: showing.signal });
+
+            wait.addEventListener("input", () => {
+                mark();
+                updateDock();
+            }, { signal: showing.signal });
+
+            controls.className = "sf-event-controls";
+            controls.append(state, wait);
+            row.append(text, controls);
+            mark();
+            host.appendChild(row);
+        }
+
+        changedSaid();
+    };
 
     const renderMembers = (selected) => {
         const host = el("sf-members");
@@ -176,7 +322,7 @@ export default function (view) {
     };
 
     const updateDock = () => {
-        const dirty = form.dirtyCount() + changedFields();
+        const dirty = form.dirtyCount() + changedFields() + changedSaid();
         const invalid = form.invalid().length;
         const dock = el("sf-dock");
         const parts = [];
@@ -272,6 +418,8 @@ export default function (view) {
         el("sf-people").open = !group.id;
         el("sf-member-find").value = "";
         filterMembers("");
+        saidBefore = group.notifications ?? {};
+        renderEvents(saidBefore);
         draw(group.settings ?? {});
         markCurrent();
     };
@@ -286,15 +434,18 @@ export default function (view) {
         el("sf-level-help").hidden = true;
         el("sf-people").hidden = true;
         el("sf-delete").hidden = false;
+        saidBefore = stored?.notifications ?? {};
+        renderEvents(saidBefore);
         draw(stored?.settings ?? {});
         markCurrent();
     };
 
     const save = async () => {
         const settings = form.toSettings();
+        const notifications = saidNow();
 
         if (level.kind === "user") {
-            await send("PUT", `users/${level.userId}/settings`, { settings });
+            await send("PUT", `users/${level.userId}/settings`, { settings, notifications });
             return;
         }
 
@@ -305,10 +456,10 @@ export default function (view) {
         const userIds = memberIds();
 
         if (level.group.id) {
-            await send("PUT", `groups/${level.group.id}`, { name, priority, settings });
+            await send("PUT", `groups/${level.group.id}`, { name, priority, settings, notifications });
             await send("PUT", `groups/${level.group.id}/members`, { userIds });
         } else {
-            await send("POST", "groups", { name, priority, settings, userIds });
+            await send("POST", "groups", { name, priority, settings, notifications, userIds });
         }
     };
 
@@ -355,9 +506,10 @@ export default function (view) {
     const load = async (loaded) => {
         setStatus("Loading the groups…");
 
-        const [form_, allGroups, cultures] = await Promise.all([
+        const [form_, allGroups, allEvents, cultures] = await Promise.all([
             readJson("settings/form"),
             readJson("groups"),
+            readJson("notifications/events"),
             window.ApiClient.getCultures().catch(() => []),
         ]);
 
@@ -370,6 +522,7 @@ export default function (view) {
 
         fields = form_;
         groups = allGroups;
+        events = allEvents;
         users = await window.ApiClient.getUsers();
         level = { cultures };
 
@@ -404,6 +557,7 @@ export default function (view) {
         listen("sf-delete", "click", commit(remove));
         listen("sf-discard", "click", () => {
             form.reset();
+            renderEvents(saidBefore);
             if (level.kind === "group") {
                 el("sf-group-name").value = level.group.name ?? "";
                 el("sf-group-priority").value = level.group.priority ?? 0;

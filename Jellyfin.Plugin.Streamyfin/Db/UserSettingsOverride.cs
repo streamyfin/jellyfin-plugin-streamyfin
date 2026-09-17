@@ -24,4 +24,13 @@ public class UserSettingsOverride
     /// A partial <c>Settings</c>, same shape as <see cref="SettingsGroup.SettingsJson"/>.
     /// </remarks>
     public string SettingsJson { get; set; } = "{}";
+
+    /// <summary>
+    /// Gets or sets what this user says about notification events, as JSON.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as <see cref="SettingsGroup.NotificationsJson"/>, and the last word
+    /// over any group they are in.
+    /// </remarks>
+    public string NotificationsJson { get; set; } = "{}";
 }

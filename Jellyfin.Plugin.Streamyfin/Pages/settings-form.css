@@ -394,3 +394,17 @@
 
 /* Two buttons that do the same kind of thing, side by side, like the backup pair. */
 .sf-page .sf-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+/* The Targeting tab's notification rows: three states per event, and a mark on the ones
+   whose message names an account other than the one being told. */
+.sf-page .sf-event { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.55rem 0.7rem; border-radius: var(--sf-r-s); }
+.sf-page .sf-event + .sf-event { border-top: 1px solid var(--sf-line-soft); }
+.sf-page .sf-event.is-set { background: var(--sf-wash); }
+.sf-page .sf-event .sf-event-text { flex: 1 1 auto; min-width: 0; }
+.sf-page .sf-event .sf-event-title { font-weight: 600; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.sf-page .sf-event .sf-event-controls { display: flex; align-items: center; gap: 0.5rem; flex: none; }
+.sf-page .sf-event .sf-wait { width: 6.5rem; }
+.sf-page .sf-names {
+    font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px;
+    background: var(--sf-pin-wash); color: var(--sf-pin); white-space: nowrap;
+}

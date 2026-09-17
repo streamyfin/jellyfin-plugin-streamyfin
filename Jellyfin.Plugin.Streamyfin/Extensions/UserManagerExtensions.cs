@@ -19,9 +19,6 @@ public static class UserManagerExtensions
         ?? Array.Empty<DeviceToken>()
     ).ToList();
 
-    public static List<string> GetAdminTokens(this IUserManager? manager) => 
-        manager?.GetAdminDeviceTokens().Select(deviceToken => deviceToken.Token).ToList() ?? [];
-
     /// <summary>
     /// Whether an account has been disabled, which Jellyfin refuses on every request.
     /// </summary>
@@ -33,6 +30,14 @@ public static class UserManagerExtensions
 
         return user.Permissions.Any(p => p.Kind == PermissionKind.IsDisabled && p.Value);
     }
+
+    /// <summary>
+    /// Whether an account administers this server.
+    /// </summary>
+    /// <param name="user">The account, which may be gone.</param>
+    /// <returns>True when it holds the administrator permission.</returns>
+    public static bool IsAdministrator(this User? user) =>
+        user?.Permissions.Any(p => p.Kind == PermissionKind.IsAdministrator && p.Value) == true;
 
     /// <summary>
     /// Whether a user administers this server.

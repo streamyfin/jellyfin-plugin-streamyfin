@@ -116,6 +116,44 @@ public static class NotificationsForm
     }
 
     /// <summary>
+    /// One event, as the targeting page lists it.
+    /// </summary>
+    /// <param name="Key">The key the configuration and the levels use.</param>
+    /// <param name="Title">What to call it on screen.</param>
+    /// <param name="Description">What it is, or null when the event says nothing.</param>
+    /// <param name="AboutSomebodyElse">
+    /// Whether the message names an account other than the one being told: who signed in,
+    /// who is watching what, whose sign in was refused. Handing one of those to somebody
+    /// who does not administer the server tells them about other people, so the page says
+    /// so and asks before it does.
+    /// </param>
+    public sealed record NotificationEvent(
+        [property: JsonPropertyName("key")] string Key,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("description")] string? Description,
+        [property: JsonPropertyName("aboutSomebodyElse")] bool AboutSomebodyElse);
+
+    /// <summary>
+    /// Every event this server has, in the order they are declared.
+    /// </summary>
+    /// <returns>The events, for a page that lists them rather than drawing their fields.</returns>
+    public static IReadOnlyList<NotificationEvent> Events() =>
+    [
+        .. typeof(Notifications)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(eventProperty =>
+            {
+                var display = eventProperty.GetCustomAttribute<DisplayAttribute>();
+
+                return new NotificationEvent(
+                    Key: JsonNameOf(eventProperty),
+                    Title: display?.GetName() ?? eventProperty.Name,
+                    Description: display?.GetDescription(),
+                    AboutSomebodyElse: eventProperty.GetCustomAttribute<AboutSomebodyElseAttribute>() is not null);
+            })
+    ];
+
+    /// <summary>
     /// The key an event is known by, which is the name it carries in the payload.
     /// </summary>
     /// <param name="eventProperty">The property holding the event.</param>

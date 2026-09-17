@@ -536,6 +536,7 @@ public class PluginDatabase
                 existing.Name = group.Name;
                 existing.Priority = group.Priority;
                 existing.SettingsJson = group.SettingsJson;
+                existing.NotificationsJson = group.NotificationsJson;
             }
         }
 
@@ -639,6 +640,57 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// What every level says about notification events, per user.
+    /// </summary>
+    /// <returns>
+    /// For each user who has anything said about them, the levels in the order they are
+    /// layered: the groups they are in, least specific first, then their own.
+    /// </returns>
+    /// <remarks>
+    /// Read in three queries rather than two per user, since deciding who an event reaches
+    /// asks about every user on the server at once.
+    /// </remarks>
+    public Dictionary<Guid, List<string>> NotificationLevels()
+    {
+        using var context = CreateContext();
+
+        var groups = SettingsResolver
+            .InLayerOrder(context.SettingsGroups.AsNoTracking().ToList())
+            .ToList();
+
+        var members = context.SettingsGroupMembers.AsNoTracking().ToList();
+        var overrides = context.UserSettingsOverrides.AsNoTracking().ToList();
+
+        var levels = new Dictionary<Guid, List<string>>();
+
+        List<string> For(Guid userId)
+        {
+            if (!levels.TryGetValue(userId, out var said))
+            {
+                said = [];
+                levels[userId] = said;
+            }
+
+            return said;
+        }
+
+        foreach (var group in groups)
+        {
+            foreach (var member in members.Where(m => m.GroupId == group.Id))
+            {
+                For(member.UserId).Add(group.NotificationsJson);
+            }
+        }
+
+        foreach (var user in overrides)
+        {
+            For(user.UserId).Add(user.NotificationsJson);
+        }
+
+        return levels;
+    }
+
+    /// <summary>
     /// Replaces every targeting level in one go.
     /// </summary>
     /// <param name="groups">The groups to keep, each with its members.</param>
@@ -709,7 +761,12 @@ public class PluginDatabase
     /// </summary>
     /// <param name="userId">The Jellyfin user id.</param>
     /// <param name="settingsJson">A partial set of settings, as JSON.</param>
-    public void SaveUserSettingsOverride(Guid userId, string settingsJson)
+    /// <param name="notificationsJson">
+    /// What this user says about the notifications they get, as JSON. Both are written
+    /// together, since a user has one row and half of it would otherwise be lost every
+    /// time the other half is saved.
+    /// </param>
+    public void SaveUserSettingsOverride(Guid userId, string settingsJson, string notificationsJson)
     {
         using var context = CreateContext();
 
@@ -719,12 +776,14 @@ public class PluginDatabase
             context.UserSettingsOverrides.Add(new UserSettingsOverride
             {
                 UserId = userId,
-                SettingsJson = settingsJson
+                SettingsJson = settingsJson,
+                NotificationsJson = notificationsJson
             });
         }
         else
         {
             existing.SettingsJson = settingsJson;
+            existing.NotificationsJson = notificationsJson;
         }
 
         context.SaveChanges();

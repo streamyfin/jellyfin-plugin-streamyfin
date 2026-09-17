@@ -29,7 +29,8 @@ public class PlaybackStartEvent(
     /// <inheritdoc />
     public async Task OnEvent(PlaybackStartEventArgs? eventArgs)
     {
-        if (eventArgs == null || Config?.notifications?.PlaybackStarted is not { Enabled: true })
+        if (eventArgs == null
+            || !_notificationHelper.Wants("playbackStarted", Config?.notifications?.PlaybackStarted))
         {
             _logger.LogInformation("PlaybackStartEvent received but currently disabled.");
             return;
@@ -65,8 +66,12 @@ public class PlaybackStartEvent(
         if (watching.Count > 0)
         {
             SendDetached(
-                _notificationHelper.SendToAdmins(
-                    excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
+                _notificationHelper.SendForEvent(
+                    "playbackStarted",
+                    Config?.notifications?.PlaybackStarted,
+                    byDefault: user => user.IsAdministrator(),
+                    // Nobody is told about what they are watching themselves.
+                    andAlso: user => !eventArgs.Users.Any(watcher => watcher.Id.Equals(user.Id)),
                     write: audience => watching
                         .Select(user =>
                             MediaNotificationHelper.CreateMediaNotification(

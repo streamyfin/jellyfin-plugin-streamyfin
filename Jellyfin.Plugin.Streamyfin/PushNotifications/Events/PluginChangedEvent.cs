@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MediaBrowser.Common.Plugins;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Events.Updates;
@@ -99,8 +100,11 @@ public class PluginChangedEvent(
         _logger.LogInformation("{Plugin} {Version} was {Change}, telling the administrators", name, version, change);
 
         SendDetached(
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: null,
+            _notificationHelper.SendForEvent(
+                "pluginChanged",
+                Config?.notifications?.PluginChanged,
+                byDefault: user => user.IsAdministrator(),
+                andAlso: null,
                 write: audience => [AdminEvents.PluginChanged(_localization, change, name, version, audience.Culture)]),
             "plugin changed");
 

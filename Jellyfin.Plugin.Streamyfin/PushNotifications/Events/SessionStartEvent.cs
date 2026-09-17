@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Events.Session;
@@ -22,7 +23,8 @@ public class SessionStartEvent(
     /// <inheritdoc />
     public async Task OnEvent(SessionStartedEventArgs? eventArgs)
     {
-        if (eventArgs?.Argument == null || Config?.notifications?.SessionStarted is not { Enabled: true })
+        if (eventArgs?.Argument == null
+            || !_notificationHelper.Wants("sessionStarted", Config?.notifications?.SessionStarted))
         {
             _logger.LogInformation("SessionStartEvent received but currently disabled.");
             return;
@@ -41,8 +43,13 @@ public class SessionStartEvent(
         }
 
         SendDetached(
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: [eventArgs.Argument.UserId],
+            _notificationHelper.SendForEvent(
+                "sessionStarted",
+                Config?.notifications?.SessionStarted,
+                byDefault: user => user.IsAdministrator(),
+                // Nobody is told about their own session, however they were targeted: it
+                // is not news to the person who just signed in.
+                andAlso: user => !user.Id.Equals(eventArgs.Argument.UserId),
                 write: audience =>
                 [
                     new()

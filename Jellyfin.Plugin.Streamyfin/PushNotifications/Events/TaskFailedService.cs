@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -114,8 +115,11 @@ public class TaskFailedService : BaseEvent, IHostedService
         _logger.LogInformation("{Task} failed, telling the administrators", result.Name);
 
         SendDetached(
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: null,
+            _notificationHelper.SendForEvent(
+                "taskFailed",
+                Config?.notifications?.TaskFailed,
+                byDefault: user => user.IsAdministrator(),
+                andAlso: null,
                 write: audience => [AdminEvents.TaskFailed(_localization, result.Name, ReasonOf(result), audience.Culture)]),
             "scheduled task failed");
     }
