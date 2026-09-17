@@ -156,6 +156,36 @@ public class ExpoReceiptStoreTests : IDisposable
     }
 
     /// <summary>
+    /// Two sends told about the same dead tokens at once both finish, and each row goes
+    /// once.
+    /// </summary>
+    /// <remarks>
+    /// Seen on a throwaway 12.0.0 on 2026-09-17: two movies added in one scan were sent at
+    /// the same moment, Expo named the same dead tokens to both, and the second removal
+    /// failed on a concurrency check, since the first had deleted the rows it had loaded.
+    /// </remarks>
+    [Fact]
+    public void TwoSendsPruningTheSameTokensAtOnceBothFinish()
+    {
+        for (var round = 0; round < 30; round++)
+        {
+            var userId = Guid.NewGuid();
+            for (var row = 0; row < 3; row++)
+            {
+                _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
+            }
+
+            var removed = new int[2];
+            System.Threading.Tasks.Parallel.Invoke(
+                () => removed[0] = _db.RemoveDeviceTokensNamed(["dead"]),
+                () => removed[1] = _db.RemoveDeviceTokensNamed(["dead"]));
+
+            Assert.Equal(3, removed.Sum());
+            Assert.Empty(_db.GetAllDeviceTokens());
+        }
+    }
+
+    /// <summary>
     /// Nothing to remove removes nothing, and says so, rather than opening a write for a
     /// run where Expo reported everybody healthy.
     /// </summary>
