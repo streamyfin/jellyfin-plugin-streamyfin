@@ -12,7 +12,7 @@ lives only in a comment thread is a decision nobody will find.
 
 A notification about something that was added carries its poster. The app says where it
 reaches the server when it registers, the address is stored beside the token, and the image
-is `\{server\}/Items/\{id\}/Images/Primary?maxHeight=640` on that address. A server is reached
+is `{server}/Items/{id}/Images/Primary?maxHeight=640` on that address. A server is reached
 at different addresses by different devices, at home and away, and its own idea of its
 address is the one nobody outside can use, so the address comes from the device that just
 used it.
