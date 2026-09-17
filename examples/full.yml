@@ -79,14 +79,14 @@ settings:
   defaultAudioLanguage:
     locked: false
     value:
-      ThreeLetterISOLanguageName: fra
-      DisplayName: French
+      threeLetterISOLanguageName: fra
+      displayName: French
   
   defaultSubtitleLanguage:
     locked: false
     value:
-      ThreeLetterISOLanguageName: fra
-      DisplayName: French
+      threeLetterISOLanguageName: fra
+      displayName: French
   
   subtitleFont:
     locked: false
@@ -233,7 +233,7 @@ settings:
   # Streamystats (Recommendations & Analytics)
   streamyStatsServerUrl:
     locked: false
-    value: "Enter Streamystats server URL"  # e.g., https://stats.example.com
+    value: ""  # e.g., https://stats.example.com
   
   streamyStatsMovieRecommendations:
     locked: false
@@ -515,6 +515,16 @@ settings:
               - Descending
             limit: 30
 
+        # My Media: the user's libraries as a row, the way Jellyfin's own home screen
+        # shows them, and only the ones this user may open. /UserViews ignores paging
+        # and answers with every library each time, so until the app stops asking for
+        # more, a user with ten libraries or more makes it ask again whenever the row
+        # is scrolled to its end.
+        - title: My Media
+          orientation: horizontal
+          custom:
+            endpoint: /UserViews
+
         # Custom Endpoint Example (Advanced)
         # - title: Custom Data
         #   custom:
@@ -528,17 +538,17 @@ settings:
 # ==================== Notifications Configuration ====================
 # Configure push notification settings
 notifications:
-  SessionStarted:
-    Enabled: true  # Notify when users start sessions (admin only)
+  sessionStarted:
+    enabled: true  # Notify when users start sessions (admin only)
   
-  PlaybackStarted:
-    Enabled: true  # Notify when playback starts (admin only)
+  playbackStarted:
+    enabled: true  # Notify when playback starts (admin only)
   
-  UserLockedOut:
-    Enabled: true  # Notify on account lockouts
+  userLockedOut:
+    enabled: true  # Notify on account lockouts
   
-  ItemAdded:
-    Enabled: true
+  itemAdded:
+    enabled: true
     recentEventThreshold: null
     enabledLibraries: []    # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam
