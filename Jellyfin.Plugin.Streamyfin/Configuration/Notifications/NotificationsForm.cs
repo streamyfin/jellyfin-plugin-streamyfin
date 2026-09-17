@@ -150,6 +150,10 @@ public static class NotificationsForm
     [
         .. typeof(Notifications)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            // Not everything on this class is an event: the wording an administrator sets
+            // lives here too, and is a list rather than a block of switches.
+            .Where(eventProperty => typeof(NotificationConfiguration).IsAssignableFrom(
+                Nullable.GetUnderlyingType(eventProperty.PropertyType) ?? eventProperty.PropertyType))
             .Select(eventProperty =>
             {
                 var display = eventProperty.GetCustomAttribute<DisplayAttribute>();
