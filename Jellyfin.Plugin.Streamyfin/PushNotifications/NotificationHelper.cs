@@ -120,6 +120,10 @@ public class NotificationHelper
     /// <param name="tokens">The registered devices.</param>
     /// <param name="mayKnow">Whether a user may be told, by user id. Asked once per user.</param>
     /// <returns>The tokens to send to, in the order the devices were given.</returns>
+    /// <remarks>
+    /// A token is taken to belong to the user on its row. The database keeps that true by
+    /// leaving each token on one row, the device that registered it last.
+    /// </remarks>
     internal static List<string> RecipientsWho(IEnumerable<DeviceToken> tokens, Func<Guid, bool> mayKnow)
     {
         ArgumentNullException.ThrowIfNull(tokens);

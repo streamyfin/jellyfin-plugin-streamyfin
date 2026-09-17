@@ -47,6 +47,7 @@ public class PluginDatabase
         context.Database.Migrate();
 
         ImportLegacyDeviceTokens(context);
+        KeepOneRowPerToken(context);
     }
 
     /// <summary>
@@ -113,6 +114,17 @@ public class PluginDatabase
 
         var timestamp = DateTime.UtcNow.ToFileTime();
 
+        // A token is one installation of the app, so it has one owner: the device that
+        // registered it last. Expo keeps an iOS token through a reinstall while the app
+        // starts over with a new device id, and the row left behind sent the previous
+        // account's notifications to whoever signed in next. One transaction, or two
+        // devices registering the same token could both find nothing to remove.
+        using var transaction = context.Database.BeginTransaction();
+
+        context.DeviceTokens
+            .Where(t => t.Token == token.Token && t.DeviceId != token.DeviceId)
+            .ExecuteDelete();
+
         // One statement, so two registrations of the same device cannot race each
         // other. The app posts its token twice on sign in, and a lookup followed by an
         // insert let the second one fail on the device id with a 500 while the first
@@ -126,6 +138,8 @@ public class PluginDatabase
                 UserId = excluded.UserId,
                 Timestamp = excluded.Timestamp
             """);
+
+        transaction.Commit();
 
         token.Timestamp = timestamp;
         return token;
@@ -163,10 +177,8 @@ public class PluginDatabase
     /// <param name="tokens">The dead Expo push tokens.</param>
     /// <returns>How many device rows were removed.</returns>
     /// <remarks>
-    /// By token rather than by device id, because that is the only thing Expo names. One
-    /// token can sit on more than one row if a device re-registered under a new id
-    /// without the old row ever being cleaned up, which is the very accumulation this
-    /// removes, so every match goes.
+    /// By token rather than by device id, because that is the only thing Expo names.
+    /// Registration keeps each token on one row, so a dead token is one device.
     /// </remarks>
     public int RemoveDeviceTokensNamed(IEnumerable<string> tokens)
     {
@@ -740,6 +752,47 @@ public class PluginDatabase
                 ex,
                 "Could not import device tokens from {Path}. The import will be retried on the next start",
                 LegacyDbFilePath);
+        }
+    }
+
+    /// <summary>
+    /// Leaves each push token on one row, the one registered last.
+    /// </summary>
+    /// <remarks>
+    /// Registration keeps it that way from this version on. This is for the rows stored
+    /// before, by an earlier build or by the import, where a reinstalled iOS device could
+    /// be on two rows under two accounts. One statement, and it runs on every start since
+    /// it has nothing to do once the table is clean. Failure is not fatal, for the same
+    /// reason the import's is not.
+    /// </remarks>
+    /// <param name="context">An open context on the new database.</param>
+    private void KeepOneRowPerToken(StreamyfinDbContext context)
+    {
+        try
+        {
+            // The device id breaks a tie between two rows stamped at the same moment, so
+            // exactly one of them stays.
+            var removed = context.Database.ExecuteSqlRaw("""
+                DELETE FROM DeviceTokens
+                WHERE EXISTS (
+                    SELECT 1 FROM DeviceTokens AS newer
+                    WHERE newer.Token = DeviceTokens.Token
+                      AND (newer.Timestamp > DeviceTokens.Timestamp
+                           OR (newer.Timestamp = DeviceTokens.Timestamp AND newer.DeviceId > DeviceTokens.DeviceId)))
+                """);
+
+            if (removed > 0)
+            {
+                _logger?.LogInformation(
+                    "Removed {Count} device registration(s) whose push token a newer registration carries",
+                    removed);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Could not remove the older registrations of a push token. This is tried again on the next start");
         }
     }
 

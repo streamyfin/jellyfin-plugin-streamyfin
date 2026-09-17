@@ -49,6 +49,27 @@ refuses every request such an account makes, and its devices were still register
 The season send also had its awaitable discarded, so a failure went unobserved; it goes
 through the same detached path as the movie send now.
 
+### One owner per push token
+
+Review found a way around that filter. An Expo token belongs to an installation of the
+app, and Expo keeps an iOS token through an uninstall and a reinstall while the app starts
+over with a new device id. Someone who deleted the app while signed in, and whoever signed
+in on it after the reinstall, then shared a token on two rows, and the first account's
+notifications reached the second, the administrator ones included. Expo never reports such
+a token as gone, so the row stayed.
+
+A registration now removes every other row carrying its token, in the same transaction as
+its own write, and opening the database leaves each token already stored on one row, the
+newest. Two tests from #180 registered one token under several devices, which registration
+no longer allows: the race is held with three dead tokens instead, and the test for several
+rows of one dead token is gone with the state it described.
+
+On both throwaways, a token stored under the administrator and then the restricted user was
+cut to the user's row at the next start, and a movie in the other library went to one of
+two devices, the administrator's own. The same token registered by the administrator and
+then by the user moved to the user, and the next movie went to one of three, a control
+device of the administrator.
+
 ### Proven
 
 On throwaway 10.11.11 and 12.0.0: two libraries with a generated movie in each, and a user

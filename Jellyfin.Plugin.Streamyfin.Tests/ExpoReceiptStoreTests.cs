@@ -140,22 +140,6 @@ public class ExpoReceiptStoreTests : IDisposable
     }
 
     /// <summary>
-    /// One token can sit on more than one row, from a device that re-registered under a
-    /// new id without the old row ever being cleaned up. That is the accumulation this
-    /// part removes, so every match goes.
-    /// </summary>
-    [Fact]
-    public void EveryRowCarryingADeadTokenGoes()
-    {
-        var userId = Guid.NewGuid();
-        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
-        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
-
-        Assert.Equal(2, _db.RemoveDeviceTokensNamed(["dead"]));
-        Assert.Empty(_db.GetAllDeviceTokens());
-    }
-
-    /// <summary>
     /// Two sends told about the same dead tokens at once both finish, and each row goes
     /// once.
     /// </summary>
@@ -170,15 +154,16 @@ public class ExpoReceiptStoreTests : IDisposable
         for (var round = 0; round < 30; round++)
         {
             var userId = Guid.NewGuid();
-            for (var row = 0; row < 3; row++)
+            string[] dead = ["dead-0", "dead-1", "dead-2"];
+            foreach (var token in dead)
             {
-                _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "dead", UserId = userId });
+                _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = token, UserId = userId });
             }
 
             var removed = new int[2];
             System.Threading.Tasks.Parallel.Invoke(
-                () => removed[0] = _db.RemoveDeviceTokensNamed(["dead"]),
-                () => removed[1] = _db.RemoveDeviceTokensNamed(["dead"]));
+                () => removed[0] = _db.RemoveDeviceTokensNamed(dead),
+                () => removed[1] = _db.RemoveDeviceTokensNamed(dead));
 
             Assert.Equal(3, removed.Sum());
             Assert.Empty(_db.GetAllDeviceTokens());
