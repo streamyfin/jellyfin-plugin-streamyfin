@@ -186,6 +186,19 @@ public class WordingTests
     }
 
     /// <summary>
+    /// A placeholder number too big to be one is refused like any other wording that asks
+    /// for what is not there, rather than throwing out of the save.
+    /// </summary>
+    [Fact]
+    public void APlaceholderTooBigToBeOneIsRefused()
+    {
+        var said = Said(("TaskFailedWithReason", null, "{99999999999} failed"));
+
+        Assert.NotNull(NotificationsValidation.CheckWording(said));
+        Assert.Equal(0, Wording.Asks("{99999999999}"));
+    }
+
+    /// <summary>
     /// What the page lists: every sentence the plugin can write, with what it says today
     /// and how many things it names.
     /// </summary>

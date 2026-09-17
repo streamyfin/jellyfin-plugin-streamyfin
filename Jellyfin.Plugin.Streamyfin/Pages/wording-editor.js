@@ -22,6 +22,13 @@ export const asks = (text) => {
     return highest;
 };
 
+/**
+ * A language the way the server reads one: fr_CA, FR-ca and fr-CA are the same language,
+ * since that is what `Wording.Matching` compares. Only for comparing, never for storing:
+ * what an administrator typed is what they see.
+ */
+const sameLanguage = (locale) => String(locale ?? "").trim().replace(/_/g, "-").toLowerCase();
+
 /** The sentence a row is about, or undefined when the server has no such thing. */
 export const sentenceOf = (sentences, key) => sentences.find((one) => one.key === key);
 
@@ -31,14 +38,12 @@ export const blank = (sentences, key) => {
     return { key, locale: "", text: sentence?.text ?? "" };
 };
 
-/** Adds a row, unless that sentence and language are already listed. */
-export const add = (list, sentences, key) => {
-    const row = blank(sentences, key);
-
-    return list.some((one) => one.key === row.key && (one.locale ?? "") === row.locale)
-        ? list
-        : [...list, row];
-};
+/**
+ * Adds a row. Always: the next one an administrator wants is usually the same sentence in
+ * another language, and a new row starts with none, so refusing it as a duplicate left no
+ * way to add one at all. It says it is a duplicate until a language is typed into it.
+ */
+export const add = (list, sentences, key) => [...list, blank(sentences, key)];
 
 export const remove = (list, index) => list.filter((_, at) => at !== index);
 
@@ -75,7 +80,8 @@ export const problems = (list, sentences) => {
 
         // Two rows for the same sentence and language: the second never wins, so it is
         // worth saying rather than leaving somebody editing the one that does nothing.
-        const same = list.findIndex((other) => other.key === one.key && (other.locale ?? "") === (one.locale ?? ""));
+        const same = list.findIndex((other) =>
+            other.key === one.key && sameLanguage(other.locale) === sameLanguage(one.locale));
 
         if (same !== at) {
             found.set(at, "Another row already covers that sentence and language.");
@@ -97,7 +103,7 @@ export const toConfig = (list) => {
         if (!one.key || !String(one.text ?? "").trim()) continue;
 
         const locale = String(one.locale ?? "").trim();
-        const at = `${one.key}\u0000${locale}`;
+        const at = `${one.key}\u0000${sameLanguage(locale)}`;
 
         if (kept.has(at)) continue;
 

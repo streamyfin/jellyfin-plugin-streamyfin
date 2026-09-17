@@ -137,6 +137,12 @@ public static class NotificationsValidation
                 continue;
             }
 
+            if (Wording.AsksForWhatCannotBeAPlaceholder(one.Text))
+            {
+                problems.Add($"The wording for {one.Key} carries a number too big to be a placeholder.");
+                continue;
+            }
+
             var asks = Wording.Asks(one.Text);
 
             if (asks > sentence.Placeholders)

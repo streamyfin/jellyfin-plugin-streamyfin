@@ -104,11 +104,14 @@ const wordingCard = async (sentences, edited) => {
     }
     adder.append(picker, addButton);
 
-    let list = (shared.getConfig()?.notifications?.wording ?? []).map((one) => ({
-        key: one.key,
-        locale: one.locale ?? "",
-        text: one.text ?? "",
-    }));
+    const rowsOf = (stored) =>
+        (stored ?? []).map((one) => ({
+            key: one.key,
+            locale: one.locale ?? "",
+            text: one.text ?? "",
+        }));
+
+    let list = rowsOf(shared.getConfig()?.notifications?.wording);
 
     const store = () => {
         const config = shared.getConfig() ?? {};
@@ -188,6 +191,18 @@ const wordingCard = async (sentences, edited) => {
         list = editor.add(list, sentences, picker.value);
         store();
         edited();
+        draw();
+    });
+
+    // The rows are held here while they are being edited, so anything that changes the
+    // configuration elsewhere, the YAML tab or a reload, would otherwise be written back
+    // over by the next keystroke. Ignored when what arrives is what this card just wrote.
+    shared.setOnConfigUpdatedListener("notifications-wording", (config) => {
+        const incoming = config?.notifications?.wording ?? [];
+
+        if (JSON.stringify(incoming) === JSON.stringify(editor.toConfig(list))) return;
+
+        list = rowsOf(incoming);
         draw();
     });
 

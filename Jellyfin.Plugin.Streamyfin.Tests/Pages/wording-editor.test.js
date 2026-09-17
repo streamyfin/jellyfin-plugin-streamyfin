@@ -39,11 +39,15 @@ describe("rows", () => {
         });
     });
 
-    test("the same sentence and language is not listed twice", () => {
-        const once = add([], SENTENCES, "TaskFailedTitle");
+    test("the same sentence twice is two rows, one of them flagged and not stored", () => {
+        // Adding is never refused, since the next row is usually the same sentence in
+        // another language and a new row starts with none. The duplicate says so until a
+        // language is typed into it, and only the row that wins is stored.
+        const twice = add(add([], SENTENCES, "TaskFailedTitle"), SENTENCES, "TaskFailedTitle");
 
-        expect(once).toHaveLength(1);
-        expect(add(once, SENTENCES, "TaskFailedTitle")).toBe(once);
+        expect(twice).toHaveLength(2);
+        expect(problems(twice, SENTENCES).get(1)).toBe("Another row already covers that sentence and language.");
+        expect(toConfig(twice)).toHaveLength(1);
     });
 
     test("a row can be changed and dropped", () => {
@@ -52,6 +56,19 @@ describe("rows", () => {
 
         expect(edited[0]).toEqual({ key: "TaskFailedTitle", locale: "fr", text: "Something broke" });
         expect(remove(edited, 0)).toEqual([]);
+    });
+});
+
+describe("adding", () => {
+    test("a language row can be added when a global one is already there", () => {
+        // The one the administrator wants next is usually the same sentence in another
+        // language, and a new row starts with no language, so refusing it left no way to
+        // add one at all.
+        const global = add([], SENTENCES, "TaskFailedTitle");
+        const both = add(global, SENTENCES, "TaskFailedTitle");
+
+        expect(both).toHaveLength(2);
+        expect(change(both, 1, { locale: "fr" })[1].locale).toBe("fr");
     });
 });
 
@@ -87,6 +104,17 @@ describe("problems", () => {
         expect(found.get(1)).toBe("Another row already covers that sentence and language.");
     });
 
+    test("two rows for one language, however the language is spelt", () => {
+        // The server reads fr_CA and FR-ca as fr-CA and takes the first match, so the
+        // second row is one nobody can make do anything whatever separator it uses.
+        const found = problems([
+            { key: "TaskFailedTitle", locale: "fr-CA", text: "un" },
+            { key: "TaskFailedTitle", locale: "FR_ca", text: "deux" },
+        ], SENTENCES);
+
+        expect(found.get(1)).toBe("Another row already covers that sentence and language.");
+    });
+
     test("a row that is fine is not reported", () => {
         expect(problems([{ key: "TaskFailedWithReason", locale: "fr-CA", text: "{0} : {1}" }], SENTENCES).size).toBe(0);
     });
@@ -113,6 +141,13 @@ describe("what is stored", () => {
             { key: "TaskFailedTitle", locale: "fr", text: "premier" },
             { key: "TaskFailedTitle", text: "every language" },
         ]);
+    });
+
+    test("a language spelt two ways is stored once", () => {
+        expect(toConfig([
+            { key: "TaskFailedTitle", locale: "fr-CA", text: "premier" },
+            { key: "TaskFailedTitle", locale: "FR_ca", text: "second" },
+        ])).toEqual([{ key: "TaskFailedTitle", locale: "fr-CA", text: "premier" }]);
     });
 
     test("the summary counts what would be stored", () => {

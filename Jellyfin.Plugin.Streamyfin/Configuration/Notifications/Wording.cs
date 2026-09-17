@@ -136,9 +136,30 @@ public static partial class Wording
             ? 0
             : Placeholder()
                 .Matches(text)
-                .Select(match => int.Parse(match.Groups[1].ValueSpan, CultureInfo.InvariantCulture) + 1)
+                // A number too big to be an index is not one, and parsing it threw out of
+                // the save rather than refusing the wording. String.Format says the same:
+                // it reads {99999999999} as text and not as a placeholder.
+                .Select(match => int.TryParse(match.Groups[1].ValueSpan, CultureInfo.InvariantCulture, out var index)
+                    ? index + 1
+                    : 0)
                 .DefaultIfEmpty(0)
                 .Max();
+
+    /// <summary>
+    /// Whether a wording carries a number that cannot be a placeholder at all.
+    /// </summary>
+    /// <param name="text">The wording.</param>
+    /// <returns>True when one of its numbers is too big to be an index.</returns>
+    /// <remarks>
+    /// String.Format refuses <c>{99999999999}</c> the same way it refuses <c>{2}</c> with
+    /// two things to say: both throw, so both are wordings that would never work. Parsing
+    /// it threw out of the save instead, which is a 500 where a sentence was meant.
+    /// </remarks>
+    public static bool AsksForWhatCannotBeAPlaceholder(string? text) =>
+        !string.IsNullOrEmpty(text)
+        && Placeholder()
+            .Matches(text)
+            .Any(match => !int.TryParse(match.Groups[1].ValueSpan, CultureInfo.InvariantCulture, out _));
 
     // A language is typed by hand into a box, so fr_CA and FR-ca are the same language as
     // fr-CA. The rest of the plugin normalises device languages the same way.
