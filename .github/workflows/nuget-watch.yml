@@ -70,7 +70,7 @@ jobs:
           REPORT: ${{ steps.look.outputs.report }}
         with:
           script: |
-            const { newLines, newerInLine, newest, built, unreadable, prereleaseOnly } =
+            const { newLines, newerInLine, newest, built, unreadable, prereleaseOnly, headline } =
               JSON.parse(process.env.REPORT);
 
             // Losing sight of the prerelease feed is the failure this watch is least
@@ -84,10 +84,12 @@ jobs:
               return;
             }
 
-            // The versions are in the title so that a later one opens its own issue
-            // rather than reopening the one that was closed as read.
-            const all = [...newLines, ...newerInLine];
-            const title = `Jellyfin.Controller ${all.join(', ')} ${all.length > 1 ? 'are' : 'is'} on NuGet`;
+            // The newest version is in the title so that a later one opens its own issue
+            // rather than reopening the one that was closed as read. Only that one, with a
+            // count beside it: the title is what the search below looks for, and GitHub
+            // refuses a search past 256 characters, which naming every version reached the
+            // day a line started publishing weekly builds. The full list is in the body.
+            const title = headline;
 
             // This runs every day, so the same news must not become an issue a day.
             const existing = await github.rest.search.issuesAndPullRequests({
