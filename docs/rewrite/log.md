@@ -39,6 +39,35 @@ than sent, since Expo refuses the whole message for a bad one.
 On iOS the image needs a notification service extension in the app, which is the app's half
 of #30.
 
+## 2026-09-18, a row of libraries, and a sentence written differently
+
+**#78, "my media".** Jellyfin has the endpoint and it cannot be scrolled: `/UserViews`
+ignores `startIndex` and `limit`, measured on 10.11.11, where asking for two rows starting
+at the third of three answers all three with `StartIndex: 0`. The app's home rows are
+infinite lists that ask for the next page as somebody reaches the end of the one they have,
+so a section pointed straight at it repeats its libraries for as long as they keep
+scrolling. `GET /streamyfin/v1/my-media` asks the same question the web client's home
+screen asks and pages the answer. An account given one library gets that library.
+
+**#34, the wording.** Every sentence the plugin writes can be written differently, per
+language or for all of them, with the placeholders that sentence already has and nothing
+new to fill them with. That last part is the answer herrrta gave on the issue: the webhook
+plugin waits for an item's metadata before it fires, while this one waits for the opposite
+reason, to say "eight episodes" rather than eight times "one episode".
+
+Two mistakes are refused rather than found when the event fires, since one of them is an
+exception inside a handler the server is waiting on: a sentence this server does not write,
+and a wording asking for a placeholder the sentence does not have. `String.Format` refuses
+`{99999999999}` the way it refuses `{2}` with two things to say, so both are refused here.
+
+The sentences the admin page offers are read from the English resources rather than listed
+beside them, which is why the raw `.resx` is embedded a second time under another name:
+`ResourceManager` carries values and not the comments that say what each placeholder is.
+
+**#29 landed with it**, and the events an administrator hands out now resolve through the
+same levels as every setting. The screen marks the events that name somebody else and asks
+before handing one to an account that does not administer the server.
+
 ## 2026-09-18, a row of recommendations, and a question that was never asked
 
 Two things landed together, one asked for and one found on the way.
