@@ -8,6 +8,32 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, the poster in a notification
+
+A notification about something that was added carries its poster. The app says where it
+reaches the server when it registers, the address is stored beside the token, and the image
+is `\{server\}/Items/\{id\}/Images/Primary?maxHeight=640` on that address. A server is reached
+at different addresses by different devices, at home and away, and its own idea of its
+address is the one nobody outside can use, so the address comes from the device that just
+used it.
+
+The grouping that the language introduced carries it: devices are written for once per
+audience, which is now the language and the address together. Two phones in French, one at
+home and one away, are two messages.
+
+Nothing of ours travels with it. Jellyfin serves an item's images without a token, which is
+what makes the image fetchable by Expo and by the phone, and what was checked on the
+throwaways rather than assumed.
+
+Proven on 10.11.11 and 12.0.0: a device registered with the server's address and a movie
+added. The debug line reads
+`Poster for fde12217-...: http://127.0.0.1:8097/Items/fde122178d6a3534c969b8227d6a9015/Images/Primary?maxHeight=640`,
+the devices that named no server got none, and fetching that address with no token answers
+`200 image/jpeg`.
+
+On iOS the image needs a notification service extension in the app, which is the app's half
+of #30.
+
 ## 2026-09-17, the language a device is in
 
 A notification is written in the language of the device it goes to. The app says which one

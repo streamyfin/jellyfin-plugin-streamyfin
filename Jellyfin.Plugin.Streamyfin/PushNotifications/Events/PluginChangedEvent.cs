@@ -101,7 +101,7 @@ public class PluginChangedEvent(
         SendDetached(
             _notificationHelper.SendToAdmins(
                 excludedUserIds: null,
-                write: culture => [AdminEvents.PluginChanged(_localization, change, name, version, culture)]),
+                write: audience => [AdminEvents.PluginChanged(_localization, change, name, version, audience.Culture)]),
             "plugin changed");
 
         return Task.CompletedTask;

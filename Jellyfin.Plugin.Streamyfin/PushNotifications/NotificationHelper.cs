@@ -182,25 +182,42 @@ public class NotificationHelper
     }
 
     /// <summary>
-    /// The devices grouped by the language they asked for.
+    /// The devices grouped by what a message written for them would say.
     /// </summary>
     /// <param name="devices">The devices to send to.</param>
-    /// <returns>One group per language, each with the tokens to write it for.</returns>
+    /// <returns>One group per audience, each with the tokens to write it for.</returns>
     /// <remarks>
-    /// One message is written per language rather than per device: a server with fifty
-    /// phones in two languages writes two messages, not fifty. A device that named no
-    /// language is its own group, written in the server's.
+    /// One message is written per audience rather than per device: a server with fifty
+    /// phones in two languages and one address writes two messages, not fifty. A device
+    /// that named no language is written to in the server's, and one that named no address
+    /// gets a notification without its poster.
     /// </remarks>
-    internal static List<(CultureInfo? Culture, List<string> Tokens)> ByLanguage(IEnumerable<DeviceToken> devices)
+    internal static List<(Audience Audience, List<string> Tokens)> ByAudience(IEnumerable<DeviceToken> devices)
     {
         ArgumentNullException.ThrowIfNull(devices);
 
         return devices
-            .GroupBy(device => DeviceLanguage.Stored(device.Language), StringComparer.Ordinal)
-            .Select(spoken => (
-                DeviceLanguage.CultureOf(spoken.Key),
-                spoken.Select(device => device.Token).Distinct(StringComparer.Ordinal).ToList()))
+            .GroupBy(
+                device => (Language: DeviceLanguage.Stored(device.Language), Server: DeviceServer.Stored(device.ServerUrl)),
+                new AudienceComparer())
+            .Select(together => (
+                new Audience(DeviceLanguage.CultureOf(together.Key.Language), together.Key.Server),
+                together.Select(device => device.Token).Distinct(StringComparer.Ordinal).ToList()))
             .ToList();
+    }
+
+    // Two devices are written for together when they asked for the same language and reach
+    // the server at the same address, both compared as they are stored.
+    private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server)>
+    {
+        public bool Equals((string? Language, string? Server) left, (string? Language, string? Server) right) =>
+            string.Equals(left.Language, right.Language, StringComparison.Ordinal)
+            && string.Equals(left.Server, right.Server, StringComparison.Ordinal);
+
+        public int GetHashCode((string? Language, string? Server) key) =>
+            HashCode.Combine(
+                key.Language is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Language),
+                key.Server is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Server));
     }
 
     /// <summary>
@@ -214,18 +231,18 @@ public class NotificationHelper
     /// </summary>
     /// <param name="devices">Who to send to.</param>
     /// <param name="write">
-    /// Writes the messages in one language. Called once per language among the devices, so
+    /// Writes the messages for one audience. Called once per audience among the devices, so
     /// it has to build its messages each time rather than hand back the same objects.
     /// </param>
     /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToDevices(
         IEnumerable<DeviceToken> devices,
-        Func<CultureInfo?, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(devices);
         ArgumentNullException.ThrowIfNull(write);
 
-        var groups = ByLanguage(devices);
+        var groups = ByAudience(devices);
 
         if (groups.Count == 0)
         {
@@ -235,9 +252,9 @@ public class NotificationHelper
 
         var messages = new List<ExpoNotificationRequest>();
 
-        foreach (var (culture, tokens) in groups)
+        foreach (var (audience, tokens) in groups)
         {
-            foreach (var message in write(culture))
+            foreach (var message in write(audience))
             {
                 message.To = tokens;
                 messages.Add(message);
@@ -245,7 +262,7 @@ public class NotificationHelper
         }
 
         _logger?.LogInformation(
-            "Sending {Messages} notification(s) to {Devices} device(s) in {Languages} language(s)",
+            "Sending {Messages} notification(s) to {Devices} device(s), written {Audiences} time(s)",
             messages.Count,
             groups.Sum(group => group.Tokens.Count),
             groups.Count);
@@ -292,7 +309,7 @@ public class NotificationHelper
     /// Sends messages about an item to the devices of every user who may open it.
     /// </summary>
     /// <param name="item">What the messages are about.</param>
-    /// <param name="write">Writes the messages in one language, called once per language.</param>
+    /// <param name="write">Writes the messages for one audience, called once per audience.</param>
     /// <returns>Expo's response, or null when nobody may be told.</returns>
     /// <remarks>
     /// A new movie or episode used to go to every registered device, so its title reached
@@ -301,7 +318,7 @@ public class NotificationHelper
     /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
     /// rating and the tags.
     /// </remarks>
-    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, Func<CultureInfo?, ExpoNotificationRequest[]> write)
+    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, Func<Audience, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -316,7 +333,7 @@ public class NotificationHelper
     /// Everything the messages describe. A user who may not open one of them is not told,
     /// since the message names it.
     /// </param>
-    /// <param name="write">Writes the messages in one language, called once per language.</param>
+    /// <param name="write">Writes the messages for one audience, called once per audience.</param>
     /// <returns>Expo's response, or null when nobody may be told.</returns>
     /// <remarks>
     /// A new movie or episode used to go to every registered device, so its title reached
@@ -327,7 +344,7 @@ public class NotificationHelper
     /// </remarks>
     public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(
         IReadOnlyCollection<BaseItem> items,
-        Func<CultureInfo?, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(write);
@@ -369,7 +386,7 @@ public class NotificationHelper
 
     public async Task<ExpoNotificationResponse?> SendToAdmins(
         List<Guid>? excludedUserIds,
-        Func<CultureInfo?, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(write);
 

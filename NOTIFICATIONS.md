@@ -21,6 +21,19 @@ is tried by machines that never stop.
 A server that was already running when these three arrived has them off, since its stored
 configuration does not mention them. A fresh install has them on.
 
+## Posters
+
+A notification about something that was added carries its poster, which Android shows
+beside the text. The app says where it reaches the server when it registers a device, and
+the image is fetched from that address: a server is reached at different addresses by
+different devices, at home and away, and the server's own idea of its address is often the
+one nobody outside can use. A device that says nothing gets a notification without an
+image.
+
+Jellyfin serves an item's images without a token, so nothing of yours travels to Expo or to
+a phone with the address. On iOS the image needs a notification service extension in the
+app, so it shows there once the app carries one.
+
 ## Languages
 
 A notification is written in the language of the device it goes to. The app says which one

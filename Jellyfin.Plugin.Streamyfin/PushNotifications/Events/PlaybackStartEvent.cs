@@ -67,14 +67,14 @@ public class PlaybackStartEvent(
             SendDetached(
                 _notificationHelper.SendToAdmins(
                     excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
-                    write: culture => watching
+                    write: audience => watching
                         .Select(user =>
                             MediaNotificationHelper.CreateMediaNotification(
                                 localization: _localization,
-                                title: _localization.GetString("PlaybackStartTitle", culture),
-                                body: [_localization.GetFormatted("UserWatching", culture, user.Username)],
+                                title: _localization.GetString("PlaybackStartTitle", audience.Culture),
+                                body: [_localization.GetFormatted("UserWatching", audience.Culture, user.Username)],
                                 item: eventArgs.Item,
-                                culture: culture
+                                culture: audience.Culture
                             )
                         )
                         .OfType<ExpoNotificationRequest>()

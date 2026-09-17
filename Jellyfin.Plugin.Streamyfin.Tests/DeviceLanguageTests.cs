@@ -79,7 +79,7 @@ public class DeviceLanguageTests
     [Fact]
     public void DevicesAreGroupedByTheLanguageTheyAskedFor()
     {
-        var groups = NotificationHelper.ByLanguage([
+        var groups = NotificationHelper.ByAudience([
             Device("one", "fr-FR"),
             Device("two", "FR-fr"),
             Device("three", "es-MX"),
@@ -88,9 +88,9 @@ public class DeviceLanguageTests
         ]);
 
         Assert.Equal(3, groups.Count);
-        Assert.Equal(["one", "two"], groups.Single(group => group.Culture?.Name == "fr-FR").Tokens);
-        Assert.Equal(["three"], groups.Single(group => group.Culture?.Name == "es-MX").Tokens);
-        Assert.Equal(["four", "five"], groups.Single(group => group.Culture is null).Tokens);
+        Assert.Equal(["one", "two"], groups.Single(group => group.Audience.Culture?.Name == "fr-FR").Tokens);
+        Assert.Equal(["three"], groups.Single(group => group.Audience.Culture?.Name == "es-MX").Tokens);
+        Assert.Equal(["four", "five"], groups.Single(group => group.Audience.Culture is null).Tokens);
     }
 
     /// <summary>
@@ -99,9 +99,9 @@ public class DeviceLanguageTests
     [Fact]
     public void ADeviceThatAskedForNothingIsWrittenInTheServersLanguage()
     {
-        var groups = NotificationHelper.ByLanguage([Device("one", null)]);
+        var groups = NotificationHelper.ByAudience([Device("one", null)]);
 
-        Assert.Null(Assert.Single(groups).Culture);
+        Assert.Null(Assert.Single(groups).Audience.Culture);
     }
 
     /// <summary>
@@ -110,17 +110,35 @@ public class DeviceLanguageTests
     [Fact]
     public void ATokenOnTwoRowsIsOneRecipient()
     {
-        var groups = NotificationHelper.ByLanguage([Device("same", "fr"), Device("same", "fr")]);
+        var groups = NotificationHelper.ByAudience([Device("same", "fr"), Device("same", "fr")]);
 
         Assert.Equal(["same"], Assert.Single(groups).Tokens);
     }
 
-    private static DeviceToken Device(string token, string? language) => new()
+    /// <summary>
+    /// Devices that reach the server at different addresses are written for separately,
+    /// since the poster in the message is fetched from that address.
+    /// </summary>
+    [Fact]
+    public void DevicesAreAlsoGroupedByTheServerTheyReach()
+    {
+        var groups = NotificationHelper.ByAudience([
+            Device("home", "fr", "http://10.0.0.5:8096"),
+            Device("away", "fr", "https://jellyfin.example.com"),
+            Device("also-home", "fr", "http://10.0.0.5:8096/")
+        ]);
+
+        Assert.Equal(2, groups.Count);
+        Assert.Equal(["home", "also-home"], groups.Single(group => group.Audience.ServerUrl == "http://10.0.0.5:8096").Tokens);
+    }
+
+    private static DeviceToken Device(string token, string? language, string? serverUrl = null) => new()
     {
         DeviceId = System.Guid.NewGuid(),
         UserId = System.Guid.NewGuid(),
         Token = token,
-        Language = language
+        Language = language,
+        ServerUrl = serverUrl
     };
 
     /// <summary>

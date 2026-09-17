@@ -39,14 +39,14 @@ public class UserLockedOutEvent(
 
         await _notificationHelper.SendToDevices(
             devices,
-            culture =>
+            audience =>
             [
                 new()
                 {
-                    Title = _localization.GetString("UserLockedOutTitle", culture),
+                    Title = _localization.GetString("UserLockedOutTitle", audience.Culture),
                     Body = _localization.GetFormatted(
                         key: "UserHasBeenLockedOut",
-                        cultureInfo: culture,
+                        cultureInfo: audience.Culture,
                         args: eventArgs.Argument.Username.Escape())
                 }
             ]).ConfigureAwait(false);

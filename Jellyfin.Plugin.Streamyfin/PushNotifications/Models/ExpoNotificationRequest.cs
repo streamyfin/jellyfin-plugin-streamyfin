@@ -134,6 +134,13 @@ public class ExpoNotificationRequest
     public bool MutableContent { get; set; }
 
     /// <summary>
+    /// What a notification shows beside its text. Expo currently takes an image, which
+    /// Android shows as it is and iOS shows through a notification service extension.
+    /// </summary>
+    [JsonProperty(PropertyName = "richContent", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public ExpoRichContent? RichContent { get; set; }
+
+    /// <summary>
     /// The same message, addressed to some of its recipients.
     /// </summary>
     /// <param name="recipients">Who this copy is for.</param>
@@ -162,4 +169,16 @@ public class ExpoReceiptRequest
     /// </summary>
     [JsonProperty("ids")]
     public List<string> Ids { get; set; } = [];
+}
+
+/// <summary>
+/// What Expo shows beside a notification's text.
+/// </summary>
+public class ExpoRichContent
+{
+    /// <summary>
+    /// Gets or sets the address of the image to show.
+    /// </summary>
+    [JsonProperty(PropertyName = "image", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public string? Image { get; set; }
 }

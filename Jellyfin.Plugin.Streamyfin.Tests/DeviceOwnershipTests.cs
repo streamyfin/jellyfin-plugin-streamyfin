@@ -97,6 +97,25 @@ public class DeviceOwnershipTests
     }
 
     /// <summary>
+    /// The address a device sends is stored without its trailing slash, and something that
+    /// cannot be fetched from is stored as none.
+    /// </summary>
+    [Fact]
+    public void TheAddressADeviceSendsIsTidiedRatherThanRefused()
+    {
+        var registration = Posted(Alice);
+        registration.ServerUrl = " https://jellyfin.example.com/ ";
+
+        Assert.Equal(Registration.Accepted, DeviceRegistration.Check(registration, Alice, callerIsApiKey: false));
+        Assert.Equal("https://jellyfin.example.com", registration.ServerUrl);
+
+        registration.ServerUrl = "not an address";
+
+        Assert.Equal(Registration.Accepted, DeviceRegistration.Check(registration, Alice, callerIsApiKey: false));
+        Assert.Null(registration.ServerUrl);
+    }
+
+    /// <summary>
     /// A user may only remove their own device, and an API key may remove any.
     /// </summary>
     [Fact]

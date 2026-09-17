@@ -57,6 +57,10 @@ public static class DeviceRegistration
         // says nothing, or something that is not a language, gets the server's.
         registration.Language = DeviceLanguage.Stored(registration.Language);
 
+        // And where that device reaches the server, which is where its notifications fetch
+        // their posters. Anything that is not an address to fetch from is stored as none.
+        registration.ServerUrl = DeviceServer.Stored(registration.ServerUrl);
+
         if (callerIsApiKey)
         {
             return Registration.Accepted;
