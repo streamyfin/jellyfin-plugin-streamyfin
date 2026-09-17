@@ -21,6 +21,19 @@ is tried by machines that never stop.
 A server that was already running when these three arrived has them off, since its stored
 configuration does not mention them. A fresh install has them on.
 
+## Posters
+
+A notification about something that was added carries its poster, which Android shows
+beside the text. The app says where it reaches the server when it registers a device, and
+the image is fetched from that address: a server is reached at different addresses by
+different devices, at home and away, and the server's own idea of its address is often the
+one nobody outside can use. A device that says nothing gets a notification without an
+image.
+
+Jellyfin serves an item's images without a token, so nothing of yours travels to Expo or to
+a phone with the address. On iOS the image needs a notification service extension in the
+app, so it shows there once the app carries one.
+
 ## Languages
 
 A notification is written in the language of the device it goes to. The app says which one
@@ -66,10 +79,17 @@ value: `MediaBrowser Token="{apiKey}"`
     "body": "string",     // Notification body (required)
     "userId": "string",   // Target Jellyfin user id this notification is for
     "username": "string", // Target Jellyfin username this notification is for
-    "isAdmin": false      // Boolean to determine if notification also targets admins.
+    "isAdmin": false,     // Boolean to determine if notification also targets admins.
+    "image": "string"     // Address of an image to show beside the text, such as a poster
   }
 ]
 ```
+
+The image is an address a phone can fetch without credentials. Jellyfin serves an item's
+images that way, so `http(s)://your-server/Items/<id>/Images/Primary?maxHeight=640` is the
+usual one. Anything that is not an http address is dropped rather than sent, since Expo
+refuses the whole message for a bad one. Android shows the image as it is; on iOS it needs
+a notification service extension in the app.
 
 ## Notifying All Users
 To do this, all you have to do is populate the title and body. Other fields are not required.

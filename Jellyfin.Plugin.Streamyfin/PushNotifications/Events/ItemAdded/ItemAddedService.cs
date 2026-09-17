@@ -54,16 +54,37 @@ public class ItemAddedService : BaseEvent, IHostedService
 
     // Written once per language among the devices it goes to, so it builds rather than
     // hands back what it built before.
-    private ExpoNotificationRequest[] MovieMessage(BaseItem item, CultureInfo? culture)
+    private ExpoNotificationRequest[] MovieMessage(BaseItem item, Audience audience)
     {
         var message = MediaNotificationHelper.CreateMediaNotification(
             localization: _localization,
-            title: _localization.GetFormatted("ItemAddedTitle", culture, _localization.GetString("MovieMediaType", culture)),
+            title: _localization.GetFormatted("ItemAddedTitle", audience.Culture, _localization.GetString("MovieMediaType", audience.Culture)),
             body: [],
             item: item,
-            culture: culture);
+            culture: audience.Culture);
 
-        return message is null ? [] : [message];
+        if (message is null)
+        {
+            return [];
+        }
+
+        message.RichContent = Poster(audience, item.Id);
+
+        return [message];
+    }
+
+    // What the notification shows beside its text, fetched from the address that device
+    // reaches the server at. A device that named no address gets no image rather than one
+    // it cannot fetch.
+    private ExpoRichContent? Poster(Audience audience, Guid itemId)
+    {
+        var image = DeviceServer.PosterOf(audience.ServerUrl, itemId);
+
+        // At debug, since it is the answer to the only question this part ever raises:
+        // why a notification arrived without its image.
+        _logger.LogDebug("Poster for {Item}: {Image}", itemId, image ?? "none, the device named no server");
+
+        return image is null ? null : new ExpoRichContent { Image = image };
     }
 
     /// <summary>
@@ -133,7 +154,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         {
             case Movie movie:
                 SendDetached(
-                    _notificationHelper.SendToWhoCanOpen(item, culture => MovieMessage(item, culture)),
+                    _notificationHelper.SendToWhoCanOpen(item, audience => MovieMessage(item, audience)),
                     "item added");
                 break;
             case Episode episode:
@@ -212,7 +233,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(
-            _notificationHelper.SendToWhoCanOpen(named, culture => [EpisodesMessage(refreshedSeason, single, episode, total, culture)]),
+            _notificationHelper.SendToWhoCanOpen(named, audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
             "episodes added");
     }
 
@@ -222,8 +243,10 @@ public class ItemAddedService : BaseEvent, IHostedService
         Episode? single,
         Episode first,
         int total,
-        CultureInfo? culture)
+        Audience audience)
     {
+        var culture = audience.Culture;
+
         var name = season.Series.Name.Escape();
         var data = new Dictionary<string, object?>();
         List<string> body = [];
@@ -282,7 +305,11 @@ public class ItemAddedService : BaseEvent, IHostedService
         {
             Title = title,
             Body = string.Join("\n", body),
-            Data = data
+            Data = data,
+
+            // The series rather than the episode: a poster is what a phone shows well, and
+            // an episode's own image is a frame of it.
+            RichContent = Poster(audience, season.SeriesId.Equals(default) ? season.Id : season.SeriesId)
         };
     }
 

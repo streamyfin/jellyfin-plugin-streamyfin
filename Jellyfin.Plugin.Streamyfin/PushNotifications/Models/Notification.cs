@@ -47,10 +47,33 @@ public class Notification
     [JsonProperty(PropertyName = "isAdmin")]
     public bool IsAdmin { get; set; }
 
-    public ExpoNotificationRequest ToExpoNotification() => new()
+    /// <summary>
+    /// The address of an image to show beside the text, such as a poster.
+    /// </summary>
+    /// <remarks>
+    /// Whoever posts the notification decides where the image comes from, and it has to be
+    /// an address the phone can fetch without credentials: Android fetches it as it is, and
+    /// iOS asks for a notification service extension in the app. Anything that is not an
+    /// http address is dropped rather than sent, since Expo refuses the whole message for
+    /// it.
+    /// </remarks>
+    [JsonProperty(PropertyName = "image", NullValueHandling = NullValueHandling.Ignore)]
+    public string? Image { get; set; }
+
+    /// <summary>
+    /// The same notification, in the shape Expo takes.
+    /// </summary>
+    /// <returns>The message to send.</returns>
+    public ExpoNotificationRequest ToExpoNotification()
     {
-        Title = Title,
-        Subtitle = Subtitle,
-        Body = Body
-    };
+        var image = DeviceServer.Stored(Image);
+
+        return new ExpoNotificationRequest
+        {
+            Title = Title,
+            Subtitle = Subtitle,
+            Body = Body,
+            RichContent = image is null ? null : new ExpoRichContent { Image = image }
+        };
+    }
 }

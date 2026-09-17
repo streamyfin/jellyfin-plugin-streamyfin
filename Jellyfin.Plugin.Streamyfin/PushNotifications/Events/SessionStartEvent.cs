@@ -43,12 +43,12 @@ public class SessionStartEvent(
         SendDetached(
             _notificationHelper.SendToAdmins(
                 excludedUserIds: [eventArgs.Argument.UserId],
-                write: culture =>
+                write: audience =>
                 [
                     new()
                     {
-                        Title = _localization.GetString("SessionStartTitle", culture),
-                        Body = _localization.GetFormatted("UserNowOnline", culture, eventArgs.Argument.UserName)
+                        Title = _localization.GetString("SessionStartTitle", audience.Culture),
+                        Body = _localization.GetFormatted("UserNowOnline", audience.Culture, eventArgs.Argument.UserName)
                     }
                 ]
             ),

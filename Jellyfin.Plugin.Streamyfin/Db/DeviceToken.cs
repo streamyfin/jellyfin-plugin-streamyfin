@@ -43,6 +43,18 @@ public class DeviceToken
     public string? Language { get; set; }
 
     /// <summary>
+    /// Gets or sets the address this device reaches the server at, or <c>null</c> when it
+    /// did not say.
+    /// </summary>
+    /// <remarks>
+    /// Where the poster in a notification is fetched from. A server is reached at
+    /// different addresses by different devices, at home and away, so the address comes
+    /// from the device rather than from the server's idea of itself.
+    /// </remarks>
+    [JsonProperty(PropertyName = "serverUrl")]
+    public string? ServerUrl { get; set; }
+
+    /// <summary>
     /// Gets or sets when the token was last registered, as a Windows file time.
     /// </summary>
     /// <remarks>

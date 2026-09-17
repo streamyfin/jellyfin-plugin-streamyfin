@@ -207,8 +207,8 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
-    /// A device says which language it is in, and a registration that says nothing leaves
-    /// it with none.
+    /// A device says which language it is in and where it reaches the server, and a
+    /// registration that says neither leaves it with neither.
     /// </summary>
     [Fact]
     public void ADeviceKeepsTheLanguageItRegisteredWith()
@@ -216,13 +216,26 @@ public class DatabaseTests : IDisposable
         var deviceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = userId, Language = "fr-FR" });
+        _db.AddDeviceToken(new DeviceToken
+        {
+            DeviceId = deviceId,
+            Token = "a",
+            UserId = userId,
+            Language = "fr-FR",
+            ServerUrl = "https://jellyfin.example.com"
+        });
 
-        Assert.Equal("fr-FR", _db.GetDeviceTokenForDeviceId(deviceId)?.Language);
+        var stored = _db.GetDeviceTokenForDeviceId(deviceId);
+
+        Assert.Equal("fr-FR", stored?.Language);
+        Assert.Equal("https://jellyfin.example.com", stored?.ServerUrl);
 
         _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = userId });
 
-        Assert.Null(_db.GetDeviceTokenForDeviceId(deviceId)?.Language);
+        stored = _db.GetDeviceTokenForDeviceId(deviceId);
+
+        Assert.Null(stored?.Language);
+        Assert.Null(stored?.ServerUrl);
     }
 
     /// <summary>
