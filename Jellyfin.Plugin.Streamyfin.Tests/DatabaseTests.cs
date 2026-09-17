@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -106,6 +108,105 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// A token registered by a second device leaves the first one behind.
+    /// </summary>
+    /// <remarks>
+    /// Expo keeps the token of an iOS installation through an uninstall and a reinstall,
+    /// while the app starts over with a new device id. The account signed in before the
+    /// reinstall kept its row, and Expo never reports that token as gone, so that
+    /// account's notifications reached whoever signed in after it.
+    /// </remarks>
+    [Fact]
+    public void ATokenBelongsToTheDeviceThatRegisteredItLast()
+    {
+        var before = Guid.NewGuid();
+        var after = Guid.NewGuid();
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = before, Token = "reinstalled", UserId = alice });
+        _db.AddDeviceToken(new DeviceToken { DeviceId = after, Token = "reinstalled", UserId = bob });
+
+        var stored = Assert.Single(_db.GetAllDeviceTokens());
+        Assert.Equal(after, stored.DeviceId);
+        Assert.Equal(bob, stored.UserId);
+    }
+
+    /// <summary>
+    /// The account signed in before a reinstall is not told anything through the device
+    /// someone else signed in to after it.
+    /// </summary>
+    [Fact]
+    public void AReinstalledDeviceIsNotToldWhatTheAccountBeforeCouldOpen()
+    {
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "reinstalled", UserId = alice });
+        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "reinstalled", UserId = bob });
+
+        Assert.Empty(NotificationHelper.RecipientsWho(_db.GetAllDeviceTokens(), user => user == alice));
+    }
+
+    /// <summary>
+    /// Two devices registering the same token at the same time leave one row between them.
+    /// </summary>
+    /// <remarks>
+    /// Removing the other rows and writing this one are a single transaction. As two
+    /// statements on their own, both registrations could remove nothing and then both
+    /// write, which leaves the token with two owners again.
+    /// </remarks>
+    [Fact]
+    public void TwoDevicesRegisteringOneTokenAtOnceLeaveOneRow()
+    {
+        for (var round = 0; round < 30; round++)
+        {
+            System.Threading.Tasks.Parallel.Invoke(
+                () => _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "shared", UserId = Guid.NewGuid() }),
+                () => _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = "shared", UserId = Guid.NewGuid() }));
+
+            Assert.Single(_db.GetAllDeviceTokens());
+        }
+    }
+
+    /// <summary>
+    /// A token stored on several rows before this version keeps only the newest one once
+    /// the database is opened, and a token on one row is left as it is.
+    /// </summary>
+    [Fact]
+    public void OpeningKeepsOnlyTheNewestRowOfAToken()
+    {
+        var older = Guid.NewGuid();
+        var newer = Guid.NewGuid();
+        var alone = Guid.NewGuid();
+        Store(
+            new DeviceToken { DeviceId = older, Token = "reinstalled", UserId = Guid.NewGuid(), Timestamp = 100 },
+            new DeviceToken { DeviceId = newer, Token = "reinstalled", UserId = Guid.NewGuid(), Timestamp = 200 },
+            new DeviceToken { DeviceId = alone, Token = "untouched", UserId = Guid.NewGuid(), Timestamp = 50 });
+
+        var reopened = new PluginDatabase(_directory);
+
+        Assert.Equal(
+            new[] { alone, newer }.Order(),
+            reopened.GetAllDeviceTokens().Select(t => t.DeviceId).Order());
+    }
+
+    /// <summary>
+    /// Two rows of a token stamped at the same moment still leave exactly one.
+    /// </summary>
+    [Fact]
+    public void OpeningKeepsOneRowOfATokenStampedTwiceAtOnce()
+    {
+        Store(
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = "tied", UserId = Guid.NewGuid(), Timestamp = 300 },
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = "tied", UserId = Guid.NewGuid(), Timestamp = 300 });
+
+        var reopened = new PluginDatabase(_directory);
+
+        Assert.Single(reopened.GetAllDeviceTokens());
+    }
+
+    /// <summary>
     /// The timestamp is written by the store, not by the caller.
     /// </summary>
     [Fact]
@@ -173,6 +274,72 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// A device is removed by the account that registered it, and by nobody else. The
+    /// route is authorized and took the device id from whoever asked, so any account could
+    /// sign another one's device out of its notifications.
+    /// </summary>
+    [Fact]
+    public void OnlyTheOwnerRemovesTheirDevice()
+    {
+        var deviceId = Guid.NewGuid();
+        var alice = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = alice });
+
+        _db.RemoveDeviceToken(deviceId, Guid.NewGuid());
+
+        Assert.NotNull(_db.GetDeviceTokenForDeviceId(deviceId));
+
+        _db.RemoveDeviceToken(deviceId, alice);
+
+        Assert.Null(_db.GetDeviceTokenForDeviceId(deviceId));
+    }
+
+    /// <summary>
+    /// A removal that names no owner removes the device, which is what an administrator's
+    /// API key asks for.
+    /// </summary>
+    [Fact]
+    public void ARemovalNamingNoOwnerRemovesTheDevice()
+    {
+        var deviceId = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = Guid.NewGuid() });
+
+        _db.RemoveDeviceToken(deviceId, null);
+
+        Assert.Equal(0, _db.TotalDevicesCount());
+    }
+
+    /// <summary>
+    /// A row carrying no token is nobody's installation, so it neither takes the others
+    /// with it nor is taken by them.
+    /// </summary>
+    [Fact]
+    public void ARegistrationWithoutATokenTakesNothingWithIt()
+    {
+        Store(new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 10 });
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid() });
+
+        Assert.Equal(2, _db.TotalDevicesCount());
+    }
+
+    /// <summary>
+    /// Rows carrying no token are left where they are when the database opens, for the
+    /// same reason.
+    /// </summary>
+    [Fact]
+    public void OpeningLeavesRowsWithoutATokenAlone()
+    {
+        Store(
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 10 },
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 20 });
+
+        var reopened = new PluginDatabase(_directory);
+
+        Assert.Equal(2, reopened.TotalDevicesCount());
+    }
+
+    /// <summary>
     /// Removing a known device forgets it.
     /// </summary>
     [Fact]
@@ -199,6 +366,16 @@ public class DatabaseTests : IDisposable
         var reopened = new PluginDatabase(_directory);
 
         Assert.NotNull(reopened.GetDeviceTokenForDeviceId(deviceId));
+    }
+
+    /// <summary>
+    /// Writes rows as they are, the way a version before this one could have left them.
+    /// </summary>
+    private void Store(params DeviceToken[] rows)
+    {
+        using var context = _db.CreateContext();
+        context.DeviceTokens.AddRange(rows);
+        context.SaveChanges();
     }
 
     /// <inheritdoc/>

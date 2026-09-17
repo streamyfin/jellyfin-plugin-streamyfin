@@ -55,6 +55,19 @@ public class Home
   [Display(Name = "Sections")]
   // public SerializableDictionary<string, Section>? sections { get; set; }
   public Section[]? sections { get; set; }
+
+  /// <summary>
+  /// A copy of this layout holding other sections, for an answer that must not change
+  /// the stored one.
+  /// </summary>
+  /// <param name="kept">The sections the copy holds.</param>
+  /// <returns>The copy.</returns>
+  internal Home With(Section[] kept)
+  {
+    var copy = (Home)MemberwiseClone();
+    copy.sections = kept;
+    return copy;
+  }
 }
 
 public class Section

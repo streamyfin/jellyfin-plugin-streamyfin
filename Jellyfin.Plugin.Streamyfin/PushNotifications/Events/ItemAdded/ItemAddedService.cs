@@ -8,6 +8,7 @@ using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -86,7 +87,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
                 if (notification != null)
                 {
-                    SendDetached(_notificationHelper.SendToAll(notification), "item added");
+                    SendDetached(_notificationHelper.SendToWhoCanOpen(item, notification), "item added");
                 }
                 break;
             case Episode episode:
@@ -212,7 +213,16 @@ public class ItemAddedService : BaseEvent, IHostedService
             Data = data
         };
 
-        _notificationHelper.SendToAll(notification).ConfigureAwait(false);
+        // The season and every episode the message counts. A season can be visible while an
+        // episode in it is not, and this message names how many arrived and, for a single
+        // one, its number and its id.
+        List<BaseItem> named = [refreshedSeason];
+        named.AddRange(countdown.Episodes
+            .Select(added => _libraryManager.GetItemById(added.Id))
+            .OfType<BaseItem>());
+
+        // Observed like the movie send. Discarding the awaitable left a failure unobserved.
+        SendDetached(_notificationHelper.SendToWhoCanOpen(named, notification), "episodes added");
     }
 
     /// <inheritdoc />

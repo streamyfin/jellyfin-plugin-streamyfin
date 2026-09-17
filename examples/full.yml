@@ -492,6 +492,8 @@ settings:
 
         # Collection Example
         # Use with https://github.com/lostb1t/jellyfin-plugin-collection-import
+        # A section whose parentId names a library or collection a user cannot open is
+        # left out of what that user is served, so its title does not name it.
         - title: My Collection
           orientation: horizontal
           items:

@@ -15,6 +15,7 @@ using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -512,6 +513,21 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult PostDeviceToken([FromBody, Required] DeviceToken deviceToken)
   {
+    if (deviceToken is null) return BadRequest("A device registration is required");
+
+    switch (DeviceRegistration.Check(deviceToken, CallerId, CallerIsApiKey))
+    {
+      case Registration.NoToken:
+        _logger.LogWarning("Refused a device registration for {0} that carries no push token", deviceToken.DeviceId);
+        return BadRequest("A push token is required");
+
+      case Registration.NotYours:
+        _logger.LogWarning(
+          "Refused a device registration for {0}: it names another account than the one asking",
+          deviceToken.DeviceId);
+        return Forbid();
+    }
+
     _logger.LogInformation("Posting device token for deviceId: {0}", deviceToken.DeviceId);
     return new JsonResult(
       _serializationHelperService.ToJson(StreamyfinPlugin.Instance!.Database.AddDeviceToken(deviceToken))
@@ -532,7 +548,9 @@ public class StreamyfinController : ControllerBase
     if (deviceId == null) return BadRequest("Device id is required");
 
     _logger.LogInformation("Deleting device token for deviceId: {0}", deviceId);
-    StreamyfinPlugin.Instance!.Database.RemoveDeviceToken((Guid) deviceId);
+    StreamyfinPlugin.Instance!.Database.RemoveDeviceToken(
+      (Guid) deviceId,
+      DeviceRegistration.Remover(CallerId, CallerIsApiKey));
 
     return new OkResult();
   }
@@ -975,7 +993,8 @@ public class StreamyfinController : ControllerBase
     var resolved = Resolution.Resolve(
       StreamyfinPlugin.Instance!.Settings.Current.settings,
       database.GetGroupsForUser(callerId),
-      database.GetUserSettingsOverride(callerId));
+      database.GetUserSettingsOverride(callerId),
+      LibrariesTheCallerCanOpen());
 
     if (!CallerIsApiKey && !_userManager.IsAdministrator(callerId))
     {
@@ -1001,7 +1020,40 @@ public class StreamyfinController : ControllerBase
       StreamyfinPlugin.Instance!.Settings.Current,
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId),
-      CallerIsApiKey || _userManager.IsAdministrator(callerId));
+      CallerIsApiKey || _userManager.IsAdministrator(callerId),
+      LibrariesTheCallerCanOpen());
+  }
+
+  /// <summary>
+  /// Whether the caller may open a library, asked the way Jellyfin asks it for its own
+  /// routes.
+  /// </summary>
+  /// <returns>
+  /// The question, or <c>null</c> when nothing is filtered: an API key, which carries no
+  /// user, and an administrator, who edits what the server serves and has to see all of it
+  /// whatever their own libraries are.
+  /// </returns>
+  /// <remarks>
+  /// <c>GetItemById</c> with a user answers only an item that user may see: the library
+  /// they were given, within their parental rating and tags. A caller who is no longer a
+  /// user may open nothing.
+  /// </remarks>
+  private Func<Guid, bool>? LibrariesTheCallerCanOpen()
+  {
+    var callerId = CallerId;
+
+    // Answered here rather than at each route, or the two that resolve settings would have
+    // to agree on it twice, and one of them did not.
+    if (CallerIsApiKey || _userManager.IsAdministrator(callerId))
+    {
+      return null;
+    }
+
+    var user = callerId.Equals(default) ? null : _userManager.GetUserById(callerId);
+
+    return user is null
+      ? _ => false
+      : library => _libraryManager.GetItemById<BaseItem>(library, user) is not null;
   }
 
   private IEnumerable<SettingsGroupDto> GroupsWithMembers()

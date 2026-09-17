@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.Streamyfin.Db;
 using MediaBrowser.Controller.Library;
@@ -11,7 +12,8 @@ public static class UserManagerExtensions
 {
     public static List<DeviceToken> GetAdminDeviceTokens(this IUserManager? manager) => (
         manager?.GetUsers()
-            .Where(u => u.Permissions.Any(p => p.Kind == PermissionKind.IsAdministrator && p.Value))
+            // A disabled administrator is refused by Jellyfin and is told nothing here either.
+            .Where(u => u.Permissions.Any(p => p.Kind == PermissionKind.IsAdministrator && p.Value) && !u.IsDisabled())
             .SelectMany(u =>
                 StreamyfinPlugin.Instance?.Database.GetUserDeviceTokens(u.Id) ?? Enumerable.Empty<DeviceToken>()) 
         ?? Array.Empty<DeviceToken>()
@@ -19,6 +21,18 @@ public static class UserManagerExtensions
 
     public static List<string> GetAdminTokens(this IUserManager? manager) => 
         manager?.GetAdminDeviceTokens().Select(deviceToken => deviceToken.Token).ToList() ?? [];
+
+    /// <summary>
+    /// Whether an account has been disabled, which Jellyfin refuses on every request.
+    /// </summary>
+    /// <param name="user">The account.</param>
+    /// <returns>True when the account holds the disabled permission.</returns>
+    public static bool IsDisabled(this User user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return user.Permissions.Any(p => p.Kind == PermissionKind.IsDisabled && p.Value);
+    }
 
     /// <summary>
     /// Whether a user administers this server.

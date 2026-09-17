@@ -52,6 +52,111 @@ address was not.
 A server that was already running has the three off, since its stored configuration does
 not mention them, which the throwaways showed before they were turned on. A fresh install
 has them on.
+## 2026-09-17, later: what a user is told about libraries they cannot open
+
+### Home sections, #69
+
+A section built on a library a user may not open was served to them all the same.
+Jellyfin refuses the request that fills it with a 401, "is not permitted to access
+Library", so the row stayed empty, but its title named the library. The server now leaves
+such a section out of what it serves that user, on `config`, `config/yaml` and
+`v1/config/resolved`.
+
+The check is Jellyfin's own rather than a copy of it: `GetItemById` with a user answers
+only an item that user may see, which covers the libraries they were given, their
+parental rating and their tags, and it reads the same on 10.11 and 12 although the two
+implement it differently. The library is read from every place a section can name one:
+the items, next up and latest payloads, and a `ParentId` among the query parameters of a
+custom endpoint, whether in its query map or in its own address, which the app sends as
+written and Jellyfin binds whatever the case.
+
+The administrator editing the configuration still gets every section, since the page
+saves what it loads. And the filter replaces the home it hands out rather than editing
+it: resolution passes the stored sections through by reference, so removing one in place
+would have removed it for every later caller and then from the stored copy. A test holds
+that, and so did the real servers: the administrator's read after the restricted user's
+still listed all five.
+
+Reading the app for this showed it ignores `parentId` on `latest` and `nextUp` sections,
+so those two show everything the user may see whatever the administrator named. That is
+the app's to fix. The plugin leaves such a section out all the same, since its title still
+names the library.
+
+### New items
+
+A new movie or episode was announced to every registered device, so its title reached
+people who could not open its library, or were not allowed its rating. It now goes to the
+devices of the users who may open it, asked with `IsVisibleStandalone`, which is how
+Jellyfin filtered its own new content notifications before it dropped them. A disabled
+account is told nothing either, the administrator notifications included: Jellyfin
+refuses every request such an account makes, and its devices were still registered here.
+The season send also had its awaitable discarded, so a failure went unobserved; it goes
+through the same detached path as the movie send now.
+
+### One owner per push token
+
+Review found a way around that filter. An Expo token belongs to an installation of the
+app, and Expo keeps an iOS token through an uninstall and a reinstall while the app starts
+over with a new device id. Someone who deleted the app while signed in, and whoever signed
+in on it after the reinstall, then shared a token on two rows, and the first account's
+notifications reached the second, the administrator ones included. Expo never reports such
+a token as gone, so the row stayed.
+
+A registration now removes every other row carrying its token, in the same transaction as
+its own write, and opening the database leaves each token already stored on one row, the
+newest. Two tests from #180 registered one token under several devices, which registration
+no longer allows: the race is held with three dead tokens instead, and the test for several
+rows of one dead token is gone with the state it described.
+
+Review then found what that made possible. The two device routes were authorized and that
+was all they checked: the account asking was never compared with the account the body
+named, so anybody signed in could register a device under somebody else and be sent what
+that person is sent, and could remove a device that was not theirs. With registration
+removing the other rows carrying its token, the same request became a way to take a device
+away from its owner. A registration is now for the account making it, or for whoever an
+API key names, since a key is an administrator's; one that carries no push token is refused
+rather than stored, since it could receive nothing and would take the other tokenless rows
+with it; and a removal only reaches a device of the account asking.
+
+The pruning of dead tokens had the other half of the same problem. Expo answers about the
+installation a push went to, and a receipt is collected up to a day later, so a device that
+registered the same token in between was removed by an answer that said nothing about it.
+Each dead token now carries the moment its push was sent, and a row written after it stays.
+
+Three more from the second review. The resolved settings route filtered an administrator's
+own sections as well, since it passed the library question whatever the caller was, while
+the configuration route skipped it for an elevated one: the question is now answered in one
+place, and it is no question at all for an administrator or an API key. A registration
+stamped itself before waiting for the write lock, so a push sent in between could take the
+row that landed after it for the device it was sent to; it is stamped once the lock is
+held. And a message about a season's episodes was authorized on the season alone, while it
+names how many arrived and, for a single one, its number and its id: an episode carries its
+own rating and its own tags, and `IsVisibleStandalone` looks at what it is given and its
+parents, never at its children, so every episode in the batch is checked now.
+
+On both throwaways, a token stored under the administrator and then the restricted user was
+cut to the user's row at the next start, and a movie in the other library went to one of
+two devices, the administrator's own. The same token registered by the administrator and
+then by the user moved to the user, and the next movie went to one of three, a control
+device of the administrator. The routes answered the same way on both lines: the restricted
+user registering under the administrator was refused with a 403, a registration with no
+token with a 400, one naming nobody was stored as the user's own, and the user's attempt to
+remove the administrator's device left it where it was, which the administrator then removed
+themselves. Two episodes of one season added together were sent as one message, to the
+devices of the users who may open all three of the items it names.
+
+### Proven
+
+On throwaway 10.11.11 and 12.0.0: two libraries with a generated movie in each, and a user
+limited to one of them. That user was served two of the five sections on all three routes,
+the administrator all five, before and after. A movie added to the other library went to
+three of four devices, and one added to the shared library to all four. A second pass,
+after review, put the private library in a custom endpoint's own address, which that user
+was not served either, and disabled the account: Jellyfin refused it with a 401, and a
+movie added to the library it could open went to the other device only.
+
+The same pass caught a race in the pruning of dead tokens: two sends told by Expo about
+the same dead tokens at once, and the second one's delete failed. It is fixed in #180.
 
 ## 2026-09-17, through the catalogue and back
 
