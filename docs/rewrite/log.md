@@ -31,6 +31,20 @@ fired, and the log says `One of the 2 episode(s) added to Gone ... is no longer 
 library, so nothing was sent`. The other half is held by tests, with a pending send beside
 a dead one.
 
+### What one owner per token was worth, measured
+
+The build went onto a real server, a beta on Jellyfin 13 carrying 37 registrations from 16
+accounts. The start removed 12 of them: six tokens were each on more than one row, and one
+of those six was on six rows, five under an administrator and the last under the restricted
+account the phone is signed in as now. That phone had been receiving the administrator's
+notifications, session by session, for a year. After the sweep the administrator's account
+had no registered device left, which is right: the device is the phone, and the phone is
+signed in as somebody else.
+
+A new movie in a library only that account can open reached it. A scheduled task made to
+fail reached the two devices of the other administrator and not that phone. Neither would
+have been true a day earlier.
+
 ## 2026-09-17, later: what a user is told about libraries they cannot open
 
 ### Home sections, #69
