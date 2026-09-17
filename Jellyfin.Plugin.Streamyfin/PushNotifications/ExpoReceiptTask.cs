@@ -158,9 +158,10 @@ public class ExpoReceiptTask : IScheduledTask
                 .FetchReceipts([.. tickets], cancellationToken)
                 .ConfigureAwait(false);
 
-            // A refused request is not an answer about anybody's token. The rows stay, and
-            // the next run asks again, until they expire on their own.
-            if (response is null)
+            // A refused request is not an answer about anybody's token, and neither is a body
+            // carrying no data at all, which is what Expo sends when it has nothing to say.
+            // The rows stay, and the next run asks again, until they expire on their own.
+            if (response?.Data is null)
             {
                 _logger.LogWarning(
                     "Expo did not answer for {Count} push receipt(s), which will be asked for again",

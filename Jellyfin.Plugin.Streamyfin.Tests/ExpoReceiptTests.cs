@@ -139,6 +139,17 @@ public class ExpoReceiptTests
     }
 
     /// <summary>
+    /// An answer carrying no data at all says nothing about anybody, rather than throwing
+    /// where the task reads it.
+    /// </summary>
+    [Fact]
+    public void AnAnswerWithNoDataSaysNothing()
+    {
+        Assert.Empty(ExpoTickets.DeadSendsFrom(new ExpoReceiptResponse(), [Sent("ticket-a", "token-a", Now)]));
+        Assert.Empty(ExpoTickets.DeadSendsFrom(null, [Sent("ticket-a", "token-a", Now)]));
+    }
+
+    /// <summary>
     /// A receipt for a ticket this server did not send is not a reason to delete anything.
     /// Receipt ids come back from Expo, so a stale or duplicated one has to be inert.
     /// </summary>
