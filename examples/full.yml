@@ -515,6 +515,14 @@ settings:
               - Descending
             limit: 30
 
+        # My Media: the user's libraries as a row, the way Jellyfin's own home screen
+        # shows them. /UserViews answers with the libraries this user may open, all of
+        # them at once, whatever page is asked for.
+        - title: My Media
+          orientation: horizontal
+          custom:
+            endpoint: /UserViews
+
         # Custom Endpoint Example (Advanced)
         # - title: Custom Data
         #   custom:
