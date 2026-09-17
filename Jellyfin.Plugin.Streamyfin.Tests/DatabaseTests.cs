@@ -85,6 +85,27 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// Two removals of the same device at once both succeed. The app signs out through
+    /// an effect that can run twice, as its registration did.
+    /// </summary>
+    [Fact]
+    public void TwoRemovalsOfTheSameDeviceAtOnceBothSucceed()
+    {
+        var deviceId = Guid.NewGuid();
+
+        for (var round = 0; round < 30; round++)
+        {
+            _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "token", UserId = Guid.NewGuid() });
+
+            System.Threading.Tasks.Parallel.Invoke(
+                () => _db.RemoveDeviceToken(deviceId),
+                () => _db.RemoveDeviceToken(deviceId));
+
+            Assert.Null(_db.GetDeviceTokenForDeviceId(deviceId));
+        }
+    }
+
+    /// <summary>
     /// The timestamp is written by the store, not by the caller.
     /// </summary>
     [Fact]
