@@ -302,6 +302,10 @@ public class NotificationHelper
             // position is the only thing tying an error ticket to the device it came from.
             var recipients = batch.SelectMany(notification => notification.To).ToList();
 
+            // When this batch left, so a device that registers the same token while Expo is
+            // answering is not removed by what it says about the installation before it.
+            var sentAt = DateTime.UtcNow;
+
             // No token to pass: a send happens inside a synchronous Jellyfin event handler,
             // which has none to give. The client timeout is what bounds it.
             var response = await PostToExpo<ExpoNotificationResponse>(
@@ -310,7 +314,7 @@ public class NotificationHelper
                 _retry,
                 CancellationToken.None).ConfigureAwait(false);
 
-            PruneAndQueue(recipients, response);
+            PruneAndQueue(recipients, response, sentAt);
 
             // Expo refusing one batch after its retries is Expo refusing this send. The
             // rest would be nine more batches of the same request, each with its own
@@ -383,7 +387,7 @@ public class NotificationHelper
     /// test: the decision itself is in <see cref="ExpoTickets"/> and is tested there,
     /// without a database.
     /// </remarks>
-    private void PruneAndQueue(IReadOnlyList<string> recipients, ExpoNotificationResponse? response)
+    private void PruneAndQueue(IReadOnlyList<string> recipients, ExpoNotificationResponse? response, DateTime sentAt)
     {
         var outcome = ExpoTickets.Reconcile(recipients, response, _logger);
 
@@ -395,7 +399,8 @@ public class NotificationHelper
 
         if (outcome.DeadTokens.Count > 0)
         {
-            var removed = database.RemoveDeviceTokensNamed(outcome.DeadTokens);
+            var removed = database.RemoveDeviceTokensNamed(
+                outcome.DeadTokens.ToDictionary(token => token, _ => sentAt, StringComparer.Ordinal));
 
             _logger?.LogInformation(
                 "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
@@ -407,7 +412,7 @@ public class NotificationHelper
         {
             database.AddExpoReceipts(
                 outcome.Pending.Select(pending => (pending.TicketId, pending.Token)),
-                DateTime.UtcNow);
+                sentAt);
         }
     }
 

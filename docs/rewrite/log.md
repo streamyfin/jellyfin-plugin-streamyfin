@@ -64,11 +64,30 @@ newest. Two tests from #180 registered one token under several devices, which re
 no longer allows: the race is held with three dead tokens instead, and the test for several
 rows of one dead token is gone with the state it described.
 
+Review then found what that made possible. The two device routes were authorized and that
+was all they checked: the account asking was never compared with the account the body
+named, so anybody signed in could register a device under somebody else and be sent what
+that person is sent, and could remove a device that was not theirs. With registration
+removing the other rows carrying its token, the same request became a way to take a device
+away from its owner. A registration is now for the account making it, or for whoever an
+API key names, since a key is an administrator's; one that carries no push token is refused
+rather than stored, since it could receive nothing and would take the other tokenless rows
+with it; and a removal only reaches a device of the account asking.
+
+The pruning of dead tokens had the other half of the same problem. Expo answers about the
+installation a push went to, and a receipt is collected up to a day later, so a device that
+registered the same token in between was removed by an answer that said nothing about it.
+Each dead token now carries the moment its push was sent, and a row written after it stays.
+
 On both throwaways, a token stored under the administrator and then the restricted user was
 cut to the user's row at the next start, and a movie in the other library went to one of
 two devices, the administrator's own. The same token registered by the administrator and
 then by the user moved to the user, and the next movie went to one of three, a control
-device of the administrator.
+device of the administrator. The routes answered the same way on both lines: the restricted
+user registering under the administrator was refused with a 403, a registration with no
+token with a 400, one naming nobody was stored as the user's own, and the user's attempt to
+remove the administrator's device left it where it was, which the administrator then removed
+themselves.
 
 ### Proven
 

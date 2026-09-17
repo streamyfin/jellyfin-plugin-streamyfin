@@ -513,6 +513,21 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult PostDeviceToken([FromBody, Required] DeviceToken deviceToken)
   {
+    if (deviceToken is null) return BadRequest("A device registration is required");
+
+    switch (DeviceRegistration.Check(deviceToken, CallerId, CallerIsApiKey))
+    {
+      case Registration.NoToken:
+        _logger.LogWarning("Refused a device registration for {0} that carries no push token", deviceToken.DeviceId);
+        return BadRequest("A push token is required");
+
+      case Registration.NotYours:
+        _logger.LogWarning(
+          "Refused a device registration for {0}: it names another account than the one asking",
+          deviceToken.DeviceId);
+        return Forbid();
+    }
+
     _logger.LogInformation("Posting device token for deviceId: {0}", deviceToken.DeviceId);
     return new JsonResult(
       _serializationHelperService.ToJson(StreamyfinPlugin.Instance!.Database.AddDeviceToken(deviceToken))
@@ -533,7 +548,9 @@ public class StreamyfinController : ControllerBase
     if (deviceId == null) return BadRequest("Device id is required");
 
     _logger.LogInformation("Deleting device token for deviceId: {0}", deviceId);
-    StreamyfinPlugin.Instance!.Database.RemoveDeviceToken((Guid) deviceId);
+    StreamyfinPlugin.Instance!.Database.RemoveDeviceToken(
+      (Guid) deviceId,
+      DeviceRegistration.Remover(CallerId, CallerIsApiKey));
 
     return new OkResult();
   }

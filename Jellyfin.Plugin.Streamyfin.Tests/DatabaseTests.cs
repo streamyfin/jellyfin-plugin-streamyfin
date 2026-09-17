@@ -274,6 +274,72 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// A device is removed by the account that registered it, and by nobody else. The
+    /// route is authorized and took the device id from whoever asked, so any account could
+    /// sign another one's device out of its notifications.
+    /// </summary>
+    [Fact]
+    public void OnlyTheOwnerRemovesTheirDevice()
+    {
+        var deviceId = Guid.NewGuid();
+        var alice = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = alice });
+
+        _db.RemoveDeviceToken(deviceId, Guid.NewGuid());
+
+        Assert.NotNull(_db.GetDeviceTokenForDeviceId(deviceId));
+
+        _db.RemoveDeviceToken(deviceId, alice);
+
+        Assert.Null(_db.GetDeviceTokenForDeviceId(deviceId));
+    }
+
+    /// <summary>
+    /// A removal that names no owner removes the device, which is what an administrator's
+    /// API key asks for.
+    /// </summary>
+    [Fact]
+    public void ARemovalNamingNoOwnerRemovesTheDevice()
+    {
+        var deviceId = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = Guid.NewGuid() });
+
+        _db.RemoveDeviceToken(deviceId, null);
+
+        Assert.Equal(0, _db.TotalDevicesCount());
+    }
+
+    /// <summary>
+    /// A row carrying no token is nobody's installation, so it neither takes the others
+    /// with it nor is taken by them.
+    /// </summary>
+    [Fact]
+    public void ARegistrationWithoutATokenTakesNothingWithIt()
+    {
+        Store(new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 10 });
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid() });
+
+        Assert.Equal(2, _db.TotalDevicesCount());
+    }
+
+    /// <summary>
+    /// Rows carrying no token are left where they are when the database opens, for the
+    /// same reason.
+    /// </summary>
+    [Fact]
+    public void OpeningLeavesRowsWithoutATokenAlone()
+    {
+        Store(
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 10 },
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = string.Empty, UserId = Guid.NewGuid(), Timestamp = 20 });
+
+        var reopened = new PluginDatabase(_directory);
+
+        Assert.Equal(2, reopened.TotalDevicesCount());
+    }
+
+    /// <summary>
     /// Removing a known device forgets it.
     /// </summary>
     [Fact]

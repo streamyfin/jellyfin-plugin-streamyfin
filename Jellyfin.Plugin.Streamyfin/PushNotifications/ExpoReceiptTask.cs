@@ -172,7 +172,15 @@ public class ExpoReceiptTask : IScheduledTask
 
             if (dead.Count > 0)
             {
-                var removed = database.RemoveDeviceTokensNamed(dead);
+                // With the moment each push was sent, so a device that registered the same
+                // token after it is left alone: Expo is answering about the installation
+                // that was sent to, not about the one that replaced it.
+                var sentAt = pending
+                    .Where(receipt => dead.Contains(receipt.Token))
+                    .GroupBy(receipt => receipt.Token, StringComparer.Ordinal)
+                    .ToDictionary(sends => sends.Key, sends => sends.Max(receipt => receipt.CreatedAt), StringComparer.Ordinal);
+
+                var removed = database.RemoveDeviceTokensNamed(sentAt);
 
                 _logger.LogInformation(
                     "Expo reported {Devices} device(s) as no longer registered, {Rows} token row(s) removed",
