@@ -2,6 +2,14 @@
 // an element with the same id. Everything here is looked up inside this view.
 let page = null;
 
+// The three workers the bundle asks for, by the label it asks with. Each one is a page
+// resource the plugin already serves.
+const WORKERS = {
+    editorWorkerService: "editor.worker.js",
+    json: "json.worker.js",
+    yaml: "yaml.worker.js",
+};
+
 const yamlEditor = () => page.querySelector('#yaml-editor');
 const exampleBtn = () => page.querySelector('#example-btn');
 const saveBtn = () => page.querySelector('#save-btn');
@@ -42,6 +50,20 @@ export default function (view, params) {
                 Dashboard.showLoadingMsg();
                 await import(window.ApiClient.getUrl('web/configurationpage?name=monaco-editor.bundle.js'))
             }
+
+            // Monaco builds its worker URLs from the path its own bundle thinks it was
+            // served from, and in a dashboard that is not where they are: on a Jellyfin
+            // 10.11 they came out under http://www.gstatic.com/eureka/clank/152/, the
+            // Chromecast sender the web client loads, and on a 13 under another plugin's
+            // page. The worker 404s, Monaco falls back to running the language service on
+            // the main thread, and the editor validates and completes less than it looks
+            // like it does. Said after the import, because the bundle assigns this itself
+            // on the way in and would overwrite anything set before it.
+            globalThis.MonacoEnvironment = {
+                ...(globalThis.MonacoEnvironment ?? {}),
+                getWorkerUrl: (moduleId, label) => window.ApiClient.getUrl(
+                    `web/configurationpage?name=${WORKERS[label] ?? WORKERS.editorWorkerService}`),
+            };
 
             const Page = {
                 editor: null,
