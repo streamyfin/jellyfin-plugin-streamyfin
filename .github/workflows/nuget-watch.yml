@@ -70,8 +70,13 @@ jobs:
           REPORT: ${{ steps.look.outputs.report }}
         with:
           script: |
-            const { newLines, newerInLine, newest, built, unreadable, prereleaseOnly } =
-              JSON.parse(process.env.REPORT);
+            const report = JSON.parse(process.env.REPORT);
+            const { newLines, newerInLine, newest, built, unreadable, prereleaseOnly } = report;
+
+            // From the checkout rather than from the report, so the title cannot drift from
+            // the versions it names: this file comes from the branch the run was started on
+            // while the scripts come from develop, which is what the checkout above pins.
+            const { headline } = require('./scripts/jellyfin-versions');
 
             // Losing sight of the prerelease feed is the failure this watch is least
             // able to notice, since it looks exactly like nothing being published.
@@ -84,10 +89,12 @@ jobs:
               return;
             }
 
-            // The versions are in the title so that a later one opens its own issue
-            // rather than reopening the one that was closed as read.
-            const all = [...newLines, ...newerInLine];
-            const title = `Jellyfin.Controller ${all.join(', ')} ${all.length > 1 ? 'are' : 'is'} on NuGet`;
+            // The newest version is in the title so that a later one opens its own issue
+            // rather than reopening the one that was closed as read. Only that one, with a
+            // count beside it: the title is what the search below looks for, and GitHub
+            // refuses a search past 256 characters, which naming every version reached the
+            // day a line started publishing weekly builds. The full list is in the body.
+            const title = headline(report);
 
             // This runs every day, so the same news must not become an issue a day.
             const existing = await github.rest.search.issuesAndPullRequests({

@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-const { parse, compare, classify, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
+const { parse, compare, classify, headline, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
 
 const order = (a, b) => compare(parse(a), parse(b));
 
@@ -120,5 +120,36 @@ describe("classifying what is published", () => {
         const { newLines } = classify(["13.1.0", "13.0.0-rc1", "13.0.0"], built);
 
         expect(newLines).toEqual(["13.0.0-rc1", "13.0.0", "13.1.0"]);
+    });
+});
+
+describe("the title an issue about it gets", () => {
+    test("one version is named", () => {
+        expect(headline({ newLines: ["13.0.0"], newerInLine: [] })).toBe(
+            "Jellyfin.Controller 13.0.0 is on NuGet",
+        );
+    });
+
+    test("several are the newest and a count, so the search stays short", () => {
+        const weekly = Array.from(
+            { length: 20 },
+            (_, i) => `10.12.0-202511${String(i + 1).padStart(2, "0")}051322`,
+        );
+
+        const title = headline({ newLines: [], newerInLine: weekly });
+
+        expect(title).toBe("Jellyfin.Controller 10.12.0-20251120051322 and 19 more are on NuGet");
+        expect(title.length).toBeLessThan(120);
+    });
+
+    test("a new line is named over anything inside a line already built", () => {
+        expect(headline({ newLines: ["13.0.0"], newerInLine: ["10.12.0", "10.12.1"] })).toBe(
+            "Jellyfin.Controller 13.0.0 is on NuGet",
+        );
+    });
+
+    test("nothing new has no title", () => {
+        expect(headline({ newLines: [], newerInLine: [] })).toBeNull();
+        expect(headline({})).toBeNull();
     });
 });

@@ -108,9 +108,34 @@ function classify(published, built) {
     };
 }
 
+/**
+ * The sentence an issue about this report is titled with.
+ *
+ * Short on purpose: the watch looks for the issue it may already have opened by searching
+ * for its title, and GitHub refuses a search past 256 characters. Naming every version it
+ * found made a title of that size the day a line started publishing weekly builds, and the
+ * watch then failed every morning instead of saying anything. The full list belongs in the
+ * body, which nothing searches.
+ *
+ * The newest version named, and how many others came with it, so the same news keeps the
+ * same title and later news gets its own issue.
+ */
+function headline({ newLines = [], newerInLine = [] }) {
+    const named = newLines.length > 0 ? newLines : newerInLine;
+
+    if (named.length === 0) return null;
+
+    const newest = named[named.length - 1];
+    const others = named.length - 1;
+
+    return others === 0
+        ? `Jellyfin.Controller ${newest} is on NuGet`
+        : `Jellyfin.Controller ${newest} and ${others} more are on NuGet`;
+}
+
 // The property is repeated once per target, so every value is read rather than the first.
 function builtVersionsFrom(props) {
     return [...props.matchAll(/<JellyfinVersion>([^<]+)<\/JellyfinVersion>/g)].map((m) => m[1].trim());
 }
 
-module.exports = { parse, compare, classify, builtVersionsFrom };
+module.exports = { parse, compare, classify, headline, builtVersionsFrom };
