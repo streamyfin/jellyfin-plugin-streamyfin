@@ -54,4 +54,46 @@ public static class NotificationsValidation
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
+
+    /// <summary>
+    /// The reason what a group or a user says about the events cannot be stored, if there
+    /// is one.
+    /// </summary>
+    /// <param name="said">What the level says, which may be nothing.</param>
+    /// <returns>The message to refuse with, or <c>null</c> when it can be stored.</returns>
+    /// <remarks>
+    /// An event this server does not have is refused rather than kept: a level is read on
+    /// every send and a key nobody recognises would be silently skipped there, so a typo
+    /// would look exactly like a setting that does not work.
+    /// </remarks>
+    public static string? CheckTargeting(IReadOnlyDictionary<string, NotificationTargeting>? said)
+    {
+        if (said is null)
+        {
+            return null;
+        }
+
+        var known = NotificationsForm.Events().Select(one => one.Key).ToHashSet(System.StringComparer.Ordinal);
+        var problems = new List<string>();
+
+        foreach (var (key, targeting) in said)
+        {
+            if (!known.Contains(key))
+            {
+                problems.Add($"{key} is not an event this server has.");
+                continue;
+            }
+
+            var wait = targeting?.RecentEventThreshold;
+
+            if (wait is not null && (wait < 0 || double.IsNaN(wait.Value) || double.IsInfinity(wait.Value)))
+            {
+                problems.Add(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{key}.recentEventThreshold is {wait.Value}. A wait is a number of seconds, so it starts at 0."));
+            }
+        }
+
+        return problems.Count == 0 ? null : string.Join(" ", problems);
+    }
 }

@@ -45,16 +45,19 @@ public class Notifications
 {
     [NotNull]
     [Display(Name = "Session Started", Description = "Admins get notified when a jellyfin user is online.")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "sessionStarted")]
     public NotificationConfiguration? SessionStarted { get; set; }
 
     [NotNull]
     [Display(Name = "Playback Started", Description = "Admins get notified when a jellyfin user is starts playback.")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "playbackStarted")]
     public NotificationConfiguration? PlaybackStarted { get; set; }
 
     [NotNull]
     [Display(Name = "User locked out", Description = "Admins and locked out user get notified jellyfin locks their account")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "userLockedOut")]
     public NotificationConfiguration? UserLockedOut { get; set; }
 
@@ -75,6 +78,7 @@ public class Notifications
 
     [NotNull]
     [Display(Name = "Failed sign in", Description = "Admins get notified when a sign in is refused, with the name that was tried and where it came from. Notifications about the same address wait five minutes by default.")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "signInFailed")]
     public NotificationConfiguration? SignInFailed { get; set; }
 }

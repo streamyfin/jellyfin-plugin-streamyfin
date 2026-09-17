@@ -144,10 +144,13 @@ public class SettingsGroupTests : IDisposable
         });
         _db.SetGroupMembers(group.Id, [userId]);
 
-        _db.SaveUserSettingsOverride(userId, _serialization.SerializeToJson(new Settings
-        {
-            forwardSkipTime = new Lockable<int> { locked = true, value = 5 }
-        }));
+        _db.SaveUserSettingsOverride(
+            userId,
+            _serialization.SerializeToJson(new Settings
+            {
+                forwardSkipTime = new Lockable<int> { locked = true, value = 5 }
+            }),
+            "{}");
 
         var global = new Settings
         {
@@ -258,7 +261,7 @@ public class SettingsGroupTests : IDisposable
         var userId = Guid.NewGuid();
         var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "Staff" });
         _db.SetGroupMembers(group.Id, [userId]);
-        _db.SaveUserSettingsOverride(userId, "{}");
+        _db.SaveUserSettingsOverride(userId, "{}", "{}");
 
         _db.RemoveUserSettingsOverride(userId);
 

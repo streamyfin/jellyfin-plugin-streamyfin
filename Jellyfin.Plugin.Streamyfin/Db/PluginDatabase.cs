@@ -536,6 +536,7 @@ public class PluginDatabase
                 existing.Name = group.Name;
                 existing.Priority = group.Priority;
                 existing.SettingsJson = group.SettingsJson;
+                existing.NotificationsJson = group.NotificationsJson;
             }
         }
 
@@ -760,7 +761,12 @@ public class PluginDatabase
     /// </summary>
     /// <param name="userId">The Jellyfin user id.</param>
     /// <param name="settingsJson">A partial set of settings, as JSON.</param>
-    public void SaveUserSettingsOverride(Guid userId, string settingsJson)
+    /// <param name="notificationsJson">
+    /// What this user says about the notifications they get, as JSON. Both are written
+    /// together, since a user has one row and half of it would otherwise be lost every
+    /// time the other half is saved.
+    /// </param>
+    public void SaveUserSettingsOverride(Guid userId, string settingsJson, string notificationsJson)
     {
         using var context = CreateContext();
 
@@ -770,12 +776,14 @@ public class PluginDatabase
             context.UserSettingsOverrides.Add(new UserSettingsOverride
             {
                 UserId = userId,
-                SettingsJson = settingsJson
+                SettingsJson = settingsJson,
+                NotificationsJson = notificationsJson
             });
         }
         else
         {
             existing.SettingsJson = settingsJson;
+            existing.NotificationsJson = notificationsJson;
         }
 
         context.SaveChanges();

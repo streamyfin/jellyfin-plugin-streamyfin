@@ -116,6 +116,24 @@ public class NotificationTargeting
         }
     }
 
+    /// <summary>
+    /// What a level says, ready to be stored.
+    /// </summary>
+    /// <param name="said">What the level says, which may be nothing.</param>
+    /// <returns>The JSON to store, <c>{}</c> when the level says nothing.</returns>
+    /// <remarks>
+    /// A field nobody set is left out rather than written as null: the two mean the same
+    /// thing when read back, and a row of nulls reads as an opinion in a database somebody
+    /// is looking at by hand.
+    /// </remarks>
+    public static string Write(IReadOnlyDictionary<string, NotificationTargeting>? said) =>
+        said is { Count: > 0 } ? JsonSerializer.Serialize(said, _stored) : "{}";
+
+    private static readonly JsonSerializerOptions _stored = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private static IEnumerable<NotificationTargeting> Said(
         string eventKey,
         IEnumerable<IReadOnlyDictionary<string, NotificationTargeting>?> levels)

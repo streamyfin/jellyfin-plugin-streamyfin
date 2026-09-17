@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -42,6 +43,19 @@ public class SettingsGroupDto
     public Configuration.Settings.Settings? Settings { get; set; }
 
     /// <summary>
+    /// Gets or sets what this level says about the notifications its people get, by event
+    /// key. Only the events it changes need to be present, and an event it does not name
+    /// falls through to the level below.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from the settings on purpose. The settings are served to the app; this
+    /// is the server's own business, and mixing them would put it in front of every
+    /// client.
+    /// </remarks>
+    [JsonPropertyName("notifications")]
+    public Dictionary<string, NotificationTargeting>? Notifications { get; set; }
+
+    /// <summary>
     /// Gets or sets the Jellyfin users in the group.
     /// </summary>
     [JsonPropertyName("userIds")]
@@ -58,6 +72,19 @@ public class UserSettingsOverrideDto
     /// </summary>
     [JsonPropertyName("settings")]
     public Configuration.Settings.Settings? Settings { get; set; }
+
+    /// <summary>
+    /// Gets or sets what this level says about the notifications its people get, by event
+    /// key. Only the events it changes need to be present, and an event it does not name
+    /// falls through to the level below.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from the settings on purpose. The settings are served to the app; this
+    /// is the server's own business, and mixing them would put it in front of every
+    /// client.
+    /// </remarks>
+    [JsonPropertyName("notifications")]
+    public Dictionary<string, NotificationTargeting>? Notifications { get; set; }
 }
 
 /// <summary>

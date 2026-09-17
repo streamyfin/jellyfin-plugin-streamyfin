@@ -228,6 +228,23 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
+  /// The events, for a page that says who gets them rather than how they read.
+  /// </summary>
+  /// <returns>Every event this server has, in the order they are declared.</returns>
+  /// <remarks>
+  /// Beside <c>notifications/form</c> rather than inside it: the form describes the
+  /// fields of one event so the Notifications tab can draw them, and this describes the
+  /// events themselves so the Targeting tab can list them. Both read the same
+  /// declarations, so an event added to the configuration appears in both without being
+  /// written anywhere else.
+  /// </remarks>
+  [HttpGet("v1/notifications/events")]
+  [Authorize(Policy = Policies.RequiresElevation)]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  public ActionResult<IReadOnlyList<NotificationsForm.NotificationEvent>> GetNotificationEvents() =>
+    new JsonResult(NotificationsForm.Events());
+
+  /// <summary>
   /// Everything an administrator set, as one file.
   /// </summary>
   /// <returns>The backup.</returns>
@@ -773,7 +790,10 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
-    if (SettingsValidation.Check(request.Settings) is { } problem)
+    var problem = SettingsValidation.Check(request.Settings)
+      ?? NotificationsValidation.CheckTargeting(request.Notifications);
+
+    if (problem is not null)
     {
       return BadRequest(problem);
     }
@@ -785,7 +805,8 @@ public class StreamyfinController : ControllerBase
       Id = Guid.Empty,
       Name = request.Name,
       Priority = request.Priority,
-      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
+      NotificationsJson = NotificationTargeting.Write(request.Notifications)
     });
 
     database.SetGroupMembers(stored.Id, request.UserIds);
@@ -816,7 +837,10 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
-    if (SettingsValidation.Check(request.Settings) is { } problem)
+    var problem = SettingsValidation.Check(request.Settings)
+      ?? NotificationsValidation.CheckTargeting(request.Notifications);
+
+    if (problem is not null)
     {
       return BadRequest(problem);
     }
@@ -833,7 +857,8 @@ public class StreamyfinController : ControllerBase
       Id = id,
       Name = request.Name,
       Priority = request.Priority,
-      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings())
+      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
+      NotificationsJson = NotificationTargeting.Write(request.Notifications)
     });
 
     return ToDto(stored, database.GetGroupMembers(id));
@@ -911,7 +936,8 @@ public class StreamyfinController : ControllerBase
 
     return new UserSettingsOverrideDto
     {
-      Settings = stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {userId}")
+      Settings = stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {userId}"),
+      Notifications = stored is null ? null : Said(stored.NotificationsJson)
     };
   }
 
@@ -919,7 +945,10 @@ public class StreamyfinController : ControllerBase
   /// Sets the settings targeted at one user.
   /// </summary>
   /// <param name="userId">The Jellyfin user id.</param>
-  /// <param name="request">The settings. Send an empty body to clear them.</param>
+  /// <param name="request">
+  /// What this user gets instead of what everyone gets: settings, what they are told
+  /// about, or both. A body saying neither clears the row.
+  /// </param>
   /// <returns>No content.</returns>
   [HttpPut("v1/users/{userId}/settings")]
   [HttpPut("users/{userId}/settings")]
@@ -934,18 +963,27 @@ public class StreamyfinController : ControllerBase
 
     var database = StreamyfinPlugin.Instance!.Database;
 
-    if (request.Settings is null)
+    // Both halves live in one row, so it goes only when both are empty. Clearing the
+    // settings used to mean clearing the row, which would now throw away what an
+    // administrator said about this person's notifications as well.
+    if (request.Settings is null && request.Notifications is not { Count: > 0 })
     {
       database.RemoveUserSettingsOverride(userId);
       return NoContent();
     }
 
-    if (SettingsValidation.Check(request.Settings) is { } problem)
+    var problem = SettingsValidation.Check(request.Settings)
+      ?? NotificationsValidation.CheckTargeting(request.Notifications);
+
+    if (problem is not null)
     {
       return BadRequest(problem);
     }
 
-    database.SaveUserSettingsOverride(userId, _serializationHelperService.SerializeToJson(request.Settings));
+    database.SaveUserSettingsOverride(
+      userId,
+      _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
+      NotificationTargeting.Write(request.Notifications));
     return NoContent();
   }
 
@@ -1069,8 +1107,16 @@ public class StreamyfinController : ControllerBase
     Name = group.Name,
     Priority = group.Priority,
     Settings = Resolution.ReadLevel(group.SettingsJson, $"group {group.Id}"),
+    Notifications = Said(group.NotificationsJson),
     UserIds = members
   };
+
+  // What a level says about the events, as the page reads it. A level that says nothing,
+  // or whose row cannot be read, says nothing rather than taking the page down with it.
+  private static Dictionary<string, NotificationTargeting>? Said(string? stored) =>
+    NotificationTargeting.Read(stored) is { } said
+      ? said.ToDictionary(one => one.Key, one => one.Value, StringComparer.Ordinal)
+      : null;
 
   // endregion Settings groups
 }
