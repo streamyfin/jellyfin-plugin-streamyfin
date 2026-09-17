@@ -20,7 +20,6 @@ is tried by machines that never stop.
 
 A server that was already running when these three arrived has them off, since its stored
 configuration does not mention them. A fresh install has them on.
-<<<<<<< HEAD
 
 ## Languages
 
@@ -32,8 +31,6 @@ server's language, which is what every device got before.
 
 The plugin carries English, French, Dutch and Spanish (Mexico). A device asking for
 anything else falls back to English, the same way the server does.
-=======
->>>>>>> origin/develop
 
 
 ## Custom Webhook Notifications
