@@ -554,3 +554,14 @@ notifications:
     recentEventThreshold: null
     enabledLibraries: []    # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam
+
+  taskFailed:
+    enabled: true  # A scheduled task failed, with the reason it gave (admin only)
+
+  pluginChanged:
+    enabled: true  # A plugin was installed, updated or uninstalled (admin only)
+
+  signInFailed:
+    enabled: true  # A refused sign in, with the name tried and where it came from (admin only)
+    # Two refusals from the same address wait five minutes by default
+    recentEventThreshold: 300

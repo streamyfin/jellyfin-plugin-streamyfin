@@ -24,7 +24,11 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "Session Started", "Playback Started", "User locked out", "Item added" },
+            new[]
+            {
+                "Session Started", "Playback Started", "User locked out", "Item added",
+                "Scheduled task failed", "Plugin changed", "Failed sign in"
+            },
             categories);
     }
 

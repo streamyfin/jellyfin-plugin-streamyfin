@@ -46,6 +46,18 @@ public class PluginConfiguration : BasePluginConfiguration
     {
       Enabled = true,
       EnabledLibraries = []
+    },
+    TaskFailed = new()
+    {
+      Enabled = true
+    },
+    PluginChanged = new()
+    {
+      Enabled = true
+    },
+    SignInFailed = new()
+    {
+      Enabled = true
     }
   };
 

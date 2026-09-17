@@ -62,4 +62,19 @@ public class Notifications
     [Display(Name = "Item added", Description = "Get notified when jellyfin adds new Movies or Episodes")]
     [JsonPropertyName(name: "itemAdded")]
     public ItemAddedNotificationConfiguration? ItemAdded { get; set; }
+
+    [NotNull]
+    [Display(Name = "Scheduled task failed", Description = "Admins get notified when one of the server's scheduled tasks fails, with the reason it gave.")]
+    [JsonPropertyName(name: "taskFailed")]
+    public NotificationConfiguration? TaskFailed { get; set; }
+
+    [NotNull]
+    [Display(Name = "Plugin changed", Description = "Admins get notified when a plugin is installed, updated or uninstalled.")]
+    [JsonPropertyName(name: "pluginChanged")]
+    public NotificationConfiguration? PluginChanged { get; set; }
+
+    [NotNull]
+    [Display(Name = "Failed sign in", Description = "Admins get notified when a sign in is refused, with the name that was tried and where it came from. Notifications about the same address wait five minutes by default.")]
+    [JsonPropertyName(name: "signInFailed")]
+    public NotificationConfiguration? SignInFailed { get; set; }
 }

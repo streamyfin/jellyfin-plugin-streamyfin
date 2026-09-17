@@ -5,12 +5,21 @@ Our plugin can consume any event and forward them to your Streamyfin users
 There are currently a few Jellyfin events directly supported by our plugin
 
 Events:
-- Item Added (Everyone)
-- Session Started (Admin only)
-- User Locked Out (Admin + user who was locked out)
-- Playback Started (Admin only)
+- Item Added (everyone who can open the library it went into)
+- Session Started (admins)
+- User Locked Out (admins, and the user who was locked out)
+- Playback Started (admins)
+- Scheduled task failed (admins), with the reason the task gave
+- Plugin changed (admins), when one is installed, updated or uninstalled
+- Failed sign in (admins), with the name that was tried and where it came from
 
-These can be enabled or disabled inside the plugin settings page
+These can be enabled or disabled inside the plugin settings page, and each has a wait
+between two of the same event so a server that keeps failing does not keep notifying.
+Failed sign ins wait five minutes per address by default, since a server anyone can reach
+is tried by machines that never stop.
+
+A server that was already running when these three arrived has them off, since its stored
+configuration does not mention them. A fresh install has them on.
 
 
 ## Custom Webhook Notifications
