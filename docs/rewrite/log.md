@@ -8,6 +8,242 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-16, the last three pages, and the admin UI put through its paces
+
+### One plugin, not two
+
+Application and Targeting had been on the cards, rows and three state segments of
+`settings-form.css` since P3.6. Notifications, Other and the Yaml editor were still
+wearing the dashboard's own form controls, so two tabs of the same plugin looked like two
+different plugins. They now share the vocabulary: the top row with the page's name, a
+card per subject, a row per setting with its key underneath, and the save dock that says
+whether there is anything to save rather than offering a button that is always ready.
+
+Porting them turned up two defects that had nothing to do with styling.
+
+**The start page select never reached the configuration.** The Other tab wrote the chosen
+value nowhere, and a save dumps the configuration the page is holding, so Save on that tab
+stored what was already there. The setting could not be changed from the page that offers
+it. It is written on change now, and a save was watched storing `Targeting` and surviving
+a reload.
+
+**Every page looked its elements up in the whole document.** The dashboard keeps the views
+it has already shown. Once Application had been opened, its hidden copy of a shared id
+answered first, so the theme attribute landed on the wrong page and the page behind it
+stayed dark on a light dashboard. The dock these pages gained would have written into
+Application's for the same reason. Each page resolves inside its own view now, which is
+what Application was already doing.
+
+The theme is no longer read once and hoped for either: the dashboard swaps its stylesheet
+after the view is shown and announces nothing, so `applyTheme` watches the head for the
+swap, settles over the first frames when the theme was already applied, and tells the Yaml
+editor when it changes, since Monaco cannot re-read a CSS variable.
+
+### The pass
+
+Section 2 of the release checklist, done as a script rather than by hand, on the beta in
+Jellyfin 13.0.0, in both themes. Fifteen scenarios, fifteen green, each one acting in the
+page and then asking the server what it stored.
+
+A toggle through all three states and the key disappearing when it goes back to free. A
+number refusing 100 against its bounds and 2.5 against its integer, the dock saying
+`1 unsaved · 1 to fix`, Save going dark and `Show me` appearing, then 30 stored. Text
+stored as typed. A select locked on its value. A list of two lines arriving as an array of
+two. A secret revealing and hiding with nothing to save behind it. A dependency inert only
+while its parent is locked off, with Free still reachable. A setting the app declares no
+default for saying `App default` and refusing an empty suggestion. The search reaching
+across categories and the Set filter showing only what is set. The two switches and the
+banner surviving a reload. One column at 760px with nothing hanging off the side. An
+ordinary account seeing a save at once and no key anywhere in what it receives. A broken
+Yaml file refused with the configuration unchanged. Five tabs in a row with no ghost Monaco
+editor, one dock in view and a clean console. And a group created on Targeting with an
+override, found on the server afterwards.
+
+The configuration was backed up through the plugin's own route before the pass and restored
+after it, and the backup taken afterwards matches the one taken before section for section.
+The throwaway accounts are deleted. The harness stays out of the repository: it carries a
+server address and two passwords.
+
+## 2026-09-15, later: the findings nobody had read, and a pass on Jellyfin 13
+
+### Merged on a green check that says nothing
+
+#165 to #168 went in on `CodeRabbit: pass` in `gh pr checks`. That check passes with
+ten findings open; it says a review ran, not that it found nothing. The reviews on
+#166 and #167 had been rate limited when the branches were pushed and arrived later,
+and nobody looked again before merging.
+
+#168 was carrying five. Four were real, and the worst of them was mine. The guard I
+had added against publishing the same commit twice refused every tag that already
+existed. The tag and the release are created before the manifest is pushed, so a
+failure between those two steps left a release nobody could reach and a rerun that
+stopped on the guard. A publication could get stuck half way with no way out.
+
+On `main`, where these workflows live and fire from, #170 splits the two cases the guard
+confused: a tag on the very commit being published means an earlier attempt got that far,
+so the run carries on and replaces the assets; a tag on a different commit is a real
+collision and still stops. It also bounds what the publish job will run, since that job
+holds `contents: write` and the dispatch input decides which `Makefile` and which scripts
+it executes: the ref has to be an ancestor of `develop`. `persist-credentials: false` on
+the build checkout, which never pushes. And `housekeeping.yml` gets `actions: write`,
+without which `actions/stale` cannot save its place and starts from the first item every
+time, plus a concurrency group so a manual dispatch cannot overlap the schedule.
+
+One of the five was wrong: CodeRabbit read the `Makefile` as naming both targets'
+archives identically. It names them per target and has since #126, and the published
+release carries both zips. Answered with that and resolved, without a commit to make
+the bot happy.
+
+The review of #170 itself then found something real in the repair. `git ls-remote`
+against an exact tag ref answers with the id of the tag object, not of the commit,
+so an annotated tag would have compared unequal to the commit it points at and read
+as a collision with itself. Ours are lightweight and the published tag answers with
+the commit, so nothing was broken, but a tag pushed by hand would have been. The probe
+now takes the peeled line when it is there, checked on a scratch repository against no
+tag, a lightweight tag, an annotated tag and a sibling tag sharing the prefix.
+
+The catch-up path is not argued, it ran: the workflow was dispatched twice against a
+commit that already carried its tag, and the log says `unstable-0.68.1.59 already
+points at d95c6ed..., so a previous run got this far. Carrying on.` Both zips were
+replaced and `manifest-unstable.json` was rewritten with two entries and no duplicate.
+
+#171 carries the same two files back to `develop`, since #170 had to land on `main`
+and the copies would otherwise drift until the integration branch silently reverted
+them. Until that one merges, the branch this entry is written on still carries the old
+workflow, which is why the paragraph above says where each change lives.
+
+### The admin pages, on Jellyfin 13
+
+All five, in a real dashboard on the beta, captured rather than asserted: Application
+with its 92 settings and the three states, Targeting with a group and a locked
+override, Notifications, Other with the backup section, and the Yaml editor. Dark and
+light for the first four.
+
+The Yaml editor looked dead at first and is not. `monaco-editor.bundle.js` is 11.1 MB.
+The server hands it over in 7 ms from inside the container and in 47 seconds across a
+VPN link, so a page that waits twelve seconds sees an empty editor and concludes it is
+broken. Worth saying in the release notes for an administrator working remotely.
+
+### The app against the plugin, end to end
+
+The chain that had only ever been checked one half at a time. A build of the app's
+`develop` on an iOS 27 simulator, signed in to the beta on Jellyfin 13.0.0, its
+"refresh settings from the server" reaching the plugin controller. Then a per user
+override, `PUT v1/users/{id}/settings` with `defaultVideoOrientation` set to landscape
+and locked: the app moves to that value and greys the row out. Override removed, the
+app goes back to its own value and the row is editable again.
+
+An ordinary account gets no secret from any of the four read paths, `config`,
+`v1/config`, `v1/config/resolved` and `config/yaml`, all answering 200 with no key or
+token anywhere in the body.
+
+The app half of #110 is settled by the same screen: it offers five orientations and
+one of them is the automatic landscape, which is what the reporter said in the first
+place.
+
+One thing that is app side and worth recording because it decides how this gets tested
+from now on. A local build with Xcode 27 links against the iOS 27 SDK, and iOS 27
+refuses to launch an app that has not adopted the UIKit scene life cycle. Expo adopts
+it in SDK 58; the app is on 57. Until it moves, a local iOS build needs a scene
+delegate added by hand in the generated `ios/` folder, which is not in the repository.
+
+## 2026-09-15, the unstable channel, and four things that were wrong
+
+### Loaded on a real server, at last
+
+The load test this dossier has been deferring since 2026-08-25 is done. The whole
+of `develop`, built as `jf12`, on the beta running **Jellyfin 13.0.0**: no load
+error, nothing of its own in the log, the four satellite assemblies loaded, the
+drawer logo registered with File Transformation.
+
+The database half is the part that was really waiting, and it reads better than a
+fixture ever could. Four EF migrations applied. `ImportMarkers` holds
+`legacy-device-tokens` with 34 rows imported on 2026-08-25 and `legacy-global-config`
+with 1. The old `streamyfin_plugin.db` still holds exactly those 34 rows and is dated
+May, so it has not been written to since. The new table holds 37 across 20 users, so
+three devices have registered through EF since. That is the P0.4 contract, read off
+production data.
+
+### The channel
+
+`develop` is the unstable channel and `main` is the stable one, and that is now in
+the plumbing rather than in a convention. `prerelease.yml` publishes a build of
+`develop` as a prerelease and writes it into `manifest-unstable.json`.
+
+Numbering was the decision worth taking care over. An unstable build is numbered
+**above the release it follows**, 0.68.1.1 upwards counting commits, rather than
+below the one it is heading towards. Jellyfin updates a plugin by comparing versions
+and nothing else, so the tempting scheme strands the tester: on 0.69.0.5 they would
+never be offered the 0.69.0.0 that eventually ships. This way, removing the URL is
+the whole way back.
+
+The first build, `0.68.1.59`, is published, installed on the beta from the
+catalogue, and loaded. The beta tracks the channel from here.
+
+### One manifest, not one per line
+
+Pull request #126 gave each Jellyfin line a manifest of its own and that was the wrong shape: it
+turns a server upgrade into a configuration change, since somebody moving from 10.11
+to 12 has to know the URL they pasted a year ago is now the wrong one. #165 collapses
+it to one file per channel, which is what `manifest.json` always did anyway, its 62
+entries carrying three different `targetAbi` values between them.
+
+Checked on the live Jellyfin 13.0.0 rather than argued: an entry with `targetAbi`
+99.0.0.0 is dropped by the server, and two entries sharing a version both survive
+with the higher ABI listed first, which is the order the writer produces and the one
+the install path depends on.
+
+### Four things that were written down and were not true
+
+Worth recording as a class, because they were all reached the same way: by checking
+one source and concluding.
+
+**No Jellyfin 13 package exists.** It does. `13.0.0-20260914101923`, published
+2026-09-14 on GitHub Packages, `https://nuget.pkg.github.com/jellyfin/index.json`,
+which is where the weekly builds of `master` go and where a new line appears first by
+months. nuget.org and the abandoned Azure DevOps feed had been checked; that third
+one had not. `nuget-watch.yml` read only nuget.org too, so the watch that exists to
+catch exactly this would never have said a word. It reads both now.
+
+**Jellyfin refuses a plugin folder with no `meta.json`.** It does not.
+`PluginManager.LoadManifest` falls back to the folder name and returns the plugin as
+supported. The real consequence is worse: the id becomes the MD5 of the folder name,
+so the server never matches it to the catalogue entry and the plugin never receives
+an update again.
+
+**The app is missing "Landscape auto" in one of its two orientation pickers.** The
+second picker, `OtherSettings.tsx`, is dead code, orphaned since #1178 and imported
+by nothing. The live one has offered it since January. The issue body said so all
+along: the reporter wrote that the app has the option and the plugin does not. A pull
+request had already been opened on the app repository before anyone read that
+sentence; it is closed.
+
+**No scheduled run has ever happened in this repository.** `runs schedule: 0`.
+`security.yml` and `housekeeping.yml` had ten runs each, all of them pushes. Both
+triggers need the workflow file to be on the default branch before they exist at all,
+and these lived only on `develop`. What each does from there differs and is worth
+keeping straight: `schedule` runs the default branch's copy, while `workflow_dispatch`
+becomes available and can then be pointed at whichever branch you choose, which is how
+the first unstable build was published from `develop`. Either way the weekly CodeQL
+scan, the stale sweep and the NuGet watch had been decorative since the day they were
+written. #168 puts the four that need it on `main`.
+
+### #81, picked up
+
+The Seerr webhook, open since 2025-11-18 with no review, whose author said on
+2026-09-01 that they no longer had the bandwidth. Ported rather than rebased, since
+the branch predates EF Core, the settings model and the rename.
+
+Three things changed from what it proposed: it is Seerr everywhere; the payload is
+not logged, since Seerr sends the requester's email and Discord id beside their
+username; and an event naming no requester goes to administrators rather than
+producing the target-nobody combination that makes the endpoint send to every device
+on the server.
+
+Verified end to end on the beta: 401 without a key, 202 on an issue event, and a
+`MEDIA_APPROVED` that reached one iPhone, in French, with the deliberately planted
+email appearing nowhere in the log.
+
 ## 2026-09-12
 
 ### A probe that grew too big, and what cutting it back taught
@@ -922,239 +1158,3 @@ not read.
 
 The app side work that came out of it is tracked in
 [app-side-work.md](app-side-work.md).
-
-## 2026-09-15, the unstable channel, and four things that were wrong
-
-### Loaded on a real server, at last
-
-The load test this dossier has been deferring since 2026-08-25 is done. The whole
-of `develop`, built as `jf12`, on the beta running **Jellyfin 13.0.0**: no load
-error, nothing of its own in the log, the four satellite assemblies loaded, the
-drawer logo registered with File Transformation.
-
-The database half is the part that was really waiting, and it reads better than a
-fixture ever could. Four EF migrations applied. `ImportMarkers` holds
-`legacy-device-tokens` with 34 rows imported on 2026-08-25 and `legacy-global-config`
-with 1. The old `streamyfin_plugin.db` still holds exactly those 34 rows and is dated
-May, so it has not been written to since. The new table holds 37 across 20 users, so
-three devices have registered through EF since. That is the P0.4 contract, read off
-production data.
-
-### The channel
-
-`develop` is the unstable channel and `main` is the stable one, and that is now in
-the plumbing rather than in a convention. `prerelease.yml` publishes a build of
-`develop` as a prerelease and writes it into `manifest-unstable.json`.
-
-Numbering was the decision worth taking care over. An unstable build is numbered
-**above the release it follows**, 0.68.1.1 upwards counting commits, rather than
-below the one it is heading towards. Jellyfin updates a plugin by comparing versions
-and nothing else, so the tempting scheme strands the tester: on 0.69.0.5 they would
-never be offered the 0.69.0.0 that eventually ships. This way, removing the URL is
-the whole way back.
-
-The first build, `0.68.1.59`, is published, installed on the beta from the
-catalogue, and loaded. The beta tracks the channel from here.
-
-### One manifest, not one per line
-
-Pull request #126 gave each Jellyfin line a manifest of its own and that was the wrong shape: it
-turns a server upgrade into a configuration change, since somebody moving from 10.11
-to 12 has to know the URL they pasted a year ago is now the wrong one. #165 collapses
-it to one file per channel, which is what `manifest.json` always did anyway, its 62
-entries carrying three different `targetAbi` values between them.
-
-Checked on the live Jellyfin 13.0.0 rather than argued: an entry with `targetAbi`
-99.0.0.0 is dropped by the server, and two entries sharing a version both survive
-with the higher ABI listed first, which is the order the writer produces and the one
-the install path depends on.
-
-### Four things that were written down and were not true
-
-Worth recording as a class, because they were all reached the same way: by checking
-one source and concluding.
-
-**No Jellyfin 13 package exists.** It does. `13.0.0-20260914101923`, published
-2026-09-14 on GitHub Packages, `https://nuget.pkg.github.com/jellyfin/index.json`,
-which is where the weekly builds of `master` go and where a new line appears first by
-months. nuget.org and the abandoned Azure DevOps feed had been checked; that third
-one had not. `nuget-watch.yml` read only nuget.org too, so the watch that exists to
-catch exactly this would never have said a word. It reads both now.
-
-**Jellyfin refuses a plugin folder with no `meta.json`.** It does not.
-`PluginManager.LoadManifest` falls back to the folder name and returns the plugin as
-supported. The real consequence is worse: the id becomes the MD5 of the folder name,
-so the server never matches it to the catalogue entry and the plugin never receives
-an update again.
-
-**The app is missing "Landscape auto" in one of its two orientation pickers.** The
-second picker, `OtherSettings.tsx`, is dead code, orphaned since #1178 and imported
-by nothing. The live one has offered it since January. The issue body said so all
-along: the reporter wrote that the app has the option and the plugin does not. A pull
-request had already been opened on the app repository before anyone read that
-sentence; it is closed.
-
-**No scheduled run has ever happened in this repository.** `runs schedule: 0`.
-`security.yml` and `housekeeping.yml` had ten runs each, all of them pushes. Both
-triggers need the workflow file to be on the default branch before they exist at all,
-and these lived only on `develop`. What each does from there differs and is worth
-keeping straight: `schedule` runs the default branch's copy, while `workflow_dispatch`
-becomes available and can then be pointed at whichever branch you choose, which is how
-the first unstable build was published from `develop`. Either way the weekly CodeQL
-scan, the stale sweep and the NuGet watch had been decorative since the day they were
-written. #168 puts the four that need it on `main`.
-
-### #81, picked up
-
-The Seerr webhook, open since 2025-11-18 with no review, whose author said on
-2026-09-01 that they no longer had the bandwidth. Ported rather than rebased, since
-the branch predates EF Core, the settings model and the rename.
-
-Three things changed from what it proposed: it is Seerr everywhere; the payload is
-not logged, since Seerr sends the requester's email and Discord id beside their
-username; and an event naming no requester goes to administrators rather than
-producing the target-nobody combination that makes the endpoint send to every device
-on the server.
-
-Verified end to end on the beta: 401 without a key, 202 on an issue event, and a
-`MEDIA_APPROVED` that reached one iPhone, in French, with the deliberately planted
-email appearing nowhere in the log.
-
-## 2026-09-15, later: the findings nobody had read, and a pass on Jellyfin 13
-
-### Merged on a green check that says nothing
-
-#165 to #168 went in on `CodeRabbit: pass` in `gh pr checks`. That check passes with
-ten findings open; it says a review ran, not that it found nothing. The reviews on
-#166 and #167 had been rate limited when the branches were pushed and arrived later,
-and nobody looked again before merging.
-
-#168 was carrying five. Four were real, and the worst of them was mine. The guard I
-had added against publishing the same commit twice refused every tag that already
-existed. The tag and the release are created before the manifest is pushed, so a
-failure between those two steps left a release nobody could reach and a rerun that
-stopped on the guard. A publication could get stuck half way with no way out.
-
-On `main`, where these workflows live and fire from, #170 splits the two cases the guard
-confused: a tag on the very commit being published means an earlier attempt got that far,
-so the run carries on and replaces the assets; a tag on a different commit is a real
-collision and still stops. It also bounds what the publish job will run, since that job
-holds `contents: write` and the dispatch input decides which `Makefile` and which scripts
-it executes: the ref has to be an ancestor of `develop`. `persist-credentials: false` on
-the build checkout, which never pushes. And `housekeeping.yml` gets `actions: write`,
-without which `actions/stale` cannot save its place and starts from the first item every
-time, plus a concurrency group so a manual dispatch cannot overlap the schedule.
-
-One of the five was wrong: CodeRabbit read the `Makefile` as naming both targets'
-archives identically. It names them per target and has since #126, and the published
-release carries both zips. Answered with that and resolved, without a commit to make
-the bot happy.
-
-The review of #170 itself then found something real in the repair. `git ls-remote`
-against an exact tag ref answers with the id of the tag object, not of the commit,
-so an annotated tag would have compared unequal to the commit it points at and read
-as a collision with itself. Ours are lightweight and the published tag answers with
-the commit, so nothing was broken, but a tag pushed by hand would have been. The probe
-now takes the peeled line when it is there, checked on a scratch repository against no
-tag, a lightweight tag, an annotated tag and a sibling tag sharing the prefix.
-
-The catch-up path is not argued, it ran: the workflow was dispatched twice against a
-commit that already carried its tag, and the log says `unstable-0.68.1.59 already
-points at d95c6ed..., so a previous run got this far. Carrying on.` Both zips were
-replaced and `manifest-unstable.json` was rewritten with two entries and no duplicate.
-
-#171 carries the same two files back to `develop`, since #170 had to land on `main`
-and the copies would otherwise drift until the integration branch silently reverted
-them. Until that one merges, the branch this entry is written on still carries the old
-workflow, which is why the paragraph above says where each change lives.
-
-### The admin pages, on Jellyfin 13
-
-All five, in a real dashboard on the beta, captured rather than asserted: Application
-with its 92 settings and the three states, Targeting with a group and a locked
-override, Notifications, Other with the backup section, and the Yaml editor. Dark and
-light for the first four.
-
-The Yaml editor looked dead at first and is not. `monaco-editor.bundle.js` is 11.1 MB.
-The server hands it over in 7 ms from inside the container and in 47 seconds across a
-VPN link, so a page that waits twelve seconds sees an empty editor and concludes it is
-broken. Worth saying in the release notes for an administrator working remotely.
-
-### The app against the plugin, end to end
-
-The chain that had only ever been checked one half at a time. A build of the app's
-`develop` on an iOS 27 simulator, signed in to the beta on Jellyfin 13.0.0, its
-"refresh settings from the server" reaching the plugin controller. Then a per user
-override, `PUT v1/users/{id}/settings` with `defaultVideoOrientation` set to landscape
-and locked: the app moves to that value and greys the row out. Override removed, the
-app goes back to its own value and the row is editable again.
-
-An ordinary account gets no secret from any of the four read paths, `config`,
-`v1/config`, `v1/config/resolved` and `config/yaml`, all answering 200 with no key or
-token anywhere in the body.
-
-The app half of #110 is settled by the same screen: it offers five orientations and
-one of them is the automatic landscape, which is what the reporter said in the first
-place.
-
-One thing that is app side and worth recording because it decides how this gets tested
-from now on. A local build with Xcode 27 links against the iOS 27 SDK, and iOS 27
-refuses to launch an app that has not adopted the UIKit scene life cycle. Expo adopts
-it in SDK 58; the app is on 57. Until it moves, a local iOS build needs a scene
-delegate added by hand in the generated `ios/` folder, which is not in the repository.
-
-## 2026-09-16, the last three pages, and the admin UI put through its paces
-
-### One plugin, not two
-
-Application and Targeting had been on the cards, rows and three state segments of
-`settings-form.css` since P3.6. Notifications, Other and the Yaml editor were still
-wearing the dashboard's own form controls, so two tabs of the same plugin looked like two
-different plugins. They now share the vocabulary: the top row with the page's name, a
-card per subject, a row per setting with its key underneath, and the save dock that says
-whether there is anything to save rather than offering a button that is always ready.
-
-Porting them turned up two defects that had nothing to do with styling.
-
-**The start page select never reached the configuration.** The Other tab wrote the chosen
-value nowhere, and a save dumps the configuration the page is holding, so Save on that tab
-stored what was already there. The setting could not be changed from the page that offers
-it. It is written on change now, and a save was watched storing `Targeting` and surviving
-a reload.
-
-**Every page looked its elements up in the whole document.** The dashboard keeps the views
-it has already shown. Once Application had been opened, its hidden copy of a shared id
-answered first, so the theme attribute landed on the wrong page and the page behind it
-stayed dark on a light dashboard. The dock these pages gained would have written into
-Application's for the same reason. Each page resolves inside its own view now, which is
-what Application was already doing.
-
-The theme is no longer read once and hoped for either: the dashboard swaps its stylesheet
-after the view is shown and announces nothing, so `applyTheme` watches the head for the
-swap, settles over the first frames when the theme was already applied, and tells the Yaml
-editor when it changes, since Monaco cannot re-read a CSS variable.
-
-### The pass
-
-Section 2 of the release checklist, done as a script rather than by hand, on the beta in
-Jellyfin 13.0.0, in both themes. Fifteen scenarios, fifteen green, each one acting in the
-page and then asking the server what it stored.
-
-A toggle through all three states and the key disappearing when it goes back to free. A
-number refusing 100 against its bounds and 2.5 against its integer, the dock saying
-`1 unsaved · 1 to fix`, Save going dark and `Show me` appearing, then 30 stored. Text
-stored as typed. A select locked on its value. A list of two lines arriving as an array of
-two. A secret revealing and hiding with nothing to save behind it. A dependency inert only
-while its parent is locked off, with Free still reachable. A setting the app declares no
-default for saying `App default` and refusing an empty suggestion. The search reaching
-across categories and the Set filter showing only what is set. The two switches and the
-banner surviving a reload. One column at 760px with nothing hanging off the side. An
-ordinary account seeing a save at once and no key anywhere in what it receives. A broken
-Yaml file refused with the configuration unchanged. Five tabs in a row with no ghost Monaco
-editor, one dock in view and a clean console. And a group created on Targeting with an
-override, found on the server afterwards.
-
-The configuration was backed up through the plugin's own route before the pass and restored
-after it, and the backup taken afterwards matches the one taken before section for section.
-The throwaway accounts are deleted. The harness stays out of the repository: it carries a
-server address and two passwords.
