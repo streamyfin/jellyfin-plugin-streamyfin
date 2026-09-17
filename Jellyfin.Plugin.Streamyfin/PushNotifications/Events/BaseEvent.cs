@@ -97,6 +97,15 @@ public abstract class BaseEvent
     }
 
     /// <summary>
+    /// How long two of the same event wait, as configured or as this event prefers.
+    /// </summary>
+    /// <param name="configuration">The event's configuration, which may be absent.</param>
+    /// <param name="fallback">The wait to use when nothing is configured.</param>
+    /// <returns>The wait between two of the same event.</returns>
+    protected static TimeSpan WaitFrom(Configuration.Notifications.NotificationConfiguration? configuration, TimeSpan fallback) =>
+        configuration?.RecentEventThreshold is { } seconds ? TimeSpan.FromSeconds(Math.Abs(seconds)) : fallback;
+
+    /// <summary>
     /// How long we want to wait until allowing an event with a matching sessionKey to be processed
     /// </summary>
     /// <returns>TimeSpan for how long to wait</returns>

@@ -6,7 +6,9 @@ using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
+using MediaBrowser.Controller.Events.Authentication;
 using MediaBrowser.Controller.Events.Session;
+using MediaBrowser.Controller.Events.Updates;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,8 +55,16 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartEvent>();
         serviceCollection.AddScoped<IEventConsumer<PlaybackStartEventArgs>, PlaybackStartEvent>();
         serviceCollection.AddScoped<IEventConsumer<UserLockedOutEventArgs>, UserLockedOutEvent>();
+        serviceCollection.AddScoped<IEventConsumer<PluginInstalledEventArgs>, PluginChangedEvent>();
+        serviceCollection.AddScoped<IEventConsumer<PluginUpdatedEventArgs>, PluginChangedEvent>();
+        serviceCollection.AddScoped<IEventConsumer<PluginUninstalledEventArgs>, PluginChangedEvent>();
+        serviceCollection.AddScoped<IEventConsumer<AuthenticationRequestEventArgs>, SignInFailedEvent>();
 
         // Service
         serviceCollection.AddHostedService<ItemAddedService>();
+
+        // A scheduled task that fails is not published through the event manager, on either
+        // Jellyfin line, so this one listens to the task manager itself.
+        serviceCollection.AddHostedService<TaskFailedService>();
     }
 }

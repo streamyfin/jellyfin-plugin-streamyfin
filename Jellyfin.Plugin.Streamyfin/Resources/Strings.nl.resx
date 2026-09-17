@@ -158,4 +158,69 @@
         <value>{1} is nu beschikbaar</value>
     </data>
     <!-- endregion Seerr webhook -->
+
+    <!-- region Admin events -->
+    <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Geplande taak mislukt</value>
+    </data>
+    <data name="TaskFailed" xml:space="preserve">
+        <!-- 0 = Task name -->
+        <value>{0} is mislukt</value>
+    </data>
+    <data name="TaskFailedWithReason" xml:space="preserve">
+        <!-- 0 = Task name, 1 = What the task said went wrong -->
+        <value>{0} is mislukt: {1}</value>
+    </data>
+    <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Plug-in geïnstalleerd</value>
+    </data>
+    <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Plug-in bijgewerkt</value>
+    </data>
+    <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Plug-in verwijderd</value>
+    </data>
+    <data name="PluginInstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is geïnstalleerd</value>
+    </data>
+    <data name="PluginInstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} is geïnstalleerd</value>
+    </data>
+    <data name="PluginUpdated" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is bijgewerkt</value>
+    </data>
+    <data name="PluginUpdatedVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} is bijgewerkt naar {1}</value>
+    </data>
+    <data name="PluginUninstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is verwijderd</value>
+    </data>
+    <data name="PluginUninstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} is verwijderd</value>
+    </data>
+    <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Aanmelding mislukt</value>
+    </data>
+    <data name="SignInFailed" xml:space="preserve">
+        <!-- 0 = Username that was tried -->
+        <value>{0} kon niet aanmelden</value>
+    </data>
+    <data name="SignInFailedFrom" xml:space="preserve">
+        <!-- 0 = Username that was tried, 1 = Address it came from -->
+        <value>{0} kon niet aanmelden vanaf {1}</value>
+    </data>
+    <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>Een aanmelding is geweigerd</value>
+    </data>
+    <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <!-- 0 = Address it came from -->
+        <value>Een aanmelding vanaf {0} is geweigerd</value>
+    </data>
+    <!-- endregion Admin events -->
 </root>

@@ -94,6 +94,59 @@ public class LocalizationTests
     }
 
     /// <summary>
+    /// A translation uses the same placeholders as the English it translates.
+    /// </summary>
+    /// <remarks>
+    /// A string is formatted with the arguments its English version asks for. A translation
+    /// that drops one shows the others in the wrong places, and one that invents an index
+    /// throws at the moment the notification is built, which is inside an event handler.
+    /// </remarks>
+    /// <param name="locale">The language.</param>
+    [Theory]
+    [InlineData("fr")]
+    [InlineData("nl")]
+    [InlineData("es-MX")]
+    public void EveryLocaleUsesTheSamePlaceholders(string locale)
+    {
+        var english = ValuesOf(CultureInfo.InvariantCulture);
+        var translated = ValuesOf(CultureInfo.GetCultureInfo(locale));
+
+        var differing = english
+            .Where(pair => translated.ContainsKey(pair.Key))
+            .Where(pair => !Placeholders(pair.Value).SetEquals(Placeholders(translated[pair.Key])))
+            .Select(pair => pair.Key)
+            .OrderBy(key => key, System.StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(differing);
+    }
+
+    /// <summary>
+    /// The indexes a format string asks for, such as 0 and 1 in "{0} failed: {1}".
+    /// </summary>
+    private static HashSet<string> Placeholders(string value) =>
+        System.Text.RegularExpressions.Regex.Matches(value, @"\{(\d+)[^}]*\}")
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(System.StringComparer.Ordinal);
+
+    /// <summary>
+    /// What one resource file declares, as key and value.
+    /// </summary>
+    private static Dictionary<string, string> ValuesOf(CultureInfo culture)
+    {
+        var resources = new ResourceManager(
+            baseName: "Jellyfin.Plugin.Streamyfin.Resources.Strings",
+            assembly: typeof(LocalizationHelper).Assembly);
+
+        var set = resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        Assert.NotNull(set);
+
+        return set.Cast<DictionaryEntry>()
+            .Where(entry => entry.Value is string)
+            .ToDictionary(entry => (string)entry.Key, entry => (string)entry.Value!, System.StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// What one resource file declares, without what it inherits from its parents.
     /// </summary>
     private static IEnumerable<string> KeysOf(CultureInfo culture)

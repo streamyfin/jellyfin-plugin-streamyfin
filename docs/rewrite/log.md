@@ -8,6 +8,51 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, later still: three things an administrator should hear about
+
+P4.4 starts with what the plugin can say. Three events, all to administrators, each with
+its own switch and its own wait between two of the same:
+
+- **A scheduled task failed**, with the first line of what it said went wrong, cut at 120
+  characters since a push is a sentence and a stack trace is not.
+- **A plugin was installed, updated or uninstalled**, with its version.
+- **A sign in was refused**, with the name that was tried and the address it came from.
+  Five minutes per address by default: a server anyone can reach is tried by machines that
+  never stop, and a notification for each of those is a reason to turn the whole thing off.
+
+The wording is Jellyfin's own, taken from the strings its activity log uses for these
+events, in the four languages the plugin carries. The culture is a parameter of each
+builder rather than the server's, which is what the per device language of #34 will need.
+
+Two things reading the server's own code changed:
+
+**Nothing publishes a task completion.** `TaskCompletionEventArgs` is never handed to the
+event manager on either line: `TaskManager` raises the plain C# event and no one forwards
+it, so Jellyfin's own `TaskCompletedLogger` and the webhook plugin's task notifier never
+run either, and the activity log has said nothing about a failed task for years. This
+listens to `ITaskManager.TaskCompleted` instead, which is what the dashboard's own web
+socket does.
+
+**Jellyfin calls an upgrade an install.** Its `InstallationManager` publishes the updated
+event only when the version being installed is the one already there, a repair, so a
+plugin going from 17 to 19 arrives as an install. The version being replaced stays loaded
+until the restart, beside the arriving one the install adds straight away, so a copy under
+another version is what says it is an update.
+
+### Proven
+
+On throwaway 10.11.11 and 12.0.0, with the three switched on and a registered device.
+`ActivityLogRetentionDays` set to -1 makes **Clean Activity Log** throw, which reports
+`Failed`: the administrators were told, and the same failure a moment later was not, since
+it is inside the wait. Bookshelf installed fresh was an install, Playback Reporting at an
+older version was an install, the newest over it was an update, and removing it was an
+uninstall. A sign in with the wrong password was reported, and a second from the same
+address was not.
+
+A server that was already running has the three off, since its stored configuration does
+not mention them, which the throwaways showed before they were turned on. A fresh install
+has them on.
+
 ## 2026-09-17, through the catalogue and back
 
 ### An update the server makes by itself

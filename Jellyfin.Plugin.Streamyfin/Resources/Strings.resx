@@ -166,4 +166,69 @@
         <value>{1} is available now</value>
     </data>
     <!-- endregion Seerr webhook -->
+
+    <!-- region Admin events -->
+    <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Scheduled task failed</value>
+    </data>
+    <data name="TaskFailed" xml:space="preserve">
+        <!-- 0 = Task name -->
+        <value>{0} failed</value>
+    </data>
+    <data name="TaskFailedWithReason" xml:space="preserve">
+        <!-- 0 = Task name, 1 = What the task said went wrong -->
+        <value>{0} failed: {1}</value>
+    </data>
+    <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Plugin installed</value>
+    </data>
+    <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Plugin updated</value>
+    </data>
+    <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Plugin uninstalled</value>
+    </data>
+    <data name="PluginInstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} was installed</value>
+    </data>
+    <data name="PluginInstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} was installed</value>
+    </data>
+    <data name="PluginUpdated" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} was updated</value>
+    </data>
+    <data name="PluginUpdatedVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} was updated to {1}</value>
+    </data>
+    <data name="PluginUninstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} was uninstalled</value>
+    </data>
+    <data name="PluginUninstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} was uninstalled</value>
+    </data>
+    <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Failed sign in</value>
+    </data>
+    <data name="SignInFailed" xml:space="preserve">
+        <!-- 0 = Username that was tried -->
+        <value>{0} could not sign in</value>
+    </data>
+    <data name="SignInFailedFrom" xml:space="preserve">
+        <!-- 0 = Username that was tried, 1 = Address it came from -->
+        <value>{0} could not sign in from {1}</value>
+    </data>
+    <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>A sign in was refused</value>
+    </data>
+    <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <!-- 0 = Address it came from -->
+        <value>A sign in from {0} was refused</value>
+    </data>
+    <!-- endregion Admin events -->
 </root>

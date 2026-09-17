@@ -39,6 +39,9 @@ Receive real-time notifications on your mobile device:
 - **Session Started**: Track active user sessions (admin only)
 - **Playback Started**: Monitor content playback (admin only)
 - **User Locked Out**: Security alerts for account issues
+- **Scheduled Task Failed**: A task the server runs on its own went wrong, with the reason (admin only)
+- **Plugin Changed**: A plugin was installed, updated or uninstalled (admin only)
+- **Failed Sign In**: A refused sign in, with the name tried and where it came from (admin only)
 - **Custom Webhooks**: Integrate with external services
 - **Smart Grouping**: Episode notifications are intelligently grouped to reduce spam
 
