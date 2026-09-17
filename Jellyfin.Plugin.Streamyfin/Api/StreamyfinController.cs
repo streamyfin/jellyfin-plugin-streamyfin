@@ -21,6 +21,7 @@ using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -99,6 +100,7 @@ public class StreamyfinController : ControllerBase
   private readonly IntegrationProbe _integrations;
   private readonly SeerrNotificationMapper _seerr;
   private readonly ForYouShelves _shelves;
+  private readonly IUserViewManager _userViews;
 
   // What a "for you" row is built from, and how far it is allowed to reach. Every one of
   // them is a query parameter as well, since what suits a library of two hundred films is
@@ -123,7 +125,8 @@ public class StreamyfinController : ControllerBase
     NotificationHelper notificationHelper,
     IntegrationProbe integrations,
     SeerrNotificationMapper seerr,
-    ForYouShelves shelves
+    ForYouShelves shelves,
+    IUserViewManager userViews
   )
   {
     _loggerFactory = loggerFactory;
@@ -137,6 +140,7 @@ public class StreamyfinController : ControllerBase
     _integrations = integrations;
     _seerr = seerr;
     _shelves = shelves;
+    _userViews = userViews;
 
     _logger.LogInformation("StreamyfinController Loaded");
   }
@@ -766,6 +770,63 @@ public class StreamyfinController : ControllerBase
     }
 
     return said;
+  }
+
+  /// <summary>
+  /// The libraries the caller can open, as a row.
+  /// </summary>
+  /// <param name="startIndex">Where in the row to start, for a second page.</param>
+  /// <param name="limit">How many to answer with.</param>
+  /// <returns>A page of the caller's libraries.</returns>
+  /// <remarks>
+  /// <para>
+  /// Issue #78, and the app needs nothing new for it: a home section of kind
+  /// <c>custom</c> pointed at <c>/streamyfin/v1/my-media</c> draws it.
+  /// </para>
+  /// <para>
+  /// It exists because Jellyfin's own <c>/UserViews</c> ignores <c>startIndex</c> and
+  /// <c>limit</c>: measured on 10.11.11, asking for two rows starting at the third of
+  /// three answers all three with <c>StartIndex: 0</c>. The app's rows scroll and ask for
+  /// the next page, so a row pointed straight at it repeats its libraries for as long as
+  /// somebody keeps scrolling.
+  /// </para>
+  /// <para>
+  /// Built for whoever is calling, like every other row here: the app sends a
+  /// <c>userId</c> with each home query and it is ignored, so nobody sees a library
+  /// through somebody else's account.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/my-media")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public ActionResult<QueryResult<BaseItemDto>> GetMyMedia(
+    [FromQuery] int? startIndex,
+    [FromQuery] int? limit)
+  {
+    var callerId = CallerId;
+    var user = callerId.Equals(default) ? null : _userManager.GetUserById(callerId);
+
+    if (user is null)
+    {
+      return BadRequest("These are somebody's libraries, and an API key is nobody.");
+    }
+
+    // The same query the web client's home screen makes: the libraries this account was
+    // given, hidden ones left out, and whatever the server allows from elsewhere.
+    var views = _userViews.GetUserViews(new UserViewQuery
+    {
+      User = user,
+      IncludeExternalContent = _config.Configuration.EnableExternalContentInSuggestions,
+      IncludeHidden = false
+    });
+
+    var page = Paging.Of(views, startIndex, limit);
+
+    return new QueryResult<BaseItemDto>(
+      page.StartIndex,
+      page.Total,
+      _dtoService.GetBaseItemDtos([.. page.Items], new DtoOptions(), user));
   }
 
   /// <summary>
