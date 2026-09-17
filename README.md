@@ -31,6 +31,7 @@ Create dynamic, personalized home screens with customizable sections:
 - **Next Up**: TV show episodes ready to watch
 - **Latest Media**: Newly added content
 - **Custom Sections**: Create any view using Jellyfin's API, including custom endpoints for sections
+- **My Media**: The libraries each user can open, as a home row
 - **For You**: A row built from what each user has watched, for servers that do not run Streamystats
 - **Collection Integration**: Works seamlessly with the [Collection Import plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import)
 
@@ -227,6 +228,24 @@ home:
         includeItemTypes: [Movie]
         limit: 20
 ```
+
+### Example: A "My media" row
+
+The libraries somebody can open, as a home row, the way Jellyfin's own home screen opens.
+
+```yaml
+home:
+  sections:
+    - title: "My media"
+      orientation: horizontal
+      custom:
+        endpoint: /streamyfin/v1/my-media
+```
+
+It exists because Jellyfin's own `/UserViews` ignores `startIndex` and `limit`: asking for
+two rows starting at the third of three answers all three, so a row pointed straight at it
+repeats its libraries for as long as somebody keeps scrolling. This one pages, and answers
+what the caller can open and nothing else.
 
 ### Example: A "For you" row, for servers without Streamystats
 
