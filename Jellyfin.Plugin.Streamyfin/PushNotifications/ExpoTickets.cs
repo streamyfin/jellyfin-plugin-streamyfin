@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Microsoft.Extensions.Logging;
 
@@ -99,35 +100,45 @@ public static class ExpoTickets
     }
 
     /// <summary>
-    /// Reads the receipts of tickets that were accepted, and names the tokens that have
-    /// since been reported gone.
+    /// The push tokens Expo has reported as gone, each with the moment of the latest push
+    /// it said that about.
     /// </summary>
-    /// <param name="response">Expo's answer, or null when the request was refused.</param>
-    /// <param name="ticketToToken">The tokens the tickets were sent to, by ticket id.</param>
-    /// <returns>The tokens to prune, each named once.</returns>
+    /// <param name="response">What Expo answered when asked for receipts.</param>
+    /// <param name="pending">The pushes those receipts answer, as they were stored.</param>
+    /// <returns>The dead tokens, with when the push Expo answered about was sent.</returns>
     /// <remarks>
-    /// A receipt for a ticket this server did not send is ignored rather than trusted.
-    /// The ids come back from Expo, and a stale or duplicated one must not be able to
-    /// delete a token that is doing nothing wrong.
+    /// The moment comes from the receipt that was reported dead, not from the newest one
+    /// carrying that token: a push still waiting for its answer says nothing, and letting
+    /// it move the moment would delete a device that registered the same token between the
+    /// two.
     /// </remarks>
-    public static IReadOnlyList<string> DeadTokensFrom(
+    public static Dictionary<string, DateTime> DeadSendsFrom(
         ExpoReceiptResponse? response,
-        IReadOnlyDictionary<string, string> ticketToToken)
+        IEnumerable<ExpoReceipt> pending)
     {
-        ArgumentNullException.ThrowIfNull(ticketToToken);
+        ArgumentNullException.ThrowIfNull(pending);
+
+        var dead = new Dictionary<string, DateTime>(StringComparer.Ordinal);
 
         if (response?.Data is null)
         {
-            return [];
+            return dead;
         }
 
-        return response.Data
-            .Where(receipt => IsGone(receipt.Value))
-            .Select(receipt => ticketToToken.TryGetValue(receipt.Key, out var token) ? token : null)
-            .Where(token => token is not null)
-            .Select(token => token!)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        foreach (var receipt in pending)
+        {
+            if (!response.Data.TryGetValue(receipt.TicketId, out var answer) || !IsGone(answer))
+            {
+                continue;
+            }
+
+            if (!dead.TryGetValue(receipt.Token, out var known) || receipt.CreatedAt > known)
+            {
+                dead[receipt.Token] = receipt.CreatedAt;
+            }
+        }
+
+        return dead;
     }
 
     private static bool IsGone(TicketStatus ticket) =>
