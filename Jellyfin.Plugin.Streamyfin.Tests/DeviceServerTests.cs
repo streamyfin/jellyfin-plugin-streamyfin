@@ -1,5 +1,6 @@
 using System;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -50,6 +51,37 @@ public class DeviceServerTests
         Assert.Equal(
             "https://jellyfin.example.com/Items/c0ffee0012344bcd8ef01234567890ab/Images/Primary?maxHeight=640",
             DeviceServer.PosterOf("https://jellyfin.example.com/", Item));
+    }
+
+    /// <summary>
+    /// A notification posted to the endpoint carries its own image, since whoever posts it
+    /// knows where the image is and the server does not.
+    /// </summary>
+    [Fact]
+    public void ANotificationPostedToTheEndpointCarriesItsImage()
+    {
+        var posted = new Notification
+        {
+            Title = "Something happened",
+            Body = "Here it is",
+            Image = " https://posters.example.com/a.jpg "
+        };
+
+        Assert.Equal("https://posters.example.com/a.jpg", posted.ToExpoNotification().RichContent?.Image);
+    }
+
+    /// <summary>
+    /// What a phone could not fetch is dropped rather than sent: Expo refuses the whole
+    /// message for it, so one bad address would cost the notification.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("poster.jpg")]
+    [InlineData("file:///tmp/poster.jpg")]
+    public void AnImageAPhoneCouldNotFetchIsDropped(string? image)
+    {
+        Assert.Null(new Notification { Body = "Here it is", Image = image }.ToExpoNotification().RichContent);
     }
 
     /// <summary>

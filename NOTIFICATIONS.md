@@ -79,10 +79,17 @@ value: `MediaBrowser Token="{apiKey}"`
     "body": "string",     // Notification body (required)
     "userId": "string",   // Target Jellyfin user id this notification is for
     "username": "string", // Target Jellyfin username this notification is for
-    "isAdmin": false      // Boolean to determine if notification also targets admins.
+    "isAdmin": false,     // Boolean to determine if notification also targets admins.
+    "image": "string"     // Address of an image to show beside the text, such as a poster
   }
 ]
 ```
+
+The image is an address a phone can fetch without credentials. Jellyfin serves an item's
+images that way, so `http(s)://your-server/Items/<id>/Images/Primary?maxHeight=640` is the
+usual one. Anything that is not an http address is dropped rather than sent, since Expo
+refuses the whole message for a bad one. Android shows the image as it is; on iOS it needs
+a notification service extension in the app.
 
 ## Notifying All Users
 To do this, all you have to do is populate the title and body. Other fields are not required.

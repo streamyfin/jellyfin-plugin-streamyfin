@@ -31,6 +31,11 @@ added. The debug line reads
 the devices that named no server got none, and fetching that address with no token answers
 `200 image/jpeg`.
 
+A notification posted to the plugin's own endpoint carries its image the same way, which is
+the half of #30 that is not about what the plugin sends itself: whoever posts it knows where
+the image is and the server does not. An address a phone could not fetch is dropped rather
+than sent, since Expo refuses the whole message for a bad one.
+
 On iOS the image needs a notification service extension in the app, which is the app's half
 of #30.
 
