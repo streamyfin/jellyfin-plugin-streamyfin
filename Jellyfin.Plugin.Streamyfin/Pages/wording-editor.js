@@ -85,18 +85,27 @@ export const problems = (list, sentences) => {
     return found;
 };
 
-/** What to store: the rows worth keeping, trimmed. */
-export const toConfig = (list) =>
-    list
-        .filter((one) => one.key && String(one.text ?? "").trim())
-        .map((one) => {
-            const stored = { key: one.key, text: one.text };
-            const locale = String(one.locale ?? "").trim();
+/**
+ * What to store: the rows worth keeping, trimmed, and one per sentence and language. The
+ * resolver takes the first match, so a second row for the same pair is a row nobody can
+ * make do anything.
+ */
+export const toConfig = (list) => {
+    const kept = new Map();
 
-            if (locale) stored.locale = locale;
+    for (const one of list) {
+        if (!one.key || !String(one.text ?? "").trim()) continue;
 
-            return stored;
-        });
+        const locale = String(one.locale ?? "").trim();
+        const at = `${one.key}\u0000${locale}`;
+
+        if (kept.has(at)) continue;
+
+        kept.set(at, locale ? { key: one.key, locale, text: one.text } : { key: one.key, text: one.text });
+    }
+
+    return [...kept.values()];
+};
 
 export const summarise = (list) => {
     const rows = toConfig(list).length;

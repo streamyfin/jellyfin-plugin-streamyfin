@@ -101,6 +101,20 @@ describe("what is stored", () => {
         ])).toEqual([{ key: "TaskFailedTitle", text: "Something broke" }]);
     });
 
+    test("a sentence and language listed twice is stored once", () => {
+        // The resolver takes the first match, so storing the second is storing something
+        // that never wins. Measured on a throwaway: two identical rows reached the
+        // configuration and the page then showed a row nobody could make do anything.
+        expect(toConfig([
+            { key: "TaskFailedTitle", locale: "fr", text: "premier" },
+            { key: "TaskFailedTitle", locale: "fr", text: "second" },
+            { key: "TaskFailedTitle", locale: "", text: "every language" },
+        ])).toEqual([
+            { key: "TaskFailedTitle", locale: "fr", text: "premier" },
+            { key: "TaskFailedTitle", text: "every language" },
+        ]);
+    });
+
     test("the summary counts what would be stored", () => {
         expect(summarise([])).toBe("The plugin's own wording");
         expect(summarise([{ key: "TaskFailedTitle", locale: "", text: "one" }])).toBe("1 sentence written differently");

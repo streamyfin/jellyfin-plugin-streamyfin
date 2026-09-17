@@ -84,7 +84,8 @@ public static partial class Wording
     /// <remarks>
     /// The most specific language wins, so a server can answer French one way, Canadian
     /// French another, and everybody else a third, which is the shape the rest of this
-    /// plugin resolves in.
+    /// plugin resolves in. Where two rows say the same thing about the same language, the
+    /// first is the one that counts, and the page keeps only that one.
     /// </remarks>
     public static string? For(string key, CultureInfo? culture, IEnumerable<WordingOverride>? said)
     {
