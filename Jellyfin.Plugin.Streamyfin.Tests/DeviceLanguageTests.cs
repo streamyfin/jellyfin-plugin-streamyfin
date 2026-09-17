@@ -47,6 +47,32 @@ public class DeviceLanguageTests
     }
 
     /// <summary>
+    /// A tag that stops at an extension's marker is not a language. ICU answers one
+    /// anyway: CultureInfo.GetCultureInfo("en-u") hands back a culture named "en-U"
+    /// rather than throwing, on .NET 9 and .NET 10 alike, which would be stored and sent
+    /// with instead of falling back to the server's language.
+    /// </summary>
+    [Theory]
+    [InlineData("en-u")]
+    [InlineData("en-x")]
+    [InlineData("fr-FR-u")]
+    [InlineData("en-u-ca-gregory-x")]
+    public void ATagThatStopsAtAnExtensionMarkerIsNoLanguage(string sent)
+    {
+        Assert.Null(DeviceLanguage.Stored(sent));
+    }
+
+    /// <summary>
+    /// What follows a marker is another matter: a private use tag carries one-letter
+    /// subtags of its own and is a language all the same.
+    /// </summary>
+    [Fact]
+    public void WhatFollowsAMarkerIsStillALanguage()
+    {
+        Assert.Equal("en", DeviceLanguage.Stored("en-x-a"));
+    }
+
+    /// <summary>
     /// Devices are grouped by the language they asked for, so one message is written per
     /// language rather than one per device.
     /// </summary>

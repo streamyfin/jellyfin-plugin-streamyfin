@@ -45,6 +45,26 @@ public static class DeviceLanguage
     /// <returns>The culture, or <c>null</c> to leave the server's.</returns>
     public static CultureInfo? CultureOf(string? tag) => Culture(tag);
 
+    /// <summary>
+    /// Whether a tag stops at the marker that introduces an extension, such as
+    /// <c>en-u</c> or <c>en-x</c>, which names no language.
+    /// </summary>
+    /// <remarks>
+    /// ICU answers one anyway: <c>CultureInfo.GetCultureInfo("en-u")</c> hands back a
+    /// culture named <c>en-U</c> rather than throwing, on .NET 9 and .NET 10 alike, so
+    /// that is what would be stored and sent with. What follows a marker is another
+    /// matter: <c>en-x-a</c> is a private use tag and a language all the same, which is
+    /// why this looks at what precedes the last subtag rather than at its length alone.
+    /// </remarks>
+    private static bool StopsAtAMarker(string tag)
+    {
+        var parts = tag.Split('-');
+
+        return parts.Length > 1
+            && parts[^1].Length == 1
+            && parts[^2].Length != 1;
+    }
+
     private static CultureInfo? Culture(string? tag)
     {
         if (string.IsNullOrWhiteSpace(tag))
@@ -56,7 +76,7 @@ public static class DeviceLanguage
         // device saying the same thing.
         var trimmed = tag.Trim().Replace('_', '-');
 
-        if (trimmed.Length > LongestTag || !Shaped.IsMatch(trimmed))
+        if (trimmed.Length > LongestTag || !Shaped.IsMatch(trimmed) || StopsAtAMarker(trimmed))
         {
             return null;
         }
