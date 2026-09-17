@@ -60,6 +60,9 @@ public class AdminEventsTests
 
         Assert.True(body!.Length < 200, $"body was {body.Length} characters");
         Assert.EndsWith("…", body, System.StringComparison.Ordinal);
+
+        // The ellipsis is part of the limit rather than one character past it.
+        Assert.Equal(AdminEvents.ReasonLimit, AdminEvents.FirstLine(long_)!.Length);
     }
 
     /// <summary>
@@ -159,6 +162,40 @@ public class AdminEventsTests
     public void ATaskWithNothingKnownAboutItIsStillAFailure()
     {
         Assert.True(TaskFailedService.WorthTelling(TaskCompletionStatus.Failed, null));
+    }
+
+    /// <summary>
+    /// Two of the same event at the same moment: one is sent, the other is held back.
+    /// </summary>
+    /// <remarks>
+    /// The wait was a read followed by a write, so both threads could find nothing recent
+    /// and both send, which is the one thing it exists to stop.
+    /// </remarks>
+    [Fact]
+    public void TwoOfTheSameEventAtOnceSendOnce()
+    {
+        var probe = new Probe();
+        var key = $"test-{Guid.NewGuid()}";
+        var sent = 0;
+
+        System.Threading.Tasks.Parallel.For(0, 50, _ =>
+        {
+            if (!probe.Seen(key))
+            {
+                System.Threading.Interlocked.Increment(ref sent);
+            }
+        });
+
+        Assert.Equal(1, sent);
+    }
+
+    private sealed class Probe() : BaseEvent(
+        Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance,
+        new LocalizationHelper(null, null),
+        null!,
+        null!)
+    {
+        public bool Seen(string key) => HasRecentlyProcessed(key);
     }
 
     private sealed class FakeTask(bool logged) : IScheduledTask, IConfigurableScheduledTask
