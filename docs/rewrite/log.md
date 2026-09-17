@@ -39,6 +39,42 @@ than sent, since Expo refuses the whole message for a bad one.
 On iOS the image needs a notification service extension in the app, which is the app's half
 of #30.
 
+## 2026-09-18, a row of recommendations, and a question that was never asked
+
+Two things landed together, one asked for and one found on the way.
+
+**#21, "for you".** The triage said Jellyfin already had the endpoint and this would be a
+thin wrapper. Measured, that wrapper would have shipped a shuffle: `/Items/Suggestions`,
+which the app draws as "Suggested movies", is `OrderBy Random` on `release-10.11.z` and on
+`master` alike, and 10.11's `/Movies/Recommendations` builds each row with a query that
+never names the film the row is about. Jellyfin 12 exposes `ISimilarItemsManager`; 10.11
+exposes nothing of the kind.
+
+What already exists and is better than any of it is **Streamystats**, which recommends by
+vector similarity over the watch history and says which watched item led to each
+suggestion. The app already draws those rows and this plugin already serves the two
+switches that turn them on, so a server running it needs nothing from us. `GET
+/streamyfin/v1/for-you` is therefore the row for the servers that do not run it, and the
+only personalised one available on 10.11: the twelve things watched most recently plus
+whatever is playing now, everything unwatched sharing a genre or a tag with any of them,
+scored with Jellyfin 12's own weights, ordered by what several of those agree on.
+
+The review caught the failure that mattered: with a history carrying no genre and no tag,
+the two narrowing queries asked for nothing, and the server reads an empty list as no
+filter, so the pool was the library. Each is asked for only when it has something to ask.
+
+**The question that was never asked.** `shared.confirmed` read the dialog's return value.
+Both dashboards return `undefined` and answer through a callback, so every confirmation in
+the admin pages was read as a yes: deleting a settings group, clearing everything aimed at
+one user and removing a home section each asked and then did it anyway.
+
+    Dashboard.confirm.length === 3
+    function (message, title, callback) { confirm(message, title).then(() => callback(true)).catch(() => callback(false)) }
+
+The callback is what is read now, the promise shape is still handled, and a dialog that
+answers neither way leaves the promise pending so the thing that cannot be undone does not
+happen.
+
 ## 2026-09-17, the language a device is in
 
 A notification is written in the language of the device it goes to. The app says which one
