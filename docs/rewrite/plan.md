@@ -247,7 +247,7 @@ open ended promise. See [issue-triage.md](issue-triage.md).
   `custom`) with a discriminated type
 - **P5.2** Server side section validation with errors the UI can show
 - **P5.3** Dedicated reorderable section editor with a preview
-- **P5.4** Per group section targeting, once P1 is in
+- **P5.4** Per group section targeting, once P1 is in — **delivered by P1 itself**
 - **P5.5** Migrate existing configurations
 
 P5.1 is what unblocks #78, #21 and every future section kind. Adding a kind used
@@ -260,6 +260,13 @@ P5.1 kept the payload names. Every copy of the app in the field reads `items`,
 home screen of everyone who had not updated. What changed is that the section now
 says which one it is, exactly one is allowed, and the server refuses a layout
 that breaks either rule.
+
+P5.4 turned out to need no mechanism of its own, and should not have one: the home
+layout is a setting, and settings already resolve server, then groups in their order,
+then the user. What was missing was anything saying so, which `HomePerGroupTests` now
+does: a group's home reaches the people in it and nobody else, the higher priority group
+wins, what is aimed at one person wins over both, and a level that says nothing about the
+home is a different answer from one that says the home is empty.
 
 P5.5 turned out to be nothing to migrate. A section written before the kind
 existed carries one payload, which is an unambiguous answer, so it is read as one
@@ -352,6 +359,7 @@ from.
 | P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160), simplified in [#161](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161) | merged |
 | P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
+| P5.4 | none needed | delivered by P1's resolution; proven by `HomePerGroupTests` |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged |
 | P0.7 corrected | [#165](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/165) | merged. One manifest per channel, not per Jellyfin line, plus the unstable channel |
 | #110 | [#167](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/167) | merged |
