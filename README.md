@@ -231,8 +231,10 @@ home:
 ### Example: A "For you" row
 
 Recommends what somebody has not watched, out of what they have: the plugin takes their
-recently watched films and series, scores everything unwatched that shares a genre, a tag
-or a studio with any of them, and puts forward what several of them agree on.
+recently watched films and series, along with whatever they are watching right now, scores
+everything unwatched that shares a genre or a tag with any of them, and puts forward what
+several of them agree on. A studio in common counts towards the score once something is
+in the running.
 
 ```yaml
 home:

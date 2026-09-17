@@ -837,6 +837,17 @@ public class StreamyfinController : ControllerBase
       DtoOptions = new DtoOptions(false)
     });
 
+    // What they are watching right now counts as watched here, and is in none of the
+    // queries above: Jellyfin calls an item played when it ends, not when it starts.
+    var seedsFromPlaying = _shelves
+      .JustStarted(user.Id)
+      .Select(id => _libraryManager.GetItemById<BaseItem>(id, user))
+      .OfType<BaseItem>()
+      .Where(item => !watched.Any(already => already.Id.Equals(item.Id)))
+      .ToList();
+
+    watched = [.. watched, .. seedsFromPlaying];
+
     var genres = Names(watched, item => item.Genres);
     var tags = Names(watched, item => item.Tags);
 
@@ -853,16 +864,21 @@ public class StreamyfinController : ControllerBase
     // an "and": asking for a genre and a tag at once answers only what carries both, and
     // sharing either is what a score here is made of. A studio in common and nothing else
     // is the one thing this misses, since a studio cannot be asked for by name.
+    //
+    // Each is asked for only when there is something to ask for. The server reads an empty
+    // list as "no filter at all", so a query with neither would answer the whole library
+    // rather than nothing, which is exactly what somebody who watches untagged, ungenred
+    // films would have got.
     var pool = new Dictionary<Guid, BaseItem>();
 
-    foreach (var item in Unwatched(user, kinds, watchedIds, genres, []))
+    foreach (var narrowing in new[] { (Genres: genres, Tags: Array.Empty<string>()), (Genres: Array.Empty<string>(), Tags: tags) })
     {
-      pool[item.Id] = item;
-    }
+      if (narrowing.Genres.Length == 0 && narrowing.Tags.Length == 0)
+      {
+        continue;
+      }
 
-    if (tags.Length > 0)
-    {
-      foreach (var item in Unwatched(user, kinds, watchedIds, [], tags))
+      foreach (var item in Unwatched(user, kinds, watchedIds, narrowing.Genres, narrowing.Tags))
       {
         pool[item.Id] = item;
       }

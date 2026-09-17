@@ -175,4 +175,97 @@ public class ForYouShelvesTests
 
         Assert.Equal(4, built);
     }
+
+    /// <summary>
+    /// A build that throws is not kept. Lazy remembers an exception as happily as a value,
+    /// so a library that was briefly unreadable would have answered the same failure to
+    /// every request for the next ten minutes.
+    /// </summary>
+    [Fact]
+    public void AFailedBuildIsNotKept()
+    {
+        var now = DateTime.UtcNow;
+        var shelves = new ForYouShelves(() => now);
+        var tries = 0;
+
+        List<Guid> Build()
+        {
+            tries++;
+            if (tries == 1)
+            {
+                throw new InvalidOperationException("the library was busy");
+            }
+
+            return [Alice];
+        }
+
+        Assert.Throws<InvalidOperationException>(() => shelves.For(Alice, Build));
+        Assert.Equal([Alice], shelves.For(Alice, Build));
+        Assert.Equal(2, tries);
+    }
+
+    /// <summary>
+    /// Shelves nobody asks for again go away by themselves. Kept only until the next
+    /// request for them, they would sit there for every account that ever opened the app,
+    /// on a server that never restarts.
+    /// </summary>
+    [Fact]
+    public void ShelvesNobodyAsksForAgainAreDropped()
+    {
+        var now = DateTime.UtcNow;
+        var shelves = new ForYouShelves(() => now);
+
+        shelves.For(Alice, () => [Alice]);
+        shelves.For(Bob, () => [Bob]);
+
+        Assert.Equal(2, shelves.Standing);
+
+        now += ForYouShelves.KeptFor + TimeSpan.FromSeconds(1);
+
+        shelves.For(Alice, () => [Alice]);
+
+        Assert.Equal(1, shelves.Standing);
+    }
+
+    /// <summary>
+    /// What somebody just started watching is the strongest thing there is to go on, and
+    /// Jellyfin does not call it played until it ends. It is remembered until the shelf is
+    /// built, and then it is what the shelf was built from.
+    /// </summary>
+    [Fact]
+    public void WhatWasJustStartedIsRemembered()
+    {
+        var shelves = new ForYouShelves(() => DateTime.UtcNow);
+        var film = Guid.NewGuid();
+        var another = Guid.NewGuid();
+
+        Assert.Empty(shelves.JustStarted(Alice));
+
+        shelves.Started(Alice, film);
+        shelves.Started(Alice, another);
+        shelves.Started(Bob, film);
+
+        Assert.Equal([film, another], shelves.JustStarted(Alice));
+        Assert.Equal([film], shelves.JustStarted(Bob));
+    }
+
+    /// <summary>
+    /// The same thing started twice is one thing, and only the last few are kept: this is
+    /// what somebody is watching now, not a second history.
+    /// </summary>
+    [Fact]
+    public void OnlyTheLastFewStartsAreKept()
+    {
+        var shelves = new ForYouShelves(() => DateTime.UtcNow);
+        var films = Enumerable.Range(0, ForYouShelves.StartsKept + 2).Select(_ => Guid.NewGuid()).ToList();
+
+        foreach (var film in films)
+        {
+            shelves.Started(Alice, film);
+        }
+
+        shelves.Started(Alice, films[^1]);
+
+        Assert.Equal(films.Skip(2), shelves.JustStarted(Alice));
+    }
 }
