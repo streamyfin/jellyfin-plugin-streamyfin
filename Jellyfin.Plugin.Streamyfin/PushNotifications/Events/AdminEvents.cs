@@ -175,6 +175,10 @@ public static class AdminEvents
             return null;
         }
 
-        return line.Length <= ReasonLimit ? line : string.Concat(line.AsSpan(0, ReasonLimit).TrimEnd(), "…");
+        // The ellipsis counts: a reason cut to the limit and then given one would be a
+        // character past it.
+        return line.Length <= ReasonLimit
+            ? line
+            : string.Concat(line.AsSpan(0, ReasonLimit - 1).TrimEnd(), "…");
     }
 }

@@ -65,19 +65,39 @@ public abstract class BaseEvent
     {
         _logger.LogDebug("Checking recent events for key: {0}", sessionKey);
 
-        var recentlyProcessed = 
-            RecentEvents.TryGetValue(sessionKey, out DateTime lastProcessedTime) && 
-            DateTime.UtcNow - lastProcessedTime < GetRecentEventThreshold();
+        var threshold = GetRecentEventThreshold();
 
-        if (!recentlyProcessed)
+        // Claimed rather than looked at and then written: two of the same event can arrive
+        // on two threads, and a read followed by a write let both of them through, which is
+        // exactly what this is here to stop. Whoever claims the key sends; the other is
+        // told it is recent.
+        while (true)
         {
-            _logger.LogDebug("No recent events for key: {0}", sessionKey);
-            // Update the cache with the latest event time
-            RecentEvents[sessionKey] = DateTime.UtcNow;
-        }
-        else _logger.LogDebug("There are recent events for key: {0}", sessionKey);
+            var now = DateTime.UtcNow;
 
-        return recentlyProcessed;
+            if (!RecentEvents.TryGetValue(sessionKey, out var last))
+            {
+                if (RecentEvents.TryAdd(sessionKey, now))
+                {
+                    _logger.LogDebug("No recent events for key: {0}", sessionKey);
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (now - last < threshold)
+            {
+                _logger.LogDebug("There are recent events for key: {0}", sessionKey);
+                return true;
+            }
+
+            if (RecentEvents.TryUpdate(sessionKey, now, last))
+            {
+                _logger.LogDebug("No recent events for key: {0}", sessionKey);
+                return false;
+            }
+        }
     }
     
     /// <summary>
