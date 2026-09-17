@@ -31,6 +31,7 @@ Create dynamic, personalized home screens with customizable sections:
 - **Next Up**: TV show episodes ready to watch
 - **Latest Media**: Newly added content
 - **Custom Sections**: Create any view using Jellyfin's API, including custom endpoints for sections
+- **For You**: A row built from what each user has watched, for servers that do not run Streamystats
 - **Collection Integration**: Works seamlessly with the [Collection Import plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import)
 
 ### 🔔 **Push Notifications**
@@ -225,6 +226,51 @@ home:
         sortOrder: [Descending]
         includeItemTypes: [Movie]
         limit: 20
+```
+
+### Example: A "For you" row, for servers without Streamystats
+
+**If you run [Streamystats](https://github.com/fredrikburmester/streamystats), use its rows
+instead.** It recommends by vector similarity over the whole watch history and says which
+watched item led to each suggestion, the app already draws those rows, and the two switches
+that turn them on are in this plugin's settings, under Plugins → Streamystats. This row is
+for the servers that do not run it.
+
+What it does then matters, because the alternative is not a worse recommendation but no
+recommendation: Jellyfin's own `/Items/Suggestions`, which is the app's "Suggested movies"
+row, is `OrderBy Random` on 10.11 and on master alike, and 10.11's
+`/Movies/Recommendations` builds each row with a query that never mentions the film the row
+is named after.
+
+So the plugin works it out itself: it takes somebody's recently watched films and series,
+along with whatever they are watching right now, scores everything unwatched that shares a
+genre or a tag with any of them, and puts forward what several of them agree on. A studio
+in common counts towards the score once something is in the running. The weights are
+Jellyfin's own, from the similarity provider Jellyfin 12 ships.
+
+```yaml
+home:
+  sections:
+    - title: "For you"
+      orientation: vertical
+      custom:
+        endpoint: /streamyfin/v1/for-you
+```
+
+The row is built for whoever is asking and for nobody else. Three optional parameters are
+there for libraries the defaults do not suit:
+
+| Parameter | Default | What it does |
+| --- | --- | --- |
+| `seeds` | 12 | How many recently watched things the row is built from |
+| `perSeed` | 50 | How much of each of those counts |
+| `limit` | 25 | How many the row answers with, per page |
+
+```yaml
+      custom:
+        endpoint: /streamyfin/v1/for-you
+        query:
+          seeds: "25"
 ```
 
 ### Example: Lock Video Settings

@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.Integrations;
@@ -12,15 +14,22 @@ using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
+using Jellyfin.Plugin.Streamyfin.Recommendations;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+
+// The plugin has a SortOrder of its own, in the settings it serves to the app. This one is
+// the server's, for the queries below.
+using SortOrder = Jellyfin.Database.Implementations.Enums.SortOrder;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -89,6 +98,20 @@ public class StreamyfinController : ControllerBase
   private readonly NotificationHelper _notificationHelper;
   private readonly IntegrationProbe _integrations;
   private readonly SeerrNotificationMapper _seerr;
+  private readonly ForYouShelves _shelves;
+
+  // What a "for you" row is built from, and how far it is allowed to reach. Every one of
+  // them is a query parameter as well, since what suits a library of two hundred films is
+  // not what suits one of twenty thousand.
+  private const int Seeds = 12;
+  private const int MostSeeds = 50;
+  private const int MostPerSeed = 200;
+  private const int ShelfPage = 25;
+  private const int LongestShelfPage = 100;
+
+  // The ceiling on what one shelf scores. Reached only by a library far larger than the
+  // genres somebody watches, and there to keep one request from reading everything.
+  private const int MostConsidered = 5000;
 
   public StreamyfinController(
     ILoggerFactory loggerFactory,
@@ -99,7 +122,8 @@ public class StreamyfinController : ControllerBase
     SerializationHelper serializationHelper,
     NotificationHelper notificationHelper,
     IntegrationProbe integrations,
-    SeerrNotificationMapper seerr
+    SeerrNotificationMapper seerr,
+    ForYouShelves shelves
   )
   {
     _loggerFactory = loggerFactory;
@@ -112,6 +136,7 @@ public class StreamyfinController : ControllerBase
     _notificationHelper = notificationHelper;
     _integrations = integrations;
     _seerr = seerr;
+    _shelves = shelves;
 
     _logger.LogInformation("StreamyfinController Loaded");
   }
@@ -725,6 +750,173 @@ public class StreamyfinController : ControllerBase
 
     return said;
   }
+
+  /// <summary>
+  /// Recommends things to watch, out of what the caller has watched.
+  /// </summary>
+  /// <param name="startIndex">Where in the row to start, for a second page.</param>
+  /// <param name="limit">How many to answer with.</param>
+  /// <param name="seeds">How many recently watched things the row is built from.</param>
+  /// <param name="perSeed">How much of each of those counts.</param>
+  /// <returns>A page of the row, newest guess first.</returns>
+  /// <remarks>
+  /// <para>
+  /// Issue #21. The app needs nothing new to show it: a home section of kind
+  /// <c>custom</c> pointed at <c>/streamyfin/v1/for-you</c> already reads exactly this
+  /// shape, and an administrator turns the row on by adding that section.
+  /// </para>
+  /// <para>
+  /// It is built for whoever is calling and for nobody else. The app sends a
+  /// <c>userId</c> along with every home query, and it is ignored here: what one person
+  /// watched is not something another may ask about, not even an administrator.
+  /// </para>
+  /// </remarks>
+  [HttpGet("v1/for-you")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public ActionResult<QueryResult<BaseItemDto>> GetForYou(
+    [FromQuery] int? startIndex,
+    [FromQuery] int? limit,
+    [FromQuery] int? seeds,
+    [FromQuery] int? perSeed)
+  {
+    // An API key is granted by an administrator and carries no user. Every other route
+    // here treats it as one, but a row of recommendations is somebody's or it is nothing.
+    // Asked before the user manager rather than after, because it throws on an empty id
+    // rather than answering null, which turned this into a stack trace in the log.
+    var callerId = CallerId;
+    var user = callerId.Equals(default) ? null : _userManager.GetUserById(callerId);
+
+    if (user is null)
+    {
+      return BadRequest("This row is built out of what one person watched, and an API key is nobody.");
+    }
+
+    var fromWatched = Math.Clamp(seeds ?? Seeds, 1, MostSeeds);
+    var ofEach = Math.Clamp(perSeed ?? ForYou.PerSeed, 1, MostPerSeed);
+    var page = Math.Clamp(limit ?? ShelfPage, 1, LongestShelfPage);
+    var from = Math.Max(0, startIndex ?? 0);
+
+    var shelf = _shelves.For(
+      user.Id,
+      () => BuildShelf(user, fromWatched, ofEach),
+      FormattableString.Invariant($"{fromWatched}:{ofEach}"));
+
+    // Asked for again rather than carried through the shelf, because the shelf outlives
+    // the request: a library taken away from somebody between two pages must not be
+    // answered from the page that was built while they still had it.
+    var items = shelf
+      .Skip(from)
+      .Take(page)
+      .Select(id => _libraryManager.GetItemById<BaseItem>(id, user))
+      .OfType<BaseItem>()
+      .ToList();
+
+    return new QueryResult<BaseItemDto>(from, shelf.Count, _dtoService.GetBaseItemDtos(items, new DtoOptions(), user));
+  }
+
+  /// <summary>
+  /// Works out what to recommend somebody: what they watched most recently, then
+  /// everything they have not watched that shares a genre or a tag with any of it,
+  /// scored.
+  /// </summary>
+  private List<Guid> BuildShelf(User user, int seeds, int perSeed)
+  {
+    // Movies and series, not episodes: a row of episodes from a series somebody is part
+    // way through is what "continue watching" is for.
+    BaseItemKind[] kinds = [BaseItemKind.Movie, BaseItemKind.Series];
+
+    var watched = _libraryManager.GetItemList(new InternalItemsQuery(user)
+    {
+      IncludeItemTypes = kinds,
+      IsPlayed = true,
+      Recursive = true,
+      OrderBy = [(ItemSortBy.DatePlayed, SortOrder.Descending)],
+      Limit = seeds,
+      DtoOptions = new DtoOptions(false)
+    });
+
+    // What they are watching right now counts as watched here, and is in none of the
+    // queries above: Jellyfin calls an item played when it ends, not when it starts.
+    var seedsFromPlaying = _shelves
+      .JustStarted(user.Id)
+      .Select(id => _libraryManager.GetItemById<BaseItem>(id, user))
+      .OfType<BaseItem>()
+      .Where(item => !watched.Any(already => already.Id.Equals(item.Id)))
+      .ToList();
+
+    watched = [.. watched, .. seedsFromPlaying];
+
+    var genres = Names(watched, item => item.Genres);
+    var tags = Names(watched, item => item.Tags);
+
+    // Nothing watched, or nothing watched that carries a genre or a tag, is an empty row
+    // rather than a query for the whole library.
+    if (genres.Length == 0 && tags.Length == 0)
+    {
+      return [];
+    }
+
+    var watchedIds = watched.Select(item => item.Id).ToArray();
+
+    // Two queries rather than one with both, because the server puts them together with
+    // an "and": asking for a genre and a tag at once answers only what carries both, and
+    // sharing either is what a score here is made of. A studio in common and nothing else
+    // is the one thing this misses, since a studio cannot be asked for by name.
+    //
+    // Each is asked for only when there is something to ask for. The server reads an empty
+    // list as "no filter at all", so a query with neither would answer the whole library
+    // rather than nothing, which is exactly what somebody who watches untagged, ungenred
+    // films would have got.
+    var pool = new Dictionary<Guid, BaseItem>();
+
+    foreach (var narrowing in new[] { (Genres: genres, Tags: Array.Empty<string>()), (Genres: Array.Empty<string>(), Tags: tags) })
+    {
+      if (narrowing.Genres.Length == 0 && narrowing.Tags.Length == 0)
+      {
+        continue;
+      }
+
+      foreach (var item in Unwatched(user, kinds, watchedIds, narrowing.Genres, narrowing.Tags))
+      {
+        pool[item.Id] = item;
+      }
+    }
+
+    return ForYou.Shelf([.. watched.Select(Facts)], [.. pool.Values.Select(Facts)], perSeed);
+  }
+
+  /// <summary>
+  /// Everything somebody has not watched that carries one of the names asked for.
+  /// </summary>
+  private IReadOnlyList<BaseItem> Unwatched(
+    User user,
+    BaseItemKind[] kinds,
+    Guid[] watched,
+    string[] genres,
+    string[] tags) =>
+    _libraryManager.GetItemList(new InternalItemsQuery(user)
+    {
+      IncludeItemTypes = kinds,
+      IsPlayed = false,
+      Recursive = true,
+      Genres = genres,
+      Tags = tags,
+      ExcludeItemIds = watched,
+      Limit = MostConsidered,
+      OrderBy = [(ItemSortBy.DateCreated, SortOrder.Descending)],
+      DtoOptions = new DtoOptions(false)
+    });
+
+  private static string[] Names(IReadOnlyList<BaseItem> items, Func<BaseItem, string[]?> carried) =>
+    [.. items
+      .SelectMany(item => carried(item) ?? [])
+      .Where(name => !string.IsNullOrWhiteSpace(name))
+      .Distinct(StringComparer.OrdinalIgnoreCase)];
+
+  private static ItemFacts Facts(BaseItem item) =>
+    new(item.Id, item.Genres ?? [], item.Tags ?? [], item.Studios ?? []);
 
   private Guid CallerId =>
     Guid.TryParse(User?.FindFirst(UserIdClaim)?.Value, out var id) ? id : Guid.Empty;

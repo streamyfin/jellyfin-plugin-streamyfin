@@ -22,7 +22,7 @@ Issue #114 is the tracking issue for the rewrite itself and is not triaged here.
 | [#30](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/30) | Images in notifications | Blocked by Expo, Android only | P4.4 |
 | [#93](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/93) | Explicit ordering for home sections | Straightforward | P5.3 |
 | [#78](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/78) | "My Media" home section | Missing section kind | P5.1 |
-| [#21](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/21) | "Recommended" / "For you" section | Jellyfin already has the endpoint | P5.1 |
+| [#21](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/21) | "Recommended" / "For you" section | The endpoints it would wrap are shuffles; Streamystats is the real answer where it runs | Done, #189 |
 | [#88](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/88) | Collections in `includeItemTypes` | Not a bug, a discoverability failure | P3.1 |
 | [#17](https://github.com/streamyfin/jellyfin-plugin-streamyfin/issues/17) | Support for `CultureDto` | Needs the typed schema first | P1.1 then P3.1 |
 
@@ -157,8 +157,24 @@ each of these becomes one new kind.
 
 - **#78, My Media.** A section listing the user's library folders, like the
   default Jellyfin home. New kind.
-- **#21, Recommended.** lostb1t already pointed at the Jellyfin endpoint that
-  serves this. New kind, thin wrapper.
+- **#21, Recommended.** Written down because the first reading of this was wrong,
+  and a thin wrapper would have shipped a shuffle:
+  - `/Items/Suggestions`, which the app already draws as "Suggested movies", is
+    `OrderBy = [(ItemSortBy.Random, Descending)]` on `release-10.11.z` and on
+    `master` alike.
+  - `/Movies/Recommendations` on 10.11 builds each row with a query that never
+    names the film the row is about, so "similar to what you watched" is a
+    random shelf with a familiar title.
+  - Jellyfin 12 exposes `ISimilarItemsManager` to plugins; 10.11 exposes nothing
+    of the kind.
+  - **Streamystats** recommends by vector similarity over the watch history and
+    says which watched item led to each suggestion. The app already draws those
+    rows and this plugin already serves the switches that turn them on, so a
+    server running it needs nothing from us.
+
+  #189 is therefore the row for the servers that do not run Streamystats, scored
+  here with Jellyfin 12's own weights, rather than a wrapper around an endpoint
+  that shuffles.
 - **#93, section ordering.** Sections currently render in YAML order. An explicit
   `order` field is trivial in the model. The real reason it is worth doing is
   P5.3: a reorderable editor needs a persisted order to write to, so this is a
