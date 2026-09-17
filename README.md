@@ -183,9 +183,11 @@ before restarting.
 What the newer version stored stays in `data/streamyfin.db` and is there again when
 you update: groups, per user settings, and the configuration as you left it.
 Settings you change while on 0.68.1.0 are not carried back. The first start after the
-update names each of them in the server log, so you can set them again in the
-dashboard. A device that signs in while 0.68.1.0 is running registers with 0.68.1.0
-only, and registers again the next time the app starts after the update.
+update names in the server log each one that now differs from what the newer version
+uses, so you can set it again in the dashboard. A setting you removed there is not
+named, since 0.68.1.0 also removes, whenever it saves, every setting it does not know.
+A device that signs in while 0.68.1.0 is running registers with 0.68.1.0 only, and
+registers again the next time the app starts after the update.
 
 ---
 
