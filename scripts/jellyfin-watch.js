@@ -9,7 +9,7 @@
 // learning about a line on the day it ships rather than while there is time to prepare.
 
 const fs = require('fs');
-const { classify, headline, builtVersionsFrom } = require('./jellyfin-versions');
+const { classify, builtVersionsFrom } = require('./jellyfin-versions');
 
 const RELEASES = 'https://api.nuget.org/v3-flatcontainer/jellyfin.controller/index.json';
 
@@ -64,7 +64,6 @@ async function main() {
 
     process.stdout.write(JSON.stringify({
         ...result,
-        headline: headline(result),
         built,
         unreadable,
         prereleaseOnly: [...result.newLines, ...result.newerInLine]
