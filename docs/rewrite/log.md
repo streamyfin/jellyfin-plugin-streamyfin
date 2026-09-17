@@ -8,6 +8,88 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, through the catalogue and back
+
+### An update the server makes by itself
+
+The path a stable user will take, run end to end on two fresh throwaway servers,
+Jellyfin 10.11.11 and 12.0.0, instead of dropping a DLL over another. 0.68.1.0
+installed from `manifest.json`, given a configuration through its own Yaml tab and a
+device through `POST /Streamyfin/device`, then `manifest-unstable.json` added and the
+**Update Plugins** task started.
+
+Each line took the build it can run. 10.11 is never offered the `12.0.0.0` entry and
+installed the net9 zip; 12 lists both entries and installed the net10 one. At the
+restart the old version was marked superseded and deleted, four migrations ran, the
+configuration and the token were imported, and the old file and the old database were
+left alone, the XML to the bit. The task also runs on its own at startup, so a server
+carrying both repositories updates without anybody starting it.
+
+### Going back, and staying there
+
+Uninstalling from the dashboard deletes the plugin's folder at once and leaves the XML
+and both databases where they are. 0.68.1.0, installed again from the catalogue, reads
+its configuration back exactly as it wrote it, and its token rows are the ones it had
+before the update.
+
+Staying on it is the less obvious half. The dashboard has no switch for automatic
+updates: `InstallationManager` skips a plugin whose `meta.json` says
+`"autoUpdate": false`, or one that is disabled, and nothing else. With that set, both
+repositories listed, the task started by hand and two restarts, 0.68.1.0 stayed. Once
+0.70.0.0 is out that is the only way to keep the older version, so the README now says
+it, beside the three steps back.
+
+### What coming back up lost
+
+Updating again after going back served the configuration as it stood before going
+back. A skip time changed from 45 to 60 under 0.68.1.0 came back as 45, on both lines,
+and nothing in the log said so. The import had run, its marker was set, and the file
+was not read again.
+
+This version never writes that file, so whatever differs between the file now and the
+file as last read was written by something else. The copy is kept as a second row
+beside the configuration, and every start compares the two. Each entry the file changed
+or gained, and that differs from the value used here, is named once in a warning. Names
+only: one of those entries is the Seerr key.
+
+The first version of the repair took those changes over, and the review of it found why
+it must not. The file is not a record of what an administrator chose. 0.68.1.0 knows 43
+of the 92 settings and writes the file without the others, so a fresh 0.70.0.0 server
+that went back and saved once would have lost 49 settings on the way up. And when the
+file is missing or unreadable, Jellyfin fills it with the running version's defaults:
+under 0.68.1.0 that is a rewind of 15 seconds, subtitles at 80, and a hidden library
+called "Enter library id(s)", which the update would have applied to every user. Making
+that safe meant a table of old defaults and a list of settings simple enough to trust.
+Naming the changes costs an administrator a minute, once, and cannot apply a value
+nobody chose, so that is what shipped, decided on the day.
+
+The rest follows from the same two facts. An entry the file lost is not named, since that
+is what an older version does to every setting it never had. A file holding exactly this
+version's defaults is not a change either; one an older version filled with its own is
+named like any other, and the warning says those may be defaults to ignore. The
+comparison treats an empty list as no list at all, because that is all the file can say:
+Jellyfin's XML serializer creates every list it meets, so a list left null comes back
+empty. The real 12.0.0 server showed that one. A deleted file was rewritten with the
+defaults, which was recognised, and the next start read the same file back with an empty
+genre list in every home section the defaults never had. A server imported by a build
+that kept no copy is compared from its first start on a build that keeps one.
+
+A second review found the copy written before the warning, so a start failing in between
+would have lost the change for good while its log line promised another comparison. The
+copy is written last now, and a test breaks the stored configuration to prove it.
+
+Proven on the 12.0.0 throwaway, in the case the review described: a file holding this
+version's defaults, 0.68.1.0 installed through the dashboard, five settings saved there,
+which rewrote the file from 351 lines to 26. Up again: four settings named, the fifth
+left out because it already matched the value used here, none of the settings the rewrite
+dropped mentioned, nothing applied, and the next start said nothing. The net9 build
+loaded on 10.11.11 and kept its copy.
+
+Device tokens are left as they are. One registered while the older version ran is
+missing after the update, but the app posts its token at every cold start, so it comes
+back by itself. What does not come back is a device that signed out while the older
+version ran: its row stays until that device signs in again or loses the app.
+
 ## 2026-09-16, the last three pages, and the admin UI put through its paces
 
 ### One plugin, not two

@@ -353,22 +353,30 @@ public class PluginDatabase
     {
         using var context = CreateContext();
 
-        var existing = context.GlobalConfigurations
-            .FirstOrDefault(c => c.Id == GlobalConfiguration.Current);
+        Upsert(context, GlobalConfiguration.Current, configJson);
+        context.SaveChanges();
+    }
 
-        if (existing is null)
-        {
-            context.GlobalConfigurations.Add(new GlobalConfiguration
-            {
-                Id = GlobalConfiguration.Current,
-                ConfigJson = configJson
-            });
-        }
-        else
-        {
-            existing.ConfigJson = configJson;
-        }
+    /// <summary>
+    /// Reads the copy of Jellyfin's plugin XML, as this version last read it.
+    /// </summary>
+    /// <returns>The file's configuration as JSON, or <c>null</c> when no copy was kept.</returns>
+    public string? GetLegacyFileJson()
+    {
+        using var context = CreateContext();
+        return context.GlobalConfigurations.AsNoTracking()
+            .FirstOrDefault(c => c.Id == GlobalConfiguration.LegacyFile)?.ConfigJson;
+    }
 
+    /// <summary>
+    /// Keeps Jellyfin's plugin XML as this version just read it.
+    /// </summary>
+    /// <param name="fileJson">The file's configuration, as JSON.</param>
+    public void SaveLegacyFileJson(string fileJson)
+    {
+        using var context = CreateContext();
+
+        Upsert(context, GlobalConfiguration.LegacyFile, fileJson);
         context.SaveChanges();
     }
 
@@ -379,9 +387,10 @@ public class PluginDatabase
     /// <returns>True when this call performed the import.</returns>
     /// <remarks>
     /// Same shape as the device token import: a marker written in the same transaction
-    /// as the row, so a failure leaves neither and the next start retries. The XML file
-    /// is never written to and never deleted, so downgrading to a build that reads it
-    /// finds it exactly as it was left.
+    /// as the rows, so a failure leaves none of them and the next start retries. The XML
+    /// file is never written to and never deleted, so downgrading to a build that reads
+    /// it finds it exactly as it was left. A copy of what was read is kept beside the
+    /// configuration, which is how a later start tells what that build changed.
     /// </remarks>
     public bool ImportGlobalConfiguration(string configJson)
     {
@@ -395,6 +404,12 @@ public class PluginDatabase
         context.GlobalConfigurations.Add(new GlobalConfiguration
         {
             Id = GlobalConfiguration.Current,
+            ConfigJson = configJson
+        });
+
+        context.GlobalConfigurations.Add(new GlobalConfiguration
+        {
+            Id = GlobalConfiguration.LegacyFile,
             ConfigJson = configJson
         });
 
@@ -733,6 +748,24 @@ public class PluginDatabase
                 ex,
                 "Could not import device tokens from {Path}. The import will be retried on the next start",
                 LegacyDbFilePath);
+        }
+    }
+
+    private static void Upsert(StreamyfinDbContext context, string id, string configJson)
+    {
+        var existing = context.GlobalConfigurations.FirstOrDefault(c => c.Id == id);
+
+        if (existing is null)
+        {
+            context.GlobalConfigurations.Add(new GlobalConfiguration
+            {
+                Id = id,
+                ConfigJson = configJson
+            });
+        }
+        else
+        {
+            existing.ConfigJson = configJson;
         }
     }
 

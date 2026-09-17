@@ -152,7 +152,7 @@ https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/man
 ```
 
 An unstable build is numbered above the release it follows: after 0.68.1.0 they are
-0.68.1.1, 0.68.1.2 and so on, counting commits. The next release, 0.69.0.0, is above
+0.68.1.1, 0.68.1.2 and so on, counting commits. The next release, 0.70.0.0, is above
 all of them, so **removing the unstable repository puts you back on the stable path
 by itself**: the next release is offered as an ordinary update. Nothing has to be
 uninstalled.
@@ -164,6 +164,28 @@ reason to remove the URL once you are done testing.
 > Running Jellyfin 13 unstable? The 12 build is what installs there, and the same
 > `manifest.json` above serves it: `targetAbi` is the oldest server a build accepts
 > rather than the only one. A build of its own will come when Jellyfin 13 needs one.
+
+### Going back to 0.68.1.0
+
+0.70.0.0 moves the configuration out of Jellyfin's plugin XML and the device
+registrations out of the old database, and never writes to either file again. The
+older version finds both as it left them:
+
+1. Remove the unstable repository, if you added it.
+2. **Dashboard** → **Plugins** → **Streamyfin** → **Uninstall**, then restart Jellyfin.
+3. **Catalog** → **Streamyfin** → install **0.68.1.0**, then restart again.
+
+Once a newer release is in the repository, the **Update Plugins** task installs it
+again at the next start, and the dashboard has no switch to stop that. To stay on
+0.68.1.0, set `"autoUpdate": false` in `plugins/Streamyfin_0.68.1.0/meta.json`
+before restarting.
+
+What the newer version stored stays in `data/streamyfin.db` and is there again when
+you update: groups, per user settings, and the configuration as you left it.
+Settings you change while on 0.68.1.0 are not carried back. The first start after the
+update names each of them in the server log, so you can set them again in the
+dashboard. A device that signs in while 0.68.1.0 is running registers with 0.68.1.0
+only, and registers again the next time the app starts after the update.
 
 ---
 
