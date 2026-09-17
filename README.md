@@ -31,6 +31,7 @@ Create dynamic, personalized home screens with customizable sections:
 - **Next Up**: TV show episodes ready to watch
 - **Latest Media**: Newly added content
 - **Custom Sections**: Create any view using Jellyfin's API, including custom endpoints for sections
+- **For You**: A row built from what each user has watched, served by the plugin itself
 - **Collection Integration**: Works seamlessly with the [Collection Import plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import)
 
 ### 🔔 **Push Notifications**
@@ -225,6 +226,37 @@ home:
         sortOrder: [Descending]
         includeItemTypes: [Movie]
         limit: 20
+```
+
+### Example: A "For you" row
+
+Recommends what somebody has not watched, out of what they have: the plugin takes their
+recently watched films and series, scores everything unwatched that shares a genre, a tag
+or a studio with any of them, and puts forward what several of them agree on.
+
+```yaml
+home:
+  sections:
+    - title: "For you"
+      orientation: vertical
+      custom:
+        endpoint: /streamyfin/v1/for-you
+```
+
+The row is built for whoever is asking and for nobody else. Three optional parameters are
+there for libraries the defaults do not suit:
+
+| Parameter | Default | What it does |
+| --- | --- | --- |
+| `seeds` | 12 | How many recently watched things the row is built from |
+| `perSeed` | 50 | How much of each of those counts |
+| `limit` | 25 | How many the row answers with, per page |
+
+```yaml
+      custom:
+        endpoint: /streamyfin/v1/for-you
+        query:
+          seeds: "25"
 ```
 
 ### Example: Lock Video Settings

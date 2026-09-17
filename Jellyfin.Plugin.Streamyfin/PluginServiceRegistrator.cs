@@ -4,6 +4,7 @@ using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Streamyfin.Integrations;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
+using Jellyfin.Plugin.Streamyfin.Recommendations;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Events.Authentication;
@@ -37,6 +38,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         serviceCollection.AddSingleton<IntegrationProbe>();
 
+        // One per server rather than one per request: a "for you" row costs a scan of
+        // everything unwatched in the genres somebody watches, and the app asks for it a
+        // page at a time.
+        serviceCollection.AddSingleton<ForYouShelves>();
+
         // The client that reaches a third party integration. Eight seconds, the same as
         // the app's own probes: an administrator is watching a button, and a service that
         // has not answered in eight seconds is not one the app will wait for either.
@@ -59,6 +65,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddScoped<IEventConsumer<PluginUpdatedEventArgs>, PluginChangedEvent>();
         serviceCollection.AddScoped<IEventConsumer<PluginUninstalledEventArgs>, PluginChangedEvent>();
         serviceCollection.AddScoped<IEventConsumer<AuthenticationRequestEventArgs>, SignInFailedEvent>();
+
+        // A second consumer of the same event, kept apart from the notification: the row
+        // is thrown away whether or not an administrator wants to hear about playback.
+        serviceCollection.AddScoped<IEventConsumer<PlaybackStartEventArgs>, ForYouShelfInvalidator>();
 
         // Service
         serviceCollection.AddHostedService<ItemAddedService>();
