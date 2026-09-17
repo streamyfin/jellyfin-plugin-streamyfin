@@ -10,15 +10,35 @@ export const tools = {jsYaml: undefined};
 // Asking before something that cannot be undone. Jellyfin's own dialog when the
 // dashboard offers one, the browser's otherwise, and a refusal on anything unexpected
 // so a broken dialog never reads as a yes.
-export const confirmed = (message) => {
-    if (window.Dashboard?.confirm) {
-        return Promise.resolve(window.Dashboard.confirm(message, "Streamyfin")).then(
-            (answer) => answer !== false,
-            () => false);
+export const confirmed = (message) => new Promise((resolve) => {
+    if (!window.Dashboard?.confirm) {
+        resolve(window.confirm(message));
+        return;
     }
 
-    return Promise.resolve(window.confirm(message));
-};
+    let answered = false;
+    const answer = (yes) => {
+        if (!answered) {
+            answered = true;
+            resolve(yes);
+        }
+    };
+
+    // Both dashboards this plugin supports, 10.11.11 and 12.0.0, hand back undefined and
+    // answer through the callback, true for yes and false for no. Reading the return value
+    // therefore read every cancelled question as a yes: deleting a settings group went
+    // ahead when the administrator clicked Cancel. The promise shape is still handled, for
+    // a dashboard that has one and ignores the callback.
+    const returned = window.Dashboard.confirm(message, "Streamyfin", (yes) => answer(yes !== false));
+
+    if (typeof returned?.then === "function") {
+        returned.then(() => answer(true), () => answer(false));
+    }
+
+    // A dialog that answers neither way leaves this pending, so nothing that cannot be
+    // undone happens. Saying yes on an answer that never came is the one outcome worth
+    // avoiding.
+});
 
 // The dock's way out of a page that opens already refusing to save. Here rather than in
 // each page because both tabs draw the same form and the same dock, and writing it twice
