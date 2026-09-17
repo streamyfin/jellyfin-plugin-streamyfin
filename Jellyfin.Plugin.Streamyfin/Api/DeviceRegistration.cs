@@ -1,5 +1,6 @@
 using System;
 using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -51,6 +52,10 @@ public static class DeviceRegistration
         {
             return Registration.NoToken;
         }
+
+        // Whatever the device said it is in, as this server will store it. A client that
+        // says nothing, or something that is not a language, gets the server's.
+        registration.Language = DeviceLanguage.Stored(registration.Language);
 
         if (callerIsApiKey)
         {

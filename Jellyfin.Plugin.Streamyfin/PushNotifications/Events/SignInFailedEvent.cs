@@ -63,7 +63,7 @@ public class SignInFailedEvent(
         SendDetached(
             _notificationHelper.SendToAdmins(
                 excludedUserIds: null,
-                notifications: AdminEvents.SignInFailed(_localization, eventArgs.Username, eventArgs.RemoteEndPoint)),
+                write: culture => [AdminEvents.SignInFailed(_localization, eventArgs.Username, eventArgs.RemoteEndPoint, culture)]),
             "sign in failed");
 
         return Task.CompletedTask;

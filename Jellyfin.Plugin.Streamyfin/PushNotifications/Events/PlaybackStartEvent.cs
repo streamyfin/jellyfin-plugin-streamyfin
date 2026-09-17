@@ -55,25 +55,30 @@ public class PlaybackStartEvent(
 
         CleanupOldEntries();
 
-        var notifications = eventArgs.Users
-            .Select(user =>
-                MediaNotificationHelper.CreateMediaNotification(
-                    localization: _localization,
-                    title: _localization.GetString("PlaybackStartTitle"),
-                    body: [_localization.GetFormatted("UserWatching", args: user.Username)],
-                    item: eventArgs.Item
-                )
-            )
-            .OfType<ExpoNotificationRequest>()
-            .Where(notification => !HasRecentlyProcessed(notification.Body ?? string.Empty))
-            .ToArray();
+        // Who is watching, decided before anything is written: the same playback is one
+        // event whatever language the message ends up in, and the wait is on the pair of
+        // the item and the user rather than on the sentence, which now varies.
+        var watching = eventArgs.Users
+            .Where(user => !HasRecentlyProcessed($"playback:{eventArgs.Item.Id}:{user.Id}"))
+            .ToList();
 
-        if (notifications.Length > 0)
+        if (watching.Count > 0)
         {
             SendDetached(
                 _notificationHelper.SendToAdmins(
                     excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
-                    notifications: notifications
+                    write: culture => watching
+                        .Select(user =>
+                            MediaNotificationHelper.CreateMediaNotification(
+                                localization: _localization,
+                                title: _localization.GetString("PlaybackStartTitle", culture),
+                                body: [_localization.GetFormatted("UserWatching", culture, user.Username)],
+                                item: eventArgs.Item,
+                                culture: culture
+                            )
+                        )
+                        .OfType<ExpoNotificationRequest>()
+                        .ToArray()
                 ),
                 "playback started");
         }

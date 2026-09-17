@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -150,6 +151,109 @@ public class NotificationHelper
     }
 
     /// <summary>
+    /// The devices of the users who may be told about something, one row per token.
+    /// </summary>
+    /// <param name="devices">The registered devices.</param>
+    /// <param name="mayKnow">Whether a user may be told, by user id. Asked once per user.</param>
+    /// <returns>The rows to send to, in the order they were given.</returns>
+    internal static List<DeviceToken> DevicesWho(IEnumerable<DeviceToken> devices, Func<Guid, bool> mayKnow)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        ArgumentNullException.ThrowIfNull(mayKnow);
+
+        var answers = new Dictionary<Guid, bool>();
+
+        bool Allowed(Guid user)
+        {
+            if (!answers.TryGetValue(user, out var allowed))
+            {
+                allowed = mayKnow(user);
+                answers[user] = allowed;
+            }
+
+            return allowed;
+        }
+
+        return devices
+            .Where(device => Allowed(device.UserId))
+            .GroupBy(device => device.Token, StringComparer.Ordinal)
+            .Select(sameToken => sameToken.First())
+            .ToList();
+    }
+
+    /// <summary>
+    /// The devices grouped by the language they asked for.
+    /// </summary>
+    /// <param name="devices">The devices to send to.</param>
+    /// <returns>One group per language, each with the tokens to write it for.</returns>
+    /// <remarks>
+    /// One message is written per language rather than per device: a server with fifty
+    /// phones in two languages writes two messages, not fifty. A device that named no
+    /// language is its own group, written in the server's.
+    /// </remarks>
+    internal static List<(CultureInfo? Culture, List<string> Tokens)> ByLanguage(IEnumerable<DeviceToken> devices)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+
+        return devices
+            .GroupBy(device => DeviceLanguage.Stored(device.Language), StringComparer.Ordinal)
+            .Select(spoken => (
+                DeviceLanguage.CultureOf(spoken.Key),
+                spoken.Select(device => device.Token).Distinct(StringComparer.Ordinal).ToList()))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The devices of every administrator.
+    /// </summary>
+    /// <returns>Their registered devices, or nothing when there is no user manager.</returns>
+    public List<DeviceToken> AdminDevices() => _userManager?.GetAdminDeviceTokens() ?? [];
+
+    /// <summary>
+    /// Sends to these devices, each in the language it asked for.
+    /// </summary>
+    /// <param name="devices">Who to send to.</param>
+    /// <param name="write">
+    /// Writes the messages in one language. Called once per language among the devices, so
+    /// it has to build its messages each time rather than hand back the same objects.
+    /// </param>
+    /// <returns>Expo's response, or null when there is nobody to send to.</returns>
+    public async Task<ExpoNotificationResponse?> SendToDevices(
+        IEnumerable<DeviceToken> devices,
+        Func<CultureInfo?, ExpoNotificationRequest[]> write)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        ArgumentNullException.ThrowIfNull(write);
+
+        var groups = ByLanguage(devices);
+
+        if (groups.Count == 0)
+        {
+            _logger?.LogInformation("No device to send to");
+            return null;
+        }
+
+        var messages = new List<ExpoNotificationRequest>();
+
+        foreach (var (culture, tokens) in groups)
+        {
+            foreach (var message in write(culture))
+            {
+                message.To = tokens;
+                messages.Add(message);
+            }
+        }
+
+        _logger?.LogInformation(
+            "Sending {Messages} notification(s) to {Devices} device(s) in {Languages} language(s)",
+            messages.Count,
+            groups.Sum(group => group.Tokens.Count),
+            groups.Count);
+
+        return await Send([.. messages]).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Whether an account may be told about something it can open.
     /// </summary>
     /// <param name="user">The account, or <c>null</c> when it is gone.</param>
@@ -188,7 +292,7 @@ public class NotificationHelper
     /// Sends messages about an item to the devices of every user who may open it.
     /// </summary>
     /// <param name="item">What the messages are about.</param>
-    /// <param name="notifications">The messages.</param>
+    /// <param name="write">Writes the messages in one language, called once per language.</param>
     /// <returns>Expo's response, or null when nobody may be told.</returns>
     /// <remarks>
     /// A new movie or episode used to go to every registered device, so its title reached
@@ -197,11 +301,11 @@ public class NotificationHelper
     /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
     /// rating and the tags.
     /// </remarks>
-    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, params ExpoNotificationRequest[] notifications)
+    public Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, Func<CultureInfo?, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        return SendToWhoCanOpen([item], notifications);
+        return SendToWhoCanOpen([item], write);
     }
 
     /// <summary>
@@ -212,7 +316,7 @@ public class NotificationHelper
     /// Everything the messages describe. A user who may not open one of them is not told,
     /// since the message names it.
     /// </param>
-    /// <param name="notifications">The messages.</param>
+    /// <param name="write">Writes the messages in one language, called once per language.</param>
     /// <returns>Expo's response, or null when nobody may be told.</returns>
     /// <remarks>
     /// A new movie or episode used to go to every registered device, so its title reached
@@ -221,10 +325,12 @@ public class NotificationHelper
     /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
     /// rating and the tags.
     /// </remarks>
-    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(IReadOnlyCollection<BaseItem> items, params ExpoNotificationRequest[] notifications)
+    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(
+        IReadOnlyCollection<BaseItem> items,
+        Func<CultureInfo?, ExpoNotificationRequest[]> write)
     {
         ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(write);
 
         var subject = items.Count == 0 ? Guid.Empty : items.First().Id;
 
@@ -238,7 +344,7 @@ public class NotificationHelper
         var canOpen = CanOpenEvery(items);
 
         // An empty id is no user, and GetUserById throws on it.
-        var recipients = RecipientsWho(devices, userId =>
+        var recipients = DevicesWho(devices, userId =>
             !userId.Equals(default)
             && MayBeTold(_userManager.GetUserById(userId), canOpen));
 
@@ -258,19 +364,14 @@ public class NotificationHelper
             items.Count,
             subject);
 
-        foreach (var notification in notifications)
-        {
-            notification.To = recipients;
-        }
-
-        return await Send(notifications).ConfigureAwait(false);
+        return await SendToDevices(recipients, write).ConfigureAwait(false);
     }
 
     public async Task<ExpoNotificationResponse?> SendToAdmins(
-        List<Guid>? excludedUserIds = null,
-        params ExpoNotificationRequest[] notifications)
+        List<Guid>? excludedUserIds,
+        Func<CultureInfo?, ExpoNotificationRequest[]> write)
     {
-        _logger?.LogInformation("Attempting to send {0} notifications to admins", notifications.Length);
+        ArgumentNullException.ThrowIfNull(write);
 
         if (_userManager is null)
         {
@@ -278,28 +379,17 @@ public class NotificationHelper
             return null;
         }
 
-        var excludedIds = excludedUserIds ?? Array.Empty<Guid>().ToList();
-        var adminTokens = _userManager.GetAdminDeviceTokens()
-            .FindAll(deviceToken => !excludedIds.Contains(deviceToken.UserId))
-            .Select(deviceToken => deviceToken.Token)
-            .Distinct()
-            .ToList();
+        var excludedIds = excludedUserIds ?? [];
+        var admins = _userManager.GetAdminDeviceTokens()
+            .FindAll(deviceToken => !excludedIds.Contains(deviceToken.UserId));
 
-        // No admin tokens found.
-        if (adminTokens.Count == 0)
+        if (admins.Count == 0)
         {
             _logger?.LogInformation("No admins found");
-            return await Task.FromResult<ExpoNotificationResponse?>(null).ConfigureAwait(false);
+            return null;
         }
 
-        var expoNotifications = notifications
-            .Select(notification =>
-            {
-                notification.To = adminTokens;
-                return notification;
-            }).ToArray();
-
-        return await Send(expoNotifications).ConfigureAwait(false);
+        return await SendToDevices(admins, write).ConfigureAwait(false);
     }
 
     /// <summary>

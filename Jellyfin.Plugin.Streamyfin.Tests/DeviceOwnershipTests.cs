@@ -78,6 +78,25 @@ public class DeviceOwnershipTests
     }
 
     /// <summary>
+    /// The language a device sends is stored the way this server names it, and something
+    /// that is not a language is stored as none rather than refusing the registration.
+    /// </summary>
+    [Fact]
+    public void TheLanguageADeviceSendsIsTidiedRatherThanRefused()
+    {
+        var registration = Posted(Alice);
+        registration.Language = "  FR-fr ";
+
+        Assert.Equal(Registration.Accepted, DeviceRegistration.Check(registration, Alice, callerIsApiKey: false));
+        Assert.Equal("fr-FR", registration.Language);
+
+        registration.Language = "the user's language";
+
+        Assert.Equal(Registration.Accepted, DeviceRegistration.Check(registration, Alice, callerIsApiKey: false));
+        Assert.Null(registration.Language);
+    }
+
+    /// <summary>
     /// A user may only remove their own device, and an API key may remove any.
     /// </summary>
     [Fact]

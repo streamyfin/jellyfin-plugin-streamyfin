@@ -40,18 +40,17 @@ public class SessionStartEvent(
             return;
         }
 
-        ExpoNotificationRequest[] notifications = [
-            new()
-            {
-                Title = _localization.GetString("SessionStartTitle"),
-                Body = _localization.GetFormatted("UserNowOnline", args: eventArgs.Argument.UserName)
-            }
-        ];
-
         SendDetached(
             _notificationHelper.SendToAdmins(
                 excludedUserIds: [eventArgs.Argument.UserId],
-                notifications: notifications
+                write: culture =>
+                [
+                    new()
+                    {
+                        Title = _localization.GetString("SessionStartTitle", culture),
+                        Body = _localization.GetFormatted("UserNowOnline", culture, eventArgs.Argument.UserName)
+                    }
+                ]
             ),
             "session started");
     }

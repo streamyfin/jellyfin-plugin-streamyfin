@@ -32,6 +32,17 @@ public class DeviceToken
     public Guid UserId { get; set; }
 
     /// <summary>
+    /// Gets or sets the language the device says it is in, as a BCP 47 tag, or
+    /// <c>null</c> when it did not say.
+    /// </summary>
+    /// <remarks>
+    /// What the notifications sent to this device are written in. A device that does not
+    /// say gets the server's language, which is what every device got before this.
+    /// </remarks>
+    [JsonProperty(PropertyName = "language")]
+    public string? Language { get; set; }
+
+    /// <summary>
     /// Gets or sets when the token was last registered, as a Windows file time.
     /// </summary>
     /// <remarks>

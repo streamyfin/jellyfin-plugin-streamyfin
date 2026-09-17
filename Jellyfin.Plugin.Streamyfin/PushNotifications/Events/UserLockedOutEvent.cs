@@ -5,6 +5,9 @@ using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
@@ -28,17 +31,25 @@ public class UserLockedOutEvent(
             return;
         }
 
-        var notification = new Notification
-        {
-            Title = _localization.GetString("UserLockedOutTitle"),
-            Body = _localization.GetFormatted(
-                    key: "UserHasBeenLockedOut",
-                    args: eventArgs.Argument.Username.Escape()
-                ),
-            UserId = eventArgs.Argument.Id
-        };
+        // The administrators and the account that was locked out, each device in the
+        // language it asked for.
+        var devices = _notificationHelper.AdminDevices()
+            .Concat(StreamyfinPlugin.Instance?.Database.GetUserDeviceTokens(eventArgs.Argument.Id) ?? [])
+            .ToList();
 
-        await _notificationHelper.SendToAdmins(notification).ConfigureAwait(false);
+        await _notificationHelper.SendToDevices(
+            devices,
+            culture =>
+            [
+                new()
+                {
+                    Title = _localization.GetString("UserLockedOutTitle", culture),
+                    Body = _localization.GetFormatted(
+                        key: "UserHasBeenLockedOut",
+                        cultureInfo: culture,
+                        args: eventArgs.Argument.Username.Escape())
+                }
+            ]).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

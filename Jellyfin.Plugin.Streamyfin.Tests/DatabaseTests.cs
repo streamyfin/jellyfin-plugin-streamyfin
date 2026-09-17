@@ -207,6 +207,25 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// A device says which language it is in, and a registration that says nothing leaves
+    /// it with none.
+    /// </summary>
+    [Fact]
+    public void ADeviceKeepsTheLanguageItRegisteredWith()
+    {
+        var deviceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = userId, Language = "fr-FR" });
+
+        Assert.Equal("fr-FR", _db.GetDeviceTokenForDeviceId(deviceId)?.Language);
+
+        _db.AddDeviceToken(new DeviceToken { DeviceId = deviceId, Token = "a", UserId = userId });
+
+        Assert.Null(_db.GetDeviceTokenForDeviceId(deviceId)?.Language);
+    }
+
+    /// <summary>
     /// The timestamp is written by the store, not by the caller.
     /// </summary>
     [Fact]
