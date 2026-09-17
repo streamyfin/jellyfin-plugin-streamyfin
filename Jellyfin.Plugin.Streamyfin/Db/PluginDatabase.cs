@@ -140,11 +140,12 @@ public class PluginDatabase
         // was still saving. An existing row is updated in place, never removed and
         // re-added, so a device is never left without a token between two writes.
         context.Database.ExecuteSqlInterpolated($"""
-            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Timestamp)
-            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {timestamp})
+            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Language, Timestamp)
+            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {token.Language}, {timestamp})
             ON CONFLICT(DeviceId) DO UPDATE SET
                 Token = excluded.Token,
                 UserId = excluded.UserId,
+                Language = excluded.Language,
                 Timestamp = excluded.Timestamp
             """);
 

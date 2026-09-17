@@ -8,6 +8,30 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, the language a device is in
+
+A notification is written in the language of the device it goes to. The app says which one
+when it registers, as a BCP 47 tag, and the server stores it beside the token. A tag is
+kept the way .NET names it, so `FR-fr` and `fr_FR`, which is what Android hands a client,
+are both `fr-FR` and one language when the messages are written. Anything that is not a
+tag is stored as none rather than refused, and a device with none is written to in the
+server's language, which is what every device got before.
+
+The sending changed shape for it. A send used to build one message and address it to
+everybody; it now takes something that writes the messages in one language, and calls it
+once per language among the devices it is sending to. Fifty phones in two languages are
+two messages, not fifty, and the batching Expo needs is unchanged underneath.
+
+One thing moved with it: the wait between two playback notifications was keyed on the
+sentence, which now varies by language, so it is keyed on the item and the user.
+
+Proven on throwaway 10.11.11 and 12.0.0: three devices registered, one saying `  FR-fr `,
+one saying nothing and one saying `the user's language`. The first is stored as `fr-FR` and
+the other two as none, and a failed task produced `Sending 2 notification(s) to N device(s)
+in 2 language(s)`.
+
+The app has to send the tag for any of this to show, which is #34 on its side.
+
 ## 2026-09-17, later still: three things an administrator should hear about
 
 P4.4 starts with what the plugin can say. Three events, all to administrators, each with

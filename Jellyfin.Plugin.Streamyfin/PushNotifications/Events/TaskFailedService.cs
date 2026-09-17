@@ -116,7 +116,7 @@ public class TaskFailedService : BaseEvent, IHostedService
         SendDetached(
             _notificationHelper.SendToAdmins(
                 excludedUserIds: null,
-                notifications: AdminEvents.TaskFailed(_localization, result.Name, ReasonOf(result))),
+                write: culture => [AdminEvents.TaskFailed(_localization, result.Name, ReasonOf(result), culture)]),
             "scheduled task failed");
     }
 

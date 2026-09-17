@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,6 +52,20 @@ public class ItemAddedService : BaseEvent, IHostedService
                && enabledLibraries.Contains(libraryItemId, StringComparer.Ordinal);
     }
 
+    // Written once per language among the devices it goes to, so it builds rather than
+    // hands back what it built before.
+    private ExpoNotificationRequest[] MovieMessage(BaseItem item, CultureInfo? culture)
+    {
+        var message = MediaNotificationHelper.CreateMediaNotification(
+            localization: _localization,
+            title: _localization.GetFormatted("ItemAddedTitle", culture, _localization.GetString("MovieMediaType", culture)),
+            body: [],
+            item: item,
+            culture: culture);
+
+        return message is null ? [] : [message];
+    }
+
     private void ItemAddedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
     {
         if (
@@ -78,17 +93,9 @@ public class ItemAddedService : BaseEvent, IHostedService
         switch (item)
         {
             case Movie movie:
-                var notification = MediaNotificationHelper.CreateMediaNotification(
-                    localization: _localization,
-                    title: _localization.GetFormatted("ItemAddedTitle", args: _localization.GetString("MovieMediaType")),
-                    body: [],
-                    item: item
-                );
-
-                if (notification != null)
-                {
-                    SendDetached(_notificationHelper.SendToWhoCanOpen(item, notification), "item added");
-                }
+                SendDetached(
+                    _notificationHelper.SendToWhoCanOpen(item, culture => MovieMessage(item, culture)),
+                    "item added");
                 break;
             case Episode episode:
                 var seasonId = episode.FindSeasonId();
@@ -131,87 +138,21 @@ public class ItemAddedService : BaseEvent, IHostedService
         
         var name = refreshedSeason.Series.Name.Escape();
 
-        string title;
-        List<string> body = [];
-        var data = new Dictionary<string, object?>();
-
         _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", total, name);
+
+        // The one episode is read back here rather than inside the message, which is
+        // written once per language and should not go to the library each time.
+        Episode? single = null;
 
         if (total == 1)
         {
-            var refreshedEpisode = _libraryManager.GetItemById(episode.Id) as Episode;
-            if (refreshedEpisode is null)
+            single = _libraryManager.GetItemById(episode.Id) as Episode;
+
+            if (single is null)
             {
                 return;
             }
-            episode = refreshedEpisode;
-
-            title = _localization.GetString("EpisodeAddedTitle");
-            data["id"] = episode.Id.ToString("N"); // only provide for a single episode notification
-
-            // Both episode & season information is available
-            if (episode.IndexNumber != null && episode.Season.IndexNumber != null)
-            {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeNumberAddedForSeason",
-                        args: [name, episode.IndexNumber, episode.Season.IndexNumber]
-                    )
-                );
-            }
-            // only episode information is available
-            else if (episode.IndexNumber != null)
-            {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeAdded",
-                        args: [name, episode.IndexNumber]
-                    )
-                );
-            }
-            // only season information is available
-            else if (episode.Season.IndexNumber != null)
-            {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeAddedForSeason",
-                        args: [name, episode.Season.IndexNumber]
-                    )
-                );
-            }
         }
-        else
-        {
-            title = _localization.GetString("EpisodesAddedTitle");
-
-            if (refreshedSeason.IndexNumber != null)
-            {
-                body.Add(_localization.GetFormatted(
-                        key: "TotalEpisodesAddedForSeason",
-                        args: [name, total, refreshedSeason.IndexNumber]
-                    )
-                );
-            }
-            else
-            {
-                body.Add(_localization.GetFormatted(
-                        key: "EpisodesAddedToSeries",
-                        args: [name, total]
-                    )
-                );
-            }
-        }
-
-        data["seasonIndex"] = refreshedSeason.IndexNumber;
-        data["seriesId"] = refreshedSeason.SeriesId.ToString("N");
-        data["type"] = episode.GetType().Name.Escape();
-
-        var notification = new ExpoNotificationRequest
-        {
-            Title = title,
-            Body = string.Join("\n", body),
-            Data = data
-        };
 
         // The season and every episode the message counts. A season can be visible while an
         // episode in it is not, and this message names how many arrived and, for a single
@@ -222,7 +163,79 @@ public class ItemAddedService : BaseEvent, IHostedService
             .OfType<BaseItem>());
 
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
-        SendDetached(_notificationHelper.SendToWhoCanOpen(named, notification), "episodes added");
+        SendDetached(
+            _notificationHelper.SendToWhoCanOpen(named, culture => [EpisodesMessage(refreshedSeason, single, episode, total, culture)]),
+            "episodes added");
+    }
+
+    // Written once per language among the devices it goes to.
+    private ExpoNotificationRequest EpisodesMessage(
+        Season season,
+        Episode? single,
+        Episode first,
+        int total,
+        CultureInfo? culture)
+    {
+        var name = season.Series.Name.Escape();
+        var data = new Dictionary<string, object?>();
+        List<string> body = [];
+        string title;
+
+        if (single is not null)
+        {
+            title = _localization.GetString("EpisodeAddedTitle", culture);
+            data["id"] = single.Id.ToString("N"); // only provide for a single episode notification
+
+            // Both episode & season information is available
+            if (single.IndexNumber != null && single.Season.IndexNumber != null)
+            {
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeNumberAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, single.IndexNumber, single.Season.IndexNumber]));
+            }
+            // only episode information is available
+            else if (single.IndexNumber != null)
+            {
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeAdded",
+                    cultureInfo: culture,
+                    args: [name, single.IndexNumber]));
+            }
+            // only season information is available
+            else if (single.Season.IndexNumber != null)
+            {
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, single.Season.IndexNumber]));
+            }
+        }
+        else
+        {
+            title = _localization.GetString("EpisodesAddedTitle", culture);
+
+            body.Add(season.IndexNumber != null
+                ? _localization.GetFormatted(
+                    key: "TotalEpisodesAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, total, season.IndexNumber])
+                : _localization.GetFormatted(
+                    key: "EpisodesAddedToSeries",
+                    cultureInfo: culture,
+                    args: [name, total]));
+        }
+
+        data["seasonIndex"] = season.IndexNumber;
+        data["seriesId"] = season.SeriesId.ToString("N");
+        data["type"] = first.GetType().Name.Escape();
+
+        return new ExpoNotificationRequest
+        {
+            Title = title,
+            Body = string.Join("\n", body),
+            Data = data
+        };
     }
 
     /// <inheritdoc />

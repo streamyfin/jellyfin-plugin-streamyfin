@@ -21,6 +21,17 @@ is tried by machines that never stop.
 A server that was already running when these three arrived has them off, since its stored
 configuration does not mention them. A fresh install has them on.
 
+## Languages
+
+A notification is written in the language of the device it goes to. The app says which one
+it is in when it registers, as a BCP 47 tag such as `fr-FR`, and the server writes one
+message per language among the devices it is sending to rather than one per device. A
+device that says nothing, or something that is not a language tag, is written to in the
+server's language, which is what every device got before.
+
+The plugin carries English, French, Dutch and Spanish (Mexico). A device asking for
+anything else falls back to English, the same way the server does.
+
 
 ## Custom Webhook Notifications
 If you want to start using the notification endpoint directly with other services, see our examples below
