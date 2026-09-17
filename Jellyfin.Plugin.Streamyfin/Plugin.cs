@@ -316,6 +316,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             EmbeddedResourcePath = _prefix + ".Pages.home-editor.js"
         };
 
+        // What a wording is, and what is wrong with one, without a DOM.
+        yield return new PluginPageInfo
+        {
+            Name = "wording-editor.js",
+            EmbeddedResourcePath = _prefix + ".Pages.wording-editor.js"
+        };
+
         // Shared by the Application and Targeting pages, which draw the same rows.
         yield return new PluginPageInfo
         {

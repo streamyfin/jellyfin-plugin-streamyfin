@@ -30,6 +30,11 @@ public static class NotificationsValidation
 
         var problems = new List<string>();
 
+        if (CheckWording(notifications.Wording) is { } wording)
+        {
+            problems.Add(wording);
+        }
+
         foreach (var eventProperty in typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (eventProperty.GetValue(notifications) is not NotificationConfiguration block)
@@ -91,6 +96,54 @@ public static class NotificationsValidation
                 problems.Add(string.Create(
                     CultureInfo.InvariantCulture,
                     $"{key}.recentEventThreshold is {wait.Value}. A wait is a number of seconds, so it starts at 0."));
+            }
+        }
+
+        return problems.Count == 0 ? null : string.Join(" ", problems);
+    }
+
+    /// <summary>
+    /// The reason a wording cannot be stored, if there is one.
+    /// </summary>
+    /// <param name="said">What an administrator wants said instead, which may be nothing.</param>
+    /// <returns>The message to refuse with, or <c>null</c> when it can be stored.</returns>
+    /// <remarks>
+    /// Two mistakes are caught here rather than when the event fires: a sentence this
+    /// server does not have, which would be read and skipped on every send, and a wording
+    /// asking for a placeholder the sentence it replaces does not have, which would throw
+    /// inside an event handler the server is waiting on.
+    /// </remarks>
+    public static string? CheckWording(IEnumerable<WordingOverride>? said)
+    {
+        if (said is null)
+        {
+            return null;
+        }
+
+        var problems = new List<string>();
+
+        foreach (var one in said)
+        {
+            if (one is null || string.IsNullOrWhiteSpace(one.Text))
+            {
+                continue;
+            }
+
+            var sentence = Wording.Known(one.Key);
+
+            if (sentence is null)
+            {
+                problems.Add($"{one.Key} is not a sentence this server writes.");
+                continue;
+            }
+
+            var asks = Wording.Asks(one.Text);
+
+            if (asks > sentence.Placeholders)
+            {
+                problems.Add(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"The wording for {one.Key} asks for {{{asks - 1}}}, and that sentence names {sentence.Placeholders} thing(s)."));
             }
         }
 

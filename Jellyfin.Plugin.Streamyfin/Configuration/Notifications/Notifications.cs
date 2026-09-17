@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
@@ -28,6 +29,10 @@ public class ItemAddedNotificationConfiguration: NotificationConfiguration
 
 public class Notifications
 {
+    [Display(Name = "Wording", Description = "Write any of the plugin's sentences differently, per language. Keep the placeholders the sentence has.")]
+    [JsonPropertyName(name: "wording")]
+    public List<WordingOverride>? Wording { get; set; }
+
     [NotNull]
     [Display(Name = "Session Started", Description = "Admins get notified when a jellyfin user is online.")]
     [AboutSomebodyElse]

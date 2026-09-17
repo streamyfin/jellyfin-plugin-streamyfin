@@ -43,10 +43,19 @@ public static class NotificationsForm
 
         foreach (var eventProperty in typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
+            var blockType = Nullable.GetUnderlyingType(eventProperty.PropertyType) ?? eventProperty.PropertyType;
+
+            // Not everything on this class is an event: the wording an administrator sets
+            // lives here too, and is a list rather than a block of switches. A page draws
+            // it on its own, from its own description.
+            if (!typeof(NotificationConfiguration).IsAssignableFrom(blockType))
+            {
+                continue;
+            }
+
             var display = eventProperty.GetCustomAttribute<DisplayAttribute>();
             var category = display?.GetName() ?? eventProperty.Name;
             var eventKey = JsonNameOf(eventProperty);
-            var blockType = Nullable.GetUnderlyingType(eventProperty.PropertyType) ?? eventProperty.PropertyType;
 
 
             foreach (var field in InDeclaredOrder(blockType))

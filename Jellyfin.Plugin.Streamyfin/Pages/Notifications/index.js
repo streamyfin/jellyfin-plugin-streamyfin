@@ -73,6 +73,128 @@ const control = (field) => {
 // keeps what was there, rather than sending a wait of minus one to the scheduler.
 const valid = (node) => typeof node.checkValidity !== "function" || node.checkValidity();
 
+
+// The Wording card. `edited()` marks the dock dirty, the same as every other control here.
+const wordingCard = async (sentences, edited) => {
+    const editor = await import(window.ApiClient.getUrl("web/configurationpage?name=wording-editor.js"));
+    const shared = await import(window.ApiClient.getUrl("web/configurationpage?name=shared.js"));
+
+    const card = el("section", "sf-card sf-card--wording");
+    const header = el("header");
+    const count = el("span", "sf-count");
+    const body = el("div", "sf-body");
+    const rows = el("div", "sf-wordings");
+    const adder = el("div", "sf-adder");
+    const picker = el("select", "sf-select");
+    const addButton = el("button", "sf-btn", "Write it differently");
+
+    header.appendChild(el("h2", null, "Wording"));
+    header.appendChild(count);
+    card.append(header, body);
+
+    body.appendChild(el("p", "sf-desc",
+        "Say any of these differently, in one language or in all of them. Keep the placeholders the sentence has: this plugin waits and groups its events, so there is nothing else to fill them with."));
+    body.append(rows, adder);
+
+    addButton.type = "button";
+    for (const sentence of sentences) {
+        const option = el("option", null, `${sentence.key} — ${sentence.text}`);
+        option.value = sentence.key;
+        picker.appendChild(option);
+    }
+    adder.append(picker, addButton);
+
+    let list = (shared.getConfig()?.notifications?.wording ?? []).map((one) => ({
+        key: one.key,
+        locale: one.locale ?? "",
+        text: one.text ?? "",
+    }));
+
+    const store = () => {
+        const config = shared.getConfig() ?? {};
+        shared.setConfig({
+            ...config,
+            notifications: { ...(config.notifications ?? {}), wording: editor.toConfig(list) },
+        });
+    };
+
+    const draw = () => {
+        const found = editor.problems(list, sentences);
+        rows.textContent = "";
+        count.textContent = editor.summarise(list);
+
+        list.forEach((one, at) => {
+            const sentence = editor.sentenceOf(sentences, one.key);
+            const row = el("div", "sf-row sf-wording");
+            const head = el("div", "sf-head");
+            const name = el("span", "sf-name", sentence?.key ?? one.key);
+            const locale = el("input", "sf-text sf-wording-locale");
+            const text = el("input", "sf-text sf-wording-text");
+            const drop = el("button", "sf-danger sf-wording-drop", "Remove");
+
+            name.appendChild(el("i", "sf-key", `${sentence?.placeholders ?? 0} placeholder(s)`));
+            head.appendChild(name);
+
+            locale.type = "text";
+            locale.value = one.locale ?? "";
+            locale.placeholder = "every language";
+            locale.setAttribute("aria-label", `Language for ${one.key}`);
+            locale.addEventListener("input", () => {
+                list = editor.change(list, at, { locale: locale.value });
+                store();
+                edited();
+                count.textContent = editor.summarise(list);
+            });
+
+            text.type = "text";
+            text.value = one.text ?? "";
+            text.setAttribute("aria-label", `Wording for ${one.key}`);
+            text.addEventListener("input", () => {
+                list = editor.change(list, at, { text: text.value });
+                store();
+                edited();
+                draw();
+            });
+
+            drop.type = "button";
+            drop.addEventListener("click", () => {
+                list = editor.remove(list, at);
+                store();
+                edited();
+                draw();
+            });
+
+            head.append(locale, text, drop);
+            row.appendChild(head);
+
+            if (sentence?.describes) row.appendChild(el("p", "sf-desc", sentence.describes));
+            if (sentence) row.appendChild(el("p", "sf-desc", `Today: ${sentence.text}`));
+
+            const problem = found.get(at);
+            if (problem) {
+                row.classList.add("is-invalid");
+                row.appendChild(el("p", "sf-desc sf-problem", problem));
+            }
+
+            rows.appendChild(row);
+        });
+
+        if (list.length === 0) {
+            rows.appendChild(el("p", "sf-desc", "Nothing here: every notification is written the way the plugin writes it."));
+        }
+    };
+
+    addButton.addEventListener("click", () => {
+        list = editor.add(list, sentences, picker.value);
+        store();
+        edited();
+        draw();
+    });
+
+    draw();
+    return card;
+};
+
 const readControl = (field, node) => {
     switch (field.control) {
         case "Toggle": return node.checked;
@@ -255,6 +377,22 @@ export default function (view, params) {
                 applyDependencies();
                 edited();
             });
+
+            // The Wording card: every sentence the plugin writes, and what to say instead.
+            // Drawn from the server's list so a sentence added to an event appears here
+            // without being written down twice. Issue #34.
+            try {
+                const sentences = await window.ApiClient.ajax({
+                    type: "GET",
+                    url: window.ApiClient.getUrl("streamyfin/v1/notifications/sentences"),
+                    contentType: "application/json",
+                }).then((response) => response.json());
+
+                grid.appendChild(await wordingCard(sentences, edited));
+            } catch (error) {
+                // A server too old to list them keeps the rest of the page.
+                console.error(error);
+            }
 
             status.remove();
             editor.appendChild(grid);

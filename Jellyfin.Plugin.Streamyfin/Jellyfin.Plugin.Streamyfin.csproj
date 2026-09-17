@@ -41,5 +41,19 @@
   <ItemGroup>
       <None Remove="Pages\**\*" />
       <EmbeddedResource Include="Pages\**\*" />
+
   </ItemGroup>
+
+    <!-- The English resources twice: compiled, the way every string is read, and raw under
+         another name, so the admin page can list the sentences with the comment beside each
+         one saying what its placeholders are. The ResourceManager carries values and not
+         comments, and writing that list a second time by hand is how it would go stale. -->
+    <Target Name="EmbedSentenceCatalogue" BeforeTargets="PrepareForBuild">
+        <Copy SourceFiles="Resources\Strings.resx" DestinationFiles="$(IntermediateOutputPath)Sentences.xml" SkipUnchangedFiles="true" />
+        <ItemGroup>
+            <EmbeddedResource Include="$(IntermediateOutputPath)Sentences.xml"
+                              LogicalName="Jellyfin.Plugin.Streamyfin.Resources.Sentences.xml" />
+        </ItemGroup>
+    </Target>
+
 </Project>
