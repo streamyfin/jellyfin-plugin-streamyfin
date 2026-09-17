@@ -91,44 +91,78 @@ jobs:
           make update-manifest JELLYFIN_TARGET=${{ matrix.target }} DRY_RUN=1
           make update-manifest JELLYFIN_TARGET=${{ matrix.target }} DRY_RUN=1 CHANNEL=unstable
 
+      # The zip a release ships, unpacked. An artifact is downloaded as a zip of what it
+      # holds, so this hands whoever tries the branch the files a release would, rather
+      # than the one DLL: the assemblies beside it are required, and the translations live
+      # in folders under it.
+      - name: Stage what a release would ship
+        env:
+          VERSION: 0.0.0.0
+        run: unzip -q "dist/streamyfin-$VERSION-${{ matrix.target }}.zip" -d "dist/plugin-${{ matrix.target }}"
+
       - name: Upload plugin
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Jellyfin.Plugin.Streamyfin-${{ matrix.target }}
-          path: Jellyfin.Plugin.Streamyfin/bin/Release/*/Jellyfin.Plugin.Streamyfin.dll
+          path: dist/plugin-${{ matrix.target }}/
           if-no-files-found: error
           retention-days: 7
 
-  # A reviewer who wants to try a pull request should not have to build it. The two
-  # artifacts above are one download away; this says so on the pull request, once, and
-  # says where the file goes on a server.
+  # A reviewer who wants to try a pull request should not have to build it, and should not
+  # have to open the run to learn whether there is anything to download yet. The comment
+  # carries a row per Jellyfin line: where its build is, and the file once it exists.
+  #
+  # Written twice. Once beside the builds, so the pull request says something while they
+  # run, and once after them with what they produced. Both renders read the run as it is at
+  # that moment, so one that starts late is still right, and the marker at the bottom of the
+  # comment stops an earlier render from undoing a later one.
   #
   # Only for a branch in this repository: a fork's pull request gets a read only token
   # whatever the permissions below say, so the job would fail rather than stay quiet.
-  artifacts:
-    name: point at the build
-    needs: build
+  comment-start:
+    name: say the build has started
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
+      actions: read
 
     steps:
-      - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          header: build-artifacts
-          message: |
-            **This branch is built.** Two DLLs, one per Jellyfin line, on [the run that produced them](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts):
+          sparse-checkout: scripts
+          persist-credentials: false
 
-            | Artifact | For |
-            |---|---|
-            | `Jellyfin.Plugin.Streamyfin-jf11` | Jellyfin 10.11.9 and later |
-            | `Jellyfin.Plugin.Streamyfin-jf12` | Jellyfin 12 |
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const comment = require('./scripts/build-comment.js')
+            await comment.post({ github, context, core })
 
-            To try one, stop the server, drop the DLL over the one in
-            `config/data/plugins/Streamyfin_<version>/`, and start it again. Keep the
-            file you replaced: that is the way back.
+  comment:
+    name: point at the build
+    needs: build
+    # always(), so a failed build is reported as failed rather than leaving the comment
+    # saying the two are still running.
+    if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const comment = require('./scripts/build-comment.js')
+            await comment.post({ github, context, core })
 
   # The JavaScript this repository owns: the admin pages, which only a browser runs and
   # which get a test DOM here, and the release scripts. Once, since nothing in either
