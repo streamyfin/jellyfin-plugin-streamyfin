@@ -35,11 +35,17 @@ public sealed class SettingsResolutionService(
     /// <param name="global">What the server declares for everyone.</param>
     /// <param name="groups">The caller's groups, least specific first.</param>
     /// <param name="userOverride">Anything targeted at the caller alone.</param>
+    /// <param name="canOpen">
+    /// Whether the caller may open a library, by id. A home section built on one they
+    /// cannot is left out. <c>null</c> when there is no user to ask about, which is an
+    /// API key.
+    /// </param>
     /// <returns>The settings the caller receives.</returns>
     public Settings Resolve(
         Settings? global,
         IEnumerable<SettingsGroup>? groups,
-        UserSettingsOverride? userOverride)
+        UserSettingsOverride? userOverride,
+        Func<Guid, bool>? canOpen = null)
     {
         var levels = new List<Settings?> { global };
 
@@ -62,6 +68,12 @@ public sealed class SettingsResolutionService(
         Sections.Declare(resolved);
         Sections.Sort(resolved);
 
+        // After the sort, so what is left keeps the position it has for everyone.
+        if (canOpen is not null)
+        {
+            Sections.KeepVisible(resolved, canOpen);
+        }
+
         return resolved;
     }
 
@@ -72,6 +84,10 @@ public sealed class SettingsResolutionService(
     /// <param name="groups">The caller's groups, least specific first.</param>
     /// <param name="userOverride">Anything targeted at the caller alone.</param>
     /// <param name="isElevated">Whether the caller administers this server.</param>
+    /// <param name="canOpen">
+    /// Whether the caller may open a library, by id. Only read when the caller is not
+    /// elevated: an administrator is handed the configuration to edit, all of it.
+    /// </param>
     /// <returns>
     /// For an administrator, the configuration untouched: they have to see and edit
     /// every part of it. For anyone else, the settings resolved for them with the
@@ -94,7 +110,8 @@ public sealed class SettingsResolutionService(
         Config? config,
         IEnumerable<SettingsGroup>? groups,
         UserSettingsOverride? userOverride,
-        bool isElevated)
+        bool isElevated,
+        Func<Guid, bool>? canOpen = null)
     {
         // Every section says what kind it is by the time it leaves here, whether or not
         // the stored copy does. Nothing is written back: a GET does not rewrite the
@@ -114,7 +131,7 @@ public sealed class SettingsResolutionService(
 
         return new Config
         {
-            settings = SettingsResolver.Redact(Resolve(config?.settings, groups, userOverride))
+            settings = SettingsResolver.Redact(Resolve(config?.settings, groups, userOverride, canOpen))
         };
     }
 

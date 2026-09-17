@@ -15,6 +15,7 @@ using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -975,7 +976,8 @@ public class StreamyfinController : ControllerBase
     var resolved = Resolution.Resolve(
       StreamyfinPlugin.Instance!.Settings.Current.settings,
       database.GetGroupsForUser(callerId),
-      database.GetUserSettingsOverride(callerId));
+      database.GetUserSettingsOverride(callerId),
+      LibrariesTheCallerCanOpen());
 
     if (!CallerIsApiKey && !_userManager.IsAdministrator(callerId))
     {
@@ -1001,7 +1003,33 @@ public class StreamyfinController : ControllerBase
       StreamyfinPlugin.Instance!.Settings.Current,
       database.GetGroupsForUser(callerId),
       database.GetUserSettingsOverride(callerId),
-      CallerIsApiKey || _userManager.IsAdministrator(callerId));
+      CallerIsApiKey || _userManager.IsAdministrator(callerId),
+      LibrariesTheCallerCanOpen());
+  }
+
+  /// <summary>
+  /// Whether the caller may open a library, asked the way Jellyfin asks it for its own
+  /// routes.
+  /// </summary>
+  /// <returns>The question, or <c>null</c> for an API key, which carries no user.</returns>
+  /// <remarks>
+  /// <c>GetItemById</c> with a user answers only an item that user may see: the library
+  /// they were given, within their parental rating and tags. A caller who is no longer a
+  /// user may open nothing.
+  /// </remarks>
+  private Func<Guid, bool>? LibrariesTheCallerCanOpen()
+  {
+    if (CallerIsApiKey)
+    {
+      return null;
+    }
+
+    var callerId = CallerId;
+    var user = callerId.Equals(default) ? null : _userManager.GetUserById(callerId);
+
+    return user is null
+      ? _ => false
+      : library => _libraryManager.GetItemById<BaseItem>(library, user) is not null;
   }
 
   private IEnumerable<SettingsGroupDto> GroupsWithMembers()

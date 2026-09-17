@@ -6,8 +6,11 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
@@ -111,30 +114,103 @@ public class NotificationHelper
         return await Send(expoNotifications).ConfigureAwait(false);
     }
 
-    public async Task<ExpoNotificationResponse?> SendToAll(params ExpoNotificationRequest[] notifications)
+    /// <summary>
+    /// The devices of the users who may be told about something, each once.
+    /// </summary>
+    /// <param name="tokens">The registered devices.</param>
+    /// <param name="mayKnow">Whether a user may be told, by user id. Asked once per user.</param>
+    /// <returns>The tokens to send to, in the order the devices were given.</returns>
+    internal static List<string> RecipientsWho(IEnumerable<DeviceToken> tokens, Func<Guid, bool> mayKnow)
     {
-        _logger?.LogInformation("Attempting to send {0} notifications to everyone", notifications.Length);
+        ArgumentNullException.ThrowIfNull(tokens);
+        ArgumentNullException.ThrowIfNull(mayKnow);
 
-        var all = StreamyfinPlugin.Instance?.Database
-            .GetAllDeviceTokens()
-            .Select(token => token.Token)
-            .Distinct()
-            .ToList() ?? [];
+        var answers = new Dictionary<Guid, bool>();
 
-        if (all.Count == 0)
+        bool Allowed(Guid user)
         {
-            _logger?.LogInformation("No devices found");
-            return await Task.FromResult<ExpoNotificationResponse?>(null).ConfigureAwait(false);
-        }
-        
-        var ready = notifications
-            .Select(notification =>
+            if (!answers.TryGetValue(user, out var allowed))
             {
-                notification.To = all;
-                return notification;
-            }).ToArray();
-        
-        return await Send(ready).ConfigureAwait(false);
+                allowed = mayKnow(user);
+                answers[user] = allowed;
+            }
+
+            return allowed;
+        }
+
+        return tokens
+            .Where(token => Allowed(token.UserId))
+            .Select(token => token.Token)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Whether an account may be told about something it can open.
+    /// </summary>
+    /// <param name="user">The account, or <c>null</c> when it is gone.</param>
+    /// <param name="canOpen">Whether the account may open the thing.</param>
+    /// <returns>True when the account exists, is not disabled, and may open it.</returns>
+    /// <remarks>
+    /// Jellyfin refuses every request a disabled account makes, but its devices are still
+    /// registered here, so without this it went on hearing about new items.
+    /// </remarks>
+    internal static bool MayBeTold(User? user, Func<User, bool> canOpen)
+    {
+        ArgumentNullException.ThrowIfNull(canOpen);
+
+        return user is not null && !user.IsDisabled() && canOpen(user);
+    }
+
+    /// <summary>
+    /// Sends messages about an item to the devices of every user who may open it.
+    /// </summary>
+    /// <param name="item">What the messages are about.</param>
+    /// <param name="notifications">The messages.</param>
+    /// <returns>Expo's response, or null when nobody may be told.</returns>
+    /// <remarks>
+    /// A new movie or episode used to go to every registered device, so its title reached
+    /// people who cannot open the library it is in, or are not allowed its rating. Jellyfin
+    /// filtered its own new content notifications the same way before it dropped them, with
+    /// <c>IsVisibleStandalone</c> for each user, which checks the library, the parental
+    /// rating and the tags.
+    /// </remarks>
+    public async Task<ExpoNotificationResponse?> SendToWhoCanOpen(BaseItem item, params ExpoNotificationRequest[] notifications)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(notifications);
+
+        if (_userManager is null)
+        {
+            _logger?.LogWarning("No user manager available, cannot work out who may be told about {Item}", item.Id);
+            return null;
+        }
+
+        var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
+
+        // An empty id is no user, and GetUserById throws on it.
+        var recipients = RecipientsWho(devices, userId =>
+            !userId.Equals(default)
+            && MayBeTold(_userManager.GetUserById(userId), item.IsVisibleStandalone));
+
+        if (recipients.Count == 0)
+        {
+            _logger?.LogInformation("No registered device belongs to a user who may open {Item}, so nothing was sent", item.Id);
+            return null;
+        }
+
+        _logger?.LogInformation(
+            "Sending to {Recipients} of {Devices} registered device(s), those whose user may open {Item}",
+            recipients.Count,
+            devices.Select(device => device.Token).Distinct(StringComparer.Ordinal).Count(),
+            item.Id);
+
+        foreach (var notification in notifications)
+        {
+            notification.To = recipients;
+        }
+
+        return await Send(notifications).ConfigureAwait(false);
     }
 
     public async Task<ExpoNotificationResponse?> SendToAdmins(

@@ -8,6 +8,60 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-17, later: what a user is told about libraries they cannot open
+
+### Home sections, #69
+
+A section built on a library a user may not open was served to them all the same.
+Jellyfin refuses the request that fills it with a 401, "is not permitted to access
+Library", so the row stayed empty, but its title named the library. The server now leaves
+such a section out of what it serves that user, on `config`, `config/yaml` and
+`v1/config/resolved`.
+
+The check is Jellyfin's own rather than a copy of it: `GetItemById` with a user answers
+only an item that user may see, which covers the libraries they were given, their
+parental rating and their tags, and it reads the same on 10.11 and 12 although the two
+implement it differently. The library is read from every place a section can name one:
+the items, next up and latest payloads, and a `ParentId` among the query parameters of a
+custom endpoint, whether in its query map or in its own address, which the app sends as
+written and Jellyfin binds whatever the case.
+
+The administrator editing the configuration still gets every section, since the page
+saves what it loads. And the filter replaces the home it hands out rather than editing
+it: resolution passes the stored sections through by reference, so removing one in place
+would have removed it for every later caller and then from the stored copy. A test holds
+that, and so did the real servers: the administrator's read after the restricted user's
+still listed all five.
+
+Reading the app for this showed it ignores `parentId` on `latest` and `nextUp` sections,
+so those two show everything the user may see whatever the administrator named. That is
+the app's to fix. The plugin leaves such a section out all the same, since its title still
+names the library.
+
+### New items
+
+A new movie or episode was announced to every registered device, so its title reached
+people who could not open its library, or were not allowed its rating. It now goes to the
+devices of the users who may open it, asked with `IsVisibleStandalone`, which is how
+Jellyfin filtered its own new content notifications before it dropped them. A disabled
+account is told nothing either, the administrator notifications included: Jellyfin
+refuses every request such an account makes, and its devices were still registered here.
+The season send also had its awaitable discarded, so a failure went unobserved; it goes
+through the same detached path as the movie send now.
+
+### Proven
+
+On throwaway 10.11.11 and 12.0.0: two libraries with a generated movie in each, and a user
+limited to one of them. That user was served two of the five sections on all three routes,
+the administrator all five, before and after. A movie added to the other library went to
+three of four devices, and one added to the shared library to all four. A second pass,
+after review, put the private library in a custom endpoint's own address, which that user
+was not served either, and disabled the account: Jellyfin refused it with a 401, and a
+movie added to the library it could open went to the other device only.
+
+The same pass caught a race in the pruning of dead tokens: two sends told by Expo about
+the same dead tokens at once, and the second one's delete failed. It is fixed in #180.
+
 ## 2026-09-17, through the catalogue and back
 
 ### An update the server makes by itself

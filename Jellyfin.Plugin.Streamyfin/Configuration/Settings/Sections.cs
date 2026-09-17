@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Web;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
@@ -121,6 +122,88 @@ public static class Sections
         }
 
         home!.sections = sorted;
+    }
+
+    /// <summary>
+    /// Leaves out the sections built on a library the caller cannot open.
+    /// </summary>
+    /// <param name="settings">The settings one caller is about to receive.</param>
+    /// <param name="canOpen">Whether the caller may open a library, by id.</param>
+    /// <remarks>
+    /// A section built on a library a user may not open used to be served all the same.
+    /// Jellyfin answered its query with nothing, so the row was empty, but its title named
+    /// the library, which is what #69 reported. The id is read wherever a section can name
+    /// one: the items, next up and latest payloads, and a <c>ParentId</c> among the query
+    /// parameters of a custom endpoint, which Jellyfin binds whatever its case. A value that
+    /// is not an id names nothing that can be checked and is left to the request that uses
+    /// it.
+    ///
+    /// <para>
+    /// The home is replaced on these settings rather than edited. Resolution hands the
+    /// stored sections through by reference, so removing one in place would remove it for
+    /// every later caller, and from the admin page, which saves what it loads. The sections
+    /// keep the position <see cref="Sort(Home?)"/> gave them, gaps included, for the same
+    /// reason: renumbering them would renumber the stored copy.
+    /// </para>
+    /// </remarks>
+    public static void KeepVisible(Settings? settings, Func<Guid, bool> canOpen)
+    {
+        ArgumentNullException.ThrowIfNull(canOpen);
+
+        var home = settings?.home;
+        if (home?.value?.sections is not { Length: > 0 } sections)
+        {
+            return;
+        }
+
+        var kept = sections
+            .Where(section => section is null || LibrariesNamedBy(section).All(canOpen))
+            .ToArray();
+
+        if (kept.Length == sections.Length)
+        {
+            return;
+        }
+
+        settings!.home = new Lockable<Home> { locked = home.locked, value = home.value.With(kept) };
+    }
+
+    private static IEnumerable<Guid> LibrariesNamedBy(Section section)
+    {
+        string?[] payloads = [section.items?.parentId, section.nextUp?.parentId, section.latest?.parentId];
+
+        var query = section.custom?.query?
+            .Where(parameter => IsParentId(parameter.Key))
+            .Select(parameter => parameter.Value)
+            ?? [];
+
+        foreach (var value in payloads.Concat(query).Concat(ParentIdsInAddress(section.custom?.endpoint)))
+        {
+            if (Guid.TryParse(value, out var id))
+            {
+                yield return id;
+            }
+        }
+    }
+
+    private static bool IsParentId(string? key) =>
+        string.Equals(key, "parentId", StringComparison.OrdinalIgnoreCase);
+
+    // An endpoint can carry its parameters in its own address, and the app sends it as
+    // written, so a library named there counts as much as one in the query map.
+    private static IEnumerable<string> ParentIdsInAddress(string? endpoint)
+    {
+        var start = endpoint?.IndexOf('?', StringComparison.Ordinal) ?? -1;
+        if (start < 0)
+        {
+            return [];
+        }
+
+        var parameters = HttpUtility.ParseQueryString(endpoint![start..]);
+
+        return parameters.AllKeys
+            .Where(IsParentId)
+            .SelectMany(key => parameters.GetValues(key) ?? []);
     }
 
     /// <summary>

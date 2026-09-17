@@ -86,7 +86,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
                 if (notification != null)
                 {
-                    SendDetached(_notificationHelper.SendToAll(notification), "item added");
+                    SendDetached(_notificationHelper.SendToWhoCanOpen(item, notification), "item added");
                 }
                 break;
             case Episode episode:
@@ -212,7 +212,8 @@ public class ItemAddedService : BaseEvent, IHostedService
             Data = data
         };
 
-        _notificationHelper.SendToAll(notification).ConfigureAwait(false);
+        // Observed like the movie send. Discarding the awaitable left a failure unobserved.
+        SendDetached(_notificationHelper.SendToWhoCanOpen(refreshedSeason, notification), "episodes added");
     }
 
     /// <inheritdoc />
