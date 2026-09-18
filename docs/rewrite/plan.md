@@ -238,8 +238,26 @@ for a project, was read as a delivery with nothing to report, so the notificatio
 was lost with a line in a log nobody reads. A library adding fifty episodes at
 once is the shape that reaches both.
 
-P4.4 absorbs #29, #34 and #30, and each needs an explicit decision rather than an
-open ended promise. See [issue-triage.md](issue-triage.md).
+P4.4 absorbed #29, #34 and #30, and each got its decision rather than an open
+ended promise. See [issue-triage.md](issue-triage.md).
+
+- **#30, images.** Shipped in the poster, Android only, with the limitation written
+  into the setting rather than left to be discovered: Expo's push service carries no
+  image on iOS without a notification service extension in the app.
+- **#29, targeting.** An event says who it is for by default and the levels decide
+  the rest, server then groups then user. What an event cannot be given away from
+  stays in code: a new item only reaches somebody who may open it, and nobody is
+  told about their own session or their own playback. An administrator may hand an
+  administrator's event to anybody, and the page marks those events and asks first,
+  naming the accounts that do not administer the server.
+- **#34, the wording.** The sentence, per language, with the placeholders that
+  sentence already has. Not templating, for the reason herrrta gave on the issue:
+  this plugin waits and groups its events, so there is far less to interpolate than
+  a webhook has.
+
+P4.5 is half delivered by the same work. An event already resolves per user, so an
+administrator can hand one to one account and take another away. What is left is the
+person choosing for themselves, which is a screen in the app.
 
 ## P5. Custom home
 
@@ -364,6 +382,8 @@ from.
 | P0.7 corrected | [#165](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/165) | merged. One manifest per channel, not per Jellyfin line, plus the unstable channel |
 | #110 | [#167](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/167) | merged |
 | P4.4 groundwork | [#166](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/166) | merged. The Seerr webhook from #81, ported |
+| P4.4 | [#186](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/186), [#187](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/187), [#191](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/191), [#192](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/192) | merged. The language of the device, the poster and #30, the targeting of #29, the wording of #34 |
+| P5.1 kinds in use | [#189](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/189), [#194](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/194) | merged. The "for you" row of #21 and the "my media" row of #78, both served by the plugin because Jellyfin's own endpoints shuffle or cannot page |
 | — | [#168](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/168) | merged onto `main`, so the scheduled and dispatchable workflows can fire at all |
 
 Not a numbered sub part, landed alongside P1:
