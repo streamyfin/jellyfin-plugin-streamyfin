@@ -572,19 +572,19 @@ public class Settings
 
     // Marlin Search
     [NotNull]
-    [Display(Name = "Default search engine", Description = "Enter the search engine you want to use in streamyfin")]
+    [Display(Name = "Default search engine", Description = "Which search the app uses. Streamystats and Marlin each need their server URL below; without it the app is given Jellyfin search rather than one that cannot answer")]
     [SettingScope("Plugins", Group = "Marlin search")]
     public Lockable<SearchEngine>? searchEngine { get; set; } // = SearchEngine.Jellyfin;
     
     [NotNull]
-    [Display(Name = "Marlin server URL", Description = "Enter the URL for your Marlin server")]
+    [Display(Name = "Marlin server URL", Description = "Enter the URL for your Marlin server. Setting it does not change the search engine on its own: the setting above decides")]
     [SettingScope("Plugins", Group = "Marlin search")]
     [Probe(IntegrationKind.Marlin)]
     public Lockable<string>? marlinServerUrl { get; set; }
 
     // Streamystats
     [NotNull]
-    [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server")]
+    [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server. Setting it does not change the search engine on its own: the setting above decides")]
     [SettingScope("Plugins", Group = "Streamystats")]
     [Probe(IntegrationKind.Streamystats)]
     public Lockable<string>? streamyStatsServerUrl { get; set; }

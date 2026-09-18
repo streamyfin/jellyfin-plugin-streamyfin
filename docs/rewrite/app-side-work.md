@@ -117,7 +117,11 @@ degrade into no settings at all.
 Plan P2.4. Setting `streamyStatsServerUrl` currently forces `searchEngine` to
 Streamystats, a rule written into the settings loading path rather than declared
 anywhere. It surprises admins who set a URL and find their search engine changed.
-Replace it with a rule the plugin states, per P6.4.
+Replace it with a rule the plugin states, per P6.4, **which it now does**: an engine that
+needs a server it has not been given is served as Jellyfin, decided where the levels
+resolve. So `pluginRefreshOverlay` can drop `enableStreamystats` entirely: setting a URL
+stops changing anybody's search engine, and an administrator who wants Streamystats search
+says so in `searchEngine`, which the app already reads.
 
 ### Seerr on tvOS, and Seerr authentication by user token
 
