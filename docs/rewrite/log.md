@@ -39,6 +39,23 @@ than sent, since Expo refuses the whole message for a bad one.
 On iOS the image needs a notification service extension in the app, which is the app's half
 of #30.
 
+## 2026-09-18, the update every server will do on release day
+
+Run before the release rather than after it. A throwaway on 10.11.11, given the published
+0.68.1.0 from the stable manifest the way an administrator installs it, then handed this
+branch's build in its place.
+
+It kept everything it had: one device token imported out of the old `streamyfin_plugin.db`,
+which is byte identical afterwards, the configuration imported out of
+`Jellyfin.Plugin.Streamyfin.xml`, which is never written, and both migrations applied.
+`config`, `v1/groups`, `v1/notifications/events`, `v1/notifications/sentences`,
+`v1/for-you` and `v1/my-media` all answer, and nothing of the plugin's own is in the log
+beyond those two import lines.
+
+The whole of `develop` as it stands: 623 tests against `jf11` and against `jf12`, 187 for
+the pages and the release scripts, Release builds at 0 errors on both targets, and a smoke
+pass on throwaway 10.11.11 and 12.0.0 after the merges.
+
 ## 2026-09-18, a row of libraries, and a sentence written differently
 
 **#78, "my media".** Jellyfin has the endpoint and it cannot be scrolled: `/UserViews`
