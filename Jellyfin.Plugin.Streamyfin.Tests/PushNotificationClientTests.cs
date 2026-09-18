@@ -228,6 +228,45 @@ public class PushNotificationClientTests
         Assert.Equal(NotificationHelper.ExpoClientName, factory.RequestedName);
     }
 
+    /// <summary>
+    /// A compressed answer is read, which is what Expo sends back when the request says it
+    /// accepts one. The plugin said so and nothing decompressed it, so every answer since
+    /// arrived as gzip and was parsed as JSON:
+    /// <c>'0x1F' is an invalid start of value</c>, 0x1F being the first byte of a gzip
+    /// stream. It failed the hourly receipts task on a real server, and quietly cost every
+    /// send its answer, which is what prunes dead tokens and queues the receipts.
+    /// </summary>
+    [Theory]
+    [InlineData("gzip")]
+    [InlineData("deflate")]
+    public async Task ACompressedAnswerIsRead(string how)
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, """{"data":[{"status":"ok","id":"1"}]}""")
+        {
+            CompressWith = how
+        };
+
+        var response = await HelperFor(handler).Send(ANotification());
+
+        Assert.NotNull(response);
+        Assert.Single(response!.Data);
+        Assert.Equal("ok", response.Data[0].Status);
+    }
+
+    /// <summary>
+    /// The request no longer asks for an answer it cannot read. A server that compresses
+    /// anyway is still read, which the test above holds.
+    /// </summary>
+    [Fact]
+    public async Task TheRequestDoesNotAskForSomethingItCannotRead()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, """{"data":[{"status":"ok","id":"1"}]}""");
+
+        await HelperFor(handler).Send(ANotification());
+
+        Assert.False(handler.LastRequest?.Headers.Contains("Accept-Encoding"));
+    }
+
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         public int Calls { get; private set; }
@@ -244,6 +283,13 @@ public class PushNotificationClientTests
         /// The last entry repeats once it runs out.
         /// </summary>
         public IReadOnlyList<(HttpStatusCode Status, string Body)> Then { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets how to compress the answer, as the <c>Content-Encoding</c> says,
+        /// or null to answer in plain text.
+        /// </summary>
+        public string? CompressWith { get; set; }
+
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -262,10 +308,30 @@ public class PushNotificationClientTests
 
             Calls++;
 
-            return new HttpResponseMessage(answer.Item1)
+            if (CompressWith is null)
             {
-                Content = new StringContent(answer.Item2, System.Text.Encoding.UTF8, "application/json"),
-            };
+                return new HttpResponseMessage(answer.Item1)
+                {
+                    Content = new StringContent(answer.Item2, System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            var compressed = new System.IO.MemoryStream();
+
+            using (var into = CompressWith == "gzip"
+                ? new System.IO.Compression.GZipStream(compressed, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true)
+                : (System.IO.Stream)new System.IO.Compression.DeflateStream(compressed, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true))
+            {
+                await into.WriteAsync(System.Text.Encoding.UTF8.GetBytes(answer.Item2), cancellationToken).ConfigureAwait(false);
+            }
+
+            compressed.Position = 0;
+
+            var content = new StreamContent(compressed);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            content.Headers.ContentEncoding.Add(CompressWith);
+
+            return new HttpResponseMessage(answer.Item1) { Content = content };
         }
     }
 

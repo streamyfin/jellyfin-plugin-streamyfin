@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Streamyfin.Integrations;
@@ -34,7 +35,16 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // HttpClient defaults to: a push send happens inside an event handler the server is
         // waiting on, so a hung request should give up long before that.
         serviceCollection
-            .AddHttpClient(NotificationHelper.ExpoClientName, client => client.Timeout = TimeSpan.FromSeconds(30));
+            .AddHttpClient(NotificationHelper.ExpoClientName, client => client.Timeout = TimeSpan.FromSeconds(30))
+            // Expo compresses its answer when the request says it accepts one, and .NET
+            // decompresses only when it is the one that asked. The plugin asked by hand
+            // and unwrapped nothing, so every answer arrived as gzip and was parsed as
+            // JSON: '0x1F' is an invalid start of value, which failed the hourly receipts
+            // task and cost every send the answer that prunes its dead tokens.
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.All
+            });
 
         serviceCollection.AddSingleton<IntegrationProbe>();
 

@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
+using System.IO.Compression;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -518,7 +521,7 @@ public class NotificationHelper
             {
                 _logger?.LogDebug("Received response");
 
-                return await rawResponse.Content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
+                return await ReadAnswer<T>(rawResponse.Content, cancellationToken).ConfigureAwait(false);
             }
 
             var body = await rawResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -548,6 +551,60 @@ public class NotificationHelper
         }
     }
 
+    /// <summary>
+    /// Reads what Expo answered, whatever it is wrapped in.
+    /// </summary>
+    /// <remarks>
+    /// The request used to say <c>Accept-Encoding: gzip, deflate</c> and nothing
+    /// unwrapped what came back, so every answer arrived compressed and was parsed as
+    /// JSON: <c>'0x1F' is an invalid start of value</c>, 0x1F being the first byte of a
+    /// gzip stream. The hourly receipts task failed with it on a real server, and every
+    /// send lost its answer, which is what prunes a dead token and queues its receipt.
+    ///
+    /// <para>
+    /// The request no longer asks for it and the registered client decompresses by
+    /// itself. This stays because a proxy in front of a server compresses whatever it
+    /// likes, and reading the answer is worth more than being right about who asked.
+    /// </para>
+    /// </remarks>
+    // The same options ReadFromJsonAsync uses, which is what the plain path reads with:
+    // web defaults, so "status" matches Status. Deserialising with the bare defaults
+    // instead parses the document and hands back a response with nothing in it.
+    private static readonly JsonSerializerOptions _asExpoWritesIt = new(JsonSerializerDefaults.Web);
+
+    private static async Task<T?> ReadAnswer<T>(HttpContent content, CancellationToken cancellationToken)
+        where T : class
+    {
+        var encoding = content.Headers.ContentEncoding.LastOrDefault();
+
+        if (encoding is null)
+        {
+            return await content.ReadFromJsonAsync<T>(cancellationToken).ConfigureAwait(false);
+        }
+
+        var raw = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+        var plain = encoding.ToUpperInvariant() switch
+        {
+            "GZIP" => new GZipStream(raw, CompressionMode.Decompress),
+            "DEFLATE" => new DeflateStream(raw, CompressionMode.Decompress),
+            "BR" => (Stream)new BrotliStream(raw, CompressionMode.Decompress),
+            _ => raw
+        };
+
+        try
+        {
+            return await JsonSerializer.DeserializeAsync<T>(plain, _asExpoWritesIt, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (!ReferenceEquals(plain, raw))
+            {
+                await plain.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     private static HttpRequestMessage GetHttpRequestMessage(string uri, string content) => new()
     {
         Method = HttpMethod.Post,
@@ -555,8 +612,7 @@ public class NotificationHelper
         Headers =
         {
             { "Host", "exp.host" },
-            { "Accept", "application/json" },
-            { "Accept-Encoding", "gzip, deflate" }
+            { "Accept", "application/json" }
         },
         Content = new StringContent(
             content: content,
