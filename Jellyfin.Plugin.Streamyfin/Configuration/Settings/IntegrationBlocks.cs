@@ -138,21 +138,21 @@ public static class IntegrationBlocks
     private static Lockable<T>? Copy<T>(Lockable<T>? one) =>
         one is null ? null : new Lockable<T> { value = one.value, locked = one.locked };
 
-    // Two Lockable<T> say the same thing when both the value and the lock match.
-    private static bool Same(object? left, object? right) =>
-        string.Equals(Describe(left), Describe(right), StringComparison.Ordinal);
-
-    private static string Describe(object? lockable)
+    // Two Lockable<T> say the same thing when both the value and the lock match. Compared
+    // as values rather than as text: rendering them made null and the empty string the
+    // same thing, so a document that set one shape to nothing and the other to "" was
+    // accepted and the block then won, quietly.
+    private static bool Same(object? left, object? right)
     {
-        if (lockable is null)
+        if (left is null || right is null)
         {
-            return "none";
+            return left is null && right is null;
         }
 
-        var type = lockable.GetType();
-        var value = type.GetProperty("value")?.GetValue(lockable);
-        var locked = type.GetProperty("locked")?.GetValue(lockable);
-
-        return $"{value}|{locked}";
+        return Equals(Held(left, "value"), Held(right, "value"))
+            && Equals(Held(left, "locked"), Held(right, "locked"));
     }
+
+    private static object? Held(object lockable, string name) =>
+        lockable.GetType().GetProperty(name)?.GetValue(lockable);
 }

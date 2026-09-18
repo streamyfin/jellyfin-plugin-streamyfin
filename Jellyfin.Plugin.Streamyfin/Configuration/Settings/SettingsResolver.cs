@@ -87,6 +87,12 @@ public static class SettingsResolver
             secret.Property.SetValue(redacted, null);
         }
 
+        // After the secrets go, and here rather than before, for two reasons. The block
+        // is not a described setting, so rebuilding drops it, and a plain user would
+        // never have seen it, which is exactly who the app runs as. And building it from
+        // what is left means it can never carry what the redaction took out.
+        IntegrationBlocks.Project(redacted);
+
         return redacted;
     }
 

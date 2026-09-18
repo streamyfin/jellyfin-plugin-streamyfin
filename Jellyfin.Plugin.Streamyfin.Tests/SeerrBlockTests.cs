@@ -178,4 +178,78 @@ public class SeerrBlockTests
         Assert.Equal("http://seerr.example", settings.jellyseerrServerUrl?.value);
         Assert.True(settings.jellyseerrServerUrl?.locked);
     }
+
+    /// <summary>
+    /// What a plain user receives carries the block too, since the app runs as one and
+    /// the block exists for it. Measured before this: the redaction rebuilds the settings
+    /// from the described ones, and the block is not one, so it was dropped for everybody
+    /// but an administrator and the app would never have seen it.
+    /// </summary>
+    [Fact]
+    public void WhatAPlainUserReceivesCarriesTheBlock()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example" },
+            autoLoginJellyseerr = new Lockable<bool> { value = true }
+        };
+
+        var redacted = SettingsResolver.Redact(settings);
+
+        Assert.Equal("http://seerr.example", redacted.seerr?.serverUrl?.value);
+        Assert.True(redacted.seerr?.autoLogin?.value);
+    }
+
+    /// <summary>
+    /// And it never carries what the redaction took out. The key grants full Seerr admin
+    /// access, which is the whole reason the flat one is marked secret.
+    /// </summary>
+    [Fact]
+    public void TheBlockNeverCarriesWhatWasRedacted()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example" },
+            jellyseerrApiKey = new Lockable<string> { value = "SECRET-ADMIN-KEY" }
+        };
+
+        var redacted = SettingsResolver.Redact(settings);
+
+        Assert.Null(redacted.jellyseerrApiKey);
+        Assert.Null(redacted.seerr?.apiKey);
+        Assert.Equal("http://seerr.example", redacted.seerr?.serverUrl?.value);
+    }
+
+    /// <summary>
+    /// Nothing and an empty address are different things, and reading them as the same
+    /// let a disagreement through: the block then won, quietly, on a document the plugin
+    /// said it had accepted.
+    /// </summary>
+    [Fact]
+    public void NothingIsNotAnEmptyString()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = null! },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = string.Empty } }
+        };
+
+        Assert.NotNull(IntegrationBlocks.Disagreement(settings));
+    }
+
+    /// <summary>
+    /// A lock is part of what a setting says, so two shapes that agree on the value and
+    /// not on the lock disagree.
+    /// </summary>
+    [Fact]
+    public void TheLockIsPartOfWhatItSays()
+    {
+        var settings = new Settings
+        {
+            autoLoginJellyseerr = new Lockable<bool> { value = true, locked = false },
+            seerr = new SeerrSettings { autoLogin = new Lockable<bool> { value = true, locked = true } }
+        };
+
+        Assert.NotNull(IntegrationBlocks.Disagreement(settings));
+    }
 }
