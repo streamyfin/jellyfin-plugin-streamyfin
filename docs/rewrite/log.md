@@ -39,6 +39,44 @@ than sent, since Expo refuses the whole message for a bad one.
 On iOS the image needs a notification service extension in the app, which is the app's half
 of #30.
 
+## 2026-09-18, the answer Expo sends back, and two settings that say what they mean
+
+**The hourly failure.** A server was told every hour that `Streamyfin push receipts` had
+failed with `'0x1F' is an invalid start of value`. 0x1F is the first byte of a gzip stream:
+the request said `Accept-Encoding: gzip, deflate` and nothing unwrapped what came back,
+and .NET decompresses only when it is the one that asked. Expo compresses above a size
+threshold, which is why it looked intermittent: one device's answer is one ticket and
+parses, while the receipts of a few hundred devices are a document worth compressing.
+
+It cost more than the task. The answer to a send is what prunes a token Expo reports as no
+longer registered and what queues its receipt, so neither had been happening on any server
+whose answers are large enough. Reproduced against the real Expo on a throwaway with 150
+devices registered, fixed, and the same server then answered 200 and pruned 300 rows. On
+the beta where it was failing hourly, the next run after the fix completed with no error.
+
+**P6.4, the search engine.** The app carried a rule and carried it the wrong way round: a
+Streamystats URL set in the plugin forced `searchEngine` to Streamystats on every refresh,
+so an administrator who had chosen Jellyfin search got it changed back under them. The
+plugin states the rule now: the administrator picks, and an engine that needs a server it
+has not been given is served as Jellyfin, because searching nothing is worse than searching
+Jellyfin. The review caught that writing the fallback reached into the stored
+configuration, since the resolver carries each level's own objects into what it hands back
+and the first level is the live configuration.
+
+**P6.1, Seerr as a block.** Seerr was renamed from Jellyseerr and the keys were not,
+because every copy of the app in the field reads `jellyseerrServerUrl` by name. An alias
+fixes a spelling; a block is a shape, so both go out: an administrator writes either, what
+a block says lands on the keys everything else reads, and what leaves carries both. One
+truth underneath, and a document that writes one setting twice and disagrees with itself is
+refused rather than resolved by precedence.
+
+The review's second finding there was the one worth having, and it was the opposite of what
+it claimed: the block could not leak the Seerr key, because the redaction rebuilds the
+settings from the described ones and a block is deliberately not one. What that meant is
+that the block never reached a plain user, which is exactly who the app runs as. It is
+built after the redaction now, from what is left, which fixes the reach and makes the leak
+impossible by construction.
+
 ## 2026-09-18, the update every server will do on release day
 
 Run before the release rather than after it. A throwaway on 10.11.11, given the published
