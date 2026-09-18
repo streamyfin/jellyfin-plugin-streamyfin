@@ -171,4 +171,36 @@ public class SearchEngineRuleTests
             TestDirectory.Delete(directory);
         }
     }
+
+    /// <summary>
+    /// The fallback changes what one caller is served, not what the server holds.
+    /// </summary>
+    /// <remarks>
+    /// The resolver builds a new Settings but carries the levels' own Lockable objects
+    /// into it, and the first level is the plugin's live configuration. Setting the value
+    /// on the one it handed back therefore reached into the stored configuration: one
+    /// request without a Streamystats URL would have turned the administrator's choice
+    /// into Jellyfin for everybody, and the next save would have written it down.
+    /// </remarks>
+    [Fact]
+    public void TheServerKeepsWhatTheAdministratorChose()
+    {
+        var directory = TestDirectory.Create();
+
+        try
+        {
+            var db = new Jellyfin.Plugin.Streamyfin.Db.PluginDatabase(directory);
+            var resolution = new SettingsResolutionService(new SerializationHelper());
+            var global = With(SearchEngine.Streamystats);
+
+            var served = resolution.Resolve(global, null, null);
+
+            Assert.Equal(SearchEngine.Jellyfin, served.searchEngine!.value);
+            Assert.Equal(SearchEngine.Streamystats, global.searchEngine!.value);
+        }
+        finally
+        {
+            TestDirectory.Delete(directory);
+        }
+    }
 }

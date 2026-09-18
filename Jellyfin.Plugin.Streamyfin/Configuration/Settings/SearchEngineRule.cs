@@ -53,9 +53,20 @@ public static class SearchEngineRule
 
         if (!served)
         {
+            // A new one rather than the value on the one that was handed in. The resolver
+            // builds a new Settings but carries each level's own Lockable into it, and
+            // the first level is the plugin's live configuration: setting the value here
+            // reached into what the server holds, so one request without a Streamystats
+            // URL turned the administrator's choice into Jellyfin for everybody, and the
+            // next save wrote it down.
+            //
             // The lock is the administrator's and stays theirs. The fallback is not a
             // choice anybody made, so it does not unlock what they locked.
-            chosen.value = SearchEngine.Jellyfin;
+            settings.searchEngine = new Lockable<SearchEngine>
+            {
+                value = SearchEngine.Jellyfin,
+                locked = chosen.locked
+            };
         }
     }
 
