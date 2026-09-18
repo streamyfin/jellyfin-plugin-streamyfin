@@ -297,7 +297,7 @@ administrator next saves.
 - **P6.1** Group integrations into typed blocks instead of flat keys
 - **P6.2** Server side connection probe with a test button in the admin UI
 - **P6.3** Expose health so the app knows an integration is down
-- **P6.4** Replace the hidden Streamystats rule with a declared one
+- **P6.4** Replace the hidden Streamystats rule with a declared one — **done**
 
 P6.2 belongs on the server, which can reach an internal URL a phone never will.
 The app's `utils/serverUrl/probes/reachability.ts` is the pattern to follow, and
@@ -323,6 +323,15 @@ take Seerr away from everyone who had not updated. So the old name stays the one
 written, the new one is an alias on the way in, and the day the app reads the new
 name the canonical one moves without a second migration for anyone who typed
 either.
+
+P6.4 was a rule the app carried and carried the wrong way round: a Streamystats URL set in
+the plugin forced `searchEngine` to Streamystats on every refresh, so an administrator who
+had chosen Jellyfin search got it changed back under them, and nothing said so. The rule
+the plugin states instead cannot surprise anybody: the administrator picks the engine, and
+an engine that needs a server it has not been given is not served, because searching
+nothing is worse than searching Jellyfin. It is applied after the levels resolve, since the
+engine and the address it needs can come from different levels. The app drops its overlay
+once every server serves this, which is P2.4 on its side.
 
 Typed blocks are the same wall, one storey higher. `seerr.serverUrl` is a
 different shape rather than a different spelling, and no alias makes an app that
@@ -378,6 +387,7 @@ from.
 | P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
 | P5.4 | none needed | delivered by P1's resolution; proven by `HomePerGroupTests` |
+| P6.4 | [#197](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/197) | the rule stated and applied at resolution; the app's overlay comes out in P2.4 |
 | P5.2 | [#151](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/151) for bounds, [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) for sections | merged |
 | P0.7 corrected | [#165](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/165) | merged. One manifest per channel, not per Jellyfin line, plus the unstable channel |
 | #110 | [#167](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/167) | merged |
