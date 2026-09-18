@@ -155,4 +155,27 @@ public class SeerrBlockTests
         Assert.Null(SettingsSchema.Find("seerr"));
         Assert.DoesNotContain(SettingsSchema.Descriptors, descriptor => descriptor.Key == "seerr");
     }
+
+    /// <summary>
+    /// The block is a copy, not the same objects. The resolver carries each level's own
+    /// Lockable into what it hands back, and the first level is the plugin's live
+    /// configuration, so a block sharing those objects would be a second handle on what
+    /// the server holds.
+    /// </summary>
+    [Fact]
+    public void TheBlockIsACopy()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example", locked = true }
+        };
+
+        IntegrationBlocks.Project(settings);
+
+        settings.seerr!.serverUrl!.value = "http://somewhere.else";
+        settings.seerr.serverUrl.locked = false;
+
+        Assert.Equal("http://seerr.example", settings.jellyseerrServerUrl?.value);
+        Assert.True(settings.jellyseerrServerUrl?.locked);
+    }
 }

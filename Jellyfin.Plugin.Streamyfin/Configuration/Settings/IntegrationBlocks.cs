@@ -97,11 +97,15 @@ public static class IntegrationBlocks
             return;
         }
 
+        // Copies, not the same objects. The resolver carries each level's own Lockable
+        // into what it hands back, and the first level is the plugin's live
+        // configuration, so a block sharing those would be a second handle on what the
+        // server holds.
         settings.seerr = new SeerrSettings
         {
-            serverUrl = settings.jellyseerrServerUrl,
-            apiKey = settings.jellyseerrApiKey,
-            autoLogin = settings.autoLoginJellyseerr
+            serverUrl = Copy(settings.jellyseerrServerUrl),
+            apiKey = Copy(settings.jellyseerrApiKey),
+            autoLogin = Copy(settings.autoLoginJellyseerr)
         };
     }
 
@@ -130,6 +134,9 @@ public static class IntegrationBlocks
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
+
+    private static Lockable<T>? Copy<T>(Lockable<T>? one) =>
+        one is null ? null : new Lockable<T> { value = one.value, locked = one.locked };
 
     // Two Lockable<T> say the same thing when both the value and the lock match.
     private static bool Same(object? left, object? right) =>
