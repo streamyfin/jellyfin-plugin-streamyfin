@@ -63,7 +63,15 @@ public class SettingsParityTests
     /// catches up, since an unlocked default is applied whether the app understands the
     /// key or not.
     /// </remarks>
-    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
+    {
+        ["seerr"] =
+            "P6.1. The same three settings as jellyseerrServerUrl, jellyseerrApiKey and "
+            + "autoLoginJellyseerr, in the shape the app is moving to. Served beside them "
+            + "on purpose: no alias makes an app that reads a flat key find a nested one, "
+            + "so both go out until every copy in the field reads the block, and the flat "
+            + "keys come out the day it does. Remove this entry then.",
+    };
 
     private sealed record ManifestEntry(
         string Key,

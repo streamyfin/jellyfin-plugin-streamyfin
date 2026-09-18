@@ -23,8 +23,12 @@ public class SettingsSchemaTests
     [Fact]
     public void EverySettingIsDescribed()
     {
+        // Everything on Settings is a setting, except what is marked as a shape: an
+        // integration block mirrors keys that are already drawn, resolved and validated,
+        // and describing it would give one value two places to be resolved from.
         var declared = typeof(Settings)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetCustomAttribute<NotASettingAttribute>() is null)
             .Select(p => p.Name)
             .OrderBy(n => n, System.StringComparer.Ordinal)
             .ToArray();
@@ -35,6 +39,14 @@ public class SettingsSchemaTests
             .ToArray();
 
         Assert.Equal(declared, described);
+
+        var shapes = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetCustomAttribute<NotASettingAttribute>() is not null)
+            .Select(p => p.Name)
+            .ToArray();
+
+        Assert.DoesNotContain(described, name => shapes.Contains(name));
     }
 
     /// <summary>

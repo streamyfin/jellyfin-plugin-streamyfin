@@ -335,8 +335,20 @@ once every server serves this, which is P2.4 on its side.
 
 Typed blocks are the same wall, one storey higher. `seerr.serverUrl` is a
 different shape rather than a different spelling, and no alias makes an app that
-reads a flat key find a nested one. That part waits for the app, and it is the
-one piece of P6 that does.
+reads a flat key find a nested one.
+
+So the plugin serves both. An administrator may write either, what a block says
+lands on the keys everything else reads, and what leaves carries the block as
+well. One truth underneath: the flat keys keep the locks, the targeting levels,
+the form fields and the validation, and the block is read on the way in and
+written on the way out. A document that writes one setting twice and disagrees
+with itself is refused rather than resolved by precedence, since an
+administrator who wrote both meant one of them.
+
+Seerr first, because Seerr is the one that was renamed. Marlin and Streamystats
+follow the same mechanism the day it is worth the second shape. What is left is
+the app reading the block, and then the flat keys coming out, which is the only
+piece of P6 that waits for the app.
 
 ## P1.7. Settings parity
 
@@ -384,6 +396,7 @@ from.
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
 | P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
 | P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160), simplified in [#161](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161) | merged |
+| P6.1 typed blocks | [#198](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/198) | the `seerr` block read and served beside the flat keys; the app switch and the removal are what is left |
 | P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
 | P5.4 | none needed | delivered by P1's resolution; proven by `HomePerGroupTests` |

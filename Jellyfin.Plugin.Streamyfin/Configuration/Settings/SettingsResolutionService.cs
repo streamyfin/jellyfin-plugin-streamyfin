@@ -79,6 +79,11 @@ public sealed class SettingsResolutionService(
         // server holds its address, and neither level is wrong on its own.
         SearchEngineRule.Apply(resolved);
 
+        // Both shapes leave here, so an app reading either finds Seerr. The flat keys go
+        // the day every copy in the field reads the block. A caller who is not an
+        // administrator gets this again after the redaction, from what is left.
+        IntegrationBlocks.Project(resolved);
+
         return resolved;
     }
 
@@ -167,6 +172,7 @@ public sealed class SettingsResolutionService(
         try
         {
             var settings = _serialization.DeserializeJson<Settings>(json);
+            IntegrationBlocks.Fold(settings);
             Sections.Declare(settings);
             Sections.Sort(settings);
             SettingsValidation.Tidy(settings);

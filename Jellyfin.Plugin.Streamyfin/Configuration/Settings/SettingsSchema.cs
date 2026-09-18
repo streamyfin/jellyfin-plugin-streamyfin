@@ -143,6 +143,10 @@ public static class SettingsSchema
         return typeof(Settings)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetIndexParameters().Length == 0)
+            // A shape rather than a setting: an integration block mirrors keys that are
+            // already drawn, resolved and validated, and a second place to resolve one
+            // value from is how the two stop agreeing.
+            .Where(p => p.GetCustomAttribute<NotASettingAttribute>() is null)
             .Select(Describe)
             .ToList();
     }
