@@ -108,6 +108,18 @@ public static class SettingsValidation
     /// </remarks>
     public static string? Check(Settings? settings)
     {
+        // Before anything else: a document that writes one setting twice and disagrees
+        // with itself is refused rather than resolved by precedence, since an
+        // administrator who wrote both meant one of them.
+        if (IntegrationBlocks.Disagreement(settings) is { } argument)
+        {
+            return argument;
+        }
+
+        // What a block says becomes what the keys say, so everything after this, here and
+        // in the resolution, reads one place.
+        IntegrationBlocks.Fold(settings);
+
         Tidy(settings);
 
         return Message(settings);

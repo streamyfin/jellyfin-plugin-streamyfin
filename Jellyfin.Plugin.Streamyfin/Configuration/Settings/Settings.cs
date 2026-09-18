@@ -553,6 +553,14 @@ public class Settings
     public Lockable<AudioTranscodeMode>? audioTranscodeMode { get; set; } // = auto;
 
     // region Plugins
+    /// <summary>
+    /// Gets or sets Seerr as one block, which is the shape the app is moving to. Read on
+    /// the way in and written on the way out; the three keys below stay where the value
+    /// lives. See <see cref="IntegrationBlocks"/>.
+    /// </summary>
+    [NotASetting]
+    public SeerrSettings? seerr { get; set; }
+
     // Seerr, which the keys still spell jellyseerr: every copy of the app in the field
     // reads that name, so it stays the one the plugin writes. [AlsoKnownAs] is what lets
     // an administrator type the current name, which is issue #95.

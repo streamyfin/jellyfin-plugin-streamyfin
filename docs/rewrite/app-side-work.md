@@ -176,3 +176,16 @@ published `develop` now carries both keys and both bindings, so the plugin is le
 with it rather than ahead: the parity test compares `subtitlesOnMuteAllowRestart`
 against the manifest like any other key, and the two exceptions written for that
 branch are deleted.
+
+### Read Seerr as a block, then let the flat keys go
+
+Plan P6.1. The plugin now serves Seerr twice: as `jellyseerrServerUrl`,
+`jellyseerrApiKey` and `autoLoginJellyseerr`, which every copy of the app in the
+field reads, and as a `seerr` block with `serverUrl`, `apiKey` and `autoLogin`,
+which is the shape the settings are moving to now that Jellyseerr has been
+renamed.
+
+Nothing breaks either way while both go out. What the app has to do, in its own
+time, is read the block when it is there and fall back to the flat keys when it
+is not. The flat keys come out of the plugin the day every copy in the field
+reads the block, and the entry for `seerr` in `SettingsParityTests` says so.
