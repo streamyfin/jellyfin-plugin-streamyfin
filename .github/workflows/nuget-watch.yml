@@ -105,7 +105,7 @@ jobs:
               labels: 'dependencies',
               per_page: 100,
             });
-            const plan = planIssue({ title, body, issues });
+            const plan = planIssue({ title, body, issues, partial: Boolean(unreadable) });
 
             if (plan.update) {
               await github.rest.issues.update({ owner, repo, issue_number: plan.update, title, body });
