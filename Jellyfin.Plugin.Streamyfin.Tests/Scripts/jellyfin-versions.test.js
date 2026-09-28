@@ -71,10 +71,17 @@ describe("classifying what is published", () => {
         expect(newerInLine).toEqual(["12.1.0"]);
     });
 
-    // Comparing against the single newest built version, 12.0.0, put this below it and
-    // discarded it, although it is a new minor of a line this repository builds.
-    test("a newer minor of the older line is not hidden by the newer line", () => {
-        expect(classify(["10.12.0"], built).newerInLine).toEqual(["10.12.0"]);
+    // Jellyfin renamed 10.12 to 12.0 before releasing it, and the weekly builds from
+    // before the rename are still on the prerelease feed: 28 of them filled #202. Nothing
+    // older than 12.0 is going to ship, so nothing older is watched.
+    test("nothing older than 12.0 is watched", () => {
+        const { newLines, newerInLine } = classify(
+            ["10.12.0", "10.12.0-20251027051416", "12.0.0-rc1", "12.1.0", "13.0.0-20260928112619"],
+            built,
+        );
+
+        expect(newLines).toEqual(["13.0.0-20260928112619"]);
+        expect(newerInLine).toEqual(["12.1.0"]);
     });
 
     // The floor of a line is deliberately old: 10.11.9 rather than 10.11.11, because

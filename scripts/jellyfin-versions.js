@@ -15,6 +15,11 @@
 // a feed entry nobody can install would be reported as one that outranks the build.
 const CORE = /^\d+(?:\.\d+){0,3}$/;
 
+// Jellyfin renamed 10.12 to 12.0 before releasing it, and the weekly builds from before
+// the rename are still on the prerelease feed: 28 of them filled #202. Nothing older than
+// 12.0 is going to ship, as a new line or as a new minor, so nothing older is watched.
+const WATCHED_FROM = parse('12.0.0');
+
 function parse(version) {
     if (typeof version !== 'string') return null;
 
@@ -60,10 +65,8 @@ function classify(published, built) {
 
     const newest = builtVersions.reduce((a, b) => (compare(a, b) >= 0 ? a : b));
 
-    // The floor of each line, separately. Comparing every published version against the
-    // single newest built one is what the first version of this did, and it hid a new
-    // release of an older line: with 10.11.9 and 12.0.0 built, a published 10.12.0 is
-    // below 12.0.0 and was discarded, although it is news for the line it belongs to.
+    // The floor of each line, separately, so a new minor of a line already built is told
+    // apart from a line nothing builds against: 12.1.0 is the first, 13.0.0 the second.
     const floors = new Map();
     for (const version of builtVersions) {
         const major = version.numbers[0];
@@ -73,7 +76,10 @@ function classify(published, built) {
 
     // Deduplicated, because the caller hands in the union of two feeds and a version
     // published to both is one version. Without this it is named twice in the issue.
-    const parsed = [...new Set(published)].map(parse).filter(Boolean);
+    const parsed = [...new Set(published)]
+        .map(parse)
+        .filter(Boolean)
+        .filter((v) => compare(v, WATCHED_FROM) >= 0);
 
     // A major older than everything built here is a line that was dropped on purpose,
     // not news, so the newest built major is what decides whether an unknown line counts.
