@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-const { parse, compare, classify, headline, issueBody, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
+const { parse, compare, classify, headline, issueBody, planIssue, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
 
 const order = (a, b) => compare(parse(a), parse(b));
 
@@ -218,5 +218,75 @@ describe("the body of that issue", () => {
         expect(body.startsWith("This repository builds against **10.11.9** and **12.0.0**.")).toBe(true);
         expect(body).toContain("Compat/README.md#adding-a-jellyfin-line-when-the-time-comes");
         expect(body.trimEnd().endsWith("Closing it is the right answer once it has been read.")).toBe(true);
+    });
+});
+
+describe("which issue says it", () => {
+    // One issue, kept up to date, rather than one a week: the title names the newest
+    // build, so every weekly build of a new line used to open another (#193, #201, #202).
+    const watch = (number, state, title, body = "old") => ({
+        number,
+        state,
+        title,
+        body,
+        user: { login: "github-actions[bot]" },
+    });
+    const title = "Jellyfin.Controller 13.0.0-20260928112619 and 2 more are on NuGet";
+    const body = "the tables";
+
+    test("with none yet, one is opened", () => {
+        expect(planIssue({ title, body, issues: [] })).toEqual({ create: true, close: [] });
+    });
+
+    test("an open one is brought up to date rather than a second one opened", () => {
+        const issues = [watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ update: 201, keep: 201, close: [] });
+    });
+
+    test("an open one that already says this is left alone", () => {
+        const issues = [watch(202, "open", title, "the tables\r\n")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ keep: 202, close: [], reason: "#202 already says this" });
+    });
+
+    test("of several open, the newest is kept and the others are closed as superseded by it", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", "Jellyfin.Controller 13.0.0-20260928112619 and 2 more are on NuGet"),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ update: 202, keep: 202, close: [201] });
+    });
+
+    test("the ones closed as superseded name the one kept, even when it needs no update", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", title, body),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ keep: 202, close: [201], reason: "#202 already says this" });
+    });
+
+    test("the last one closed with the same news is not said again", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet"), watch(202, "closed", title)];
+
+        expect(planIssue({ title, body, issues })).toEqual({ close: [], reason: "#202 said this and was closed" });
+    });
+
+    test("news since the last one was closed opens a new one", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ create: true, close: [] });
+    });
+
+    test("what is not this watch's is left out of it", () => {
+        const issues = [
+            { ...watch(150, "open", title), pull_request: {} },
+            { ...watch(151, "open", title), user: { login: "someone" } },
+            watch(152, "open", "Jellyfin.Controller is slow on NuGet today, anyone else?", "a question"),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ create: true, close: [] });
     });
 });

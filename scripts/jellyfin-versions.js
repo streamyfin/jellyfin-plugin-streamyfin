@@ -224,9 +224,49 @@ function issueBody({ built = [], newLines = [], newerInLine = [], prereleaseOnly
     return body.join('\n');
 }
 
+// The two titles headline gives, and nothing else: an issue someone opens about NuGet is
+// not this watch's to update or close.
+const WATCH_TITLE = /^Jellyfin\.Controller \S+ (?:is|and \d+ more are) on NuGet$/;
+
+/**
+ * What to do with the issues this watch opened, given what it has to say now.
+ *
+ * One issue, kept up to date. The title names the newest build, so every weekly build of a
+ * new line used to open another one: #193, #201 and #202 in three weeks. An open one is
+ * brought up to date, the newest if there are several, and the others are closed as
+ * superseded by it. With none open, the last one closed decides: closed on the same news
+ * means it was read, and anything newer is worth a new issue.
+ *
+ * @returns {{create?: true, update?: number, keep?: number, close: number[], reason?: string}}
+ */
+function planIssue({ title, body, issues }) {
+    const ours = issues
+        .filter((issue) => !issue.pull_request && issue.user?.login === 'github-actions[bot]' && WATCH_TITLE.test(issue.title))
+        .sort((a, b) => b.number - a.number);
+
+    // GitHub hands a body edited on the website back with CRLF line endings.
+    const tidy = (text) => (text ?? '').replace(/\r\n/g, '\n').trim();
+
+    const open = ours.filter((issue) => issue.state === 'open');
+    if (open.length > 0) {
+        const [kept, ...older] = open;
+        const close = older.map((issue) => issue.number);
+        return kept.title === title && tidy(kept.body) === tidy(body)
+            ? { keep: kept.number, close, reason: `#${kept.number} already says this` }
+            : { update: kept.number, keep: kept.number, close };
+    }
+
+    // The title alone, since it names the newest build and how many came with it. The body
+    // of an issue closed a while ago can differ only in how it is laid out.
+    const [last] = ours;
+    if (last && last.title === title) return { close: [], reason: `#${last.number} said this and was closed` };
+
+    return { create: true, close: [] };
+}
+
 // The property is repeated once per target, so every value is read rather than the first.
 function builtVersionsFrom(props) {
     return [...props.matchAll(/<JellyfinVersion>([^<]+)<\/JellyfinVersion>/g)].map((m) => m[1].trim());
 }
 
-module.exports = { parse, compare, classify, headline, issueBody, builtVersionsFrom };
+module.exports = { parse, compare, classify, headline, issueBody, planIssue, builtVersionsFrom };
