@@ -17,6 +17,8 @@ public class StringExtensionsTests
     [InlineData("MEDIA_PENDING\n[ERR] forged", "MEDIA_PENDING [ERR] forged")]
     [InlineData("MEDIA_PENDING\r\n[ERR] forged", "MEDIA_PENDING [ERR] forged")]
     [InlineData("a\rb", "a b")]
+    [InlineData("a\u000Bb", "a b")]
+    [InlineData("a\u000Cb", "a b")]
     [InlineData("a\u2028b\u2029c\u0085d", "a b c d")]
     public void A_line_break_cannot_start_an_entry_of_its_own(string sent, string logged)
     {
