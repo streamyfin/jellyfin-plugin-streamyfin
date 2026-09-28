@@ -243,9 +243,14 @@ const WATCH_TITLE = /^Jellyfin\.Controller \S+ (?:is|and \d+ more are) on NuGet$
  * superseded by it. With none open, the last one closed decides: closed on the same news
  * means it was read, and anything newer is worth a new issue.
  *
+ * A partial report, written without the prerelease feed, touches no issue already open:
+ * it lacks what that feed holds, the builds of a new line first of all, so bringing it
+ * into an issue would take them out, and closing another on its word would lose the rest.
+ * A release it finds with none open is still news.
+ *
  * @returns {{create?: true, update?: number, keep?: number, close: number[], reason?: string}}
  */
-function planIssue({ title, body, issues }) {
+function planIssue({ title, body, issues, partial = false }) {
     const ours = issues
         .filter((issue) => !issue.pull_request && issue.user?.login === 'github-actions[bot]' && WATCH_TITLE.test(issue.title))
         .sort((a, b) => b.number - a.number);
@@ -256,6 +261,9 @@ function planIssue({ title, body, issues }) {
     const open = ours.filter((issue) => issue.state === 'open');
     if (open.length > 0) {
         const [kept, ...older] = open;
+        if (partial) {
+            return { keep: kept.number, close: [], reason: `the prerelease feed was not read, so #${kept.number} is left as it is` };
+        }
         const close = older.map((issue) => issue.number);
         return kept.title === title && tidy(kept.body) === tidy(body)
             ? { keep: kept.number, close, reason: `#${kept.number} already says this` }

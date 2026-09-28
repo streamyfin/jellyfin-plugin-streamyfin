@@ -287,6 +287,31 @@ describe("which issue says it", () => {
         expect(planIssue({ title, body, issues })).toEqual({ create: true, close: [] });
     });
 
+    // A report written without the prerelease feed is missing what that feed holds, the
+    // builds of a new line first of all. Brought into an open issue, it would take them
+    // out of it, and closing an older one on its word would lose the rest.
+    test("without the prerelease feed, an open one is left as it is and none is closed", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", title),
+        ];
+
+        expect(planIssue({ title: "Jellyfin.Controller 12.1.0 is on NuGet", body, issues, partial: true })).toEqual({
+            keep: 202,
+            close: [],
+            reason: "the prerelease feed was not read, so #202 is left as it is",
+        });
+    });
+
+    test("without the prerelease feed and none open, a release is still news", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet")];
+
+        expect(planIssue({ title: "Jellyfin.Controller 12.1.0 is on NuGet", body, issues, partial: true })).toEqual({
+            create: true,
+            close: [],
+        });
+    });
+
     test("what is not this watch's is left out of it", () => {
         const issues = [
             { ...watch(150, "open", title), pull_request: {} },
