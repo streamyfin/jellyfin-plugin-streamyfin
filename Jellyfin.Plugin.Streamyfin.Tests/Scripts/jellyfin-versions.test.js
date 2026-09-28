@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-const { parse, compare, classify, headline, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
+const { parse, compare, classify, headline, issueBody, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
 
 const order = (a, b) => compare(parse(a), parse(b));
 
@@ -151,5 +151,72 @@ describe("the title an issue about it gets", () => {
     test("nothing new has no title", () => {
         expect(headline({ newLines: [], newerInLine: [] })).toBeNull();
         expect(headline({})).toBeNull();
+    });
+});
+
+describe("the body of that issue", () => {
+    // What #202 found on 2026-09-28: three weekly builds of a new line, and the weekly
+    // builds of 10.12 from before Jellyfin renamed it 12, next to a release of 12.1.
+    const weekly = (line, first, count) =>
+        Array.from({ length: count }, (_, i) => {
+            const day = new Date(Date.parse(first) + i * 7 * 86_400_000);
+            return `${line}-${day.toISOString().slice(0, 10).replaceAll("-", "")}051416`;
+        });
+    const thirteen = weekly("13.0.0", "2026-09-14", 3);
+    const tenTwelve = weekly("10.12.0", "2025-10-27", 28);
+    const report = {
+        built: ["10.11.9", "12.0.0"],
+        newLines: thirteen,
+        newerInLine: [...tenTwelve, "12.1.0"],
+        prereleaseOnly: [...thirteen, ...tenTwelve],
+    };
+    const rows = (body) => body.split("\n").filter((line) => line.startsWith("| "));
+
+    test("each line is one row, with how many versions and the newest", () => {
+        expect(rows(issueBody(report))).toContain("| 13.x | 3 | 13.0.0-20260928051416 | prerelease feed |");
+    });
+
+    test("a line already built names what it is built against", () => {
+        const body = rows(issueBody(report));
+
+        expect(body).toContain("| 10.x | 10.11.9 | 28 | 10.12.0-20260504051416 | prerelease feed |");
+        expect(body).toContain("| 12.x | 12.0.0 | 1 | 12.1.0 | nuget.org |");
+    });
+
+    test("a line with versions on both feeds says so", () => {
+        const mixed = { built: ["12.0.0"], newLines: [], newerInLine: ["12.1.0", "12.2.0-rc1"], prereleaseOnly: ["12.2.0-rc1"] };
+
+        expect(rows(issueBody(mixed))).toContain("| 12.x | 12.0.0 | 2 | 12.2.0-rc1 | both |");
+    });
+
+    test("every version is still listed, folded away under the tables", () => {
+        const body = issueBody(report);
+        const folded = body.slice(body.indexOf("<details>"));
+
+        for (const version of [...report.newLines, ...report.newerInLine]) {
+            expect(folded).toContain(`| ${version} |`);
+        }
+        expect(folded).toContain("<summary>Every version found (32)</summary>");
+    });
+
+    test("a section with nothing in it is left out", () => {
+        const body = issueBody({ ...report, newLines: [] });
+
+        expect(body).not.toContain("A line nothing here builds against");
+        expect(body).toContain("### Newer inside a line already built");
+    });
+
+    test("the headings no longer carry the versions", () => {
+        const headings = issueBody(report).split("\n").filter((line) => line.startsWith("###"));
+
+        expect(headings).toEqual(["### A line nothing here builds against", "### Newer inside a line already built"]);
+    });
+
+    test("it keeps saying what the repository builds against and where the procedure is", () => {
+        const body = issueBody(report);
+
+        expect(body.startsWith("This repository builds against **10.11.9** and **12.0.0**.")).toBe(true);
+        expect(body).toContain("Compat/README.md#adding-a-jellyfin-line-when-the-time-comes");
+        expect(body.trimEnd().endsWith("Closing it is the right answer once it has been read.")).toBe(true);
     });
 });

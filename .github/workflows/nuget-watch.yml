@@ -71,12 +71,12 @@ jobs:
         with:
           script: |
             const report = JSON.parse(process.env.REPORT);
-            const { newLines, newerInLine, newest, built, unreadable, prereleaseOnly } = report;
+            const { newLines, newerInLine, newest, unreadable } = report;
 
             // From the checkout rather than from the report, so the title cannot drift from
             // the versions it names: this file comes from the branch the run was started on
             // while the scripts come from develop, which is what the checkout above pins.
-            const { headline } = require('./scripts/jellyfin-versions');
+            const { headline, issueBody } = require('./scripts/jellyfin-versions');
 
             // Losing sight of the prerelease feed is the failure this watch is least
             // able to notice, since it looks exactly like nothing being published.
@@ -105,46 +105,10 @@ jobs:
               return;
             }
 
-            const body = [`This repository builds against **${built.join('** and **')}**.`, ''];
-
-            const onlyPrerelease = new Set(prereleaseOnly);
-            const mark = (v) => (onlyPrerelease.has(v) ? `${v} (prerelease feed only)` : v);
-
-            if (newLines.length > 0) {
-              body.push(
-                `### A line nothing here builds against: ${newLines.map(mark).join(', ')}`,
-                '',
-                'This is the one that needs a new target. The procedure is four steps, written down in',
-                '[`Jellyfin.Plugin.Streamyfin/Compat/README.md`](../blob/develop/Jellyfin.Plugin.Streamyfin/Compat/README.md#adding-a-jellyfin-line-when-the-time-comes),',
-                'along with the two things worth checking before assuming a target is only a version number.',
-                '',
-                'A prerelease counts: the first build of a line on the prerelease feed is the moment a',
-                'target for it becomes possible at all. It is not the moment it becomes worth having, since',
-                'that feed needs a token and its packages are replaced weekly. Compat/README.md weighs both.',
-                '',
-              );
-            }
-
-            if (newerInLine.length > 0) {
-              body.push(
-                `### Newer inside a line already built: ${newerInLine.map(mark).join(', ')}`,
-                '',
-                'Usually nothing to do. The reference is the oldest server each target supports, and a',
-                'newer server satisfies a lower reference, so raising it only narrows who can install the',
-                'plugin. It is worth reading the release for two things: whether the host moved its EF Core',
-                'pin, since the server provides that assembly and a plugin ahead of its host fails to load,',
-                'and whether anything the plugin calls changed inside the line, the way `IUserManager.Users`',
-                'became `GetUsers()` in 10.11.9.',
-                '',
-              );
-            }
-
-            body.push('Opened automatically by `nuget-watch.yml`. Closing it is the right answer once it has been read.');
-
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title,
               labels: ['dependencies'],
-              body: body.join('\n'),
+              body: issueBody(report),
             });

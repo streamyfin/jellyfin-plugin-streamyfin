@@ -133,9 +133,100 @@ function headline({ newLines = [], newerInLine = [] }) {
         : `Jellyfin.Controller ${newest} and ${others} more are on NuGet`;
 }
 
+/**
+ * The body of that issue: a table for each kind of news, one row per line, and every
+ * version folded away underneath.
+ *
+ * The versions used to be the headings, joined by commas. That read well for the three
+ * builds of a new line and not at all for the 28 weekly builds of 10.12 beside them, which
+ * made one heading of a few thousand characters.
+ */
+function issueBody({ built = [], newLines = [], newerInLine = [], prereleaseOnly = [] }) {
+    const onlyPrerelease = new Set(prereleaseOnly);
+    const feedOf = (versions) => {
+        const prerelease = versions.filter((v) => onlyPrerelease.has(v)).length;
+        if (prerelease === versions.length) return 'prerelease feed';
+        return prerelease === 0 ? 'nuget.org' : 'both';
+    };
+
+    // A line is a major, as classify counts them, so 10.12 is a row of the 10 line.
+    const byLine = (versions) => {
+        const lines = new Map();
+        for (const version of versions.map(parse).filter(Boolean)) {
+            const major = version.numbers[0];
+            lines.set(major, [...(lines.get(major) ?? []), version]);
+        }
+        return [...lines.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([major, parsed]) => {
+                const sorted = parsed.sort(compare).map((v) => v.raw);
+                return { major, count: sorted.length, newest: sorted[sorted.length - 1], feed: feedOf(sorted) };
+            });
+    };
+    const builtFor = (major) => built.filter((v) => parse(v)?.numbers[0] === major).join(', ');
+
+    const body = [`This repository builds against **${built.join('** and **')}**.`, ''];
+
+    if (newLines.length > 0) {
+        body.push(
+            '### A line nothing here builds against',
+            '',
+            '| Line | Versions | Newest | Feed |',
+            '| --- | --- | --- | --- |',
+            ...byLine(newLines).map((row) => `| ${row.major}.x | ${row.count} | ${row.newest} | ${row.feed} |`),
+            '',
+            'This is the one that needs a new target. The procedure is four steps, written down in',
+            '[`Jellyfin.Plugin.Streamyfin/Compat/README.md`](../blob/develop/Jellyfin.Plugin.Streamyfin/Compat/README.md#adding-a-jellyfin-line-when-the-time-comes),',
+            'along with the two things worth checking before assuming a target is only a version number.',
+            '',
+            'A prerelease counts: the first build of a line on the prerelease feed is the moment a',
+            'target for it becomes possible at all. It is not the moment it becomes worth having, since',
+            'that feed needs a token and its packages are replaced weekly. Compat/README.md weighs both.',
+            '',
+        );
+    }
+
+    if (newerInLine.length > 0) {
+        body.push(
+            '### Newer inside a line already built',
+            '',
+            '| Line | Built against | Versions | Newest | Feed |',
+            '| --- | --- | --- | --- | --- |',
+            ...byLine(newerInLine).map(
+                (row) => `| ${row.major}.x | ${builtFor(row.major)} | ${row.count} | ${row.newest} | ${row.feed} |`,
+            ),
+            '',
+            'Usually nothing to do. The reference is the oldest server each target supports, and a',
+            'newer server satisfies a lower reference, so raising it only narrows who can install the',
+            'plugin. It is worth reading the release for two things: whether the host moved its EF Core',
+            'pin, since the server provides that assembly and a plugin ahead of its host fails to load,',
+            'and whether anything the plugin calls changed inside the line, the way `IUserManager.Users`',
+            'became `GetUsers()` in 10.11.9.',
+            '',
+        );
+    }
+
+    // GitHub renders a table inside <details> only with a blank line on either side of it.
+    const every = [...newLines, ...newerInLine];
+    body.push(
+        '<details>',
+        `<summary>Every version found (${every.length})</summary>`,
+        '',
+        '| Version | Feed |',
+        '| --- | --- |',
+        ...every.map((v) => `| ${v} | ${feedOf([v])} |`),
+        '',
+        '</details>',
+        '',
+        'Opened automatically by `nuget-watch.yml`. Closing it is the right answer once it has been read.',
+    );
+
+    return body.join('\n');
+}
+
 // The property is repeated once per target, so every value is read rather than the first.
 function builtVersionsFrom(props) {
     return [...props.matchAll(/<JellyfinVersion>([^<]+)<\/JellyfinVersion>/g)].map((m) => m[1].trim());
 }
 
-module.exports = { parse, compare, classify, headline, builtVersionsFrom };
+module.exports = { parse, compare, classify, headline, issueBody, builtVersionsFrom };
