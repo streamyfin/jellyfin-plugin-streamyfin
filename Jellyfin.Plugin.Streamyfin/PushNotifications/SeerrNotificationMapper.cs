@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Microsoft.Extensions.Logging;
 
@@ -51,7 +52,7 @@ public class SeerrNotificationMapper
         // this does not model, and an administrator who wants them already has a way.
         if (type.Contains("ISSUE", StringComparison.Ordinal))
         {
-            _logger.LogDebug("Seerr sent {Type}, which is an issue event and not handled here", type);
+            _logger.LogDebug("Seerr sent {Type}, which is an issue event and not handled here", type.ForLog());
             return null;
         }
 
@@ -75,8 +76,8 @@ public class SeerrNotificationMapper
 
         _logger.LogDebug(
             "Seerr {Type} mapped to a notification for {Target}",
-            type,
-            notification.IsAdmin ? "administrators" : notification.Username);
+            type.ForLog(),
+            notification.IsAdmin ? "administrators" : notification.Username.ForLog());
 
         return notification;
     }
@@ -123,7 +124,7 @@ public class SeerrNotificationMapper
     {
         _logger.LogWarning(
             "Seerr sent {Type}, which this does not know. Passing its own text through",
-            payload.NotificationType);
+            payload.NotificationType.ForLog());
 
         if (string.IsNullOrWhiteSpace(requester))
         {
