@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using Jellyfin.Plugin.Streamyfin.Storage.Enums;
@@ -30,6 +31,19 @@ public class Database : IDisposable
     protected virtual TempStoreMode TempStore => TempStoreMode.Memory;
     
     private const string DeviceTokensTable = "device_tokens";
+
+    private static readonly Regex SafeIdentifierPattern = new Regex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+
+    static Database()
+    {
+        // Table names are interpolated directly into SQL statements. Since SQLite does not
+        // support parameterizing identifiers, guard against SQL injection by ensuring the
+        // table name only ever contains safe characters, even if it becomes configurable later.
+        if (!SafeIdentifierPattern.IsMatch(DeviceTokensTable))
+        {
+            throw new InvalidOperationException($"Invalid table name: {DeviceTokensTable}");
+        }
+    }
 
     public Database(string path)
     {
