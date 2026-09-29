@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-const { parse, compare, classify, headline, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
+const { parse, compare, classify, headline, issueBody, planIssue, builtVersionsFrom } = require("../../scripts/jellyfin-versions");
 
 const order = (a, b) => compare(parse(a), parse(b));
 
@@ -71,10 +71,17 @@ describe("classifying what is published", () => {
         expect(newerInLine).toEqual(["12.1.0"]);
     });
 
-    // Comparing against the single newest built version, 12.0.0, put this below it and
-    // discarded it, although it is a new minor of a line this repository builds.
-    test("a newer minor of the older line is not hidden by the newer line", () => {
-        expect(classify(["10.12.0"], built).newerInLine).toEqual(["10.12.0"]);
+    // Jellyfin renamed 10.12 to 12.0 before releasing it, and the weekly builds from
+    // before the rename are still on the prerelease feed: 28 of them filled #202. Nothing
+    // older than 12.0 is going to ship, so nothing older is watched.
+    test("nothing older than 12.0 is watched", () => {
+        const { newLines, newerInLine } = classify(
+            ["10.12.0", "10.12.0-20251027051416", "12.0.0-rc1", "12.1.0", "13.0.0-20260928112619"],
+            built,
+        );
+
+        expect(newLines).toEqual(["13.0.0-20260928112619"]);
+        expect(newerInLine).toEqual(["12.1.0"]);
     });
 
     // The floor of a line is deliberately old: 10.11.9 rather than 10.11.11, because
@@ -151,5 +158,167 @@ describe("the title an issue about it gets", () => {
     test("nothing new has no title", () => {
         expect(headline({ newLines: [], newerInLine: [] })).toBeNull();
         expect(headline({})).toBeNull();
+    });
+});
+
+describe("the body of that issue", () => {
+    // What #202 found on 2026-09-28: three weekly builds of a new line, and the weekly
+    // builds of 10.12 from before Jellyfin renamed it 12, next to a release of 12.1.
+    const weekly = (line, first, count) =>
+        Array.from({ length: count }, (_, i) => {
+            const day = new Date(Date.parse(first) + i * 7 * 86_400_000);
+            return `${line}-${day.toISOString().slice(0, 10).replaceAll("-", "")}051416`;
+        });
+    const thirteen = weekly("13.0.0", "2026-09-14", 3);
+    const tenTwelve = weekly("10.12.0", "2025-10-27", 28);
+    const report = {
+        built: ["10.11.9", "12.0.0"],
+        newLines: thirteen,
+        newerInLine: [...tenTwelve, "12.1.0"],
+        prereleaseOnly: [...thirteen, ...tenTwelve],
+    };
+    const rows = (body) => body.split("\n").filter((line) => line.startsWith("| "));
+
+    test("each line is one row, with how many versions and the newest", () => {
+        expect(rows(issueBody(report))).toContain("| 13.x | 3 | 13.0.0-20260928051416 | prerelease feed |");
+    });
+
+    test("a line already built names what it is built against", () => {
+        const body = rows(issueBody(report));
+
+        expect(body).toContain("| 10.x | 10.11.9 | 28 | 10.12.0-20260504051416 | prerelease feed |");
+        expect(body).toContain("| 12.x | 12.0.0 | 1 | 12.1.0 | nuget.org |");
+    });
+
+    test("a line with versions on both feeds says so", () => {
+        const mixed = { built: ["12.0.0"], newLines: [], newerInLine: ["12.1.0", "12.2.0-rc1"], prereleaseOnly: ["12.2.0-rc1"] };
+
+        expect(rows(issueBody(mixed))).toContain("| 12.x | 12.0.0 | 2 | 12.2.0-rc1 | both |");
+    });
+
+    test("every version is still listed, folded away under the tables", () => {
+        const body = issueBody(report);
+        const folded = body.slice(body.indexOf("<details>"));
+
+        for (const version of [...report.newLines, ...report.newerInLine]) {
+            expect(folded).toContain(`| ${version} |`);
+        }
+        expect(folded).toContain("<summary>Every version found (32)</summary>");
+    });
+
+    test("a section with nothing in it is left out", () => {
+        const body = issueBody({ ...report, newLines: [] });
+
+        expect(body).not.toContain("A line nothing here builds against");
+        expect(body).toContain("### Newer inside a line already built");
+    });
+
+    test("the headings no longer carry the versions", () => {
+        const headings = issueBody(report).split("\n").filter((line) => line.startsWith("###"));
+
+        expect(headings).toEqual(["### A line nothing here builds against", "### Newer inside a line already built"]);
+    });
+
+    test("it keeps saying what the repository builds against and where the procedure is", () => {
+        const body = issueBody(report);
+
+        expect(body.startsWith("This repository builds against **10.11.9** and **12.0.0**.")).toBe(true);
+        expect(body).toContain("Compat/README.md#adding-a-jellyfin-line-when-the-time-comes");
+        expect(body.trimEnd().endsWith("Closing it is the right answer once it has been read.")).toBe(true);
+    });
+});
+
+describe("which issue says it", () => {
+    // One issue, kept up to date, rather than one a week: the title names the newest
+    // build, so every weekly build of a new line used to open another (#193, #201, #202).
+    const watch = (number, state, title, body = "old") => ({
+        number,
+        state,
+        title,
+        body,
+        user: { login: "github-actions[bot]" },
+    });
+    const title = "Jellyfin.Controller 13.0.0-20260928112619 and 2 more are on NuGet";
+    const body = "the tables";
+
+    test("with none yet, one is opened", () => {
+        expect(planIssue({ title, body, issues: [] })).toEqual({ create: true, close: [] });
+    });
+
+    test("an open one is brought up to date rather than a second one opened", () => {
+        const issues = [watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ update: 201, keep: 201, close: [] });
+    });
+
+    test("an open one that already says this is left alone", () => {
+        const issues = [watch(202, "open", title, "the tables\r\n")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ keep: 202, close: [], reason: "#202 already says this" });
+    });
+
+    test("of several open, the newest is kept and the others are closed as superseded by it", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", "Jellyfin.Controller 13.0.0-20260928112619 and 2 more are on NuGet"),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ update: 202, keep: 202, close: [201] });
+    });
+
+    test("the ones closed as superseded name the one kept, even when it needs no update", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", title, body),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ keep: 202, close: [201], reason: "#202 already says this" });
+    });
+
+    test("the last one closed with the same news is not said again", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet"), watch(202, "closed", title)];
+
+        expect(planIssue({ title, body, issues })).toEqual({ close: [], reason: "#202 said this and was closed" });
+    });
+
+    test("news since the last one was closed opens a new one", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet")];
+
+        expect(planIssue({ title, body, issues })).toEqual({ create: true, close: [] });
+    });
+
+    // A report written without the prerelease feed is missing what that feed holds, the
+    // builds of a new line first of all. Brought into an open issue, it would take them
+    // out of it, and closing an older one on its word would lose the rest.
+    test("without the prerelease feed, an open one is left as it is and none is closed", () => {
+        const issues = [
+            watch(201, "open", "Jellyfin.Controller 13.0.0-20260921102409 and 1 more are on NuGet"),
+            watch(202, "open", title),
+        ];
+
+        expect(planIssue({ title: "Jellyfin.Controller 12.1.0 is on NuGet", body, issues, partial: true })).toEqual({
+            keep: 202,
+            close: [],
+            reason: "the prerelease feed was not read, so #202 is left as it is",
+        });
+    });
+
+    test("without the prerelease feed and none open, a release is still news", () => {
+        const issues = [watch(193, "closed", "Jellyfin.Controller 13.0.0-20260914101923 is on NuGet")];
+
+        expect(planIssue({ title: "Jellyfin.Controller 12.1.0 is on NuGet", body, issues, partial: true })).toEqual({
+            create: true,
+            close: [],
+        });
+    });
+
+    test("what is not this watch's is left out of it", () => {
+        const issues = [
+            { ...watch(150, "open", title), pull_request: {} },
+            { ...watch(151, "open", title), user: { login: "someone" } },
+            watch(152, "open", "Jellyfin.Controller is slow on NuGet today, anyone else?", "a question"),
+        ];
+
+        expect(planIssue({ title, body, issues })).toEqual({ create: true, close: [] });
     });
 });
