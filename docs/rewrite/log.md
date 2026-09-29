@@ -8,6 +8,35 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-29, a line from Seerr in the log, and the watch's single issue
+
+Code scanning flagged the Seerr webhook mapper for writing the notification type and the
+user name into the log as Seerr sent them. A line break in either starts an entry of its
+own in the server's log file, one that reads as the server's. They go through `ForLog` now
+(#203), which puts each run of line breaks as one space: `\r`, `\n`, `\v`, `\f`, and the
+three Unicode ones a log viewer also breaks on. The two other alerts of that rule, in the
+controller, log a `Guid`, which has no line break to forge with, and were dismissed as false
+positives with that reason.
+
+The Jellyfin watch opened a new issue for every weekly build of 13.0 (#193, #201, #202),
+because the title names the newest build, and it put the versions in its headings. It keeps
+one issue up to date now (#204): the newest if several are open, the others closed as
+superseded by it, and a report written without the prerelease feed touches no open issue.
+Each section is a table with a row per line and the full list folded under it. Nothing older
+than 12.0 is watched: Jellyfin renamed 10.12 to 12.0 before releasing it, and the weekly
+builds from before the rename are still on the feed. The schedule runs the workflow file
+from `main`, so #205 carried it there; the scripts come from `develop`, which the run checks
+out.
+
+Two decisions taken on the way. Replacing the watch with Renovate was weighed and dropped:
+Renovate cannot read a version set as `$(JellyfinVersion)` in `Directory.Build.props`, it
+skips it as `contains-variable`, and its answer to a new line would be to raise a target
+rather than add one. And the other code scanning alerts stay until `develop` reaches
+`main`: the six in `prerelease.yml` are answered by the workflow itself (manual dispatch
+only, a ref that has to be on `develop`, the build checking out the commit that passed that
+check, no cache to poison), and the three in `lint_pr.yml` are on `main` only, pinned
+already on `develop`.
+
 ## 2026-09-17, the poster in a notification
 
 A notification about something that was added carries its poster. The app says where it
