@@ -8,6 +8,14 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-09-30, the unstable manifest back on develop
+
+#121 could no longer merge: `develop` and `main` had each added `manifest-unstable.json`,
+so git had no common version to merge from. The prerelease workflow runs from `main` and
+writes the manifest there, and `main`'s copy carries `unstable-0.68.1.59`, one entry per
+Jellyfin line, while `develop` still had the empty list #165 started it with. `develop`
+takes `main`'s copy as it is, the one servers read, and #121 merges cleanly again.
+
 ## 2026-09-29, a line from Seerr in the log, and the watch's single issue
 
 Code scanning flagged the Seerr webhook mapper for writing the notification type and the
