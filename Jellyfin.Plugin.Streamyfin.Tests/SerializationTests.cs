@@ -119,7 +119,7 @@ public class SerializationTests(ITestOutputHelper output)
               "settings": {
                 "subtitleMode": {
                   "locked": false,
-                  "value": 0
+                  "value": "Default"
                 },
                 "defaultVideoOrientation": {
                   "locked": false,
@@ -135,6 +135,28 @@ public class SerializationTests(ITestOutputHelper output)
         );
     }
     
+    /// <summary>
+    /// A subtitle mode stored as a number, as every version before this one wrote it,
+    /// still reads.
+    /// </summary>
+    /// <remarks>
+    /// The global configuration, every targeting level and every backup were written
+    /// with the number, and they are read back through the same options that now write
+    /// the name.
+    /// </remarks>
+    [Fact]
+    public void ASubtitleModeStoredAsANumberStillReads()
+    {
+        var config = _serializationHelper.DeserializeJson<Config>(
+            """
+            {"settings": {"subtitleMode": {"locked": true, "value": 4}}}
+            """);
+
+        Assert.Assrt(
+            $"SubtitlePlaybackMode read from a number: {config?.settings?.subtitleMode?.value}",
+            config?.settings?.subtitleMode?.value == SubtitlePlaybackMode.Smart);
+    }
+
     /// <summary>
     /// Ensures all types of enums are yaml serialized correctly
     /// </summary>

@@ -82,8 +82,9 @@ public class SerializationHelper
                 }
             });
 
-        // Prioritize these first since other converters & defaults change expected behavior
-        options.Converters.Insert(0, new JsonNumberEnumConverter<SubtitlePlaybackMode>());
+        // Prioritize these first since other converters & defaults change expected behavior.
+        // SubtitlePlaybackMode is not one of them: the app compares the SDK's strings for it,
+        // and written as a number, a mode an administrator chose never took effect.
         options.Converters.Insert(0, new JsonNumberEnumConverter<OrientationLock>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<Bitrate>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<VideoPlayer>());
@@ -231,11 +232,12 @@ public class SerializationHelper
     /// <remarks>
     /// <see cref="Deserialize{T}"/> goes through YamlDotNet, and YAML is a superset of
     /// JSON, so it reads most of it. It does not read all of it: the converters
-    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c>,
-    /// <c>SubtitlePlaybackMode</c>, <c>VideoPlayer</c> and <c>InactivityTimeout</c> as
-    /// numbers, and YamlDotNet expects the member name.
+    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c>, <c>VideoPlayer</c>
+    /// and <c>InactivityTimeout</c> as numbers, and YamlDotNet expects the member name.
     /// Anything stored with <see cref="SerializeToJson{T}"/> has to come back through
-    /// this, or those five settings do not survive the round trip.
+    /// this, or those four settings do not survive the round trip. A
+    /// <c>SubtitlePlaybackMode</c> stored as a number by an earlier version still reads:
+    /// the string converter Jellyfin's options carry accepts one.
     /// </remarks>
     /// <typeparam name="T">What to read it as.</typeparam>
     /// <param name="value">The JSON.</param>

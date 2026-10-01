@@ -124,11 +124,11 @@ has no default for them either.
   each need a C# enum whose member names are the strings the app compares
   against. `inactivityTimeout` and `videoPlayer` are enums too, but the app
   compares them as numbers, so they join `OrientationLock` and `Bitrate` in the
-  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` has
-  one as well, and should not: the app compares the SDK's strings for it, which
-  the regenerated manifest showed (below). `Configuration/Settings/Enums.cs` holds
-  both patterns. Anything new is written as its member name unless it is added to
-  that list.
+  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` had
+  one as well until the regenerated manifest showed the app compares the SDK's
+  strings for it (below), and is written as its member name now.
+  `Configuration/Settings/Enums.cs` holds both patterns. Anything new is written as
+  its member name unless it is added to that list.
 - **`downloadQuality` is the one that does not fit.** The app types it as
   `DownloadOption`, which is `{ label, value }`. The generic fallback in
   `normalizePluginValue` only rebuilds `{ key, value }` objects, so a value
@@ -182,13 +182,16 @@ run. The three keys `normalizePluginValue` reshapes keep their wire form, and ea
 run sends that form through the app's own `normalizePluginValue` and stops unless it
 comes back as the app's default.
 
-The second guess hid a bug. The plugin writes `SubtitlePlaybackMode` as a number
-and the app compares the SDK's strings. The unlocked default reaches every user of
-the server once, as `0`, which replaces the mode they had and leaves the settings
-screen with none selected, and a locked mode does not take effect.
-`KnownDisagreements` carries it with that reason. Writing the member name fixes what
-is sent from then on, and the `0` already stored on devices needs a decision of its
-own, so the fix is a pull request of its own.
+The second guess hid a bug. The plugin wrote `SubtitlePlaybackMode` as a number and
+the app compares the SDK's strings. The unlocked default reached every user of the
+server once, as `0`, which replaced the mode they had and left the settings screen
+with none selected, and a locked mode did not take effect.
+
+The plugin writes the member name now, and the parity test compares the default like
+any other. A device that recorded `0` sees `"Default"` as a new default and takes it
+once, which also replaces a mode its user picked since. An app migration rewriting the
+stored `0` and its record would have spared that, and was weighed and left out: it is
+one change of a setting most people never touched, against a release of both sides.
 
 **A setting the app reads under more than one name.** The app renamed the three
 Seerr settings to `seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr`. It reads
