@@ -119,7 +119,7 @@ public class SerializationTests(ITestOutputHelper output)
               "settings": {
                 "subtitleMode": {
                   "locked": false,
-                  "value": "Default"
+                  "value": 0
                 },
                 "defaultVideoOrientation": {
                   "locked": false,
@@ -136,25 +136,62 @@ public class SerializationTests(ITestOutputHelper output)
     }
     
     /// <summary>
-    /// A subtitle mode stored as a number, as every version before this one wrote it,
-    /// still reads.
+    /// What the app receives carries the subtitle mode by name, the other enums as before.
     /// </summary>
     /// <remarks>
-    /// The global configuration, every targeting level and every backup were written
-    /// with the number, and they are read back through the same options that now write
-    /// the name.
+    /// The app compares the SDK's strings for the subtitle mode, so the number never
+    /// matched and a mode an administrator locked did nothing.
     /// </remarks>
     [Fact]
-    public void ASubtitleModeStoredAsANumberStillReads()
+    public void ConfigJsonForTheAppTest()
     {
-        var config = _serializationHelper.DeserializeJson<Config>(
+        SerializeConfig(
+            value: _serializationHelper.SerializeForApp(GetTestConfig()),
+            expected:
             """
-            {"settings": {"subtitleMode": {"locked": true, "value": 4}}}
-            """);
+            {
+              "settings": {
+                "subtitleMode": {
+                  "locked": false,
+                  "value": "Default"
+                },
+                "defaultVideoOrientation": {
+                  "locked": false,
+                  "value": 6
+                },
+                "defaultBitrate": {
+                  "locked": false,
+                  "value": 250000
+                }
+              }
+            }
+            """
+        );
+    }
+
+    /// <summary>
+    /// The subtitle mode is still stored as the number, which every earlier build reads.
+    /// </summary>
+    /// <remarks>
+    /// An earlier build reads the stored subtitle mode with a number converter only, and
+    /// throws on a name. Stored by name, a rollback would serve an empty configuration to
+    /// everyone and refuse every backup taken since. The app is the only one that gets the
+    /// name.
+    /// </remarks>
+    [Fact]
+    public void TheSubtitleModeIsStoredAsTheNumberEarlierBuildsRead()
+    {
+        var stored = _serializationHelper.SerializeToJson(new Settings
+        {
+            subtitleMode = new Lockable<SubtitlePlaybackMode> { locked = true, value = SubtitlePlaybackMode.Smart }
+        });
+
+        using var document = System.Text.Json.JsonDocument.Parse(stored);
+        var value = document.RootElement.GetProperty("subtitleMode").GetProperty("value");
 
         Assert.Assrt(
-            $"SubtitlePlaybackMode read from a number: {config?.settings?.subtitleMode?.value}",
-            config?.settings?.subtitleMode?.value == SubtitlePlaybackMode.Smart);
+            $"SubtitlePlaybackMode stored as {value.GetRawText()}",
+            value.ValueKind == System.Text.Json.JsonValueKind.Number && value.GetInt32() == (int)SubtitlePlaybackMode.Smart);
     }
 
     /// <summary>

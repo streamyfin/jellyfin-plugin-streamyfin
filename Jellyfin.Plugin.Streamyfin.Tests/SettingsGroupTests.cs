@@ -230,11 +230,9 @@ public class SettingsGroupTests : IDisposable
     }
 
     /// <summary>
-    /// The settings served as numbers survive being stored and read back. The plugin
-    /// writes <c>OrientationLock</c> and <c>Bitrate</c> as numbers, and wrote
-    /// <c>SubtitlePlaybackMode</c> as one too, and the YAML reader the rest of the plugin
-    /// uses expects the member name, so a level stored as JSON has to come back through
-    /// the JSON reader.
+    /// The settings stored as numbers survive being stored and read back. The plugin
+    /// stores <c>OrientationLock</c>, <c>Bitrate</c> and <c>SubtitlePlaybackMode</c> as
+    /// numbers, and a stored level comes back through the JSON options that wrote it.
     /// </summary>
     [Fact]
     public void TheNumericEnumSettingsSurviveTheRoundTrip()

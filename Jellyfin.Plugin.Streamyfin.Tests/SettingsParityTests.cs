@@ -137,7 +137,7 @@ public class SettingsParityTests
     private static readonly HashSet<string> Declared = DeclaredKeys();
 
     private static readonly Lazy<JsonSerializerOptions> WireOptions =
-        new(() => new SerializationHelper().GetJsonSerializerOptions());
+        new(() => new SerializationHelper().GetAppJsonSerializerOptions());
 
     // Every flat setting given a value, then the blocks written out the way the plugin
     // answers, so a block shows which of its fields the plugin actually fills.
@@ -758,7 +758,7 @@ public class SettingsParityTests
         var written = JsonSerializer.Serialize(
             member,
             member.GetType(),
-            new SerializationHelper().GetJsonSerializerOptions());
+            new SerializationHelper().GetAppJsonSerializerOptions());
 
         Assert.Equal(expected, written);
     }
@@ -784,7 +784,7 @@ public class SettingsParityTests
         var written = JsonSerializer.Serialize(
             member,
             member.GetType(),
-            new SerializationHelper().GetJsonSerializerOptions());
+            new SerializationHelper().GetAppJsonSerializerOptions());
 
         Assert.Equal(expected, written);
     }

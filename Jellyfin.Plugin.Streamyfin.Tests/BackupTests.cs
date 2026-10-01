@@ -120,8 +120,7 @@ public class BackupTests
     /// <remarks>
     /// The framework writes an enum as its name and the plugin's reader expects the
     /// number it stores, so a backup written by the wrong one made every restore fail
-    /// on subtitleMode. The settings SerializationHelper writes as numbers are here,
-    /// with subtitleMode, which it wrote as one until the app was found to compare names.
+    /// on subtitleMode. These five are the ones SerializationHelper names.
     /// </remarks>
     [Fact]
     public void TheSettingsThatNeedTheRightSerializerSurvive()

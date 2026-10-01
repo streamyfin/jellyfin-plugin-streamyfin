@@ -124,9 +124,10 @@ has no default for them either.
   each need a C# enum whose member names are the strings the app compares
   against. `inactivityTimeout` and `videoPlayer` are enums too, but the app
   compares them as numbers, so they join `OrientationLock` and `Bitrate` in the
-  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` had
-  one as well until the regenerated manifest showed the app compares the SDK's
-  strings for it (below), and is written as its member name now.
+  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` keeps
+  one for storage only: the regenerated manifest showed the app compares the SDK's
+  strings for it (below), so what the app receives carries the member name, while
+  what the plugin stores keeps the number every earlier build reads.
   `Configuration/Settings/Enums.cs` holds both patterns. Anything new is written as
   its member name unless it is added to that list.
 - **`downloadQuality` is the one that does not fit.** The app types it as
@@ -187,8 +188,10 @@ the app compares the SDK's strings. The unlocked default reached every user of t
 server once, as `0`, which replaced the mode they had and left the settings screen
 with none selected, and a locked mode did not take effect.
 
-The plugin writes the member name now, and the parity test compares the default like
-any other. A device that recorded `0` sees `"Default"` as a new default and takes it
+The plugin sends the member name to the app now, and the parity test compares the
+default like any other. It keeps storing the number: an earlier build reads the stored
+mode with a number converter only and throws on a name, so a rollback would have served
+an empty configuration to everyone. A device that recorded `0` sees `"Default"` as a new default and takes it
 once, which also replaces a mode its user picked since. An app migration rewriting the
 stored `0` and its record would have spared that, and was weighed and left out: it is
 one change of a setting most people never touched, against a release of both sides.
