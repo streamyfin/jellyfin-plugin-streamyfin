@@ -123,10 +123,12 @@ has no default for them either.
   `tvTypographyScale`, `deviceProfile`, `subtitleAlignX` and `subtitleAlignY`
   each need a C# enum whose member names are the strings the app compares
   against. `inactivityTimeout` and `videoPlayer` are enums too, but the app
-  compares them as numbers, so they join `OrientationLock`, `Bitrate` and
-  `SubtitlePlaybackMode` in the number converters `SerializationHelper`
-  registers, five in all. `Configuration/Settings/Enums.cs` holds both patterns.
-  Anything new is written as its member name unless it is added to that list.
+  compares them as numbers, so they join `OrientationLock` and `Bitrate` in the
+  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` has
+  one as well, and should not: the app compares the SDK's strings for it, which
+  the regenerated manifest showed (below). `Configuration/Settings/Enums.cs` holds
+  both patterns. Anything new is written as its member name unless it is added to
+  that list.
 - **`downloadQuality` is the one that does not fit.** The app types it as
   `DownloadOption`, which is `{ label, value }`. The generic fallback in
   `normalizePluginValue` only rebuilds `{ key, value }` objects, so a value
@@ -157,6 +159,54 @@ directory, so reading it does not depend on which directory `dotnet test` was
 invoked from. It is the same device as `ApiSurfaceTests._legacyRoutes`, where a
 checked-in list turns a promise into something a build can fail on, and editing
 the list is the deliberate act.
+
+`scripts/app-settings-manifest.js` writes it, from a checkout of the app with its
+`node_modules`:
+
+```sh
+bun scripts/app-settings-manifest.js ../streamyfin
+```
+
+The script that wrote the first manifest was not kept, and regenerating that
+manifest from the app of the same day showed what it had guessed. It recorded
+`downloadQuality` as having no default because it could not read
+`DownloadOptions[0]`, and `subtitleMode` as `0` where the app holds the SDK's
+string `"Default"`. The new one reads `settings.ts` with the TypeScript compiler.
+It follows the file's own constants and enums, reads a value from another module of
+the app in that module's source, loads one from a package out of the checkout, and
+runs an expression built only from literals, such as the sorted `BITRATES`, in a
+context holding nothing else. Anything else stops it rather than become a guess. The
+one value it cannot work out, the default orientation, which the app's wrapper picks
+by platform, is written down by hand and checked against both of its sources on every
+run. The three keys `normalizePluginValue` reshapes keep their wire form, and each
+run sends that form through the app's own `normalizePluginValue` and stops unless it
+comes back as the app's default.
+
+The second guess hid a bug. The plugin writes `SubtitlePlaybackMode` as a number
+and the app compares the SDK's strings. The unlocked default reaches every user of
+the server once, as `0`, which replaces the mode they had and leaves the settings
+screen with none selected, and a locked mode does not take effect.
+`KnownDisagreements` carries it with that reason. Writing the member name fixes what
+is sent from then on, and the `0` already stored on devices needs a decision of its
+own, so the fix is a pull request of its own.
+
+**A setting the app reads under more than one name.** The app renamed the three
+Seerr settings to `seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr`. It reads
+the `seerr` block first and the jellyseerr keys after it, which every earlier copy
+of the app reads and the plugin still sends. The manifest lists those other names
+as `wireNames`, and the script finds them by running the app's own
+`readIntegrationBlocks` rather than by copying it. A setting counts as declared
+under any of its names, and its default is compared through the name the plugin
+declares it under, flat or in a block. A block the plugin serves must carry every
+field the app reads from it, filled in what the plugin writes out, and nothing the
+app does not read. The excuse lists stay keyed by the app's own names, and one
+written under another name is reported as stale.
+
+The day the app stops reading the jellyseerr keys, they leave the manifest and a
+plugin still declaring them fails the third rule below. That is not the day they can
+go: copies of the app from before the block read nothing else. The answer then is an
+entry in `KeptForAppsInTheField`, which dies once the plugin stops declaring the key
+or the app reads it again.
 
 Three rules read it. The rest of the tests in the file refuse an excuse that has
 outlived either the setting it names or the reason it was written for, from

@@ -41,8 +41,9 @@ public class SeerrSettings
 /// makes an app that reads a flat key find a nested one.
 /// </para>
 /// <para>
-/// So both are served for now. An administrator may write either, the plugin answers with
-/// both, the app moves when it is ready, and the flat keys come out the day it has.
+/// So both are served for now. An administrator may write either and the plugin answers
+/// with both. The app reads the block first since streamyfin#2104, and the flat keys come
+/// out once every copy of the app in the field does.
 /// </para>
 /// </remarks>
 public static class IntegrationBlocks

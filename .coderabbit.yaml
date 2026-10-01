@@ -26,7 +26,12 @@ reviews:
         3. A setting whose app default varies by platform gets no default at
            all. Two do today, mpvDemuxerMaxBytes and mpvDemuxerMaxBackBytes.
 
+        Rule 1 also holds for a name listed in the manifest's wireNames: the
+        three Seerr settings are seerrServerUrl and the rest in the app, which
+        still reads the jellyseerr keys the plugin declares.
+
         A new property also needs a row in AppSettingsManifest.json and an entry
-        in examples/full.yml, which claims to list every setting. A property
-        holding a credential needs [Secret], and the pinned set in
-        SettingsSchemaTests updated with it.
+        in examples/full.yml, which claims to list every setting. The manifest is
+        regenerated with scripts/app-settings-manifest.js from a checkout of the
+        app, never edited by hand. A property holding a credential needs
+        [Secret], and the pinned set in SettingsSchemaTests updated with it.

@@ -51,7 +51,17 @@ public class SettingsParityTests
     /// weighed the difference, not a place to put a default that turned out to be
     /// inconvenient to fix.
     /// </remarks>
-    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal)
+    {
+        ["subtitleMode"] =
+            "A bug, not a choice. SerializationHelper writes SubtitlePlaybackMode as a number "
+            + "and the app compares the SDK's strings (\"Default\", \"Always\", ...). The "
+            + "unlocked default reaches every user of the server once, as 0: it replaces the "
+            + "mode they had and leaves the settings screen with none selected. A locked mode "
+            + "does not take effect. Writing the member name fixes what is sent from then on, "
+            + "and what to do about the 0 already stored on devices is a decision of its own, "
+            + "so the fix is a pull request of its own. It deletes this entry.",
+    };
 
     /// <summary>
     /// Keys the plugin declares that the app's published branch does not read yet, and
@@ -63,16 +73,32 @@ public class SettingsParityTests
     /// catches up, since an unlocked default is applied whether the app understands the
     /// key or not.
     /// </remarks>
-    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
-    {
-        ["seerr"] =
-            "P6.1. The same three settings as jellyseerrServerUrl, jellyseerrApiKey and "
-            + "autoLoginJellyseerr, in the shape the app is moving to. Served beside them "
-            + "on purpose: no alias makes an app that reads a flat key find a nested one, "
-            + "so both go out until every copy in the field reads the block, and the flat "
-            + "keys come out the day it does. Remove this entry then.",
-    };
+    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Keys the plugin still declares for the copies of the app in the field, which the
+    /// app's own branch no longer reads, and why.
+    /// </summary>
+    /// <remarks>
+    /// The other side of <see cref="DeclaredAheadOfTheApp"/>. The jellyseerr keys are in
+    /// the manifest only while the app keeps its fallback for plugins older than the
+    /// seerr block, and apps older than the block read nothing else. Those are two events:
+    /// the day the app drops its fallback, the plugin still owes the keys to the apps
+    /// people have installed, and the answer to the failing test is an entry here rather
+    /// than deleting them. An entry dies when the plugin stops declaring the key, or when
+    /// the app reads it again.
+    /// </remarks>
+    private static readonly Dictionary<string, string> KeptForAppsInTheField = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// One setting the app reads, as <c>scripts/app-settings-manifest.js</c> writes it.
+    /// </summary>
+    /// <remarks>
+    /// <c>WireNames</c> are the names other than its own that the app reads the setting
+    /// under: the flat key it had before a rename, and the field of a block, such as
+    /// <c>seerr.serverUrl</c>. The script finds them by running the app's own
+    /// <c>readIntegrationBlocks</c>.
+    /// </remarks>
     private sealed record ManifestEntry(
         string Key,
         string Type,
@@ -80,7 +106,21 @@ public class SettingsParityTests
         bool HasDefault,
         string? NoDefaultReason,
         JsonElement WireDefault,
-        string? WireNote);
+        string? WireNote,
+        IReadOnlyList<string>? WireNames = null);
+
+    /// <summary>
+    /// What the excuses are checked against.
+    /// </summary>
+    /// <param name="AppKeys">The app's own keys, which the excuse lists are keyed by.</param>
+    /// <param name="KnownNames">Every name the app reads, old names and blocks included.</param>
+    /// <param name="Declared">The plugin's properties.</param>
+    /// <param name="Served">The app's keys the plugin serves, under any of their names.</param>
+    private sealed record Facts(
+        IReadOnlySet<string> AppKeys,
+        IReadOnlySet<string> KnownNames,
+        IReadOnlySet<string> Declared,
+        IReadOnlySet<string> Served);
 
     private static IReadOnlyList<ManifestEntry> Manifest()
     {
@@ -103,18 +143,125 @@ public class SettingsParityTests
             .Select(property => property.Name)
             .ToHashSet(StringComparer.Ordinal);
 
+    // Built once: Serves is asked about every name of every setting.
+    private static readonly HashSet<string> Declared = DeclaredKeys();
+
+    private static readonly Lazy<JsonSerializerOptions> WireOptions =
+        new(() => new SerializationHelper().GetJsonSerializerOptions());
+
+    // Every flat setting given a value, then the blocks written out the way the plugin
+    // answers, so a block shows which of its fields the plugin actually fills.
+    private static readonly Lazy<Settings> Projected = new(() =>
+    {
+        var settings = new Settings();
+        foreach (var property in typeof(Settings).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (property.PropertyType.IsGenericType
+                && property.PropertyType.GetGenericTypeDefinition() == typeof(Lockable<>))
+            {
+                property.SetValue(settings, Activator.CreateInstance(property.PropertyType));
+            }
+        }
+
+        IntegrationBlocks.Project(settings);
+        return settings;
+    });
+
+    private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The names the app reads one setting under: its own, then its wire names.
+    /// </summary>
+    private static IEnumerable<string> NamesOf(ManifestEntry entry) =>
+        entry.WireNames is null ? [entry.Key] : [entry.Key, .. entry.WireNames];
+
+    /// <summary>
+    /// Every name the app reads a setting under, a block counting by its own name.
+    /// </summary>
+    /// <remarks>
+    /// An old name is in here only while the app still reads it. The day the app stops,
+    /// the regenerated manifest drops it, and a plugin still declaring it fails
+    /// <see cref="EveryKeyThePluginDeclaresIsOneTheAppReads"/> unless it is kept for the
+    /// apps in the field.
+    /// </remarks>
+    private static HashSet<string> KnownNames(IEnumerable<ManifestEntry> manifest) =>
+        manifest
+            .SelectMany(NamesOf)
+            .Select(name => name.Split('.')[0])
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The app's keys the plugin serves under any of their names.
+    /// </summary>
+    private static HashSet<string> ServedKeys(IEnumerable<ManifestEntry> manifest) =>
+        manifest
+            .Where(entry => NamesOf(entry).Any(Serves))
+            .Select(entry => entry.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Whether the plugin serves something under one name the app reads.
+    /// </summary>
+    /// <remarks>
+    /// A flat name is a property of <see cref="Settings"/>. A dotted one is a field of a
+    /// block, <c>seerr.serverUrl</c> being <see cref="SeerrSettings.serverUrl"/> on the
+    /// <c>seerr</c> property, and it only counts if the block the plugin writes out
+    /// carries it: a field on the type that <see cref="IntegrationBlocks.Project"/> never
+    /// fills reaches the app as nothing.
+    /// </remarks>
+    private static bool Serves(string name) =>
+        name.Contains('.', StringComparison.Ordinal)
+            ? DeclaredAt(Projected.Value, name) is { Exists: true, Value: not null }
+            : Declared.Contains(name);
+
+    /// <summary>
+    /// What the plugin holds under one name the app reads.
+    /// </summary>
+    /// <param name="settings">The settings to look in.</param>
+    /// <param name="name">A flat name, or a block and one of its fields.</param>
+    /// <returns>
+    /// Whether the plugin has a property under that name, and what it holds there, which
+    /// may be nothing.
+    /// </returns>
+    private static (bool Exists, object? Value) DeclaredAt(Settings settings, string name)
+    {
+        var dot = name.IndexOf('.', StringComparison.Ordinal);
+        var flat = typeof(Settings).GetProperty(dot < 0 ? name : name[..dot], BindingFlags.Public | BindingFlags.Instance);
+        if (flat is null)
+        {
+            return (false, null);
+        }
+
+        if (dot < 0)
+        {
+            return (true, flat.GetValue(settings));
+        }
+
+        var field = flat.PropertyType.GetProperty(name[(dot + 1)..], BindingFlags.Public | BindingFlags.Instance);
+        if (field is null)
+        {
+            return (false, null);
+        }
+
+        var block = flat.GetValue(settings);
+        return (true, block is null ? null : field.GetValue(block));
+    }
+
     /// <summary>
     /// Every setting the app reads has been decided about: declared, or listed as
     /// deliberately not declared with the reason written down.
     /// </summary>
+    /// <remarks>
+    /// Declared under any name the app reads it under. The three Seerr settings are
+    /// <c>seerrServerUrl</c> and the rest in the app, and the plugin still serves them as
+    /// the jellyseerr keys every earlier copy of the app reads, plus the seerr block.
+    /// </remarks>
     [Fact]
     public void EverySettingTheAppReadsHasBeenDecidedAbout()
     {
-        var declared = DeclaredKeys();
-
         var undecided = Manifest()
+            .Where(entry => !NamesOf(entry).Any(Serves) && !NotDeclared.ContainsKey(entry.Key))
             .Select(entry => entry.Key)
-            .Where(key => !declared.Contains(key) && !NotDeclared.ContainsKey(key))
             .ToArray();
 
         Assert.True(
@@ -134,15 +281,71 @@ public class SettingsParityTests
     [Fact]
     public void EveryKeyThePluginDeclaresIsOneTheAppReads()
     {
-        var known = Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
+        var known = KnownNames(Manifest());
 
-        var unknown = DeclaredKeys()
-            .Where(key => !known.Contains(key) && !DeclaredAheadOfTheApp.ContainsKey(key))
+        var unknown = Declared
+            .Where(key => !known.Contains(key)
+                && !DeclaredAheadOfTheApp.ContainsKey(key)
+                && !KeptForAppsInTheField.ContainsKey(key))
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         Assert.True(
             unknown.Length == 0,
-            "Declared, but the app reads no such key:\n  " + string.Join("\n  ", unknown));
+            "Declared, but the app reads no such key. One the apps in the field still read "
+            + "belongs in KeptForAppsInTheField:\n  " + string.Join("\n  ", unknown));
+    }
+
+    /// <summary>
+    /// A block the plugin serves carries nothing the app does not read from it.
+    /// </summary>
+    /// <remarks>
+    /// The mistake of #109 one level down. The test above knows a block by its name
+    /// only, so a field added to <see cref="SeerrSettings"/> under a name the app does not
+    /// read would ship a lock nothing reads.
+    /// </remarks>
+    [Fact]
+    public void ABlockThePluginServesCarriesNothingTheAppDoesNotRead()
+    {
+        var names = Manifest().SelectMany(NamesOf).ToHashSet(StringComparer.Ordinal);
+        var blocks = names
+            .Where(name => name.Contains('.', StringComparison.Ordinal))
+            .Select(name => name.Split('.')[0])
+            .ToHashSet(StringComparer.Ordinal);
+
+        var unread = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(block => blocks.Contains(block.Name))
+            .SelectMany(block => block.PropertyType
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Select(field => $"{block.Name}.{field.Name}"))
+            .Where(name => !names.Contains(name))
+            .ToArray();
+
+        Assert.True(
+            unread.Length == 0,
+            "In a block the plugin serves, but the app reads no such field:\n  " + string.Join("\n  ", unread));
+    }
+
+    /// <summary>
+    /// A block the plugin serves carries every field the app reads from it.
+    /// </summary>
+    /// <remarks>
+    /// The app reads the block first and falls back to the flat keys, which leave the
+    /// plugin in its breaking release. A field missing from the block is lost that day.
+    /// </remarks>
+    [Fact]
+    public void ABlockThePluginServesHasEveryFieldTheAppReads()
+    {
+        var missing = Manifest()
+            .SelectMany(NamesOf)
+            .Where(name => name.Contains('.', StringComparison.Ordinal))
+            .Where(name => Declared.Contains(name.Split('.')[0]) && !Serves(name))
+            .ToArray();
+
+        Assert.True(
+            missing.Length == 0,
+            "Read from a block the plugin serves, but missing from what it writes:\n  " + string.Join("\n  ", missing));
     }
 
     /// <summary>
@@ -156,9 +359,11 @@ public class SettingsParityTests
     [Fact]
     public void ADeclaredDefaultEqualsTheAppsOwn()
     {
+        var settings = PluginConfiguration.DefaultSettings();
+
         var disagreements = Manifest()
             .Where(entry => !KnownDisagreements.ContainsKey(entry.Key))
-            .Select(Disagreement)
+            .Select(entry => Disagreement(entry, settings))
             .OfType<string>()
             .ToArray();
 
@@ -179,9 +384,12 @@ public class SettingsParityTests
     [Fact]
     public void AnExcusedDisagreementStillDisagrees()
     {
+        var settings = PluginConfiguration.DefaultSettings();
+        var manifest = Manifest();
+
         var settled = KnownDisagreements.Keys
-            .Where(key => Manifest().Any(entry => entry.Key == key))
-            .Where(key => Disagreement(Manifest().Single(entry => entry.Key == key)) is null)
+            .Where(key => manifest.Any(entry => entry.Key == key))
+            .Where(key => Disagreement(manifest.Single(entry => entry.Key == key), settings) is null)
             .ToArray();
 
         Assert.True(
@@ -193,21 +401,21 @@ public class SettingsParityTests
     /// <summary>
     /// How one declared default differs from the app's, or <c>null</c> when it does not.
     /// </summary>
-    private static string? Disagreement(ManifestEntry entry)
+    /// <remarks>
+    /// Under every name the plugin declares the setting under, flat or as the field of a
+    /// block. Looked up by the app's key alone, a renamed setting finds no property, and
+    /// finding none reads as agreement: the three Seerr settings would have passed with
+    /// any default at all.
+    /// </remarks>
+    private static string? Disagreement(ManifestEntry entry, Settings settings) =>
+        NamesOf(entry)
+            .Select(name => (Name: name, Found: DeclaredAt(settings, name)))
+            .Where(one => one.Found.Exists)
+            .Select(one => Disagreement(entry, one.Name, one.Found.Value))
+            .FirstOrDefault(found => found is not null);
+
+    private static string? Disagreement(ManifestEntry entry, string name, object? declared)
     {
-        var settings = PluginConfiguration.DefaultSettings();
-        var options = new SerializationHelper().GetJsonSerializerOptions();
-
-        var property = typeof(Settings)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(candidate => candidate.Name == entry.Key);
-
-        if (property is null)
-        {
-            return null;
-        }
-
-        var declared = property.GetValue(settings);
         if (declared is null)
         {
             // Declaring no default is always allowed. It means the plugin proposes
@@ -231,7 +439,7 @@ public class SettingsParityTests
         }
 
         var value = declared.GetType().GetProperty("value")!.GetValue(declared);
-        var written = JsonSerializer.Serialize(value, options);
+        var written = JsonSerializer.Serialize(value, WireOptions.Value);
 
         // normalizePluginValue reshapes a few keys on the way into the app, so for those
         // the plugin has to send the wire form rather than the stored one.
@@ -243,8 +451,13 @@ public class SettingsParityTests
         }
 
         var because = entry.WireNote is null ? string.Empty : $" ({entry.WireNote})";
-        return $"{entry.Key}: app {expected}, plugin {written}{because}";
+        var subject = name == entry.Key ? entry.Key : $"{entry.Key}, declared as {name}";
+        return $"{subject}: app {Json(expected)}, plugin {written}{because}";
     }
+
+    // As the JSON it is, so null, false and a string read the way they travel.
+    private static string Json(JsonElement element) =>
+        element.ValueKind == JsonValueKind.Undefined ? "nothing" : element.GetRawText();
 
     /// <summary>
     /// A disagreement is only excused while the key it names still exists.
@@ -256,12 +469,18 @@ public class SettingsParityTests
     [Fact]
     public void EveryExcusedDisagreementNamesASettingThatExists()
     {
+        var manifest = Manifest();
+
         var stale = StaleExcuses(
-            Manifest().Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal),
-            DeclaredKeys(),
+            new Facts(
+                manifest.Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal),
+                KnownNames(manifest),
+                Declared,
+                ServedKeys(manifest)),
             NotDeclared.Keys,
             KnownDisagreements.Keys,
-            DeclaredAheadOfTheApp.Keys);
+            DeclaredAheadOfTheApp.Keys,
+            KeptForAppsInTheField.Keys);
 
         Assert.True(
             stale.Length == 0,
@@ -276,18 +495,23 @@ public class SettingsParityTests
     /// on made-up sets. On the real ones every case is, by construction, absent.
     /// </remarks>
     private static string[] StaleExcuses(
-        IReadOnlySet<string> known,
-        IReadOnlySet<string> declared,
+        Facts facts,
         IEnumerable<string> notDeclared,
         IEnumerable<string> knownDisagreements,
-        IEnumerable<string> declaredAheadOfTheApp) =>
+        IEnumerable<string> declaredAheadOfTheApp,
+        IEnumerable<string> keptForAppsInTheField) =>
         // Both directions for a not-declared key: the app dropped it, or the plugin
-        // declared it after all and the reason for leaving it out has been acted on.
-        notDeclared.Where(key => !known.Contains(key) || declared.Contains(key))
-            .Concat(knownDisagreements.Where(key => !known.Contains(key)))
+        // serves it after all, under any of its names, and the reason has been acted on.
+        notDeclared.Where(key => !facts.AppKeys.Contains(key) || facts.Served.Contains(key))
+            // The rules look an excuse up by the app's own key, so one written under an
+            // old name or a block excuses nothing, and is reported here instead.
+            .Concat(knownDisagreements.Where(key => !facts.AppKeys.Contains(key)))
             // Both directions for an ahead-of-the-app key: the plugin dropped it, or the
             // app caught up and it is no longer ahead of anything.
-            .Concat(declaredAheadOfTheApp.Where(key => !declared.Contains(key) || known.Contains(key)))
+            .Concat(declaredAheadOfTheApp.Where(key => !facts.Declared.Contains(key) || facts.KnownNames.Contains(key)))
+            // And for a key kept for the apps in the field: the plugin dropped it, or the
+            // app reads it again.
+            .Concat(keptForAppsInTheField.Where(key => !facts.Declared.Contains(key) || facts.KnownNames.Contains(key)))
             .ToArray();
 
     /// <summary>
@@ -302,16 +526,29 @@ public class SettingsParityTests
     [Fact]
     public void ANotDeclaredEntryDiesWhenItsSettingGetsDeclared()
     {
-        var known = new HashSet<string>(StringComparer.Ordinal) { "downloadQuality" };
+        var known = Set("downloadQuality");
         var notDeclared = new[] { "downloadQuality" };
 
-        Assert.Empty(StaleExcuses(known, new HashSet<string>(), notDeclared, [], []));
-
-        var declared = new HashSet<string>(StringComparer.Ordinal) { "downloadQuality" };
+        Assert.Empty(StaleExcuses(new Facts(known, known, Set(), Set()), notDeclared, [], [], []));
 
         Assert.Equal(
             new[] { "downloadQuality" },
-            StaleExcuses(known, declared, notDeclared, [], []));
+            StaleExcuses(new Facts(known, known, Set("downloadQuality"), Set("downloadQuality")), notDeclared, [], [], []));
+    }
+
+    /// <summary>
+    /// A setting counts as served when the plugin serves it under another name.
+    /// </summary>
+    /// <remarks>
+    /// <c>seerrApiKey</c> is a key the plugin has no property for, and serves all the same
+    /// as <c>jellyseerrApiKey</c> and <c>seerr.apiKey</c>. Checked on the app's key alone, a
+    /// not-declared entry for it would never retire.
+    /// </remarks>
+    [Fact]
+    public void ASettingServedUnderAnotherNameCountsAsServed()
+    {
+        Assert.DoesNotContain("seerrApiKey", Declared);
+        Assert.Contains("seerrApiKey", ServedKeys(Manifest()));
     }
 
     /// <summary>
@@ -321,10 +558,32 @@ public class SettingsParityTests
     public void AnExcuseForAKeyTheAppDroppedIsStale()
     {
         var gone = new[] { "settingTheAppRemoved" };
-        var nothing = new HashSet<string>(StringComparer.Ordinal);
+        var nothing = new Facts(Set(), Set(), Set(), Set());
 
-        Assert.Equal(gone, StaleExcuses(nothing, nothing, gone, [], []));
-        Assert.Equal(gone, StaleExcuses(nothing, nothing, [], gone, []));
+        Assert.Equal(gone, StaleExcuses(nothing, gone, [], [], []));
+        Assert.Equal(gone, StaleExcuses(nothing, [], gone, [], []));
+    }
+
+    /// <summary>
+    /// An excuse written under one of the app's other names excuses nothing, and says so.
+    /// </summary>
+    /// <remarks>
+    /// The comparison names <c>autoLoginSeerr, declared as autoLoginJellyseerr</c>, so the
+    /// second name is an easy one to write an excuse under. The rules look excuses up by
+    /// the app's key, so it would suppress nothing and never be reported either.
+    /// </remarks>
+    [Fact]
+    public void AnExcuseUnderAnOldNameIsStale()
+    {
+        var facts = new Facts(
+            Set("autoLoginSeerr"),
+            Set("autoLoginSeerr", "autoLoginJellyseerr", "seerr"),
+            Set("autoLoginJellyseerr", "seerr"),
+            Set("autoLoginSeerr"));
+        var oldName = new[] { "autoLoginJellyseerr" };
+
+        Assert.Equal(oldName, StaleExcuses(facts, oldName, [], [], []));
+        Assert.Equal(oldName, StaleExcuses(facts, [], oldName, [], []));
     }
 
     /// <summary>
@@ -338,17 +597,131 @@ public class SettingsParityTests
     public void AKeyDeclaredAheadOfTheAppDiesFromEitherSide()
     {
         var ahead = new[] { "subtitlesOnMuteAllowRestart" };
-        var declared = new HashSet<string>(StringComparer.Ordinal) { "subtitlesOnMuteAllowRestart" };
-        var nothing = new HashSet<string>(StringComparer.Ordinal);
+        var declared = Set("subtitlesOnMuteAllowRestart");
 
         // Still ahead: declared here, unknown to the app.
-        Assert.Empty(StaleExcuses(nothing, declared, [], [], ahead));
+        Assert.Empty(StaleExcuses(new Facts(Set(), Set(), declared, Set()), [], [], ahead, []));
 
         // The app caught up.
-        Assert.Equal(ahead, StaleExcuses(declared, declared, [], [], ahead));
+        Assert.Equal(ahead, StaleExcuses(new Facts(declared, declared, declared, Set()), [], [], ahead, []));
 
         // The plugin dropped the property.
-        Assert.Equal(ahead, StaleExcuses(nothing, nothing, [], [], ahead));
+        Assert.Equal(ahead, StaleExcuses(new Facts(Set(), Set(), Set(), Set()), [], [], ahead, []));
+    }
+
+    /// <summary>
+    /// A key kept for the apps in the field is stale from both sides.
+    /// </summary>
+    [Fact]
+    public void AKeyKeptForTheAppsInTheFieldDiesFromEitherSide()
+    {
+        var kept = new[] { "jellyseerrServerUrl" };
+        var declared = Set("jellyseerrServerUrl");
+
+        // Still owed to the field: declared here, no longer read by the app's branch.
+        Assert.Empty(StaleExcuses(new Facts(Set(), Set(), declared, Set()), [], [], [], kept));
+
+        // The app reads it again.
+        Assert.Equal(kept, StaleExcuses(new Facts(Set(), declared, declared, Set()), [], [], [], kept));
+
+        // The plugin dropped the property.
+        Assert.Equal(kept, StaleExcuses(new Facts(Set(), Set(), Set(), Set()), [], [], [], kept));
+    }
+
+    /// <summary>
+    /// A setting the app renamed still has its default compared, through the name the
+    /// plugin declares it under.
+    /// </summary>
+    [Fact]
+    public void ARenamedSettingStillHasItsDefaultCompared()
+    {
+        using var app = JsonDocument.Parse("false");
+        var renamed = new ManifestEntry(
+            "autoLoginSeerr",
+            "boolean",
+            app.RootElement.Clone(),
+            HasDefault: true,
+            NoDefaultReason: null,
+            WireDefault: default,
+            WireNote: null,
+            WireNames: ["autoLoginJellyseerr", "seerr.autoLogin"]);
+
+        Assert.Equal(
+            "autoLoginSeerr, declared as autoLoginJellyseerr: app false, plugin true",
+            Disagreement(renamed, PluginConfiguration.DefaultSettings()));
+    }
+
+    /// <summary>
+    /// A setting declared only as the field of a block still has its default compared.
+    /// </summary>
+    /// <remarks>
+    /// The state the plugin is headed for once the jellyseerr keys go: Seerr served as the
+    /// block alone. Looked up among the flat properties only, its default would be
+    /// skipped.
+    /// </remarks>
+    [Fact]
+    public void ADefaultDeclaredInABlockIsCompared()
+    {
+        using var app = JsonDocument.Parse("true");
+        var autoLogin = new ManifestEntry(
+            "autoLoginSeerr",
+            "boolean",
+            app.RootElement.Clone(),
+            HasDefault: true,
+            NoDefaultReason: null,
+            WireDefault: default,
+            WireNote: null,
+            WireNames: ["autoLoginJellyseerr", "seerr.autoLogin"]);
+        var blockOnly = new Settings { seerr = new SeerrSettings { autoLogin = new() { value = false } } };
+
+        Assert.Equal(
+            "autoLoginSeerr, declared as seerr.autoLogin: app true, plugin false",
+            Disagreement(autoLogin, blockOnly));
+    }
+
+    /// <summary>
+    /// An old name counts as one the app reads only while the manifest says so.
+    /// </summary>
+    /// <remarks>
+    /// The manifest is regenerated from the app, so the day the app stops reading the
+    /// jellyseerr keys they leave the manifest, and a plugin still declaring them fails
+    /// unless they are kept for the apps in the field.
+    /// </remarks>
+    [Fact]
+    public void AnOldNameCountsOnlyWhileTheAppStillReadsIt()
+    {
+        var renamed = new ManifestEntry(
+            "seerrServerUrl",
+            "string",
+            default,
+            HasDefault: false,
+            NoDefaultReason: "none",
+            WireDefault: default,
+            WireNote: null,
+            WireNames: ["jellyseerrServerUrl", "seerr.serverUrl"]);
+
+        Assert.Contains("jellyseerrServerUrl", KnownNames([renamed]));
+        Assert.Contains("seerr", KnownNames([renamed]));
+
+        var dropped = renamed with { WireNames = null };
+
+        Assert.DoesNotContain("jellyseerrServerUrl", KnownNames([dropped]));
+        Assert.DoesNotContain("seerr", KnownNames([dropped]));
+    }
+
+    /// <summary>
+    /// A dotted name is a field of a block the plugin fills.
+    /// </summary>
+    [Fact]
+    public void ADottedNameIsAFieldOfABlockThePluginFills()
+    {
+        Assert.True(Serves("seerr.serverUrl"));
+        Assert.False(Serves("seerr.notAField"));
+        Assert.False(Serves("notABlock.serverUrl"));
+        Assert.True(Serves("jellyseerrServerUrl"));
+
+        // A field the block has but holds nothing in reads as nothing.
+        Assert.Equal((true, null), DeclaredAt(new Settings { seerr = new SeerrSettings() }, "seerr.serverUrl"));
     }
 
     /// <summary>
@@ -397,9 +770,10 @@ public class SettingsParityTests
     /// The two enums the app compares as numbers are written as numbers.
     /// </summary>
     /// <remarks>
-    /// Same reason <c>OrientationLock</c>, <c>Bitrate</c> and <c>SubtitlePlaybackMode</c>
-    /// already have a number converter registered. The default is the member name, and a
-    /// name where the app switches on a number matches nothing.
+    /// Same reason <c>OrientationLock</c> and <c>Bitrate</c> already have a number converter
+    /// registered. The default is the member name, and a name where the app switches on a
+    /// number matches nothing. <c>SubtitlePlaybackMode</c> has one too, and should not: the
+    /// app compares the SDK's strings for it, see <see cref="KnownDisagreements"/>.
     /// </remarks>
     [Theory]
     [InlineData(VideoPlayer.MPV, "0")]
