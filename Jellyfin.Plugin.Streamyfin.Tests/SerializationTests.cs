@@ -136,6 +136,65 @@ public class SerializationTests(ITestOutputHelper output)
     }
     
     /// <summary>
+    /// What the app receives carries the subtitle mode by name, the other enums as before.
+    /// </summary>
+    /// <remarks>
+    /// The app compares the SDK's strings for the subtitle mode, so the number never
+    /// matched and a mode an administrator locked did nothing.
+    /// </remarks>
+    [Fact]
+    public void ConfigJsonForTheAppTest()
+    {
+        SerializeConfig(
+            value: _serializationHelper.SerializeForApp(GetTestConfig()),
+            expected:
+            """
+            {
+              "settings": {
+                "subtitleMode": {
+                  "locked": false,
+                  "value": "Default"
+                },
+                "defaultVideoOrientation": {
+                  "locked": false,
+                  "value": 6
+                },
+                "defaultBitrate": {
+                  "locked": false,
+                  "value": 250000
+                }
+              }
+            }
+            """
+        );
+    }
+
+    /// <summary>
+    /// The subtitle mode is still stored as the number, which every earlier build reads.
+    /// </summary>
+    /// <remarks>
+    /// An earlier build reads the stored subtitle mode with a number converter only, and
+    /// throws on a name. Stored by name, a rollback would serve an empty configuration to
+    /// everyone and refuse every backup taken since. The app is the only one that gets the
+    /// name.
+    /// </remarks>
+    [Fact]
+    public void TheSubtitleModeIsStoredAsTheNumberEarlierBuildsRead()
+    {
+        var stored = _serializationHelper.SerializeToJson(new Settings
+        {
+            subtitleMode = new Lockable<SubtitlePlaybackMode> { locked = true, value = SubtitlePlaybackMode.Smart }
+        });
+
+        using var document = System.Text.Json.JsonDocument.Parse(stored);
+        var value = document.RootElement.GetProperty("subtitleMode").GetProperty("value");
+
+        Assert.Assrt(
+            $"SubtitlePlaybackMode stored as {value.GetRawText()}",
+            value.ValueKind == System.Text.Json.JsonValueKind.Number && value.GetInt32() == (int)SubtitlePlaybackMode.Smart);
+    }
+
+    /// <summary>
     /// Ensures all types of enums are yaml serialized correctly
     /// </summary>
     [Fact]

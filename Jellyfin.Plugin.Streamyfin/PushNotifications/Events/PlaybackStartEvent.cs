@@ -29,7 +29,8 @@ public class PlaybackStartEvent(
     /// <inheritdoc />
     public async Task OnEvent(PlaybackStartEventArgs? eventArgs)
     {
-        if (eventArgs == null || Config?.notifications?.PlaybackStarted is not { Enabled: true })
+        if (eventArgs == null
+            || !_notificationHelper.Wants("playbackStarted", Config?.notifications?.PlaybackStarted))
         {
             _logger.LogInformation("PlaybackStartEvent received but currently disabled.");
             return;
@@ -55,25 +56,36 @@ public class PlaybackStartEvent(
 
         CleanupOldEntries();
 
-        var notifications = eventArgs.Users
-            .Select(user =>
-                MediaNotificationHelper.CreateMediaNotification(
-                    localization: _localization,
-                    title: _localization.GetString("PlaybackStartTitle"),
-                    body: [_localization.GetFormatted("UserWatching", args: user.Username)],
-                    item: eventArgs.Item
-                )
-            )
-            .OfType<ExpoNotificationRequest>()
-            .Where(notification => !HasRecentlyProcessed(notification.Body))
-            .ToArray();
+        // Who is watching, decided before anything is written: the same playback is one
+        // event whatever language the message ends up in, and the wait is on the pair of
+        // the item and the user rather than on the sentence, which now varies.
+        var watching = eventArgs.Users
+            .Where(user => !HasRecentlyProcessed($"playback:{eventArgs.Item.Id}:{user.Id}"))
+            .ToList();
 
-        if (notifications.Length > 0)
+        if (watching.Count > 0)
         {
-            _notificationHelper.SendToAdmins(
-                excludedUserIds: eventArgs.Users.Select(u => u.Id).ToList(),
-                notifications: notifications
-            );
+            SendDetached(
+                _notificationHelper.SendForEvent(
+                    "playbackStarted",
+                    Config?.notifications?.PlaybackStarted,
+                    byDefault: user => user.IsAdministrator(),
+                    // Nobody is told about what they are watching themselves.
+                    andAlso: user => !eventArgs.Users.Any(watcher => watcher.Id.Equals(user.Id)),
+                    write: audience => watching
+                        .Select(user =>
+                            MediaNotificationHelper.CreateMediaNotification(
+                                localization: _localization,
+                                title: _localization.GetString("PlaybackStartTitle", audience.Culture),
+                                body: [_localization.GetFormatted("UserWatching", audience.Culture, user.Username)],
+                                item: eventArgs.Item,
+                                culture: audience.Culture
+                            )
+                        )
+                        .OfType<ExpoNotificationRequest>()
+                        .ToArray()
+                ),
+                "playback started");
         }
         else _logger.LogInformation("There are no valid notifications to send.");
     }

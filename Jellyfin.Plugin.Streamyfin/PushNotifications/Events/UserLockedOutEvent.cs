@@ -5,6 +5,10 @@ using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 
@@ -21,23 +25,31 @@ public class UserLockedOutEvent(
     /// <inheritdoc />
     public async Task OnEvent(UserLockedOutEventArgs? eventArgs)
     {
-        if (eventArgs?.Argument == null || Config?.notifications?.UserLockedOut is not { Enabled: true })
+        if (eventArgs?.Argument == null
+            || !_notificationHelper.Wants("userLockedOut", Config?.notifications?.UserLockedOut))
         {
             _logger.LogInformation("UserLockedOutEvent received but currently disabled.");
             return;
         }
 
-        var notification = new Notification
-        {
-            Title = _localization.GetString("UserLockedOutTitle"),
-            Body = _localization.GetFormatted(
-                    key: "UserHasBeenLockedOut",
-                    args: eventArgs.Argument.Username.Escape()
-                ),
-            UserId = eventArgs.Argument.Id
-        };
-
-        await _notificationHelper.SendToAdmins(notification).ConfigureAwait(false);
+        // The administrators and the account that was locked out, unless a level says
+        // otherwise. Each device in the language it asked for.
+        await _notificationHelper.SendForEvent(
+            "userLockedOut",
+            Config?.notifications?.UserLockedOut,
+            byDefault: user => user.IsAdministrator() || user.Id.Equals(eventArgs.Argument.Id),
+            andAlso: null,
+            write: audience =>
+            [
+                new()
+                {
+                    Title = _localization.GetString("UserLockedOutTitle", audience.Culture),
+                    Body = _localization.GetFormatted(
+                        key: "UserHasBeenLockedOut",
+                        cultureInfo: audience.Culture,
+                        args: eventArgs.Argument.Username.Escape())
+                }
+            ]).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

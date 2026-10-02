@@ -1,6 +1,32 @@
-const yamlEditor = () => document.getElementById('yaml-editor');
-const exampleBtn = () => document.getElementById("example-btn")
-const saveBtn = () => document.getElementById("save-btn");
+// The dashboard keeps the views it has already shown, so more than one page can carry
+// an element with the same id. Everything here is looked up inside this view.
+let page = null;
+
+// The three workers the bundle asks for, by the label it asks with. Each one is a page
+// resource the plugin already serves.
+const WORKERS = {
+    editorWorkerService: "editor.worker.js",
+    json: "json.worker.js",
+    yaml: "yaml.worker.js",
+};
+
+const yamlEditor = () => page.querySelector('#yaml-editor');
+const exampleBtn = () => page.querySelector('#example-btn');
+const saveBtn = () => page.querySelector('#save-btn');
+
+// The editor is one field, so the dock says whether it has been touched rather than
+// counting rows the way the settings form does.
+const edited = () => {
+    page.querySelector('#sf-dot').hidden = false;
+    page.querySelector('#sf-dock-summary').textContent = 'Edited, not saved';
+    saveBtn().disabled = false;
+};
+
+const saved = () => {
+    page.querySelector('#sf-dot').hidden = true;
+    page.querySelector('#sf-dock-summary').textContent = 'Nothing to save';
+    saveBtn().disabled = true;
+};
 
 export default function (view, params) {
 
@@ -8,13 +34,36 @@ export default function (view, params) {
     view.addEventListener('viewshow', (e) => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then((shared) => {
             shared.setPage("Yaml");
+            page = view;
             return shared;
         }).then(async (shared) => {
+            // The dashboard's theme is a user choice and its stylesheet only sets a
+            // background, so the page reads that rather than guessing. Done before monaco
+            // loads, since the editor asks the page which theme it is in.
+            const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
+            renderer.applyTheme(view.querySelector("#sf-app"), (theme) => {
+                if (globalThis.monaco) monaco.editor.setTheme(theme === "light" ? "vs" : "vs-dark");
+            });
+
             // Import monaco after shared resources and wait until its done before continuing
             if (!window.monaco) {
                 Dashboard.showLoadingMsg();
                 await import(window.ApiClient.getUrl('web/configurationpage?name=monaco-editor.bundle.js'))
             }
+
+            // Monaco builds its worker URLs from the path its own bundle thinks it was
+            // served from, and in a dashboard that is not where they are: on a Jellyfin
+            // 10.11 they came out under http://www.gstatic.com/eureka/clank/152/, the
+            // Chromecast sender the web client loads, and on a 13 under another plugin's
+            // page. The worker 404s, Monaco falls back to running the language service on
+            // the main thread, and the editor validates and completes less than it looks
+            // like it does. Said after the import, because the bundle assigns this itself
+            // on the way in and would overwrite anything set before it.
+            globalThis.MonacoEnvironment = {
+                ...(globalThis.MonacoEnvironment ?? {}),
+                getWorkerUrl: (moduleId, label) => window.ApiClient.getUrl(
+                    `web/configurationpage?name=${WORKERS[label] ?? WORKERS.editorWorkerService}`),
+            };
 
             const Page = {
                 editor: null,
@@ -134,7 +183,9 @@ export default function (view, params) {
                 saveConfig: function (e) {
                     e.preventDefault();
                     shared.setYamlConfig(Page.editor.getModel().getValue())
-                    shared.saveConfig()
+                    shared.saveConfig().then((stored) => {
+                        if (stored) saved();
+                    })
                 },
                 loadConfig: function (config) {
                     Dashboard.hideLoadingMsg();
@@ -150,6 +201,8 @@ export default function (view, params) {
                     });
 
                     Page.editor.onDidChangeModelContent(function (e) {
+                        edited();
+
                         if (e.eol === '\n' && e.changes[0].text.endsWith(" ")) {
                             // need timeout so it triggers after auto formatting
                             setTimeout(() => {
@@ -166,8 +219,10 @@ export default function (view, params) {
                 init: function () {
                     console.log("init");
 
-                    // Yaml Editor
-                    monaco.editor.setTheme('vs-dark');
+                    // Yaml Editor. The dashboard's theme is a user choice, so the editor
+                    // follows the page rather than staying dark on a light dashboard.
+                    const theme = page.querySelector("#sf-app")?.dataset.sfTheme ?? "dark";
+                    monaco.editor.setTheme(theme === "light" ? 'vs' : 'vs-dark');
                     
                     
                     Page.yaml = monacoYaml.configureMonacoYaml(monaco, {

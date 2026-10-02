@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
@@ -21,40 +22,32 @@ public class NotificationConfiguration
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
-    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from")]
+    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from. Leave it out to notify for every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
-    public string[] EnabledLibraries { get; set; }
-}
-
-public class UserNotificationConfig : NotificationConfiguration
-{
-    [Display(Name = "Jellyfin User Ids", Description = "List of jellyfin user ids that this notification is for.")]
-    [JsonPropertyName(name: "userIds")]
-    public string[] UserIds { get; set; }
-
-    [Display(Name = "Jellyfin Usernames", Description = "List of jellyfin usernames that this notification is for.")]
-    [JsonPropertyName(name: "usernames")]
-    public string[] Usernames { get; set; }
-
-    [Display(Name = "Forward to admins", Description = "if true, the notification will be forwarded to admins alongside any defined users.")]
-    [JsonPropertyName(name: "forwardToAdmins")]
-    public bool ForwardToAdmins { get; set; }
+    public string[]? EnabledLibraries { get; set; }
 }
 
 public class Notifications
 {
+    [Display(Name = "Wording", Description = "Write any of the plugin's sentences differently, per language. Keep the placeholders the sentence has.")]
+    [JsonPropertyName(name: "wording")]
+    public List<WordingOverride>? Wording { get; set; }
+
     [NotNull]
     [Display(Name = "Session Started", Description = "Admins get notified when a jellyfin user is online.")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "sessionStarted")]
     public NotificationConfiguration? SessionStarted { get; set; }
 
     [NotNull]
     [Display(Name = "Playback Started", Description = "Admins get notified when a jellyfin user is starts playback.")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "playbackStarted")]
     public NotificationConfiguration? PlaybackStarted { get; set; }
 
     [NotNull]
     [Display(Name = "User locked out", Description = "Admins and locked out user get notified jellyfin locks their account")]
+    [AboutSomebodyElse]
     [JsonPropertyName(name: "userLockedOut")]
     public NotificationConfiguration? UserLockedOut { get; set; }
 
@@ -62,4 +55,20 @@ public class Notifications
     [Display(Name = "Item added", Description = "Get notified when jellyfin adds new Movies or Episodes")]
     [JsonPropertyName(name: "itemAdded")]
     public ItemAddedNotificationConfiguration? ItemAdded { get; set; }
+
+    [NotNull]
+    [Display(Name = "Scheduled task failed", Description = "Admins get notified when one of the server's scheduled tasks fails, with the reason it gave.")]
+    [JsonPropertyName(name: "taskFailed")]
+    public NotificationConfiguration? TaskFailed { get; set; }
+
+    [NotNull]
+    [Display(Name = "Plugin changed", Description = "Admins get notified when a plugin is installed, updated or uninstalled.")]
+    [JsonPropertyName(name: "pluginChanged")]
+    public NotificationConfiguration? PluginChanged { get; set; }
+
+    [NotNull]
+    [Display(Name = "Failed sign in", Description = "Admins get notified when a sign in is refused, with the name that was tried and where it came from. Notifications about the same address wait five minutes by default.")]
+    [AboutSomebodyElse]
+    [JsonPropertyName(name: "signInFailed")]
+    public NotificationConfiguration? SignInFailed { get; set; }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -33,24 +35,114 @@ public class ItemAddedService : BaseEvent, IHostedService
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
     }
 
+    /// <summary>
+    /// Whether notifications are enabled for the library an item was added to.
+    /// </summary>
+    /// <param name="enabledLibraries">
+    /// The configured library ids. Absent or empty means every library is enabled, so a
+    /// configuration that never mentions <c>enabledLibraries</c> notifies for everything.
+    /// </param>
+    /// <param name="libraryItemId">The id of the library the item was found in.</param>
+    /// <returns><c>true</c> when the library should produce notifications.</returns>
+    public static bool IsLibraryEnabled(string[]? enabledLibraries, string? libraryItemId)
+    {
+        if (enabledLibraries is not { Length: > 0 }) return true;
+
+        return libraryItemId is not null
+               && enabledLibraries.Contains(libraryItemId, StringComparer.Ordinal);
+    }
+
+    // Written once per language among the devices it goes to, so it builds rather than
+    // hands back what it built before.
+    private ExpoNotificationRequest[] MovieMessage(BaseItem item, Audience audience)
+    {
+        var message = MediaNotificationHelper.CreateMediaNotification(
+            localization: _localization,
+            title: _localization.GetFormatted("ItemAddedTitle", audience.Culture, _localization.GetString("MovieMediaType", audience.Culture)),
+            body: [],
+            item: item,
+            culture: audience.Culture);
+
+        if (message is null)
+        {
+            return [];
+        }
+
+        message.RichContent = Poster(audience, item.Id);
+
+        return [message];
+    }
+
+    // What the notification shows beside its text, fetched from the address that device
+    // reaches the server at. A device that named no address gets no image rather than one
+    // it cannot fetch.
+    private ExpoRichContent? Poster(Audience audience, Guid itemId)
+    {
+        var image = DeviceServer.PosterOf(audience.ServerUrl, itemId);
+
+        // At debug, since it is the answer to the only question this part ever raises:
+        // why a notification arrived without its image.
+        _logger.LogDebug("Poster for {Item}: {Image}", itemId, image ?? "none, the device named no server");
+
+        return image is null ? null : new ExpoRichContent { Image = image };
+    }
+
+    /// <summary>
+    /// Everything a message about a season names, or <c>null</c> when the library no longer
+    /// holds one of them.
+    /// </summary>
+    /// <param name="season">The season the message is about.</param>
+    /// <param name="episodes">The episodes it counts.</param>
+    /// <param name="lookup">How to read an item back, which answers null for one that is gone.</param>
+    /// <returns>The season and its episodes, or <c>null</c>.</returns>
+    /// <remarks>
+    /// An episode that cannot be read cannot be checked against a user, and the message
+    /// counts it all the same, so nothing goes out rather than a message authorized on less
+    /// than it says.
+    /// </remarks>
+    internal static List<BaseItem>? EverythingNamed(
+        BaseItem season,
+        IEnumerable<Guid> episodes,
+        Func<Guid, BaseItem?> lookup)
+    {
+        ArgumentNullException.ThrowIfNull(season);
+        ArgumentNullException.ThrowIfNull(episodes);
+        ArgumentNullException.ThrowIfNull(lookup);
+
+        List<BaseItem> named = [season];
+
+        foreach (var id in episodes)
+        {
+            var episode = lookup(id);
+
+            if (episode is null)
+            {
+                return null;
+            }
+
+            named.Add(episode);
+        }
+
+        return named;
+    }
+
     private void ItemAddedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
     {
         if (
             itemChangeEventArgs.Item.IsVirtualItem || 
             itemChangeEventArgs.Item.IsFolder || 
-            Config?.notifications?.ItemAdded is not { Enabled: true }
+            !_notificationHelper.Wants("itemAdded", Config?.notifications?.ItemAdded)
         ) return;
 
         var item = itemChangeEventArgs.Item;
-        var enabledLibraries = Config.notifications.ItemAdded.EnabledLibraries;
+        // Read through: with targeting the event can run while the server itself has it
+        // off, so nothing here may assume the block exists. An absent list means every
+        // library, which is what IsLibraryEnabled already answers.
+        var enabledLibraries = Config?.notifications?.ItemAdded?.EnabledLibraries;
         var virtualFolder = _libraryManager.GetVirtualFolders()
-            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location) == true));
+            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
 
-        if (
-            virtualFolder != null &&
-            enabledLibraries.Length > 0 &&
-            !enabledLibraries.Contains(virtualFolder.ItemId)
-        )
+        if (virtualFolder != null && !IsLibraryEnabled(enabledLibraries, virtualFolder.ItemId))
         {
             _logger.LogInformation(
                 "Failed to notify about item {0} - {1}. Library {2} currently not enabled for notifications.",
@@ -64,17 +156,16 @@ public class ItemAddedService : BaseEvent, IHostedService
         switch (item)
         {
             case Movie movie:
-                var notification = MediaNotificationHelper.CreateMediaNotification(
-                    localization: _localization,
-                    title: _localization.GetFormatted("ItemAddedTitle", args: _localization.GetString("MovieMediaType")),
-                    body: [],
-                    item: item
-                );
-
-                if (notification != null)
-                {
-                    _notificationHelper.SendToAll(notification);
-                }
+                SendDetached(
+                    _notificationHelper.SendForEvent(
+                        "itemAdded",
+                        Config?.notifications?.ItemAdded,
+                        byDefault: _ => true,
+                        // Not negotiable, whatever a level says: a title only goes to
+                        // somebody who may open it (#69).
+                        andAlso: NotificationHelper.CanOpenEvery([item]),
+                        write: audience => MovieMessage(item, audience)),
+                    "item added");
                 break;
             case Episode episode:
                 var seasonId = episode.FindSeasonId();
@@ -117,89 +208,124 @@ public class ItemAddedService : BaseEvent, IHostedService
         
         var name = refreshedSeason.Series.Name.Escape();
 
-        string title;
-        List<string> body = [];
-        var data = new Dictionary<string, object?>();
-
         _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", total, name);
+
+        // The one episode is read back here rather than inside the message, which is
+        // written once per language and should not go to the library each time.
+        Episode? single = null;
 
         if (total == 1)
         {
-            var refreshedEpisode = _libraryManager.GetItemById(episode.Id) as Episode;
-            if (refreshedEpisode is null)
+            single = _libraryManager.GetItemById(episode.Id) as Episode;
+
+            if (single is null)
             {
                 return;
             }
-            episode = refreshedEpisode;
+        }
 
-            title = _localization.GetString("EpisodeAddedTitle");
-            data["id"] = episode.Id.ToString("N"); // only provide for a single episode notification
+        // The season and every episode the message counts. A season can be visible while an
+        // episode in it is not, and this message names how many arrived and, for a single
+        // one, its number and its id.
+        var named = EverythingNamed(
+            refreshedSeason,
+            countdown.Episodes.Select(added => added.Id),
+            id => _libraryManager.GetItemById(id));
+
+        if (named is null)
+        {
+            _logger.LogInformation(
+                "One of the {Count} episode(s) added to {Season} is no longer in the library, so nothing was sent",
+                total,
+                name);
+            return;
+        }
+
+        // Observed like the movie send. Discarding the awaitable left a failure unobserved.
+        SendDetached(
+            _notificationHelper.SendForEvent(
+                "itemAdded",
+                Config?.notifications?.ItemAdded,
+                byDefault: _ => true,
+                andAlso: NotificationHelper.CanOpenEvery(named),
+                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
+            "episodes added");
+    }
+
+    // Written once per language among the devices it goes to.
+    private ExpoNotificationRequest EpisodesMessage(
+        Season season,
+        Episode? single,
+        Episode first,
+        int total,
+        Audience audience)
+    {
+        var culture = audience.Culture;
+
+        var name = season.Series.Name.Escape();
+        var data = new Dictionary<string, object?>();
+        List<string> body = [];
+        string title;
+
+        if (single is not null)
+        {
+            title = _localization.GetString("EpisodeAddedTitle", culture);
+            data["id"] = single.Id.ToString("N"); // only provide for a single episode notification
 
             // Both episode & season information is available
-            if (episode.IndexNumber != null && episode.Season.IndexNumber != null)
+            if (single.IndexNumber != null && single.Season.IndexNumber != null)
             {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeNumberAddedForSeason",
-                        args: [name, episode.IndexNumber, episode.Season.IndexNumber]
-                    )
-                );
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeNumberAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, single.IndexNumber, single.Season.IndexNumber]));
             }
             // only episode information is available
-            else if (episode.IndexNumber != null)
+            else if (single.IndexNumber != null)
             {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeAdded",
-                        args: [name, episode.IndexNumber]
-                    )
-                );
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeAdded",
+                    cultureInfo: culture,
+                    args: [name, single.IndexNumber]));
             }
             // only season information is available
-            else if (episode.Season.IndexNumber != null)
+            else if (single.Season.IndexNumber != null)
             {
-                body.Add(
-                    _localization.GetFormatted(
-                        key: "EpisodeAddedForSeason",
-                        args: [name, episode.Season.IndexNumber]
-                    )
-                );
+                body.Add(_localization.GetFormatted(
+                    key: "EpisodeAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, single.Season.IndexNumber]));
             }
         }
         else
         {
-            title = _localization.GetString("EpisodesAddedTitle");
+            title = _localization.GetString("EpisodesAddedTitle", culture);
 
-            if (refreshedSeason.IndexNumber != null)
-            {
-                body.Add(_localization.GetFormatted(
-                        key: "TotalEpisodesAddedForSeason",
-                        args: [name, total, refreshedSeason.IndexNumber]
-                    )
-                );
-            }
-            else
-            {
-                body.Add(_localization.GetFormatted(
-                        key: "EpisodesAddedToSeries",
-                        args: [name, total]
-                    )
-                );
-            }
+            body.Add(season.IndexNumber != null
+                ? _localization.GetFormatted(
+                    key: "TotalEpisodesAddedForSeason",
+                    cultureInfo: culture,
+                    args: [name, total, season.IndexNumber])
+                : _localization.GetFormatted(
+                    key: "EpisodesAddedToSeries",
+                    cultureInfo: culture,
+                    args: [name, total]));
         }
 
-        data["seasonIndex"] = refreshedSeason.IndexNumber;
-        data["seriesId"] = refreshedSeason.SeriesId.ToString("N");
-        data["type"] = episode.GetType().Name.Escape();
+        data["seasonIndex"] = season.IndexNumber;
+        data["seriesId"] = season.SeriesId.ToString("N");
+        data["type"] = first.GetType().Name.Escape();
 
-        var notification = new ExpoNotificationRequest
+        return new ExpoNotificationRequest
         {
             Title = title,
             Body = string.Join("\n", body),
-            Data = data
-        };
+            Data = data,
 
-        _notificationHelper.SendToAll(notification).ConfigureAwait(false);
+            // The series rather than the episode: a poster is what a phone shows well, and
+            // an episode's own image is a frame of it.
+            RichContent = Poster(audience, season.SeriesId.Equals(default) ? season.Id : season.SeriesId)
+        };
     }
 
     /// <inheritdoc />

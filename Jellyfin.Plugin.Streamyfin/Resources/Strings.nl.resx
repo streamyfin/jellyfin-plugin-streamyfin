@@ -102,4 +102,125 @@
         <!-- 0 = Name, 1 = Year -->U
         <value>{0} ({1})</value>
     </data>
+    <!-- region Seerr webhook -->
+    <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>Onbekende media</value>
+    </data>
+    <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>Iemand</value>
+    </data>
+    <data name="SeerrTestTitle" xml:space="preserve">
+        <value>Seerr is verbonden</value>
+    </data>
+    <data name="SeerrTestBody" xml:space="preserve">
+        <value>Dit is de testmelding van uw Seerr-server</value>
+    </data>
+    <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>Nieuw verzoek</value>
+    </data>
+    <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>{0} heeft {1} aangevraagd</value>
+    </data>
+    <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Verzoek automatisch goedgekeurd</value>
+    </data>
+    <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>Het verzoek van {0} voor {1} is automatisch goedgekeurd</value>
+    </data>
+    <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>Verzoek mislukt</value>
+    </data>
+    <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>Het verzoek van {0} voor {1} is mislukt</value>
+    </data>
+    <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>Verzoek goedgekeurd</value>
+    </data>
+    <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>Uw verzoek voor {1} is goedgekeurd</value>
+    </data>
+    <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Verzoek afgewezen</value>
+    </data>
+    <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>Uw verzoek voor {1} is afgewezen</value>
+    </data>
+    <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>Klaar om te kijken</value>
+    </data>
+    <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <!-- 0 = Requester, 1 = Media name -->
+        <value>{1} is nu beschikbaar</value>
+    </data>
+    <!-- endregion Seerr webhook -->
+
+    <!-- region Admin events -->
+    <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Geplande taak mislukt</value>
+    </data>
+    <data name="TaskFailed" xml:space="preserve">
+        <!-- 0 = Task name -->
+        <value>{0} is mislukt</value>
+    </data>
+    <data name="TaskFailedWithReason" xml:space="preserve">
+        <!-- 0 = Task name, 1 = What the task said went wrong -->
+        <value>{0} is mislukt: {1}</value>
+    </data>
+    <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Plug-in geïnstalleerd</value>
+    </data>
+    <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Plug-in bijgewerkt</value>
+    </data>
+    <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Plug-in verwijderd</value>
+    </data>
+    <data name="PluginInstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is geïnstalleerd</value>
+    </data>
+    <data name="PluginInstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} is geïnstalleerd</value>
+    </data>
+    <data name="PluginUpdated" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is bijgewerkt</value>
+    </data>
+    <data name="PluginUpdatedVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} is bijgewerkt naar {1}</value>
+    </data>
+    <data name="PluginUninstalled" xml:space="preserve">
+        <!-- 0 = Plugin name -->
+        <value>{0} is verwijderd</value>
+    </data>
+    <data name="PluginUninstalledVersion" xml:space="preserve">
+        <!-- 0 = Plugin name, 1 = Version -->
+        <value>{0} {1} is verwijderd</value>
+    </data>
+    <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Aanmelding mislukt</value>
+    </data>
+    <data name="SignInFailed" xml:space="preserve">
+        <!-- 0 = Username that was tried -->
+        <value>{0} kon niet aanmelden</value>
+    </data>
+    <data name="SignInFailedFrom" xml:space="preserve">
+        <!-- 0 = Username that was tried, 1 = Address it came from -->
+        <value>{0} kon niet aanmelden vanaf {1}</value>
+    </data>
+    <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>Een aanmelding is geweigerd</value>
+    </data>
+    <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <!-- 0 = Address it came from -->
+        <value>Een aanmelding vanaf {0} is geweigerd</value>
+    </data>
+    <!-- endregion Admin events -->
 </root>
