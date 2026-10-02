@@ -51,17 +51,7 @@ public class SettingsParityTests
     /// weighed the difference, not a place to put a default that turned out to be
     /// inconvenient to fix.
     /// </remarks>
-    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal)
-    {
-        ["subtitleMode"] =
-            "A bug, not a choice. SerializationHelper writes SubtitlePlaybackMode as a number "
-            + "and the app compares the SDK's strings (\"Default\", \"Always\", ...). The "
-            + "unlocked default reaches every user of the server once, as 0: it replaces the "
-            + "mode they had and leaves the settings screen with none selected. A locked mode "
-            + "does not take effect. Writing the member name fixes what is sent from then on, "
-            + "and what to do about the 0 already stored on devices is a decision of its own, "
-            + "so the fix is a pull request of its own. It deletes this entry.",
-    };
+    private static readonly Dictionary<string, string> KnownDisagreements = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Keys the plugin declares that the app's published branch does not read yet, and
@@ -150,7 +140,7 @@ public class SettingsParityTests
     private static readonly HashSet<string> Declared = DeclaredKeys();
 
     private static readonly Lazy<JsonSerializerOptions> WireOptions =
-        new(() => new SerializationHelper().GetJsonSerializerOptions());
+        new(() => new SerializationHelper().GetAppJsonSerializerOptions());
 
     // Every flat setting given a value, then the blocks written out the way the plugin
     // answers, so a block shows which of its fields the plugin actually fills.
@@ -767,12 +757,19 @@ public class SettingsParityTests
     [InlineData(SubtitleAlignY.Bottom, "\"bottom\"")]
     [InlineData(SubtitleAlignY.Top, "\"top\"")]
     [InlineData(DeviceProfile.Expo, "\"Expo\"")]
+    // The app compares the SDK's strings for this one. It was written as a number until
+    // the regenerated manifest showed it, and a locked mode did nothing.
+    [InlineData(SubtitlePlaybackMode.Default, "\"Default\"")]
+    [InlineData(SubtitlePlaybackMode.Always, "\"Always\"")]
+    [InlineData(SubtitlePlaybackMode.OnlyForced, "\"OnlyForced\"")]
+    [InlineData(SubtitlePlaybackMode.None, "\"None\"")]
+    [InlineData(SubtitlePlaybackMode.Smart, "\"Smart\"")]
     public void AnEnumReachesTheAppUnderTheStringTheAppCompares(object member, string expected)
     {
         var written = JsonSerializer.Serialize(
             member,
             member.GetType(),
-            new SerializationHelper().GetJsonSerializerOptions());
+            new SerializationHelper().GetAppJsonSerializerOptions());
 
         Assert.Equal(expected, written);
     }
@@ -783,8 +780,7 @@ public class SettingsParityTests
     /// <remarks>
     /// Same reason <c>OrientationLock</c> and <c>Bitrate</c> already have a number converter
     /// registered. The default is the member name, and a name where the app switches on a
-    /// number matches nothing. <c>SubtitlePlaybackMode</c> has one too, and should not: the
-    /// app compares the SDK's strings for it, see <see cref="KnownDisagreements"/>.
+    /// number matches nothing.
     /// </remarks>
     [Theory]
     [InlineData(VideoPlayer.MPV, "0")]
@@ -799,7 +795,7 @@ public class SettingsParityTests
         var written = JsonSerializer.Serialize(
             member,
             member.GetType(),
-            new SerializationHelper().GetJsonSerializerOptions());
+            new SerializationHelper().GetAppJsonSerializerOptions());
 
         Assert.Equal(expected, written);
     }

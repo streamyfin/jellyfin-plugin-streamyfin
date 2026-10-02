@@ -194,7 +194,7 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult getConfig()
   {
-    return new JsonStringResult(_serializationHelperService.SerializeToJson(ConfigForCaller()));
+    return new JsonStringResult(_serializationHelperService.SerializeForApp(ConfigForCaller()));
   }
 
   [HttpGet("v1/config/schema")]
@@ -1306,7 +1306,7 @@ public class StreamyfinController : ControllerBase
       resolved = SettingsResolver.Redact(resolved);
     }
 
-    return new JsonStringResult(_serializationHelperService.SerializeToJson(resolved));
+    return new JsonStringResult(_serializationHelperService.SerializeForApp(resolved));
   }
 
   // Through the same tolerant read the resolution uses. Nothing validates the JSON

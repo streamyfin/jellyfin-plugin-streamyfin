@@ -53,12 +53,12 @@ public class SerializationHelper
     }
 
     /// <summary>
-    /// The options every JSON the app receives is written with.
+    /// The options the plugin stores JSON with, and reads it back with.
     /// </summary>
     /// <remarks>
-    /// Public because the parity test compares a declared default against what the app
-    /// reads, and it has to compare the written form. Comparing CLR values would pass
-    /// for an enum written as a number where the app expects its name.
+    /// The global configuration, every targeting level and every backup are written with
+    /// these, and every build that may run on the same database has to read them, a
+    /// rollback included. What the app receives is <see cref="GetAppJsonSerializerOptions"/>.
     /// </remarks>
     public JsonSerializerOptions GetJsonSerializerOptions()
     {
@@ -82,7 +82,10 @@ public class SerializationHelper
                 }
             });
 
-        // Prioritize these first since other converters & defaults change expected behavior
+        // Prioritize these first since other converters & defaults change expected behavior.
+        // SubtitlePlaybackMode stays a number here, in storage only: every build from before
+        // it went out by name reads nothing else, and one rolled back to would serve an
+        // empty configuration. The app gets the name, see GetAppJsonSerializerOptions.
         options.Converters.Insert(0, new JsonNumberEnumConverter<SubtitlePlaybackMode>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<OrientationLock>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<Bitrate>());
@@ -92,6 +95,23 @@ public class SerializationHelper
 #if DEBUG
         options.WriteIndented = true;
 #endif
+        return options;
+    }
+
+    /// <summary>
+    /// The options every JSON the app receives is written with.
+    /// </summary>
+    /// <remarks>
+    /// The stored form, except for the subtitle mode: the app compares the SDK's strings
+    /// for it, so the number never matched, and a mode an administrator locked did
+    /// nothing. Public because the parity test compares a declared default against what
+    /// the app reads, and it has to compare the written form. Comparing CLR values would
+    /// pass for an enum written as a number where the app expects its name.
+    /// </remarks>
+    public JsonSerializerOptions GetAppJsonSerializerOptions()
+    {
+        var options = GetJsonSerializerOptions();
+        options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<SubtitlePlaybackMode>>().Single());
         return options;
     }
 
@@ -205,8 +225,14 @@ public class SerializationHelper
     /// <summary>
     /// Serialize to Json with Streamyfin expected using copied options
     /// </summary>
-    public string SerializeToJson<T>(T item) => 
+    public string SerializeToJson<T>(T item) =>
         JsonSerializer.Serialize(item, GetJsonSerializerOptions());
+
+    /// <summary>
+    /// Serialize to the Json the app receives, see <see cref="GetAppJsonSerializerOptions"/>.
+    /// </summary>
+    public string SerializeForApp<T>(T item) =>
+        JsonSerializer.Serialize(item, GetAppJsonSerializerOptions());
 
     /// <summary>
     /// Serialize to Json with Streamyfin expected using copied options
@@ -229,13 +255,10 @@ public class SerializationHelper
     /// Deserialize Json, with the same options <see cref="SerializeToJson{T}"/> writes it.
     /// </summary>
     /// <remarks>
-    /// <see cref="Deserialize{T}"/> goes through YamlDotNet, and YAML is a superset of
-    /// JSON, so it reads most of it. It does not read all of it: the converters
-    /// registered here write <c>OrientationLock</c>, <c>Bitrate</c>,
-    /// <c>SubtitlePlaybackMode</c>, <c>VideoPlayer</c> and <c>InactivityTimeout</c> as
-    /// numbers, and YamlDotNet expects the member name.
-    /// Anything stored with <see cref="SerializeToJson{T}"/> has to come back through
-    /// this, or those five settings do not survive the round trip.
+    /// Stored JSON comes back through the options that wrote it, number converters
+    /// included. <see cref="Deserialize{T}"/> reads JSON as well, YAML being a superset of
+    /// it, and YamlDotNet even takes these enums as numbers, but what the stored form
+    /// means is defined here, not by what a YAML reader happens to accept.
     /// </remarks>
     /// <typeparam name="T">What to read it as.</typeparam>
     /// <param name="value">The JSON.</param>
