@@ -8,6 +8,32 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-02, the parity test follows the app's Seerr rename, and the subtitle mode goes out by name
+
+The app's Seerr stack reached its `develop` on 2026-10-01, with streamyfin#2104 among it: the
+three Seerr settings are `seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr` there, read from the
+`seerr` block first and from the jellyseerr keys after it. The plugin serves both since #198, so
+nothing broke, but the regenerated manifest no longer had the keys the plugin declares (#208).
+
+The script that wrote the first manifest was never kept, so `scripts/app-settings-manifest.js`
+replaces it, with tests. It reads `settings.ts` with the TypeScript compiler, runs the app's own
+`readIntegrationBlocks` and `normalizePluginValue` rather than copying them, and stops on anything
+it cannot work out. The manifest gains `wireNames`, the other names the app reads a setting under,
+and the parity test follows them: a setting is declared under any of its names, its default is
+compared through the name the plugin declares it under, a block carries every field the app reads
+and nothing else, and `KeptForAppsInTheField` is where the jellyseerr keys go the day the app stops
+reading them, since apps from before the block read nothing else.
+
+Regenerating the manifest of 2026-08-27 from the app of that day gave back 88 of its 95 entries;
+the other seven were the first script's guesses. One of them hid a bug: `subtitleMode` was recorded
+as `0`, the number the plugin sends, where the app holds the SDK's string `"Default"`. The unlocked
+default reached every user once as `0`, which replaced their mode and left the settings screen with
+none selected, and a locked mode did nothing. #209 sends the mode to the app by name, in `v1/config`
+and `v1/config/resolved`, and keeps storing the number: a build from before reads the stored mode
+with a number converter only, and a rollback would have served an empty configuration. Every device
+takes `"Default"` once more as a new default; an app migration that would have spared a mode picked
+since was weighed and left out. Seen on a throwaway 12.1, upgrade and rollback both.
+
 ## 2026-09-30, the unstable manifest back on develop
 
 #121 could no longer merge: `develop` and `main` had each added `manifest-unstable.json`,
