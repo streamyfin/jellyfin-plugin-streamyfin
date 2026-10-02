@@ -187,5 +187,13 @@ renamed.
 
 Nothing breaks either way while both go out. What the app has to do, in its own
 time, is read the block when it is there and fall back to the flat keys when it
-is not. The flat keys come out of the plugin the day every copy in the field
-reads the block, and the entry for `seerr` in `SettingsParityTests` says so.
+is not.
+
+It did, with the Seerr stack that merged on 2026-10-01, in
+[streamyfin#2104](https://github.com/streamyfin/streamyfin/pull/2104): the app
+reads the block first and the jellyseerr keys after it, and keeps the settings as
+`seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr`. The parity manifest lists the
+block's fields and the jellyseerr keys as the other names the app reads those under,
+so `SettingsParityTests` no longer carries an entry for `seerr`. The flat keys come
+out of the plugin the day every copy in the field reads the block, a breaking
+release on the plugin's side with nothing left for the app.
