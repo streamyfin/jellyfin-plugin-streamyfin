@@ -127,6 +127,9 @@ public class SettingsParityTests
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
+    /// <summary>
+    /// The names of every property <see cref="Settings"/> declares.
+    /// </summary>
     private static HashSet<string> DeclaredKeys() =>
         typeof(Settings)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -157,6 +160,9 @@ public class SettingsParityTests
         return settings;
     });
 
+    /// <summary>
+    /// A set of names, for the made-up cases the excuse tests run on.
+    /// </summary>
     private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
 
     /// <summary>
@@ -404,6 +410,9 @@ public class SettingsParityTests
             .Select(one => Disagreement(entry, one.Name, one.Found.Value))
             .FirstOrDefault(found => found is not null);
 
+    /// <summary>
+    /// How the default declared under one name differs from the app's, or <c>null</c>.
+    /// </summary>
     private static string? Disagreement(ManifestEntry entry, string name, object? declared)
     {
         if (declared is null)
@@ -445,7 +454,9 @@ public class SettingsParityTests
         return $"{subject}: app {Json(expected)}, plugin {written}{because}";
     }
 
-    // As the JSON it is, so null, false and a string read the way they travel.
+    /// <summary>
+    /// A value as the JSON it is, so null, false and a string read the way they travel.
+    /// </summary>
     private static string Json(JsonElement element) =>
         element.ValueKind == JsonValueKind.Undefined ? "nothing" : element.GetRawText();
 

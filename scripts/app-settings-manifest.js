@@ -152,6 +152,7 @@ function readSettings(source, appRoot) {
         .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 
+/** One manifest entry: the default as the app holds it, and the form the plugin sends. */
 function entry(key, type, value, normalize) {
     // null reads as "nothing chosen", which is what the first manifest recorded for
     // home and the two language keys, so it is no default rather than a default of null.
@@ -190,17 +191,22 @@ function entry(key, type, value, normalize) {
     };
 }
 
+/** A `{ key, value }` object, which normalizePluginValue rebuilds from a scalar. */
 const isKeyValue = (value) =>
     isPlainObject(value) && hasOwn(value, 'key') && hasOwn(value, 'value');
 
+/** An object literal, as opposed to an array, a class instance or a module. */
 const isPlainObject = (value) =>
     typeof value === 'object' && value !== null && !Array.isArray(value)
     && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
+/** Whether a step is the holder's own, so an inherited method is never read as a value. */
 const hasOwn = (holder, step) => Object.prototype.hasOwnProperty.call(Object(holder), step);
 
-// What a default may be: what JSON carries, an undefined field of an object aside, which
-// JSON leaves out just as the app's own JSON.stringify does.
+/**
+ * What a default may be: what JSON carries, an undefined field of an object aside, which
+ * JSON leaves out just as the app's own JSON.stringify does.
+ */
 function plainJson(value, where = 'it') {
     if (value === null || typeof value === 'boolean' || typeof value === 'string') return;
     if (typeof value === 'number') {
@@ -411,7 +417,7 @@ function runPure(node, scope) {
     }
 }
 
-// The names an expression reads that it does not bind itself.
+/** The names an expression reads that it does not bind itself. */
 function freeIdentifiers(node) {
     const bound = new Set();
     const used = new Set();
@@ -442,7 +448,7 @@ function freeIdentifiers(node) {
     return new Set([...used].filter((name) => !bound.has(name)));
 }
 
-// Inside an array or an object a missing value is a hole, not "no default".
+/** A value placed inside an array or an object, where a missing one is a hole, not "no default". */
 const json = (value) => {
     if (value === PLATFORM) {
         throw new Unreadable('a value that depends on the platform, inside another value');
@@ -493,6 +499,7 @@ function imported(name, steps, scope) {
     return value;
 }
 
+/** A module of the app, found the way the app's own `@/` and relative imports resolve. */
 function appModule(specifier, scope) {
     const base = specifier.startsWith('@/')
         ? path.join(scope.appRoot, specifier.slice(2))
@@ -505,6 +512,7 @@ function appModule(specifier, scope) {
     throw new Unreadable(`cannot find ${specifier} in the checkout`);
 }
 
+/** A package from the checkout's node_modules, or one file of it when its entry point pulls in React Native. */
 function loadPackage(name, appRoot, file) {
     try {
         if (file) {
@@ -517,8 +525,10 @@ function loadPackage(name, appRoot, file) {
     }
 }
 
-// `A.b.c` or `A.b[0]` as its root identifier and the steps after it, or null when the
-// chain goes through anything else.
+/**
+ * `A.b.c` or `A.b[0]` as its root identifier and the steps after it, or null when the
+ * chain goes through anything else.
+ */
 function accessChain(node) {
     const steps = [];
     let current = node;
@@ -535,6 +545,7 @@ function accessChain(node) {
     return ts.isIdentifier(current) ? { root: current.text, path: steps } : null;
 }
 
+/** The values one import declaration brings in, by local name. Type-only imports bring none. */
 function recordImports(statement, imports) {
     const clause = statement.importClause;
     if (!clause || clause.isTypeOnly) {
@@ -555,8 +566,10 @@ function recordImports(statement, imports) {
     }
 }
 
-// TypeScript's own numbering: a member without an initializer is one more than the
-// member before it, and the first is 0.
+/**
+ * An enum's members and values, in TypeScript's own numbering: a member without an
+ * initializer is one more than the member before it, and the first is 0.
+ */
 function enumValues(declaration, file) {
     const members = new Map();
     let next = 0;
@@ -581,6 +594,7 @@ function enumValues(declaration, file) {
     return members;
 }
 
+/** The text of a property or member name, which may be written quoted. */
 function propertyName(name, file) {
     if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
         return name.text;
@@ -588,6 +602,7 @@ function propertyName(name, file) {
     throw new Unreadable(`cannot read the name "${name.getText(file)}"`);
 }
 
+/** Whether an expression names an identifier anywhere inside it. */
 function mentions(node, identifier) {
     let found = false;
     const visit = (child) => {
