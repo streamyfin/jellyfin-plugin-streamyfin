@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Resources;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -38,6 +40,46 @@ public class LocalizationTests
             actual: _helper.GetString("ThisStringDoesNotExist")
         );
     }
+
+    /// <summary>
+    /// Every sentence the plugin names exists in the English resources.
+    /// </summary>
+    /// <remarks>
+    /// A missing key does not throw: the helper answers with the key itself, so the
+    /// notification goes out reading "SeriesEpisode". That is how an episode with a
+    /// number and no season was announced, the resource being named "Series Episode".
+    ///
+    /// <para>
+    /// A key reaches the helper either written in the call or through a variable set a
+    /// few lines up, as the Seerr and admin events do. Both are a string literal in a
+    /// file that calls the helper, so every such literal shaped like a key is checked:
+    /// the literal in the call, and every PascalCase literal of two words or more.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryKeyTheCodeNamesExists()
+    {
+        var known = KeysOf(CultureInfo.InvariantCulture).ToHashSet(System.StringComparer.Ordinal);
+        var sources = Path.Combine(SourceTree.Root(), "Jellyfin.Plugin.Streamyfin");
+
+        var named = SourceTree.CSharpFiles(sources)
+            .Select(File.ReadAllText)
+            .Where(text => LocalizationCall.IsMatch(text))
+            .SelectMany(text => KeyInCall.Matches(text).Concat(KeyShaped.Matches(text)))
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToArray();
+
+        // The Seerr titles, written only in a switch, prove the second pattern still reaches them.
+        Assert.Contains("SeerrRequestDeclinedTitle", named);
+        Assert.Empty(named.Where(key => !known.Contains(key)).OrderBy(key => key, System.StringComparer.Ordinal));
+    }
+
+    private static readonly Regex LocalizationCall = new(@"\b_?localization\.(?:GetString|GetFormatted)\(");
+
+    private static readonly Regex KeyInCall = new(@"\b_?localization\.(?:GetString|GetFormatted)\(\s*(?:key:\s*)?""([^""]+)""");
+
+    private static readonly Regex KeyShaped = new(@"""([A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+)""");
     
     /// <summary>
     /// Test string formats
