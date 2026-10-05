@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>تم قفل حساب مستخدم</value>
+        <value>تم قفل حساب المستخدم</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>تم قفل حساب {0}</value>
+        <value>تم قفل حساب المستخدم {0}</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,24 +137,24 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>فشلت مهمة مجدولة</value>
+        <value>فشل المهمة المجدولة</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>فشلت المهمة {0}</value>
+        <value>فشلت {0}</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>فشلت المهمة {0}: {1}</value>
+        <value>فشلت {0}: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>تم تثبيت إضافة</value>
+        <value>تم تثبيت الملحق</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>تم تحديث إضافة</value>
+        <value>تم تحديث الملحق</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>تمت إزالة إضافة</value>
+        <value>تمت إزالة الملحق</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>تم تثبيت {0}</value>

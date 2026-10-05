@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Användare utelåst</value>
+        <value>Användare har låsts ut</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Användaren {0} har låsts ute</value>
+        <value>Användare {0} har utelåsts</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Schemalagd aktivitet misslyckades</value>
+        <value>Schemalagd aktivitet har misslyckats</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} misslyckades</value>
@@ -148,36 +148,36 @@
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Tillägg installerat</value>
+        <value>Tillägg har installerats</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Tillägg uppdaterat</value>
+        <value>Tillägg har uppdaterats</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Tillägg avinstallerat</value>
+        <value>Tillägg har avinstallerats</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} har installerats</value>
+        <value>{0} installerades</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} har installerats</value>
+        <value>{0} {1} installerades</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} har uppdaterats</value>
+        <value>{0} uppdaterades</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} har uppdaterats till {1}</value>
+        <value>{0} uppdaterades till {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} har avinstallerats</value>
+        <value>{0} avinstallerades</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} har avinstallerats</value>
+        <value>{0} {1} avinstallerades</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>使用者已遭鎖定</value>
+        <value>使用者已鎖定</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} 的帳戶已遭鎖定</value>
+        <value>使用者 {0} 已被鎖定</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -140,44 +140,44 @@
         <value>排程工作失敗</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} 執行失敗</value>
+        <value>排程任務 {0} 執行失敗</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} 執行失敗：{1}</value>
+        <value>排程任務 {0} 執行失敗：{1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>插件已安裝</value>
+        <value>擴充功能已安裝</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>插件已更新</value>
+        <value>擴充功能已更新</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>插件已解除安裝</value>
+        <value>擴充功能已移除</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} 已安裝</value>
+        <value>已安裝 {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} 已安裝</value>
+        <value>已安裝 {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} 已更新</value>
+        <value>已更新 {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} 已更新至 {1}</value>
+        <value>已更新 {0} 至 {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} 已解除安裝</value>
+        <value>已移除 {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} 已解除安裝</value>
+        <value>已移除 {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

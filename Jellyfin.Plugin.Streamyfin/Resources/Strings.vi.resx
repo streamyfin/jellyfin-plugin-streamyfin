@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Tác vụ theo lịch thất bại</value>
+        <value>Lỗi tác vụ đã lên lịch</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} thất bại</value>
+        <value>{0} đã thất bại</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} thất bại: {1}</value>
+        <value>{0} đã thất bại: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Đã cài đặt plugin</value>
+        <value>Đã cài đặt Plugin</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Đã cập nhật plugin</value>
+        <value>Cập nhật Plugin đã được cài đặt</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Đã gỡ cài đặt plugin</value>
+        <value>Đã gỡ bỏ Plugin</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>Đã cài đặt {0}</value>
+        <value>{0} đã được cài đặt</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>Đã cài đặt {0} {1}</value>
+        <value>{0} {1} đã được cài đặt</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>Đã cập nhật {0}</value>
+        <value>{0} đã cập nhật</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>Đã cập nhật {0} lên phiên bản {1}</value>
+        <value>{0} đã cập nhật lên phiên bản {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>Đã gỡ cài đặt {0}</value>
+        <value>{0} đã được gỡ bỏ</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>Đã gỡ cài đặt {0} {1}</value>
+        <value>{0} {1} đã được gỡ bỏ</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

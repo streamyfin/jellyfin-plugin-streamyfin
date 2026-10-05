@@ -137,21 +137,21 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Attività pianificata non riuscita</value>
+        <value>Operazione pianificata non riuscita</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>L'attività {0} non è riuscita</value>
+        <value>{0} non riuscito</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>L'attività {0} non è riuscita: {1}</value>
+        <value>{0} non riuscito: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
         <value>Plugin installato</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin aggiornato</value>
+        <value>Aggiornamento plugin installato</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin disinstallato</value>

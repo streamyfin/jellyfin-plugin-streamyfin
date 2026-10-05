@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Utilisateur bloqué</value>
+        <value>Utilisateur verrouillé</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>L'utilisateur {0} a été bloqué</value>
+        <value>L'utilisateur {0} a été verrouillé</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -151,7 +151,7 @@
         <value>Extension installée</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Extension mise à jour</value>
+        <value>Mise à jour d'extension installée</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Extension désinstallée</value>

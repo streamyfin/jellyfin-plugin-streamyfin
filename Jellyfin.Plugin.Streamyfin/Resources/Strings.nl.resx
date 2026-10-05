@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker geblokkeerd</value>
+        <value>Gebruiker buitengesloten</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} is geblokkeerd</value>
+        <value>Gebruiker {0} is buitengesloten</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -148,13 +148,13 @@
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin geïnstalleerd</value>
+        <value>Plug-in geïnstalleerd</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin bijgewerkt</value>
+        <value>Plug-in-update geïnstalleerd</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin verwijderd</value>
+        <value>Plug-in verwijderd</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>{0} is geïnstalleerd</value>

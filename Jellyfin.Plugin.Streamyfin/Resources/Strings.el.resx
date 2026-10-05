@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Κλείδωμα λογαριασμού</value>
+        <value>Ο χρήστης αποκλείστηκε</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Ο λογαριασμός του χρήστη {0} κλειδώθηκε</value>
+        <value>Ο χρήστης {0} αποκλείστηκε</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -140,44 +140,44 @@
         <value>Αποτυχία προγραμματισμένης εργασίας</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>Η εργασία «{0}» απέτυχε</value>
+        <value>{0} αποτυχία</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>Η εργασία «{0}» απέτυχε: {1}</value>
+        <value>{0} αποτυχία: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Εγκαταστάθηκε πρόσθετο</value>
+        <value>Το πρόσθετο εγκαταστάθηκε</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Ενημερώθηκε πρόσθετο</value>
+        <value>Η ενημέρωση του πρόσθετου εγκαταστάθηκε</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Απεγκαταστάθηκε πρόσθετο</value>
+        <value>Το πρόσθετο απεγκαταστάθηκε</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>Το πρόσθετο {0} εγκαταστάθηκε</value>
+        <value>Το {0} εγκαταστάθηκε</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>Το πρόσθετο {0} {1} εγκαταστάθηκε</value>
+        <value>Το {0} {1} εγκαταστάθηκε</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>Το πρόσθετο {0} ενημερώθηκε</value>
+        <value>Το {0} ενημερώθηκε</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>Το πρόσθετο {0} ενημερώθηκε στην έκδοση {1}</value>
+        <value>Το {0} ενημερώθηκε στην έκδοση {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>Το πρόσθετο {0} απεγκαταστάθηκε</value>
+        <value>Το {0} έχει απεγκατασταθεί</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>Το πρόσθετο {0} {1} απεγκαταστάθηκε</value>
+        <value>Το {0} {1} έχει απεγκατασταθεί</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

@@ -45,7 +45,7 @@
         <value>Пользователь заблокирован</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Пользователь {0} заблокирован</value>
+        <value>Пользователь {0} был заблокирован</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Сбой запланированной задачи</value>
+        <value>Сбой назначенной задачи</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>Задача «{0}» завершилась с ошибкой</value>
+        <value>{0} - неудачна</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>Задача «{0}» завершилась с ошибкой: {1}</value>
+        <value>{0} - неудачна: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
         <value>Плагин установлен</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Плагин обновлён</value>
+        <value>Обновление плагина установлено</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Плагин удалён</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>Плагин {0} установлен</value>
+        <value>{0} - было установлено</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>Плагин {0} {1} установлен</value>
+        <value>{0} {1} - было установлено</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>Плагин {0} обновлён</value>
+        <value>{0} - было обновлено</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>Плагин {0} обновлён до версии {1}</value>
+        <value>{0} - было обновлено до версии {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>Плагин {0} удалён</value>
+        <value>{0} - было удалено</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>Плагин {0} {1} удалён</value>
+        <value>{0} {1} - было удалено</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

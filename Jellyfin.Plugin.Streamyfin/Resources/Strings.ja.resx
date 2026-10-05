@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>ユーザーがロックされました</value>
+        <value>ユーザーはロックされています</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0}のアカウントがロックされました</value>
+        <value>ユーザー {0} はロックされています</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>スケジュールタスクが失敗しました</value>
+        <value>スケジュールされていたタスクの失敗</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0}が失敗しました</value>
+        <value>{0} が失敗しました</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0}が失敗しました: {1}</value>
+        <value>{0} が失敗しました: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>プラグインがインストールされました</value>
+        <value>プラグインをインストールしました</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>プラグインが更新されました</value>
+        <value>プラグインのアップデートをインストールしました</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>プラグインがアンインストールされました</value>
+        <value>プラグインをアンインストールしました</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0}がインストールされました</value>
+        <value>{0} をインストールしました</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1}がインストールされました</value>
+        <value>{0} {1} をインストールしました</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0}が更新されました</value>
+        <value>{0} を更新しました</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0}が{1}に更新されました</value>
+        <value>{0} を {1} に更新しました</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0}がアンインストールされました</value>
+        <value>{0} をアンインストールしました</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1}がアンインストールされました</value>
+        <value>{0} {1} をアンインストールしました</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

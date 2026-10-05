@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Usuari bloquejat</value>
+        <value>Usuari expulsat</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>S'ha bloquejat el compte de l'usuari {0}</value>
+        <value>S'ha expulsat a l'usuari {0}</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Ha fallat una tasca programada</value>
+        <value>Tasca programada fallida</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} ha fallat</value>
@@ -148,13 +148,13 @@
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin instal·lat</value>
+        <value>Complement instal·lat</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin actualitzat</value>
+        <value>Actualització del complement instal·lada</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin desinstal·lat</value>
+        <value>Complement desinstal·lat</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>S'ha instal·lat {0}</value>

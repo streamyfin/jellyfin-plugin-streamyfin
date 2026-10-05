@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Bruger låst</value>
+        <value>Bruger er låst ude</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} er blevet låst</value>
+        <value>Brugeren {0} er blevet låst ude</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Planlagt opgave mislykkedes</value>
+        <value>Planlagt opgave er fejlet</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} mislykkedes</value>
@@ -148,13 +148,13 @@
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin installeret</value>
+        <value>Plugin blev installeret</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin opdateret</value>
+        <value>Opdatering til plugin blev installeret</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin afinstalleret</value>
+        <value>Plugin blev afinstalleret</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>{0} blev installeret</value>

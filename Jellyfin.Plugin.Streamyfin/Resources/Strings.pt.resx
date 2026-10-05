@@ -45,7 +45,7 @@
         <value>Utilizador bloqueado</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>A conta de {0} foi bloqueada</value>
+        <value>Utilizador {0} bloqueado</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Falha na tarefa agendada</value>
+        <value>Falha em tarefa agendada</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} falhou</value>
@@ -151,7 +151,7 @@
         <value>Plugin instalado</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin atualizado</value>
+        <value>Atualização de plugin instalada</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin desinstalado</value>

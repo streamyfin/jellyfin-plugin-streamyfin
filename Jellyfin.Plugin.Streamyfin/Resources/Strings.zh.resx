@@ -45,7 +45,7 @@
         <value>用户已被锁定</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} 的账户已被锁定</value>
+        <value>用户 {0} 已被锁定</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -140,11 +140,11 @@
         <value>计划任务失败</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} 执行失败</value>
+        <value>{0} 已失败</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} 执行失败：{1}</value>
+        <value>{0} 已失败：{1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">

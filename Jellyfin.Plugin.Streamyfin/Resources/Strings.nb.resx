@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Bruker låst</value>
+        <value>Bruker er utestengt</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} er blitt låst</value>
+        <value>Bruker {0} er blitt utestengt</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,24 +137,24 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Planlagt oppgave mislyktes</value>
+        <value>Feil under utføring av planlagt oppgave</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} mislyktes</value>
+        <value>{0} mislykkes</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} mislyktes: {1}</value>
+        <value>{0} mislykkes: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Utvidelse installert</value>
+        <value>Programvareutvidelse installert</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Utvidelse oppdatert</value>
+        <value>Programvareutvidelsesoppdatering installert</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Utvidelse avinstallert</value>
+        <value>Programvareutvidelse avinstallert</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>{0} ble installert</value>

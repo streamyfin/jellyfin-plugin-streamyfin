@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>חשבון משתמש ננעל</value>
+        <value>משתמש ננעל</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>החשבון של {0} ננעל</value>
+        <value>המשתמש {0} ננעל</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -140,44 +140,44 @@
         <value>משימה מתוזמנת נכשלה</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>המשימה {0} נכשלה</value>
+        <value>{0} נכשל</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>המשימה {0} נכשלה: {1}</value>
+        <value>{0} נכשל: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>תוסף הותקן</value>
+        <value>התוסף הותקן</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>תוסף עודכן</value>
+        <value>העדכון לתוסף הותקן</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>תוסף הוסר</value>
+        <value>התוסף הוסר</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>התוסף {0} הותקן</value>
+        <value>{0} הותקן</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>התוסף {0} {1} הותקן</value>
+        <value>{0} {1} הותקן</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>התוסף {0} עודכן</value>
+        <value>{0} עודכן</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>התוסף {0} עודכן לגרסה {1}</value>
+        <value>{0} עודכן לגרסה {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>התוסף {0} הוסר</value>
+        <value>{0} הוסר</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>התוסף {0} {1} הוסר</value>
+        <value>{0} {1} הוסר</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

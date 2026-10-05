@@ -42,7 +42,7 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Utilizator blocat</value>
+        <value>Utilizatorul a fost blocat</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
         <value>Utilizatorul {0} a fost blocat</value>
@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Sarcina programată a eșuat</value>
+        <value>Activitate programată eșuată</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>Sarcina „{0}” a eșuat</value>
+        <value>{0} eșuat/ă</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>Sarcina „{0}” a eșuat: {1}</value>
+        <value>{0} eșuat/ă: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin instalat</value>
+        <value>Extensie instalată</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin actualizat</value>
+        <value>Actualizarea extensiei este instalată</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin dezinstalat</value>
+        <value>Extensie dezinstalată</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>Plugin-ul {0} a fost instalat</value>
+        <value>{0} a fost instalat</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>Plugin-ul {0} {1} a fost instalat</value>
+        <value>{0} {1} a fost instalat</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>Plugin-ul {0} a fost actualizat</value>
+        <value>{0} a fost actualizat/ă</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>Plugin-ul {0} a fost actualizat la versiunea {1}</value>
+        <value>{0} a fost actualizat/ă la versiunea {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>Plugin-ul {0} a fost dezinstalat</value>
+        <value>{0} a fost dezinstalat</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>Plugin-ul {0} {1} a fost dezinstalat</value>
+        <value>{0} {1} a fost dezinstalat</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Felhasználó zárolva</value>
+        <value>Felhasználó tiltva</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} felhasználó zárolva</value>
+        <value>{0} felhasználó zárolva van</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Ütemezett feladat sikertelen</value>
+        <value>Hiba az ütemezett feladatban</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} sikertelen</value>
@@ -151,7 +151,7 @@
         <value>Bővítmény telepítve</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Bővítmény frissítve</value>
+        <value>Bővítményfrissítés telepítve</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Bővítmény eltávolítva</value>

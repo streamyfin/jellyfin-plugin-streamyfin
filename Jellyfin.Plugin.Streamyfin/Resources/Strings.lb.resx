@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Benotzer gespaart</value>
+        <value>Benotzer Gesperrt</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} gouf gespaart</value>
+        <value>Benotzer {0} gesperrt</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Geplangt Aufgab feelgeschloen</value>
+        <value>Aufgab net gelongen</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} feelgeschloen</value>
+        <value>Aufgab: {0} net gelongen</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} feelgeschloen: {1}</value>
+        <value>Aufgab {0} net gelongen: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
         <value>Plugin installéiert</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin aktualiséiert</value>
+        <value>Plugin Update installéiert</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin desinstalléiert</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} gouf installéiert</value>
+        <value>{0} installéiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} gouf installéiert</value>
+        <value>{0} {1} installéiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} gouf aktualiséiert</value>
+        <value>{0} aktualiséiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} gouf op {1} aktualiséiert</value>
+        <value>{0} op {1} aktualiséiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} gouf desinstalléiert</value>
+        <value>{0} desinstalléiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} gouf desinstalléiert</value>
+        <value>{0} {1} desinstalléiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

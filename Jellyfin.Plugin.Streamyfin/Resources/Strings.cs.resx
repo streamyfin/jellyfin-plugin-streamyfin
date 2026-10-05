@@ -42,7 +42,7 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Uživatel zablokován</value>
+        <value>Uživatel uzamčen</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
         <value>Účet uživatele {0} byl zablokován</value>
@@ -137,47 +137,47 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Naplánovaná úloha selhala</value>
+        <value>Chyba naplánované úlohy</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>Úloha {0} selhala</value>
+        <value>{0} selhalo</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>Úloha {0} selhala: {1}</value>
+        <value>{0} selhalo: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin nainstalován</value>
+        <value>Zásuvný modul instalován</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin aktualizován</value>
+        <value>Aktualizace zásuvného modulu instalována</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin odinstalován</value>
+        <value>Zásuvný modul odstraněn</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>Plugin {0} byl nainstalován</value>
+        <value>{0} byl nainstalován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>Plugin {0} {1} byl nainstalován</value>
+        <value>{0} {1} byl nainstalován</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>Plugin {0} byl aktualizován</value>
+        <value>{0} byl aktualizován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>Plugin {0} byl aktualizován na verzi {1}</value>
+        <value>{0} byl aktualizován na verzi {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>Plugin {0} byl odinstalován</value>
+        <value>{0} byl odinstalován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>Plugin {0} {1} byl odinstalován</value>
+        <value>{0} {1} byl odinstalován</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">

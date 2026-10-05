@@ -42,7 +42,7 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Käyttäjä lukittu</value>
+        <value>Käyttäjä on lukittu</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
         <value>Käyttäjä {0} on lukittu</value>
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Ajastettu tehtävä epäonnistui</value>
+        <value>Ajoitettu tehtävä epäonnistui</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} epäonnistui</value>
@@ -148,13 +148,13 @@
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Liitännäinen asennettu</value>
+        <value>Lisäosa asennettiin</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Liitännäinen päivitetty</value>
+        <value>Lisäosa päivitettiin</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Liitännäinen poistettu</value>
+        <value>Lisäosa poistettiin</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
         <value>{0} asennettiin</value>

@@ -45,7 +45,7 @@
         <value>ผู้ใช้ถูกล็อก</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>บัญชีของ {0} ถูกล็อกแล้ว</value>
+        <value>ผู้ใช้ {0} ถูกล็อก</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>งานตามกำหนดเวลาล้มเหลว</value>
+        <value>งานตามกำหนดการล้มเหลว</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} ล้มเหลว</value>
@@ -151,7 +151,7 @@
         <value>ติดตั้งปลั๊กอินแล้ว</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>อัปเดตปลั๊กอินแล้ว</value>
+        <value>ติดตั้งการอัปเดตปลั๊กอินแล้ว</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>ถอนการติดตั้งปลั๊กอินแล้ว</value>

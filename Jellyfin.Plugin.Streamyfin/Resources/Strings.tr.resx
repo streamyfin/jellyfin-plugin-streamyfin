@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Kullanıcı kilitlendi</value>
+        <value>Kullanıcı hesabı kilitlendi</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} kullanıcısı kilitlendi</value>
+        <value>{0} adlı kullanıcı hesabı kilitlendi</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,7 +137,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Zamanlanmış görev başarısız oldu</value>
+        <value>Zamanlanmış görev hatası</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
         <value>{0} başarısız oldu</value>
@@ -151,7 +151,7 @@
         <value>Eklenti yüklendi</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Eklenti güncellendi</value>
+        <value>Eklenti güncellemesi yüklendi</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Eklenti kaldırıldı</value>

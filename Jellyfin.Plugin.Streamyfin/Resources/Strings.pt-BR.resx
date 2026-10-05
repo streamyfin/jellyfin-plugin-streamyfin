@@ -45,7 +45,7 @@
         <value>Usuário bloqueado</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>A conta de {0} foi bloqueada</value>
+        <value>Usuário {0} foi bloqueado</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -151,7 +151,7 @@
         <value>Plugin instalado</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin atualizado</value>
+        <value>Atualização de plugin instalada</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin desinstalado</value>

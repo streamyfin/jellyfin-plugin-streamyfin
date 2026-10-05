@@ -45,7 +45,7 @@
         <value>Usuario bloqueado</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Se ha bloqueado la cuenta de {0}</value>
+        <value>El usuario {0} ha sido bloqueado</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -137,21 +137,21 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Tarea programada fallida</value>
+        <value>Error de tarea programada</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} ha fallado</value>
+        <value>{0} falló</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} ha fallado: {1}</value>
+        <value>{0} falló: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
         <value>Plugin instalado</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin actualizado</value>
+        <value>Actualización del complemento instalada</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin desinstalado</value>
@@ -165,11 +165,11 @@
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} se ha actualizado</value>
+        <value>{0} se actualizó</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} se ha actualizado a la versión {1}</value>
+        <value>{0} se actualizó a la versión {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">

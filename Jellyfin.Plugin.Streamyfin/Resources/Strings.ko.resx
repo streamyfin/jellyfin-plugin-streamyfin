@@ -42,10 +42,10 @@
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>사용자 잠김</value>
+        <value>잠긴 사용자</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0}님의 계정이 잠겼습니다</value>
+        <value>{0} 사용자 잠김</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
@@ -151,33 +151,33 @@
         <value>플러그인 설치됨</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>플러그인 업데이트됨</value>
+        <value>플러그인 업데이트 완료</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>플러그인 제거됨</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0}이(가) 설치되었습니다</value>
+        <value>{0} 설치됨</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1}이(가) 설치되었습니다</value>
+        <value>{0} {1} 설치됨</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0}이(가) 업데이트되었습니다</value>
+        <value>{0} 업데이트됨</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0}이(가) {1}(으)로 업데이트되었습니다</value>
+        <value>{0} {1}(으)로 업데이트됨</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0}이(가) 제거되었습니다</value>
+        <value>{0} 제거됨</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1}이(가) 제거되었습니다</value>
+        <value>{0} {1} 제거됨</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
