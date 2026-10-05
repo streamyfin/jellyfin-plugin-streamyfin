@@ -13,69 +13,69 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
   <data name="MovieMediaType" xml:space="preserve">
-        <value>Film</value>
+        <value>فيلم</value>
     </data>
   <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Afspelen gestart</value>
+        <value>بدأ التشغيل</value>
     </data>
   <data name="UserWatching" xml:space="preserve">
-        <value>{0} aan het kijken</value>
+        <value>يشاهد {0} الآن</value>
         <comment>0 = Username</comment>
     </data>
   <data name="SeriesSeasonAndEpisode" xml:space="preserve">
-        <value>{0}, S{1}E{2}</value>
+        <value>{0}، S{1}E{2}</value>
         <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
     </data>
   <data name="SeriesSeason" xml:space="preserve">
-        <value>{0}, seizoen {1}</value>
+        <value>{0}، الموسم {1}</value>
         <comment>0 = Name, 1 = Season index number</comment>
     </data>
   <data name="Series Episode" xml:space="preserve">
-        <value>{0}, aflevering {1}</value>
+        <value>{0}، الحلقة {1}</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
   <data name="SessionStartTitle" xml:space="preserve">
-        <value>Sessie gestart</value>
+        <value>بدأت جلسة</value>
     </data>
   <data name="UserNowOnline" xml:space="preserve">
-        <value>{0} is nu online</value>
+        <value>أصبح {0} متصلًا الآن</value>
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker geblokkeerd</value>
+        <value>تم قفل حساب مستخدم</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} is geblokkeerd</value>
+        <value>تم قفل حساب {0}</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
-        <value>{0} toegevoegd</value>
+        <value>تمت إضافة {0}</value>
         <comment>0 = Media type</comment>
     </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
-        <value>Aflevering toegevoegd</value>
+        <value>تمت إضافة حلقة</value>
     </data>
   <data name="EpisodesAddedTitle" xml:space="preserve">
-        <value>Afleveringen toegevoegd</value>
+        <value>تمت إضافة حلقات</value>
     </data>
   <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering {1} van seizoen {2} toegevoegd</value>
+        <value>تمت إضافة الحلقة {1} إلى الموسم {2} من {0}</value>
         <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
     </data>
   <data name="EpisodeAdded" xml:space="preserve">
-        <value>{0} - aflevering {1} toegevoegd</value>
+        <value>تمت إضافة الحلقة {1} من {0}</value>
         <comment>0 = Series Name, 1 = Episode index</comment>
     </data>
   <data name="EpisodeAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering van seizoen {1} toegevoegd</value>
+        <value>تمت إضافة حلقة إلى الموسم {1} من {0}</value>
         <comment>0 = Series Name, 1 = Season index</comment>
     </data>
   <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
-        <value>{0} - {1} afleveringen van seizoen {2} toegevoegd</value>
+        <value>حلقات جديدة في الموسم {2} من {0}: {1}</value>
         <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
     </data>
   <data name="EpisodesAddedToSeries" xml:space="preserve">
-        <value>{0} - {1} afleveringen toegevoegd</value>
+        <value>حلقات جديدة من {0}: {1}</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
   <data name="NameAndYear" xml:space="preserve">
@@ -83,119 +83,119 @@
         <comment>0 = Name, 1 = Year</comment>
     </data>
   <data name="SeerrUnknownMedia" xml:space="preserve">
-        <value>Onbekende media</value>
+        <value>محتوى غير معروف</value>
     </data>
   <data name="SeerrUnknownRequester" xml:space="preserve">
-        <value>Iemand</value>
+        <value>شخص ما</value>
     </data>
   <data name="SeerrTestTitle" xml:space="preserve">
-        <value>Seerr is verbonden</value>
+        <value>تم الاتصال بـ Seerr</value>
     </data>
   <data name="SeerrTestBody" xml:space="preserve">
-        <value>Dit is de testmelding van je Seerr-server</value>
+        <value>هذا إشعار تجريبي من خادم Seerr الخاص بك</value>
     </data>
   <data name="SeerrRequestPendingTitle" xml:space="preserve">
-        <value>Nieuwe aanvraag</value>
+        <value>طلب وسائط جديد</value>
     </data>
   <data name="SeerrRequestPendingBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd</value>
+        <value>طلب من {0}: {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
-        <value>Aanvraag automatisch goedgekeurd</value>
+        <value>تمت الموافقة على الطلب تلقائيًا</value>
     </data>
   <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd en de aanvraag is automatisch goedgekeurd</value>
+        <value>تمت الموافقة تلقائيًا على طلب {0} لـ {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestFailedTitle" xml:space="preserve">
-        <value>Aanvraag mislukt</value>
+        <value>فشل الطلب</value>
     </data>
   <data name="SeerrRequestFailedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd, maar de aanvraag kon niet worden verwerkt</value>
+        <value>تعذّرت معالجة طلب {0} لـ {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestApprovedTitle" xml:space="preserve">
-        <value>Aanvraag goedgekeurd</value>
+        <value>تمت الموافقة على الطلب</value>
     </data>
   <data name="SeerrRequestApprovedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is goedgekeurd</value>
+        <value>تمت الموافقة على طلبك لـ {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
-        <value>Aanvraag afgewezen</value>
+        <value>تم رفض الطلب</value>
     </data>
   <data name="SeerrRequestDeclinedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is afgewezen</value>
+        <value>تم رفض طلبك لـ {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAvailableTitle" xml:space="preserve">
-        <value>Klaar om te kijken</value>
+        <value>جاهز للمشاهدة</value>
     </data>
   <data name="SeerrRequestAvailableBody" xml:space="preserve">
-        <value>{1} is nu beschikbaar</value>
+        <value>يمكنك الآن مشاهدة {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Geplande taak mislukt</value>
+        <value>فشلت مهمة مجدولة</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} is mislukt</value>
+        <value>فشلت المهمة {0}</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} is mislukt: {1}</value>
+        <value>فشلت المهمة {0}: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin geïnstalleerd</value>
+        <value>تم تثبيت إضافة</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin bijgewerkt</value>
+        <value>تم تحديث إضافة</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin verwijderd</value>
+        <value>تمت إزالة إضافة</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} is geïnstalleerd</value>
+        <value>تم تثبيت {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} is geïnstalleerd</value>
+        <value>تم تثبيت {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} is bijgewerkt</value>
+        <value>تم تحديث {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} is bijgewerkt naar {1}</value>
+        <value>تم تحديث {0} إلى الإصدار {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} is verwijderd</value>
+        <value>تمت إزالة {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} is verwijderd</value>
+        <value>تمت إزالة {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
-        <value>Aanmelding mislukt</value>
+        <value>فشل تسجيل الدخول</value>
     </data>
   <data name="SignInFailed" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden</value>
+        <value>تعذّر على {0} تسجيل الدخول</value>
         <comment>0 = Username that was tried</comment>
     </data>
   <data name="SignInFailedFrom" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden vanaf {1}</value>
+        <value>تعذّر على {0} تسجيل الدخول من {1}</value>
         <comment>0 = Username that was tried, 1 = Address it came from</comment>
     </data>
   <data name="SignInFailedUnnamed" xml:space="preserve">
-        <value>Een aanmelding is geweigerd</value>
+        <value>تم رفض محاولة تسجيل دخول</value>
     </data>
   <data name="SignInFailedUnnamedFrom" xml:space="preserve">
-        <value>Een aanmelding vanaf {0} is geweigerd</value>
+        <value>تم رفض محاولة تسجيل دخول من {0}</value>
         <comment>0 = Address it came from</comment>
     </data>
 </root>

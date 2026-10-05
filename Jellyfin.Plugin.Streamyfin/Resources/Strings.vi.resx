@@ -13,13 +13,13 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
   <data name="MovieMediaType" xml:space="preserve">
-        <value>Film</value>
+        <value>phim</value>
     </data>
   <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Afspelen gestart</value>
+        <value>Đã bắt đầu phát</value>
     </data>
   <data name="UserWatching" xml:space="preserve">
-        <value>{0} aan het kijken</value>
+        <value>{0} đang xem</value>
         <comment>0 = Username</comment>
     </data>
   <data name="SeriesSeasonAndEpisode" xml:space="preserve">
@@ -27,55 +27,55 @@
         <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
     </data>
   <data name="SeriesSeason" xml:space="preserve">
-        <value>{0}, seizoen {1}</value>
+        <value>{0}, Mùa {1}</value>
         <comment>0 = Name, 1 = Season index number</comment>
     </data>
   <data name="Series Episode" xml:space="preserve">
-        <value>{0}, aflevering {1}</value>
+        <value>{0}, Tập {1}</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
   <data name="SessionStartTitle" xml:space="preserve">
-        <value>Sessie gestart</value>
+        <value>Đã bắt đầu phiên</value>
     </data>
   <data name="UserNowOnline" xml:space="preserve">
-        <value>{0} is nu online</value>
+        <value>{0} hiện đang trực tuyến</value>
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker geblokkeerd</value>
+        <value>Người dùng bị khóa</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>{0} is geblokkeerd</value>
+        <value>Tài khoản {0} đã bị khóa</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
-        <value>{0} toegevoegd</value>
+        <value>Đã thêm {0}</value>
         <comment>0 = Media type</comment>
     </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
-        <value>Aflevering toegevoegd</value>
+        <value>Đã thêm tập mới</value>
     </data>
   <data name="EpisodesAddedTitle" xml:space="preserve">
-        <value>Afleveringen toegevoegd</value>
+        <value>Đã thêm các tập mới</value>
     </data>
   <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering {1} van seizoen {2} toegevoegd</value>
+        <value>{0} - Đã thêm tập {1} của mùa {2}</value>
         <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
     </data>
   <data name="EpisodeAdded" xml:space="preserve">
-        <value>{0} - aflevering {1} toegevoegd</value>
+        <value>{0} - Đã thêm tập {1}</value>
         <comment>0 = Series Name, 1 = Episode index</comment>
     </data>
   <data name="EpisodeAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering van seizoen {1} toegevoegd</value>
+        <value>{0} - Đã thêm một tập vào mùa {1}</value>
         <comment>0 = Series Name, 1 = Season index</comment>
     </data>
   <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
-        <value>{0} - {1} afleveringen van seizoen {2} toegevoegd</value>
+        <value>{0} - Đã thêm {1} tập vào mùa {2}</value>
         <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
     </data>
   <data name="EpisodesAddedToSeries" xml:space="preserve">
-        <value>{0} - {1} afleveringen toegevoegd</value>
+        <value>{0} - Đã thêm {1} tập</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
   <data name="NameAndYear" xml:space="preserve">
@@ -83,119 +83,119 @@
         <comment>0 = Name, 1 = Year</comment>
     </data>
   <data name="SeerrUnknownMedia" xml:space="preserve">
-        <value>Onbekende media</value>
+        <value>nội dung không xác định</value>
     </data>
   <data name="SeerrUnknownRequester" xml:space="preserve">
-        <value>Iemand</value>
+        <value>Ai đó</value>
     </data>
   <data name="SeerrTestTitle" xml:space="preserve">
-        <value>Seerr is verbonden</value>
+        <value>Đã kết nối Seerr</value>
     </data>
   <data name="SeerrTestBody" xml:space="preserve">
-        <value>Dit is de testmelding van je Seerr-server</value>
+        <value>Đây là thông báo thử nghiệm từ máy chủ Seerr của bạn</value>
     </data>
   <data name="SeerrRequestPendingTitle" xml:space="preserve">
-        <value>Nieuwe aanvraag</value>
+        <value>Yêu cầu nội dung mới</value>
     </data>
   <data name="SeerrRequestPendingBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd</value>
+        <value>{0} đã yêu cầu {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
-        <value>Aanvraag automatisch goedgekeurd</value>
+        <value>Yêu cầu đã được tự động phê duyệt</value>
     </data>
   <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd en de aanvraag is automatisch goedgekeurd</value>
+        <value>{0} đã yêu cầu {1} và yêu cầu này đã được tự động phê duyệt</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestFailedTitle" xml:space="preserve">
-        <value>Aanvraag mislukt</value>
+        <value>Yêu cầu thất bại</value>
     </data>
   <data name="SeerrRequestFailedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd, maar de aanvraag kon niet worden verwerkt</value>
+        <value>{0} đã yêu cầu {1} nhưng không thể xử lý yêu cầu này</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestApprovedTitle" xml:space="preserve">
-        <value>Aanvraag goedgekeurd</value>
+        <value>Yêu cầu đã được phê duyệt</value>
     </data>
   <data name="SeerrRequestApprovedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is goedgekeurd</value>
+        <value>Yêu cầu {1} của bạn đã được phê duyệt</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
-        <value>Aanvraag afgewezen</value>
+        <value>Yêu cầu đã bị từ chối</value>
     </data>
   <data name="SeerrRequestDeclinedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is afgewezen</value>
+        <value>Yêu cầu {1} của bạn đã bị từ chối</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAvailableTitle" xml:space="preserve">
-        <value>Klaar om te kijken</value>
+        <value>Sẵn sàng để xem</value>
     </data>
   <data name="SeerrRequestAvailableBody" xml:space="preserve">
-        <value>{1} is nu beschikbaar</value>
+        <value>Bạn có thể xem {1} ngay bây giờ</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Geplande taak mislukt</value>
+        <value>Tác vụ theo lịch thất bại</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} is mislukt</value>
+        <value>{0} thất bại</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} is mislukt: {1}</value>
+        <value>{0} thất bại: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plugin geïnstalleerd</value>
+        <value>Đã cài đặt plugin</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin bijgewerkt</value>
+        <value>Đã cập nhật plugin</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plugin verwijderd</value>
+        <value>Đã gỡ cài đặt plugin</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} is geïnstalleerd</value>
+        <value>Đã cài đặt {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} is geïnstalleerd</value>
+        <value>Đã cài đặt {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} is bijgewerkt</value>
+        <value>Đã cập nhật {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} is bijgewerkt naar {1}</value>
+        <value>Đã cập nhật {0} lên phiên bản {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} is verwijderd</value>
+        <value>Đã gỡ cài đặt {0}</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} is verwijderd</value>
+        <value>Đã gỡ cài đặt {0} {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
-        <value>Aanmelding mislukt</value>
+        <value>Đăng nhập thất bại</value>
     </data>
   <data name="SignInFailed" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden</value>
+        <value>{0} không thể đăng nhập</value>
         <comment>0 = Username that was tried</comment>
     </data>
   <data name="SignInFailedFrom" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden vanaf {1}</value>
+        <value>{0} không thể đăng nhập từ {1}</value>
         <comment>0 = Username that was tried, 1 = Address it came from</comment>
     </data>
   <data name="SignInFailedUnnamed" xml:space="preserve">
-        <value>Een aanmelding is geweigerd</value>
+        <value>Một lần đăng nhập đã bị từ chối</value>
     </data>
   <data name="SignInFailedUnnamedFrom" xml:space="preserve">
-        <value>Een aanmelding vanaf {0} is geweigerd</value>
+        <value>Một lần đăng nhập từ {0} đã bị từ chối</value>
         <comment>0 = Address it came from</comment>
     </data>
 </root>

@@ -75,7 +75,8 @@ public class AdminEventsTests
         var message = AdminEvents.TaskFailed(Localization, "Scan", "Boom", French);
 
         Assert.Equal("Échec de tâche planifiée", message.Title);
-        Assert.Equal("Scan a échoué : Boom", message.Body);
+        // French typography: a non-breaking space before the colon.
+        Assert.Equal("Scan a échoué : Boom", message.Body);
     }
 
     /// <summary>
