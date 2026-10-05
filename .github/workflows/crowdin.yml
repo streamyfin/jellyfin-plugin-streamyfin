@@ -51,7 +51,7 @@ jobs:
           localization_branch_name: l10n_crowdin_translations
           create_pull_request: true
           pull_request_title: "chore(i18n): new translations from Crowdin"
-          pull_request_body: "New translations of the notifications, from the [Streamyfin project on Crowdin](https://crowdin.com/project/streamyfin)."
+          pull_request_body: "New translations of the notifications, from the `jellyfin-plugin-streamyfin` folder of the [Streamyfin project on Crowdin](https://crowdin.com/project/streamyfin)."
           pull_request_base_branch_name: develop
           commit_message: "chore(i18n): new translations from Crowdin"
         env:
