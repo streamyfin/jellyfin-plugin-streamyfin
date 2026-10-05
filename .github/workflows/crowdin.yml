@@ -41,6 +41,9 @@ jobs:
 
       - uses: crowdin/github-action@9c23991700c0ec5256fd41089b9d9d7d540e424e # v3.3.0
         with:
+          # The push step would otherwise check out the ref that started the run, main on
+          # the schedule, on top of the translations it just downloaded on develop.
+          skip_ref_checkout: true
           upload_sources: true
           # Translations are made on Crowdin and come back from it: the resx files are its
           # output, so sending them up again could only overwrite Crowdin with a stale copy.
