@@ -1,0 +1,58 @@
+name: Crowdin
+
+# The notifications are translated on Crowdin, in the app's project, under a folder of
+# their own (see crowdin.yml). This sends the English sentences there and brings the
+# translations back as a pull request against develop.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "Jellyfin.Plugin.Streamyfin/Resources/Strings.resx"
+      - "crowdin.yml"
+      - ".github/workflows/crowdin.yml"
+  # A schedule only fires from the default branch, which is main here. This file is on
+  # main for that reason alone; the job below works on develop whichever branch started it.
+  schedule:
+    - cron: "40 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync the notifications with Crowdin
+    runs-on: ubuntu-latest
+
+    # The action force-pushes the translation branch: two runs at once would race on it.
+    concurrency:
+      group: crowdin
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - uses: crowdin/github-action@9c23991700c0ec5256fd41089b9d9d7d540e424e # v3.3.0
+        with:
+          upload_sources: true
+          # Translations are made on Crowdin and come back from it: the resx files are its
+          # output, so sending them up again could only overwrite Crowdin with a stale copy.
+          upload_translations: false
+          download_translations: true
+          localization_branch_name: l10n_crowdin_translations
+          create_pull_request: true
+          pull_request_title: "chore(i18n): new translations from Crowdin"
+          pull_request_body: "New translations of the notifications, from the [Streamyfin project on Crowdin](https://crowdin.com/project/streamyfin)."
+          pull_request_base_branch_name: develop
+          commit_message: "chore(i18n): new translations from Crowdin"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
