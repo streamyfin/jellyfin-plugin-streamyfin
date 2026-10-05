@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- Required headers -->
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -12,9 +13,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
+  <!-- region MediaTypes -->
   <data name="MovieMediaType" xml:space="preserve">
         <value>Film</value>
     </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
   <data name="PlaybackStartTitle" xml:space="preserve">
         <value>Oynatma başladı</value>
     </data>
@@ -34,6 +38,8 @@
         <value>{0}, {1}. Bölüm</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
   <data name="SessionStartTitle" xml:space="preserve">
         <value>Oturum başladı</value>
     </data>
@@ -41,6 +47,8 @@
         <value>{0} artık çevrimiçi</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
   <data name="UserLockedOutTitle" xml:space="preserve">
         <value>Kullanıcı hesabı kilitlendi</value>
     </data>
@@ -48,6 +56,8 @@
         <value>{0} adlı kullanıcı hesabı kilitlendi</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
   <data name="ItemAddedTitle" xml:space="preserve">
         <value>{0} eklendi</value>
         <comment>0 = Media type</comment>
@@ -78,10 +88,12 @@
         <value>{0} - {1} bölüm eklendi</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
+  <!-- endregion ItemAddedEvent -->
   <data name="NameAndYear" xml:space="preserve">
         <value>{0} ({1})</value>
         <comment>0 = Name, 1 = Year</comment>
     </data>
+  <!-- region Seerr webhook -->
   <data name="SeerrUnknownMedia" xml:space="preserve">
         <value>Bilinmeyen medya</value>
     </data>
@@ -136,6 +148,8 @@
         <value>{1} artık mevcut</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
   <data name="TaskFailedTitle" xml:space="preserve">
         <value>Zamanlanmış görev hatası</value>
     </data>
@@ -198,4 +212,5 @@
         <value>{0} adresinden gelen bir giriş denemesi reddedildi</value>
         <comment>0 = Address it came from</comment>
     </data>
+  <!-- endregion Admin events -->
 </root>

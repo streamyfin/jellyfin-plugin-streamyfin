@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- Required headers -->
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -12,9 +13,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
+  <!-- region MediaTypes -->
   <data name="MovieMediaType" xml:space="preserve">
         <value>Фильм</value>
     </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
   <data name="PlaybackStartTitle" xml:space="preserve">
         <value>Воспроизведение начато</value>
     </data>
@@ -34,6 +38,8 @@
         <value>{0}, серия {1}</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
   <data name="SessionStartTitle" xml:space="preserve">
         <value>Сеанс начат</value>
     </data>
@@ -41,6 +47,8 @@
         <value>{0} теперь в сети</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
   <data name="UserLockedOutTitle" xml:space="preserve">
         <value>Пользователь заблокирован</value>
     </data>
@@ -48,6 +56,8 @@
         <value>Пользователь {0} был заблокирован</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
   <data name="ItemAddedTitle" xml:space="preserve">
         <value>{0} добавлен</value>
         <comment>0 = Media type</comment>
@@ -78,10 +88,12 @@
         <value>{0} - добавлено серий: {1}</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
+  <!-- endregion ItemAddedEvent -->
   <data name="NameAndYear" xml:space="preserve">
         <value>{0} ({1})</value>
         <comment>0 = Name, 1 = Year</comment>
     </data>
+  <!-- region Seerr webhook -->
   <data name="SeerrUnknownMedia" xml:space="preserve">
         <value>Неизвестное медиа</value>
     </data>
@@ -136,6 +148,8 @@
         <value>Теперь доступно: {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
   <data name="TaskFailedTitle" xml:space="preserve">
         <value>Сбой назначенной задачи</value>
     </data>
@@ -198,4 +212,5 @@
         <value>Попытка входа с адреса {0} отклонена</value>
         <comment>0 = Address it came from</comment>
     </data>
+  <!-- endregion Admin events -->
 </root>

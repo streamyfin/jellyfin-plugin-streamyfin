@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- Required headers -->
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -12,9 +13,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
+  <!-- region MediaTypes -->
   <data name="MovieMediaType" xml:space="preserve">
         <value>電影</value>
     </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
   <data name="PlaybackStartTitle" xml:space="preserve">
         <value>播放已開始</value>
     </data>
@@ -34,6 +38,8 @@
         <value>{0} 第 {1} 集</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
   <data name="SessionStartTitle" xml:space="preserve">
         <value>工作階段已開始</value>
     </data>
@@ -41,6 +47,8 @@
         <value>{0} 現已上線</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
   <data name="UserLockedOutTitle" xml:space="preserve">
         <value>使用者已鎖定</value>
     </data>
@@ -48,6 +56,8 @@
         <value>使用者 {0} 已被鎖定</value>
         <comment>0 = Username</comment>
     </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
   <data name="ItemAddedTitle" xml:space="preserve">
         <value>已新增{0}</value>
         <comment>0 = Media type</comment>
@@ -78,10 +88,12 @@
         <value>{0} - 已新增 {1} 集</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
+  <!-- endregion ItemAddedEvent -->
   <data name="NameAndYear" xml:space="preserve">
         <value>{0} ({1})</value>
         <comment>0 = Name, 1 = Year</comment>
     </data>
+  <!-- region Seerr webhook -->
   <data name="SeerrUnknownMedia" xml:space="preserve">
         <value>未知媒體</value>
     </data>
@@ -136,6 +148,8 @@
         <value>{1} 現已可供觀看</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
   <data name="TaskFailedTitle" xml:space="preserve">
         <value>排程工作失敗</value>
     </data>
@@ -198,4 +212,5 @@
         <value>來自 {0} 的登入嘗試遭到拒絕</value>
         <comment>0 = Address it came from</comment>
     </data>
+  <!-- endregion Admin events -->
 </root>
