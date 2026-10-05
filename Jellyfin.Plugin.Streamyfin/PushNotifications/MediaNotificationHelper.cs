@@ -86,12 +86,12 @@ static class MediaNotificationHelper
                     // Name + Episode
                     true when episode.IndexNumber is not null =>
                         localization.GetFormatted(
-                            key: "SeriesEpisode",
+                            key: "Series Episode",
                             cultureInfo: culture,
                             args:
                             [
                                 episode.Series.Name.Escape(),
-                                episode.IndexNumber?.ToString("00", CultureInfo.InvariantCulture) ?? string.Empty
+                                episode.IndexNumber.Value.ToString("00", CultureInfo.InvariantCulture)
                             ]
                         ),
                     _ => episode.Series?.Name.Escape()

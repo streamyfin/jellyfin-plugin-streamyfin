@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Xunit;
 
@@ -26,17 +25,14 @@ public class CompatBoundaryTests
     [Fact]
     public void VersionSpecificCodeStaysInTheCompatFolder()
     {
-        var repositoryRoot = RepositoryRoot();
-        Assert.True(
-            Directory.Exists(repositoryRoot),
-            $"Sources not found at '{repositoryRoot}'. This test reads the checkout it was compiled from.");
+        var repositoryRoot = SourceTree.Root();
 
         var compatRoot = Path.Combine(repositoryRoot, "Jellyfin.Plugin.Streamyfin", "Compat") + Path.DirectorySeparatorChar;
 
         var offenders = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(repositoryRoot, "*.cs", SearchOption.AllDirectories))
+        foreach (var file in SourceTree.CSharpFiles(repositoryRoot))
         {
-            if (file.StartsWith(compatRoot, StringComparison.OrdinalIgnoreCase) || IsBuildOutput(file, repositoryRoot))
+            if (file.StartsWith(compatRoot, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -53,20 +49,5 @@ public class CompatBoundaryTests
             + "and expose it as a normal API. See Compat/README.md."
             + Environment.NewLine
             + string.Join(Environment.NewLine, offenders));
-    }
-
-    private static bool IsBuildOutput(string file, string repositoryRoot)
-    {
-        var relative = Path.GetRelativePath(repositoryRoot, file);
-        var segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return segments.Any(segment =>
-            segment.Equals("bin", StringComparison.OrdinalIgnoreCase)
-            || segment.Equals("obj", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string RepositoryRoot([CallerFilePath] string testFilePath = "")
-    {
-        var testsDirectory = Path.GetDirectoryName(testFilePath)!;
-        return Path.GetDirectoryName(testsDirectory)!;
     }
 }
