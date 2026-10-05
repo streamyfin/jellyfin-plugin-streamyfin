@@ -27,6 +27,10 @@ public class DeviceLanguageTests
     [InlineData("  es-MX  ", "es-MX")]
     [InlineData("pt-BR", "pt-BR")]
     [InlineData("fr_FR", "fr-FR")]
+    // Norwegian as a whole is taken as Bokmål, the Norwegian the translations are in.
+    [InlineData("no", "nb")]
+    [InlineData("no-NO", "nb-NO")]
+    [InlineData("no_NO", "nb-NO")]
     public void ALanguageIsStoredTheWayItIsNamed(string sent, string stored)
     {
         Assert.Equal(stored, DeviceLanguage.Stored(sent));

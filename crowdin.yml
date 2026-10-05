@@ -9,7 +9,8 @@ files:
     # %locale% keeps every language apart on Crowdin's side: %two_letters_code% gives zh-CN
     # and zh-TW the same file there, and pt-PT and pt-BR too. The mapping below then names
     # each file after the .NET culture it serves. A neutral culture (fr, es) also covers
-    # fr-CA or es-MX, since the resource manager falls back from a culture to its parent.
+    # fr-CA or es-MX, since the resource manager falls back from a culture to its parent,
+    # and it is what a device sending a bare "fr" or "es" reaches.
     translation: Jellyfin.Plugin.Streamyfin/Resources/Strings.%locale%.resx
     languages_mapping:
       locale:
@@ -33,7 +34,8 @@ files:
         "no": nb
         pl: pl
         pt-BR: pt-BR
-        pt-PT: pt-PT
+        # The app reads a bare "pt" as European Portuguese, and so does this file.
+        pt-PT: pt
         ro: ro
         ru: ru
         sv-SE: sv
@@ -41,8 +43,9 @@ files:
         tr: tr
         uk: uk
         vi: vi
-        # zh-CN and zh-SG fall back to zh-Hans, zh-TW and zh-HK to zh-Hant.
-        zh-CN: zh-Hans
+        # The app reads a bare "zh" as Simplified Chinese: zh-CN and zh-SG reach zh through
+        # zh-Hans, while zh-TW and zh-HK stop at zh-Hant first.
+        zh-CN: zh
         zh-TW: zh-Hant
     # .NET has no Klingon culture: a Strings.tlh-AA.resx would not build as a satellite.
     excluded_target_languages:

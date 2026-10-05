@@ -96,15 +96,36 @@ public class LocalizationTests
             actual: _helper.GetFormatted("UserWatching", args: "Test")
         );
 
+        // The French words belong to Crowdin, so the expectation reads them rather than
+        // repeating them: what is checked is that fr-FR reaches the French file.
         var french = CultureInfo.GetCultureInfo("fr");
+        var sentence = Resources().GetString("UserWatching", french)!;
         Assert.Equal(
-            expected: string.Format(french, ValuesOf(french)["UserWatching"], "Test"),
+            expected: string.Format(french, sentence, "Test"),
             actual: _helper.GetFormatted(
                 key: "UserWatching",
                 cultureInfo: CultureInfo.CreateSpecificCulture("fr-FR"),
                 args: "Test"
             )
         );
+    }
+
+    /// <summary>
+    /// A translation that cannot be formatted gives way to the English sentence.
+    /// </summary>
+    /// <remarks>
+    /// Translations come from Crowdin, where a stray brace can get through. Throwing would
+    /// drop the notification for every device in the batch, whatever their language.
+    /// </remarks>
+    [Fact]
+    public void ATranslationThatCannotBeFormattedFallsBackToEnglish()
+    {
+        var broken = new BrokenResources("{0} ล้มเหลว: {1}}");
+        var helper = new LocalizationHelper(null, null, () => null, broken);
+
+        Assert.Equal(
+            "Scan failed: Boom",
+            helper.GetFormatted("TaskFailedWithReason", CultureInfo.GetCultureInfo("th"), "Scan", "Boom"));
     }
 
     /// <summary>
@@ -128,25 +149,25 @@ public class LocalizationTests
     }
 
     /// <summary>
-    /// No translation carries a sentence the English no longer has.
+    /// Every file is named after a culture a bare language tag reaches.
     /// </summary>
     /// <remarks>
-    /// The reverse is expected: Crowdin leaves a sentence nobody has translated yet out of
-    /// that language's file, and the resource manager answers it in English. A key only
-    /// a translation knows is one the English renamed or dropped, which Crowdin removes on
-    /// its next sync, so one left here means a file was edited by hand.
+    /// Devices and the app often send a language without a region, "zh" or "pt", and the
+    /// resource manager only walks up from a culture to its parents. A file named after a
+    /// region, as Crowdin names a language crowdin.yml does not map yet (id-ID for a new
+    /// Indonesian), is reached by nobody who says "id". Brazilian Portuguese is the one
+    /// file that has to name its region, next to the European Portuguese of "pt".
     /// </remarks>
     /// <param name="locale">The language.</param>
     [Theory]
     [MemberData(nameof(TranslatedCultures))]
-    public void NoLocaleCarriesAKeyTheEnglishLacks(string locale)
+    public void EveryFileIsNamedSoABareTagReachesIt(string locale)
     {
-        var stale = KeysOf(CultureInfo.GetCultureInfo(locale))
-            .Except(KeysOf(CultureInfo.InvariantCulture))
-            .OrderBy(key => key, System.StringComparer.Ordinal)
-            .ToArray();
+        var culture = CultureInfo.GetCultureInfo(locale);
 
-        Assert.Empty(stale);
+        Assert.True(
+            culture.IsNeutralCulture || locale == "pt-BR",
+            $"Strings.{locale}.resx is named after a region. Map the language in crowdin.yml to its neutral culture.");
     }
 
     /// <summary>
@@ -155,17 +176,18 @@ public class LocalizationTests
     /// <remarks>
     /// The server's language goes through <see cref="CultureInfo.CreateSpecificCulture"/>
     /// and the resource manager then walks up the parents. crowdin.yml names each file
-    /// after the culture that walk meets: zh-Hans and zh-Hant rather than zh-CN and zh-TW,
-    /// so Hong Kong finds Traditional Chinese; es rather than es-ES, so Mexico finds Spanish.
+    /// after the culture that walk meets: zh for Simplified Chinese and zh-Hant for
+    /// Traditional, so Hong Kong finds Traditional; es rather than es-ES, so Mexico finds
+    /// Spanish.
     /// </remarks>
     /// <param name="jellyfin">The language as the server's settings carry it.</param>
     /// <param name="file">The culture of the file it should be answered from.</param>
     [Theory]
-    [InlineData("zh-CN", "zh-Hans")]
+    [InlineData("zh-CN", "zh")]
     [InlineData("zh-TW", "zh-Hant")]
     [InlineData("zh-HK", "zh-Hant")]
     [InlineData("pt-BR", "pt-BR")]
-    [InlineData("pt-PT", "pt-PT")]
+    [InlineData("pt-PT", "pt")]
     [InlineData("nb", "nb")]
     [InlineData("es", "es")]
     [InlineData("es-MX", "es")]
@@ -178,21 +200,30 @@ public class LocalizationTests
     /// A device's language, as the app reports it, reaches the file Crowdin writes for it.
     /// </summary>
     /// <remarks>
-    /// Notifications are written in each device's language when it gave one, which
-    /// <see cref="PushNotifications.DeviceLanguage"/> reads with <see cref="CultureInfo.GetCultureInfo(string)"/>,
-    /// so the tags phones send, with a script or a region, have to land on a file as well.
+    /// The app sends the language picked in its settings or the phone's bare language code
+    /// ("zh", "pt", "no"), and Android spells a region with an underscore. They go through
+    /// <see cref="PushNotifications.DeviceLanguage.CultureOf"/>, as at send time. The app
+    /// reads "zh" as Simplified Chinese and "pt" as European Portuguese, which is where
+    /// crowdin.yml puts them.
     /// </remarks>
     /// <param name="device">The language tag as a phone or a TV sends it.</param>
     /// <param name="file">The culture of the file it should be answered from.</param>
     [Theory]
-    [InlineData("zh-Hans-CN", "zh-Hans")]
+    [InlineData("zh", "zh")]
+    [InlineData("zh-CN", "zh")]
+    [InlineData("zh-Hans-CN", "zh")]
+    [InlineData("zh-TW", "zh-Hant")]
+    [InlineData("zh_TW", "zh-Hant")]
     [InlineData("zh-Hant-TW", "zh-Hant")]
+    [InlineData("pt", "pt")]
+    [InlineData("pt_PT", "pt")]
+    [InlineData("pt-BR", "pt-BR")]
+    [InlineData("no", "nb")]
     [InlineData("nb-NO", "nb")]
     [InlineData("es-419", "es")]
-    [InlineData("pt-BR", "pt-BR")]
-    [InlineData("fr-CA", "fr")]
+    [InlineData("fr_CA", "fr")]
     public void ADeviceLanguageReachesItsTranslation(string device, string file) =>
-        Assert.Equal(file, FileFor(CultureInfo.GetCultureInfo(device)));
+        Assert.Equal(file, FileFor(PushNotifications.DeviceLanguage.CultureOf(device)!));
 
     /// <summary>
     /// The culture whose file answers <paramref name="culture"/>: the resource manager's own
@@ -212,38 +243,59 @@ public class LocalizationTests
     }
 
     /// <summary>
-    /// A translation uses the same placeholders as the English it translates.
+    /// Every translation formats with the arguments its English sentence is given.
     /// </summary>
     /// <remarks>
-    /// A string is formatted with the arguments its English version asks for. A translation
-    /// that drops one shows the others in the wrong places, and one that invents an index
-    /// throws at the moment the notification is built, which is inside an event handler.
+    /// The sentence is formatted with as many arguments as the English asks for, so a stray
+    /// brace or an index the English does not pass fails here rather than at send time. A
+    /// translation may leave a placeholder out, and one whose sentence changed in English
+    /// keeps its old wording until Crowdin's next sync: neither is checked, so a pull
+    /// request that only edits Strings.resx, as the README asks, does not have to touch the
+    /// translated files.
     /// </remarks>
     /// <param name="locale">The language.</param>
     [Theory]
     [MemberData(nameof(TranslatedCultures))]
-    public void EveryLocaleUsesTheSamePlaceholders(string locale)
+    public void EveryTranslationFormatsWithTheEnglishArguments(string locale)
     {
+        var culture = CultureInfo.GetCultureInfo(locale);
         var english = ValuesOf(CultureInfo.InvariantCulture);
-        var translated = ValuesOf(CultureInfo.GetCultureInfo(locale));
+        var failing = new List<string>();
 
-        var differing = english
-            .Where(pair => translated.ContainsKey(pair.Key))
-            .Where(pair => !Placeholders(pair.Value).SetEquals(Placeholders(translated[pair.Key])))
-            .Select(pair => pair.Key)
-            .OrderBy(key => key, System.StringComparer.Ordinal)
-            .ToArray();
+        foreach (var (key, value) in ValuesOf(culture).Where(pair => english.ContainsKey(pair.Key)))
+        {
+            var arguments = Enumerable.Range(0, ArgumentCount(english[key])).Select(index => (object)$"<{index}>").ToArray();
+            try
+            {
+                _ = string.Format(culture, value, arguments);
+            }
+            catch (System.FormatException)
+            {
+                failing.Add(key);
+            }
+        }
 
-        Assert.Empty(differing);
+        Assert.Empty(failing);
     }
 
     /// <summary>
-    /// The indexes a format string asks for, such as 0 and 1 in "{0} failed: {1}".
+    /// How many arguments a format string is given: one more than its highest index.
     /// </summary>
-    private static HashSet<string> Placeholders(string value) =>
-        System.Text.RegularExpressions.Regex.Matches(value, @"\{(\d+)[^}]*\}")
-            .Select(match => match.Groups[1].Value)
-            .ToHashSet(System.StringComparer.Ordinal);
+    private static int ArgumentCount(string value) =>
+        Regex.Matches(value, @"\{(\d+)[^}]*\}")
+            .Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) + 1)
+            .DefaultIfEmpty(0)
+            .Max();
+
+    /// <summary>
+    /// The plugin's sentences, with every translation replaced by <paramref name="broken"/>.
+    /// </summary>
+    private sealed class BrokenResources(string broken)
+        : ResourceManager("Jellyfin.Plugin.Streamyfin.Resources.Strings", typeof(LocalizationHelper).Assembly)
+    {
+        public override string? GetString(string name, CultureInfo? culture) =>
+            culture is null || culture.Equals(CultureInfo.InvariantCulture) ? base.GetString(name, culture) : broken;
+    }
 
     /// <summary>
     /// The plugin's sentences, as the helper reads them.
