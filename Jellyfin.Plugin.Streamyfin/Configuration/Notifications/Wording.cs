@@ -169,8 +169,10 @@ public static partial class Wording
 
     // Read from the English resources rather than from a list written here, so a sentence
     // added to the plugin appears on the page without being written down twice. The
-    // comment beside each one says what its placeholders are, which is exactly what
+    // <comment> of each one says what its placeholders are, which is exactly what
     // somebody rewriting the sentence needs and what the ResourceManager does not carry.
+    // It is the resx comment element rather than an XML comment because Crowdin shows
+    // that element to translators, who need the same explanation.
     private static IReadOnlyList<Sentence> Read()
     {
         using var stream = typeof(Wording).Assembly
@@ -192,7 +194,7 @@ public static partial class Wording
                     Key: data.Attribute("name")?.Value ?? string.Empty,
                     Text: data.Element("value")?.Value ?? string.Empty,
                     Placeholders: Asks(data.Element("value")?.Value),
-                    Describes: data.Nodes().OfType<XComment>().FirstOrDefault()?.Value.Trim()))
+                    Describes: data.Element("comment")?.Value.Trim()))
                 .Where(sentence => sentence.Key.Length > 0)
         ];
     }

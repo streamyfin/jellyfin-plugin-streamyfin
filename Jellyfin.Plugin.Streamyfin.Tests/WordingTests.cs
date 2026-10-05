@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Jellyfin.Plugin.Streamyfin;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Xunit;
@@ -211,8 +212,27 @@ public class WordingTests
 
         Assert.Equal("{0} failed: {1}", failed.Text);
         Assert.Equal(2, failed.Placeholders);
+        Assert.Equal("0 = Task name, 1 = What the task said went wrong", failed.Describes);
 
         Assert.Contains(sentences, one => one.Key == "TaskFailedTitle" && one.Placeholders == 0);
         Assert.True(sentences.Count > 40);
+    }
+
+    /// <summary>
+    /// A sentence that names something says what, in its resx comment.
+    /// </summary>
+    /// <remarks>
+    /// The same comment is the context Crowdin shows its translators, who cannot tell
+    /// from "{0} - {1} episodes added" which number is the series and which the count.
+    /// </remarks>
+    [Fact]
+    public void EverySentenceThatNamesSomethingSaysWhat()
+    {
+        var undescribed = Wording.Sentences()
+            .Where(one => one.Placeholders > 0 && string.IsNullOrWhiteSpace(one.Describes))
+            .Select(one => one.Key)
+            .ToArray();
+
+        Assert.Empty(undescribed);
     }
 }
