@@ -3,7 +3,8 @@ api_token_env: CROWDIN_PERSONAL_TOKEN
 base_path: .
 preserve_hierarchy: 1
 files:
-  # The plugin shares the app's Crowdin project, under its own folder.
+  # The plugin shares the app's Crowdin project, https://crowdin.com/project/streamyfin,
+  # under a folder of its own.
   - source: Jellyfin.Plugin.Streamyfin/Resources/Strings.resx
     dest: /jellyfin-plugin-streamyfin/Strings.resx
     # %locale% keeps every language apart on Crowdin's side: %two_letters_code% gives zh-CN
