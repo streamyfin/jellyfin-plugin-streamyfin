@@ -8,6 +8,62 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-05, the notifications translated on Crowdin
+
+The notifications' sentences are translated on Crowdin now (#212), in the app's Streamyfin
+project rather than in one of their own: its translators and its languages are already there,
+and its translation memory and glossary keep the plugin's words the same as the app's. The
+plugin has the `jellyfin-plugin-streamyfin` folder there, one file, `Strings.resx`, 52
+sentences. The first round fills all 29 languages .NET can build a satellite for (Klingon is
+the project's thirtieth, and excluded), with every placeholder checked. The Mexican Spanish
+written here by hand went into Crowdin's Spanish, and `es-MX` falls back to `es` now.
+
+The files are named after .NET cultures rather than Crowdin's codes, because the resource
+manager only walks up from a culture to its parents: a device that says "zh" or "pt", which is
+what the app sends, never reaches a file named `zh-Hans` or `pt-PT`. `crowdin.yml` writes
+zh-CN to `zh`, zh-TW to `zh-Hant`, pt-PT to `pt` (the app reads a bare "pt" as European
+Portuguese), keeps `pt-BR`, and puts the rest under the neutral culture, `es`, `sv`, `nb` and
+so on. A device saying "no" is stored as Bokmål, which .NET keeps apart from "no". A test
+fails on a file named after a region, so a language Crowdin adds later gets a mapping rather
+than a file nobody reaches.
+
+The administrator notifications take the words of Jellyfin's own activity log in each
+language, set on Crowdin, so the dashboard and the phone say the same thing. Three of
+Jellyfin's translations say something else and were not copied: the Czech locked out sentence
+says unlocked, the Traditional Chinese task title says plugin task, and the Vietnamese one
+leaves "User" in English.
+
+The sync works as in the app, with the same action (v3.3.0, CLI 5.3.0). A push to `develop`
+that touches `Strings.resx` sends the English up, and a weekly run early on Mondays (02:40 UTC) and a
+manual one bring the translations back as a pull request against `develop`. A schedule only
+fires from the default branch, so the same workflow file went onto `main` in #210, where it
+checks out `develop` whichever branch started it. Translations are never uploaded from here:
+the files are Crowdin's output, and sending them back could only replace newer work with an
+older copy. A pull request the action opens starts no CI by itself, as in the app; closing and
+reopening it starts the build.
+
+Two things the work turned up. An episode without a season number was announced as the
+literal word "SeriesEpisode" in every language, because the code asked for a key the resources
+spell "Series Episode" (#211); a test now reads the sources for every key they name. And a
+translation that `string.Format` cannot read used to throw inside the event handler, losing
+the notification for every device in the batch; it now gives way to the English sentence,
+with a warning in the log.
+
+The first run after the merge found two things. GitHub Actions is not allowed to open a pull
+request in this repository: the run uploaded, downloaded and pushed its branch, then got a 403.
+The setting, "Allow GitHub Actions to create and approve pull requests", is on in the app's
+repository and needs an administrator here; until it is ticked, a run that finds new
+translations stops after pushing `l10n_crowdin_translations`, and the pull request is opened by
+hand. And the English file uploaded while the project was set up had lost its `<!-- region -->`
+comments, which Crowdin writes into every translation, so all 29 files came back with them. #213
+took them as the run wrote them, and closed the locked out region under its own name rather than
+as SessionStartEvent. The run that #213 started, and one started from `main` the way the
+schedule starts it, both found nothing to commit.
+
+Checked: 754 tests on both targets, the action's CLI run locally against the project, a clean
+`make zip` with 29 satellite assemblies, and those two runs. Not checked: a notification on a
+real server in a language that had none before, since the beta was out of reach.
+
 ## 2026-10-02, the parity test follows the app's Seerr rename, and the subtitle mode goes out by name
 
 The app's Seerr stack reached its `develop` on 2026-10-01, with streamyfin#2104 among it: the
