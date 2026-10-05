@@ -58,6 +58,21 @@ public class LocalizationHelper
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="LocalizationHelper"/> class reading its
+    /// sentences from <paramref name="resources"/>, for tests that need a translation the
+    /// real files do not have.
+    /// </summary>
+    internal LocalizationHelper(
+        ILoggerFactory? loggerFactory,
+        IServerConfigurationManager? serverConfig,
+        Func<IReadOnlyList<WordingOverride>?>? wording,
+        ResourceManager resources)
+        : this(loggerFactory, serverConfig, wording)
+    {
+        _resourceManager = resources;
+    }
+
+    /// <summary>
     /// Get string resource or fallback to key to avoid nullable strings
     /// </summary>
     /// <param name="key"></param>
@@ -114,7 +129,28 @@ public class LocalizationHelper
             }
         }
 
-        return resource == null ? key : string.Format(culture, resource, args);
+        if (resource == null)
+        {
+            return key;
+        }
+
+        try
+        {
+            return string.Format(culture, resource, args);
+        }
+        catch (FormatException thrown) when (!culture.Equals(CultureInfo.InvariantCulture))
+        {
+            // Translations come from Crowdin, where a stray brace or an index the English
+            // does not pass can get through. Throwing here would drop the notification for
+            // every device in the batch, so the English sentence goes out instead.
+            _logger?.LogWarning(
+                thrown,
+                "The {Culture} translation of {Key} cannot be formatted, so the English one was used",
+                culture.Name,
+                key);
+            var english = _resourceManager.GetString(key, CultureInfo.InvariantCulture);
+            return english == null ? key : string.Format(CultureInfo.InvariantCulture, english, args);
+        }
     }
 
     // What an administrator says instead, for this sentence and this language.

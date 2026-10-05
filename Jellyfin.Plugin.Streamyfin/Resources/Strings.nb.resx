@@ -16,10 +16,10 @@
         <value>Film</value>
     </data>
   <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Afspelen gestart</value>
+        <value>Avspilling startet</value>
     </data>
   <data name="UserWatching" xml:space="preserve">
-        <value>{0} aan het kijken</value>
+        <value>{0} ser på</value>
         <comment>0 = Username</comment>
     </data>
   <data name="SeriesSeasonAndEpisode" xml:space="preserve">
@@ -27,55 +27,55 @@
         <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
     </data>
   <data name="SeriesSeason" xml:space="preserve">
-        <value>{0}, seizoen {1}</value>
+        <value>{0}, sesong {1}</value>
         <comment>0 = Name, 1 = Season index number</comment>
     </data>
   <data name="Series Episode" xml:space="preserve">
-        <value>{0}, aflevering {1}</value>
+        <value>{0}, episode {1}</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
   <data name="SessionStartTitle" xml:space="preserve">
-        <value>Sessie gestart</value>
+        <value>Økt startet</value>
     </data>
   <data name="UserNowOnline" xml:space="preserve">
-        <value>{0} is nu online</value>
+        <value>{0} er nå pålogget</value>
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker buitengesloten</value>
+        <value>Bruker er utestengt</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Gebruiker {0} is buitengesloten</value>
+        <value>Bruker {0} er blitt utestengt</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
-        <value>{0} toegevoegd</value>
+        <value>{0} lagt til</value>
         <comment>0 = Media type</comment>
     </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
-        <value>Aflevering toegevoegd</value>
+        <value>Episode lagt til</value>
     </data>
   <data name="EpisodesAddedTitle" xml:space="preserve">
-        <value>Afleveringen toegevoegd</value>
+        <value>Episoder lagt til</value>
     </data>
   <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering {1} van seizoen {2} toegevoegd</value>
+        <value>{0} - Episode {1} lagt til i sesong {2}</value>
         <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
     </data>
   <data name="EpisodeAdded" xml:space="preserve">
-        <value>{0} - aflevering {1} toegevoegd</value>
+        <value>{0} - Episode {1} lagt til</value>
         <comment>0 = Series Name, 1 = Episode index</comment>
     </data>
   <data name="EpisodeAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering van seizoen {1} toegevoegd</value>
+        <value>{0} - Episode lagt til i sesong {1}</value>
         <comment>0 = Series Name, 1 = Season index</comment>
     </data>
   <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
-        <value>{0} - {1} afleveringen van seizoen {2} toegevoegd</value>
+        <value>{0} - {1} episoder lagt til i sesong {2}</value>
         <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
     </data>
   <data name="EpisodesAddedToSeries" xml:space="preserve">
-        <value>{0} - {1} afleveringen toegevoegd</value>
+        <value>{0} - {1} episoder lagt til</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
   <data name="NameAndYear" xml:space="preserve">
@@ -83,119 +83,119 @@
         <comment>0 = Name, 1 = Year</comment>
     </data>
   <data name="SeerrUnknownMedia" xml:space="preserve">
-        <value>Onbekende media</value>
+        <value>Ukjent tittel</value>
     </data>
   <data name="SeerrUnknownRequester" xml:space="preserve">
-        <value>Iemand</value>
+        <value>Noen</value>
     </data>
   <data name="SeerrTestTitle" xml:space="preserve">
-        <value>Seerr is verbonden</value>
+        <value>Seerr er tilkoblet</value>
     </data>
   <data name="SeerrTestBody" xml:space="preserve">
-        <value>Dit is de testmelding van je Seerr-server</value>
+        <value>Dette er testvarselet fra Seerr-serveren din</value>
     </data>
   <data name="SeerrRequestPendingTitle" xml:space="preserve">
-        <value>Nieuwe aanvraag</value>
+        <value>Ny medieforespørsel</value>
     </data>
   <data name="SeerrRequestPendingBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd</value>
+        <value>{0} ba om {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
-        <value>Aanvraag automatisch goedgekeurd</value>
+        <value>Forespørsel godkjent automatisk</value>
     </data>
   <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd en de aanvraag is automatisch goedgekeurd</value>
+        <value>{0} ba om {1}, og den ble godkjent automatisk</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestFailedTitle" xml:space="preserve">
-        <value>Aanvraag mislukt</value>
+        <value>Forespørsel mislyktes</value>
     </data>
   <data name="SeerrRequestFailedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd, maar de aanvraag kon niet worden verwerkt</value>
+        <value>{1}, forespurt av {0}, kunne ikke behandles</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestApprovedTitle" xml:space="preserve">
-        <value>Aanvraag goedgekeurd</value>
+        <value>Forespørsel godkjent</value>
     </data>
   <data name="SeerrRequestApprovedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is goedgekeurd</value>
+        <value>Forespørselen din om {1} ble godkjent</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
-        <value>Aanvraag afgewezen</value>
+        <value>Forespørsel avslått</value>
     </data>
   <data name="SeerrRequestDeclinedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is afgewezen</value>
+        <value>Forespørselen din om {1} ble avslått</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAvailableTitle" xml:space="preserve">
-        <value>Klaar om te kijken</value>
+        <value>Klar til å se</value>
     </data>
   <data name="SeerrRequestAvailableBody" xml:space="preserve">
-        <value>{1} is nu beschikbaar</value>
+        <value>{1} er tilgjengelig nå</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Geplande taak mislukt</value>
+        <value>Feil under utføring av planlagt oppgave</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} is mislukt</value>
+        <value>{0} mislykkes</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} is mislukt: {1}</value>
+        <value>{0} mislykkes: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plug-in geïnstalleerd</value>
+        <value>Programvareutvidelse installert</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plug-in-update geïnstalleerd</value>
+        <value>Programvareutvidelsesoppdatering installert</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plug-in verwijderd</value>
+        <value>Programvareutvidelse avinstallert</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} is geïnstalleerd</value>
+        <value>{0} ble installert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} is geïnstalleerd</value>
+        <value>{0} {1} ble installert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} is bijgewerkt</value>
+        <value>{0} ble oppdatert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} is bijgewerkt naar {1}</value>
+        <value>{0} ble oppdatert til {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} is verwijderd</value>
+        <value>{0} ble avinstallert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} is verwijderd</value>
+        <value>{0} {1} ble avinstallert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
-        <value>Aanmelding mislukt</value>
+        <value>Mislykket innlogging</value>
     </data>
   <data name="SignInFailed" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden</value>
+        <value>{0} kunne ikke logge inn</value>
         <comment>0 = Username that was tried</comment>
     </data>
   <data name="SignInFailedFrom" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden vanaf {1}</value>
+        <value>{0} kunne ikke logge inn fra {1}</value>
         <comment>0 = Username that was tried, 1 = Address it came from</comment>
     </data>
   <data name="SignInFailedUnnamed" xml:space="preserve">
-        <value>Een aanmelding is geweigerd</value>
+        <value>Et innloggingsforsøk ble avvist</value>
     </data>
   <data name="SignInFailedUnnamedFrom" xml:space="preserve">
-        <value>Een aanmelding vanaf {0} is geweigerd</value>
+        <value>Et innloggingsforsøk fra {0} ble avvist</value>
         <comment>0 = Address it came from</comment>
     </data>
 </root>

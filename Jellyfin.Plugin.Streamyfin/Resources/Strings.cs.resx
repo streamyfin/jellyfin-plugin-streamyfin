@@ -13,13 +13,13 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
   </resheader>
   <data name="MovieMediaType" xml:space="preserve">
-        <value>Film</value>
+        <value>film</value>
     </data>
   <data name="PlaybackStartTitle" xml:space="preserve">
-        <value>Afspelen gestart</value>
+        <value>Přehrávání zahájeno</value>
     </data>
   <data name="UserWatching" xml:space="preserve">
-        <value>{0} aan het kijken</value>
+        <value>{0} sleduje</value>
         <comment>0 = Username</comment>
     </data>
   <data name="SeriesSeasonAndEpisode" xml:space="preserve">
@@ -27,55 +27,55 @@
         <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
     </data>
   <data name="SeriesSeason" xml:space="preserve">
-        <value>{0}, seizoen {1}</value>
+        <value>{0}, sezóna {1}</value>
         <comment>0 = Name, 1 = Season index number</comment>
     </data>
   <data name="Series Episode" xml:space="preserve">
-        <value>{0}, aflevering {1}</value>
+        <value>{0}, epizoda {1}</value>
         <comment>0 = Name, 1 = Episode index number</comment>
     </data>
   <data name="SessionStartTitle" xml:space="preserve">
-        <value>Sessie gestart</value>
+        <value>Relace zahájena</value>
     </data>
   <data name="UserNowOnline" xml:space="preserve">
-        <value>{0} is nu online</value>
+        <value>{0} je nyní online</value>
         <comment>0 = Username</comment>
     </data>
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Gebruiker buitengesloten</value>
+        <value>Uživatel uzamčen</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Gebruiker {0} is buitengesloten</value>
+        <value>Účet uživatele {0} byl zablokován</value>
         <comment>0 = Username</comment>
     </data>
   <data name="ItemAddedTitle" xml:space="preserve">
-        <value>{0} toegevoegd</value>
+        <value>Přidán {0}</value>
         <comment>0 = Media type</comment>
     </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
-        <value>Aflevering toegevoegd</value>
+        <value>Přidána epizoda</value>
     </data>
   <data name="EpisodesAddedTitle" xml:space="preserve">
-        <value>Afleveringen toegevoegd</value>
+        <value>Přidány epizody</value>
     </data>
   <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering {1} van seizoen {2} toegevoegd</value>
+        <value>{0} - přidána epizoda {1} do sezóny {2}</value>
         <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
     </data>
   <data name="EpisodeAdded" xml:space="preserve">
-        <value>{0} - aflevering {1} toegevoegd</value>
+        <value>{0} - přidána epizoda {1}</value>
         <comment>0 = Series Name, 1 = Episode index</comment>
     </data>
   <data name="EpisodeAddedForSeason" xml:space="preserve">
-        <value>{0} - aflevering van seizoen {1} toegevoegd</value>
+        <value>{0} - přidána epizoda do sezóny {1}</value>
         <comment>0 = Series Name, 1 = Season index</comment>
     </data>
   <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
-        <value>{0} - {1} afleveringen van seizoen {2} toegevoegd</value>
+        <value>{0} - přidáno epizod do sezóny {2}: {1}</value>
         <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
     </data>
   <data name="EpisodesAddedToSeries" xml:space="preserve">
-        <value>{0} - {1} afleveringen toegevoegd</value>
+        <value>{0} - přidáno epizod: {1}</value>
         <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
   <data name="NameAndYear" xml:space="preserve">
@@ -83,119 +83,119 @@
         <comment>0 = Name, 1 = Year</comment>
     </data>
   <data name="SeerrUnknownMedia" xml:space="preserve">
-        <value>Onbekende media</value>
+        <value>Neznámý titul</value>
     </data>
   <data name="SeerrUnknownRequester" xml:space="preserve">
-        <value>Iemand</value>
+        <value>Někdo</value>
     </data>
   <data name="SeerrTestTitle" xml:space="preserve">
-        <value>Seerr is verbonden</value>
+        <value>Připojeno k Seerr</value>
     </data>
   <data name="SeerrTestBody" xml:space="preserve">
-        <value>Dit is de testmelding van je Seerr-server</value>
+        <value>Toto je testovací oznámení z vašeho serveru Seerr</value>
     </data>
   <data name="SeerrRequestPendingTitle" xml:space="preserve">
-        <value>Nieuwe aanvraag</value>
+        <value>Nový požadavek na média</value>
     </data>
   <data name="SeerrRequestPendingBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd</value>
+        <value>{0} žádá o {1}</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
-        <value>Aanvraag automatisch goedgekeurd</value>
+        <value>Požadavek automaticky schválen</value>
     </data>
   <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd en de aanvraag is automatisch goedgekeurd</value>
+        <value>{0} žádá o {1} a požadavek byl automaticky schválen</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestFailedTitle" xml:space="preserve">
-        <value>Aanvraag mislukt</value>
+        <value>Požadavek selhal</value>
     </data>
   <data name="SeerrRequestFailedBody" xml:space="preserve">
-        <value>{0} heeft {1} aangevraagd, maar de aanvraag kon niet worden verwerkt</value>
+        <value>{0} žádá o {1}, ale požadavek se nepodařilo zpracovat</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestApprovedTitle" xml:space="preserve">
-        <value>Aanvraag goedgekeurd</value>
+        <value>Požadavek schválen</value>
     </data>
   <data name="SeerrRequestApprovedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is goedgekeurd</value>
+        <value>Váš požadavek na {1} byl schválen</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
-        <value>Aanvraag afgewezen</value>
+        <value>Požadavek zamítnut</value>
     </data>
   <data name="SeerrRequestDeclinedBody" xml:space="preserve">
-        <value>Je aanvraag voor {1} is afgewezen</value>
+        <value>Váš požadavek na {1} byl zamítnut</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAvailableTitle" xml:space="preserve">
-        <value>Klaar om te kijken</value>
+        <value>Připraveno ke sledování</value>
     </data>
   <data name="SeerrRequestAvailableBody" xml:space="preserve">
-        <value>{1} is nu beschikbaar</value>
+        <value>{1} je nyní k dispozici</value>
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="TaskFailedTitle" xml:space="preserve">
-        <value>Geplande taak mislukt</value>
+        <value>Chyba naplánované úlohy</value>
     </data>
   <data name="TaskFailed" xml:space="preserve">
-        <value>{0} is mislukt</value>
+        <value>{0} selhalo</value>
         <comment>0 = Task name</comment>
     </data>
   <data name="TaskFailedWithReason" xml:space="preserve">
-        <value>{0} is mislukt: {1}</value>
+        <value>{0} selhalo: {1}</value>
         <comment>0 = Task name, 1 = What the task said went wrong</comment>
     </data>
   <data name="PluginInstalledTitle" xml:space="preserve">
-        <value>Plug-in geïnstalleerd</value>
+        <value>Zásuvný modul instalován</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plug-in-update geïnstalleerd</value>
+        <value>Aktualizace zásuvného modulu instalována</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
-        <value>Plug-in verwijderd</value>
+        <value>Zásuvný modul odstraněn</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} is geïnstalleerd</value>
+        <value>{0} byl nainstalován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} is geïnstalleerd</value>
+        <value>{0} {1} byl nainstalován</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} is bijgewerkt</value>
+        <value>{0} byl aktualizován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} is bijgewerkt naar {1}</value>
+        <value>{0} byl aktualizován na verzi {1}</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} is verwijderd</value>
+        <value>{0} byl odinstalován</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} is verwijderd</value>
+        <value>{0} {1} byl odinstalován</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
-        <value>Aanmelding mislukt</value>
+        <value>Neúspěšné přihlášení</value>
     </data>
   <data name="SignInFailed" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden</value>
+        <value>Přihlášení uživatele {0} se nezdařilo</value>
         <comment>0 = Username that was tried</comment>
     </data>
   <data name="SignInFailedFrom" xml:space="preserve">
-        <value>{0} kon zich niet aanmelden vanaf {1}</value>
+        <value>Přihlášení uživatele {0} z adresy {1} se nezdařilo</value>
         <comment>0 = Username that was tried, 1 = Address it came from</comment>
     </data>
   <data name="SignInFailedUnnamed" xml:space="preserve">
-        <value>Een aanmelding is geweigerd</value>
+        <value>Pokus o přihlášení byl odmítnut</value>
     </data>
   <data name="SignInFailedUnnamedFrom" xml:space="preserve">
-        <value>Een aanmelding vanaf {0} is geweigerd</value>
+        <value>Pokus o přihlášení z adresy {0} byl odmítnut</value>
         <comment>0 = Address it came from</comment>
     </data>
 </root>

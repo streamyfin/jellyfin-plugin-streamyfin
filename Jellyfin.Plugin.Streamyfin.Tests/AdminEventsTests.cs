@@ -66,16 +66,21 @@ public class AdminEventsTests
     }
 
     /// <summary>
-    /// The French of Jellyfin's own activity log, rather than a second wording for the same
-    /// event.
+    /// The message is written from the device's language rather than in English.
     /// </summary>
+    /// <remarks>
+    /// The French words belong to Crowdin, where they follow Jellyfin's own activity log,
+    /// so they are read from the resources rather than repeated here: a translator
+    /// rewording them should not fail the build.
+    /// </remarks>
     [Fact]
     public void ItIsTranslated()
     {
         var message = AdminEvents.TaskFailed(Localization, "Scan", "Boom", French);
 
-        Assert.Equal("Échec de tâche planifiée", message.Title);
-        Assert.Equal("Scan a échoué : Boom", message.Body);
+        Assert.Equal(Localization.GetString("TaskFailedTitle", French), message.Title);
+        Assert.Equal(Localization.GetFormatted("TaskFailedWithReason", French, "Scan", "Boom"), message.Body);
+        Assert.NotEqual(AdminEvents.TaskFailed(Localization, "Scan", "Boom", English).Title, message.Title);
     }
 
     /// <summary>

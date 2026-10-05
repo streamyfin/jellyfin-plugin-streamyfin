@@ -81,6 +81,15 @@ public static class DeviceLanguage
             return null;
         }
 
+        // "no" is Norwegian as a whole, and phones that say it mean Bokmål, which is what
+        // the translations are written in. .NET keeps no and nb apart, and nb-NO falls back
+        // to nb only, so a device saying "no" would otherwise never reach them.
+        if (trimmed.Equals("no", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("no-", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = "nb" + trimmed[2..];
+        }
+
         try
         {
             var culture = CultureInfo.GetCultureInfo(trimmed);

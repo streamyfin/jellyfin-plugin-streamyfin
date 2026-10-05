@@ -96,91 +96,219 @@ public class LocalizationTests
             actual: _helper.GetFormatted("UserWatching", args: "Test")
         );
 
+        // The French words belong to Crowdin, so the expectation reads them rather than
+        // repeating them: what is checked is that fr-FR reaches the French file.
+        var french = CultureInfo.GetCultureInfo("fr");
+        var sentence = Resources().GetString("UserWatching", french)!;
         Assert.Equal(
-            expected: "Test empezaron a mirar",
+            expected: string.Format(french, sentence, "Test"),
             actual: _helper.GetFormatted(
                 key: "UserWatching",
-                cultureInfo: CultureInfo.CreateSpecificCulture("es-MX"),
+                cultureInfo: CultureInfo.CreateSpecificCulture("fr-FR"),
                 args: "Test"
             )
         );
     }
 
     /// <summary>
-    /// Every translated resource carries every key the English one does.
+    /// A translation that cannot be formatted gives way to the English sentence.
     /// </summary>
     /// <remarks>
-    /// A missing key is not an error at runtime: the resource manager falls back to
-    /// English and the notification goes out in the wrong language, which nobody
-    /// reports. The plugin has no translation platform, unlike the app, so the only
-    /// thing that can notice is this.
-    ///
-    /// <para>
-    /// Adding a key to Strings.resx and to no other file is what fails here. That is
-    /// deliberate: it makes the translation part of the change rather than a follow up
-    /// nobody does.
-    /// </para>
+    /// Translations come from Crowdin, where a stray brace can get through. Throwing would
+    /// drop the notification for every device in the batch, whatever their language.
     /// </remarks>
-    [Theory]
-    [InlineData("fr")]
-    [InlineData("nl")]
-    [InlineData("es-MX")]
-    public void EveryLocaleCarriesEveryKey(string locale)
+    [Fact]
+    public void ATranslationThatCannotBeFormattedFallsBackToEnglish()
     {
-        var missing = KeysOf(CultureInfo.InvariantCulture)
-            .Except(KeysOf(CultureInfo.GetCultureInfo(locale)))
-            .OrderBy(key => key, System.StringComparer.Ordinal)
-            .ToArray();
+        var broken = new BrokenResources("{0} ล้มเหลว: {1}}");
+        var helper = new LocalizationHelper(null, null, () => null, broken);
 
-        Assert.Empty(missing);
+        Assert.Equal(
+            "Scan failed: Boom",
+            helper.GetFormatted("TaskFailedWithReason", CultureInfo.GetCultureInfo("th"), "Scan", "Boom"));
     }
 
     /// <summary>
-    /// A translation uses the same placeholders as the English it translates.
+    /// Every culture the plugin ships a translation for, found from the satellite
+    /// assemblies rather than listed here, so a language Crowdin adds is checked as well.
+    /// </summary>
+    public static TheoryData<string> TranslatedCultures()
+    {
+        var resources = Resources();
+        var cultures = new TheoryData<string>();
+
+        foreach (var culture in CultureInfo.GetCultures(CultureTypes.AllCultures)
+                     .Where(culture => !culture.Equals(CultureInfo.InvariantCulture))
+                     .Where(culture => resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false) is not null)
+                     .OrderBy(culture => culture.Name, System.StringComparer.Ordinal))
+        {
+            cultures.Add(culture.Name);
+        }
+
+        return cultures;
+    }
+
+    /// <summary>
+    /// Every file is named after a culture a bare language tag reaches.
     /// </summary>
     /// <remarks>
-    /// A string is formatted with the arguments its English version asks for. A translation
-    /// that drops one shows the others in the wrong places, and one that invents an index
-    /// throws at the moment the notification is built, which is inside an event handler.
+    /// Devices and the app often send a language without a region, "zh" or "pt", and the
+    /// resource manager only walks up from a culture to its parents. A file named after a
+    /// region, as Crowdin names a language crowdin.yml does not map yet (id-ID for a new
+    /// Indonesian), is reached by nobody who says "id". Brazilian Portuguese is the one
+    /// file that has to name its region, next to the European Portuguese of "pt".
     /// </remarks>
     /// <param name="locale">The language.</param>
     [Theory]
-    [InlineData("fr")]
-    [InlineData("nl")]
-    [InlineData("es-MX")]
-    public void EveryLocaleUsesTheSamePlaceholders(string locale)
+    [MemberData(nameof(TranslatedCultures))]
+    public void EveryFileIsNamedSoABareTagReachesIt(string locale)
     {
-        var english = ValuesOf(CultureInfo.InvariantCulture);
-        var translated = ValuesOf(CultureInfo.GetCultureInfo(locale));
+        var culture = CultureInfo.GetCultureInfo(locale);
 
-        var differing = english
-            .Where(pair => translated.ContainsKey(pair.Key))
-            .Where(pair => !Placeholders(pair.Value).SetEquals(Placeholders(translated[pair.Key])))
-            .Select(pair => pair.Key)
-            .OrderBy(key => key, System.StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Empty(differing);
+        Assert.True(
+            culture.IsNeutralCulture || locale == "pt-BR",
+            $"Strings.{locale}.resx is named after a region. Map the language in crowdin.yml to its neutral culture.");
     }
 
     /// <summary>
-    /// The indexes a format string asks for, such as 0 and 1 in "{0} failed: {1}".
+    /// A language as Jellyfin names it reaches the file Crowdin writes for it.
     /// </summary>
-    private static HashSet<string> Placeholders(string value) =>
-        System.Text.RegularExpressions.Regex.Matches(value, @"\{(\d+)[^}]*\}")
-            .Select(match => match.Groups[1].Value)
-            .ToHashSet(System.StringComparer.Ordinal);
+    /// <remarks>
+    /// The server's language goes through <see cref="CultureInfo.CreateSpecificCulture"/>
+    /// and the resource manager then walks up the parents. crowdin.yml names each file
+    /// after the culture that walk meets: zh for Simplified Chinese and zh-Hant for
+    /// Traditional, so Hong Kong finds Traditional; es rather than es-ES, so Mexico finds
+    /// Spanish.
+    /// </remarks>
+    /// <param name="jellyfin">The language as the server's settings carry it.</param>
+    /// <param name="file">The culture of the file it should be answered from.</param>
+    [Theory]
+    [InlineData("zh-CN", "zh")]
+    [InlineData("zh-TW", "zh-Hant")]
+    [InlineData("zh-HK", "zh-Hant")]
+    [InlineData("pt-BR", "pt-BR")]
+    [InlineData("pt-PT", "pt")]
+    [InlineData("nb", "nb")]
+    [InlineData("es", "es")]
+    [InlineData("es-MX", "es")]
+    [InlineData("fr-CA", "fr")]
+    [InlineData("sv", "sv")]
+    public void ALanguageReachesItsTranslation(string jellyfin, string file) =>
+        Assert.Equal(file, FileFor(CultureInfo.CreateSpecificCulture(jellyfin)));
+
+    /// <summary>
+    /// A device's language, as the app reports it, reaches the file Crowdin writes for it.
+    /// </summary>
+    /// <remarks>
+    /// The app sends the language picked in its settings or the phone's bare language code
+    /// ("zh", "pt", "no"), and Android spells a region with an underscore. They go through
+    /// <see cref="PushNotifications.DeviceLanguage.CultureOf"/>, as at send time. The app
+    /// reads "zh" as Simplified Chinese and "pt" as European Portuguese, which is where
+    /// crowdin.yml puts them.
+    /// </remarks>
+    /// <param name="device">The language tag as a phone or a TV sends it.</param>
+    /// <param name="file">The culture of the file it should be answered from.</param>
+    [Theory]
+    [InlineData("zh", "zh")]
+    [InlineData("zh-CN", "zh")]
+    [InlineData("zh-Hans-CN", "zh")]
+    [InlineData("zh-TW", "zh-Hant")]
+    [InlineData("zh_TW", "zh-Hant")]
+    [InlineData("zh-Hant-TW", "zh-Hant")]
+    [InlineData("pt", "pt")]
+    [InlineData("pt_PT", "pt")]
+    [InlineData("pt-BR", "pt-BR")]
+    [InlineData("no", "nb")]
+    [InlineData("nb-NO", "nb")]
+    [InlineData("es-419", "es")]
+    [InlineData("fr_CA", "fr")]
+    public void ADeviceLanguageReachesItsTranslation(string device, string file) =>
+        Assert.Equal(file, FileFor(PushNotifications.DeviceLanguage.CultureOf(device)!));
+
+    /// <summary>
+    /// The culture whose file answers <paramref name="culture"/>: the resource manager's own
+    /// walk up the parents, stopping at the first culture that has a satellite.
+    /// </summary>
+    private static string FileFor(CultureInfo culture)
+    {
+        var resources = Resources();
+
+        while (!culture.Equals(CultureInfo.InvariantCulture)
+               && resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false) is null)
+        {
+            culture = culture.Parent;
+        }
+
+        return culture.Name;
+    }
+
+    /// <summary>
+    /// Every translation formats with the arguments its English sentence is given.
+    /// </summary>
+    /// <remarks>
+    /// The sentence is formatted with as many arguments as the English asks for, so a stray
+    /// brace or an index the English does not pass fails here rather than at send time. A
+    /// translation may leave a placeholder out, and one whose sentence changed in English
+    /// keeps its old wording until Crowdin's next sync: neither is checked, so a pull
+    /// request that only edits Strings.resx, as the README asks, does not have to touch the
+    /// translated files.
+    /// </remarks>
+    /// <param name="locale">The language.</param>
+    [Theory]
+    [MemberData(nameof(TranslatedCultures))]
+    public void EveryTranslationFormatsWithTheEnglishArguments(string locale)
+    {
+        var culture = CultureInfo.GetCultureInfo(locale);
+        var english = ValuesOf(CultureInfo.InvariantCulture);
+        var failing = new List<string>();
+
+        foreach (var (key, value) in ValuesOf(culture).Where(pair => english.ContainsKey(pair.Key)))
+        {
+            var arguments = Enumerable.Range(0, ArgumentCount(english[key])).Select(index => (object)$"<{index}>").ToArray();
+            try
+            {
+                _ = string.Format(culture, value, arguments);
+            }
+            catch (System.FormatException)
+            {
+                failing.Add(key);
+            }
+        }
+
+        Assert.Empty(failing);
+    }
+
+    /// <summary>
+    /// How many arguments a format string is given: one more than its highest index.
+    /// </summary>
+    private static int ArgumentCount(string value) =>
+        Regex.Matches(value, @"\{(\d+)[^}]*\}")
+            .Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) + 1)
+            .DefaultIfEmpty(0)
+            .Max();
+
+    /// <summary>
+    /// The plugin's sentences, with every translation replaced by <paramref name="broken"/>.
+    /// </summary>
+    private sealed class BrokenResources(string broken)
+        : ResourceManager("Jellyfin.Plugin.Streamyfin.Resources.Strings", typeof(LocalizationHelper).Assembly)
+    {
+        public override string? GetString(string name, CultureInfo? culture) =>
+            culture is null || culture.Equals(CultureInfo.InvariantCulture) ? base.GetString(name, culture) : broken;
+    }
+
+    /// <summary>
+    /// The plugin's sentences, as the helper reads them.
+    /// </summary>
+    private static ResourceManager Resources() =>
+        new(baseName: "Jellyfin.Plugin.Streamyfin.Resources.Strings", assembly: typeof(LocalizationHelper).Assembly);
 
     /// <summary>
     /// What one resource file declares, as key and value.
     /// </summary>
     private static Dictionary<string, string> ValuesOf(CultureInfo culture)
     {
-        var resources = new ResourceManager(
-            baseName: "Jellyfin.Plugin.Streamyfin.Resources.Strings",
-            assembly: typeof(LocalizationHelper).Assembly);
-
-        var set = resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        var set = Resources().GetResourceSet(culture, createIfNotExists: true, tryParents: false);
         Assert.NotNull(set);
 
         return set.Cast<DictionaryEntry>()
@@ -193,12 +321,8 @@ public class LocalizationTests
     /// </summary>
     private static IEnumerable<string> KeysOf(CultureInfo culture)
     {
-        var resources = new ResourceManager(
-            baseName: "Jellyfin.Plugin.Streamyfin.Resources.Strings",
-            assembly: typeof(LocalizationHelper).Assembly);
-
         // tryParents false, or every culture inherits English and this can never fail.
-        var set = resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        var set = Resources().GetResourceSet(culture, createIfNotExists: true, tryParents: false);
         Assert.NotNull(set);
 
         return set.Cast<DictionaryEntry>().Select(entry => (string)entry.Key);

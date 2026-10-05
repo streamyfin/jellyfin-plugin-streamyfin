@@ -46,6 +46,7 @@ Receive real-time notifications on your mobile device:
 - **Failed Sign In**: A refused sign in, with the name tried and where it came from (admin only)
 - **Custom Webhooks**: Integrate with external services
 - **Smart Grouping**: Episode notifications are intelligently grouped to reduce spam
+- **In your language**: Each device gets its notifications in its own language, or in the server's when it has not said, translated on [Crowdin](https://crowdin.com/project/streamyfin) in the `jellyfin-plugin-streamyfin` folder of the Streamyfin project
 
 [📖 Read full notification documentation](NOTIFICATIONS.md)
 
@@ -346,6 +347,9 @@ The plugin exposes comprehensive configuration options including:
 All settings can be managed via YAML for infrastructure-as-code workflows.
 
 **[Browse YAML examples →](examples/)**
+
+### Translations
+The notifications' sentences live in `Jellyfin.Plugin.Streamyfin/Resources/Strings.resx`, with a comment saying what each placeholder stands for. Change that file only: the translations are made on [Crowdin](https://crowdin.com/project/streamyfin), in the `jellyfin-plugin-streamyfin` folder of the app's Streamyfin project, and come back as a pull request that writes the other `Strings.*.resx` files. A sentence not translated yet is sent in English.
 
 ---
 
