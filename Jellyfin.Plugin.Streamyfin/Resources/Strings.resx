@@ -60,7 +60,7 @@
         <value>{0} has been locked out</value>
         <comment>0 = Username</comment>
     </data>
-    <!-- endregion SessionStartEvent -->
+    <!-- endregion UserLockedOutEvent -->
 
     <!-- region ItemAddedEvent -->
     <data name="ItemAddedTitle" xml:space="preserve">
