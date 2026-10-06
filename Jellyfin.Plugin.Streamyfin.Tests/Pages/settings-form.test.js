@@ -792,6 +792,18 @@ describe("a setting made of switches and choices", () => {
         expect(row(mount, "libraryOptions").textContent).not.toContain("Yaml");
     });
 
+    // A value typed on the Yaml tab, or one the app has since dropped, would have left the
+    // dropdown empty, and the next change to another part would have stored that empty.
+    test("a stored choice the part does not offer is kept, under its own name", () => {
+        const { mount, form } = mountLibrary({ value: { ...STORED_LIBRARY, display: "grid" }, locked: true });
+
+        expect(part(mount, "display").value).toBe("grid");
+        expect(part(mount, "display").selectedOptions[0].textContent).toBe("Other (grid)");
+
+        change(part(mount, "showStats"), (box) => { box.checked = false; });
+        expect(form.toSettings().libraryOptions.value.display).toBe("grid");
+    });
+
     test("writes every part back, and keeps the one it does not offer", () => {
         const { mount, form } = mountLibrary({ value: STORED_LIBRARY, locked: false });
 

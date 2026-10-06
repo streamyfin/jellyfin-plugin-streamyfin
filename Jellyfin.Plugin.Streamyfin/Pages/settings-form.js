@@ -352,8 +352,19 @@ const drawChecks = (control, field, chosen) => {
 const writeParts = (control, value) => {
     for (const input of control.querySelectorAll("[data-part]")) {
         const part = value?.[input.dataset.part];
-        if (input.type === "checkbox") input.checked = part === true;
-        else input.value = part === undefined || part === null ? input.options[0]?.value ?? "" : String(part);
+        if (input.type === "checkbox") {
+            input.checked = part === true;
+            continue;
+        }
+        const wanted = part === undefined || part === null ? input.options[0]?.value ?? "" : String(part);
+        // As for a dropdown of its own: a stored value the part does not offer is shown
+        // as itself, or the next change to another part would store an empty one.
+        if (wanted !== "" && ![...input.options].some((option) => option.value === wanted)) {
+            const other = el("option", null, `Other (${wanted})`);
+            other.value = wanted;
+            input.appendChild(other);
+        }
+        input.value = wanted;
     }
 };
 
