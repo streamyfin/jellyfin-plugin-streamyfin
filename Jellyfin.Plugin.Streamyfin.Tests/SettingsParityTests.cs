@@ -41,6 +41,10 @@ public class SettingsParityTests
             + "there is nothing an administrator could put in it.",
         ["playbackSpeedPerShow"] =
             "Not a setting. A map the player writes by itself, keyed by series id.",
+        ["autoPlayEpisodeCount"] =
+            "Not a setting. A counter the player keeps by itself, of the episodes it has "
+            + "played in a row against maxAutoPlayEpisodeCount; a locked value would stop "
+            + "auto play for good or never.",
         ["videoPlayer"] =
             "Picks the engine and the controls for every platform at once: ExoPlayer, which "
             + "Android TV needs for HDR, also moves every iPhone off the native controls. A "

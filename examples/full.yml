@@ -24,7 +24,7 @@ settings:
   
   maxAutoPlayEpisodeCount:
     locked: false
-    value: 3  # Maximum episodes to autoplay (1-10)
+    value: 3  # Episodes played in a row on their own, up to 7. 0 or -1 turns it off
 
   # ==================== Media Segment Skip ====================
   # Every type takes: none (never skip), ask (show a skip button), auto (skip on its own)
@@ -72,7 +72,7 @@ settings:
   
   subtitleSize:
     locked: false
-    value: 100  # Subtitle size percentage (0-120)
+    value: 100  # Subtitle size as a percentage, 10 to 300. 100 is the app's own size
   
   # No default is shipped for either. The app follows what the server or the media
   # offers until the user picks a language, so setting one chooses for everyone.
@@ -110,7 +110,7 @@ settings:
   
   subtitleMarginY:
     locked: false
-    value: 25  # Distance from the edge of the video
+    value: 25  # Distance from the edge of the video, -100 to 100
   
   subtitleAlignX:
     locked: false
@@ -169,7 +169,7 @@ settings:
   
   holdToSpeedRate:
     locked: false
-    value: 2.0  # Speed multiplier while the screen is held
+    value: 2.0  # Speed while the screen is held, 0.25 to 3 in steps of 0.25
   
   enablePinchToZoom:
     locked: false
@@ -178,10 +178,6 @@ settings:
   showResumeDialog:
     locked: false
     value: false  # Ask resume or start over
-  
-  autoPlayEpisodeCount:
-    locked: false
-    value: 0
   
   playDefaultAudioTrack:
     locked: false
@@ -352,7 +348,7 @@ settings:
 
   defaultPlaybackSpeed:
     locked: false
-    value: 1.0  # Default video playback speed multiplier
+    value: 1.0  # Default video playback speed, 0.25 to 3 in steps of 0.25
 
   preferLocalAudio:
     locked: false
@@ -364,11 +360,11 @@ settings:
 
   audioLookaheadCount:
     locked: false
-    value: 1  # How many upcoming tracks to pre-cache
+    value: 1  # How many upcoming tracks to pre-cache, 1 to 5
 
   audioMaxCacheSizeMB:
     locked: false
-    value: 500  # Maximum disk space (MB) for audio look-ahead caching
+    value: 500  # Maximum disk space (MB) for audio look-ahead caching, 100 to 2048
 
   # ==================== Home Screen Composition ====================
   showHomeBackdrop:

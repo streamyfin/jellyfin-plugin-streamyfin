@@ -9,7 +9,6 @@ using System.Collections.ObjectModel;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
-
 public class LibraryOptions
 {
     public DisplayType display { get; set; } = DisplayType.list;
@@ -47,7 +46,6 @@ public class Lockable<T>
   public bool locked { get; set; } = false;
   public required T value { get; set; }
 }
-
 
 public class Home
 {
@@ -346,11 +344,13 @@ public class Settings
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
     [SettingScope("Music")]
     [DependsOn("audioLookaheadEnabled")]
+    [Bounds(1, 5)]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
     [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
     [SettingScope("Music")]
+    [Bounds(100, 2048)]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
     // No default for either. The app leaves both null and follows what the server or the
     // media offers until the user picks one, so a value here would choose for everyone.
@@ -386,10 +386,10 @@ public class Settings
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
+    [Display(Name = "Subtitle scale size", Description = "The subtitle size during video playback, as a percentage: 100 is the app's own size")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
-    [Bounds(0, 120)]
-    [Step(5)]
+    [Bounds(10, 300)]
+    [Step(10)]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
@@ -411,16 +411,21 @@ public class Settings
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     [DependsOn("subtitleBackground")]
+    [Bounds(0, 100)]
+    [Step(5)]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
     [Display(Name = "Subtitle background padding", Description = "Space between the subtitle text and the edge of its background")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Bounds(0, 30)]
     public Lockable<int>? subtitleBackgroundPadding { get; set; } // = 8;
 
     [NotNull]
     [Display(Name = "Subtitle vertical margin", Description = "Distance between the subtitles and the edge of the video")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Bounds(-100, 100)]
+    [Step(5)]
     public Lockable<int>? subtitleMarginY { get; set; } // = 25;
 
     [NotNull]
@@ -465,8 +470,9 @@ public class Settings
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
 
     [NotNull]
-    [Display(Name = "Max auto play episode count")]
+    [Display(Name = "Max auto play episode count", Description = "How many episodes play one after another on their own, up to 7. 0 or -1 turns auto play off")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
+    [Bounds(-1, 7)]
     public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3
 
     [NotNull]
@@ -477,6 +483,8 @@ public class Settings
     [NotNull]
     [Display(Name = "Default playback speed", Description = "The default video playback speed multiplier")]
     [SettingScope("Playback controls", Group = "Quality")]
+    [Bounds(0.25, 3)]
+    [Step(0.25)]
     public Lockable<double>? defaultPlaybackSpeed { get; set; } // = 1.0
 
     // Swipe controls
@@ -520,6 +528,8 @@ public class Settings
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
     [SettingScope("Playback controls", Group = "Gestures")]
     [DependsOn("enableHoldToSpeed")]
+    [Bounds(0.25, 3)]
+    [Step(0.25)]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]
@@ -531,11 +541,6 @@ public class Settings
     [Display(Name = "Ask before resuming", Description = "Ask whether to resume or start over instead of resuming straight away")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
     public Lockable<bool>? showResumeDialog { get; set; } // = false;
-
-    [NotNull]
-    [Display(Name = "Auto play episode count", Description = "How many episodes have played automatically so far. 0 starts the count over")]
-    [SettingScope("Advanced")]
-    public Lockable<int>? autoPlayEpisodeCount { get; set; } // = 0;
 
     [NotNull]
     [Display(Name = "Play the default audio track", Description = "Play the track the server marks as default rather than the last one chosen")]
@@ -664,6 +669,8 @@ public class Settings
     [NotNull]
     [Display(Name = "mpv cache seconds", Description = "How many seconds mpv caches ahead")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(5, 120)]
+    [Step(5)]
     public Lockable<int>? mpvCacheSeconds { get; set; } // = 10;
 
     // No default on purpose: the app's own default is not one number. It is 150 MB on a
@@ -672,12 +679,16 @@ public class Settings
     [NotNull]
     [Display(Name = "mpv demuxer buffer (MB)", Description = "Read-ahead buffer size. The app defaults to 150 MB on a phone and 75 MB on Android TV, so one number here applies to both")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(50, 500)]
+    [Step(25)]
     public Lockable<int>? mpvDemuxerMaxBytes { get; set; }
 
     // No default, same reason: 50 MB on a phone, 30 MB on Android TV.
     [NotNull]
     [Display(Name = "mpv back buffer (MB)", Description = "How much already-played data mpv keeps. The app defaults to 50 MB on a phone and 30 MB on Android TV")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(25, 200)]
+    [Step(25)]
     public Lockable<int>? mpvDemuxerMaxBackBytes { get; set; }
 
     [NotNull]

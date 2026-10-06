@@ -160,12 +160,30 @@ public class SettingsFormTests
     /// dropped all three, since nothing in C# recorded them, and a skip time has been
     /// unbounded ever since. They live on the property now, where both the form and a
     /// future validator can read them.
+    ///
+    /// <para>
+    /// Each follows the app's own control: the stepper's min, max and step where it has
+    /// one, the ends of its option list where it offers a list. The subtitle size is a
+    /// percentage here and a scale of 0.1 to 3 in the app, which divides anything from 10
+    /// up by 100 and reads anything below as a scale.
+    /// </para>
     /// </remarks>
     [Theory]
-    [InlineData("forwardSkipTime", 0, 60, 5)]
-    [InlineData("rewindSkipTime", 0, 60, 5)]
-    [InlineData("subtitleSize", 0, 120, 5)]
-    public void ANumberCarriesItsBounds(string key, double min, double max, double step)
+    [InlineData("forwardSkipTime", 0, 60, 5.0)]
+    [InlineData("rewindSkipTime", 0, 60, 5.0)]
+    [InlineData("subtitleSize", 10, 300, 10.0)]
+    [InlineData("subtitleMarginY", -100, 100, 5.0)]
+    [InlineData("subtitleBackgroundOpacity", 0, 100, 5.0)]
+    [InlineData("subtitleBackgroundPadding", 0, 30, null)]
+    [InlineData("maxAutoPlayEpisodeCount", -1, 7, null)]
+    [InlineData("defaultPlaybackSpeed", 0.25, 3, 0.25)]
+    [InlineData("holdToSpeedRate", 0.25, 3, 0.25)]
+    [InlineData("audioLookaheadCount", 1, 5, null)]
+    [InlineData("audioMaxCacheSizeMB", 100, 2048, null)]
+    [InlineData("mpvCacheSeconds", 5, 120, 5.0)]
+    [InlineData("mpvDemuxerMaxBytes", 50, 500, 25.0)]
+    [InlineData("mpvDemuxerMaxBackBytes", 25, 200, 25.0)]
+    public void ANumberCarriesItsBounds(string key, double min, double max, double? step)
     {
         var field = Field(key);
 
@@ -180,7 +198,7 @@ public class SettingsFormTests
     [Fact]
     public void AnUnboundedNumberClaimsNoBounds()
     {
-        var field = Field("maxAutoPlayEpisodeCount");
+        var field = Field("showHomeBackdrop");
 
         Assert.Null(field.Minimum);
         Assert.Null(field.Maximum);

@@ -87,9 +87,26 @@ public class SettingsValidationTests
     [Fact]
     public void ASettingWithNoBoundsAcceptsAnything()
     {
-        var settings = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 9999, locked = false } };
+        var settings = new Settings { showHomeBackdrop = new Lockable<bool> { value = false, locked = false } };
 
         Assert.Empty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// A subtitle size below 10 is refused, since the app would read it as a scale.
+    /// </summary>
+    /// <remarks>
+    /// The app divides a size of 10 or more by 100 and keeps anything smaller as it is,
+    /// so the 5 the old bounds allowed reached it as five times the normal size.
+    /// </remarks>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(310)]
+    public void ASubtitleSizeOutsideTheAppsRangeIsRefused(int size)
+    {
+        var settings = new Settings { subtitleSize = new Lockable<int> { value = size, locked = true } };
+
+        Assert.NotEmpty(SettingsValidation.Problems(settings));
     }
 
     /// <summary>

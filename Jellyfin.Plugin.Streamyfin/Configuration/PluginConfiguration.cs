@@ -105,7 +105,6 @@ public class PluginConfiguration : BasePluginConfiguration
     holdToSpeedRate = new() { value = 2.0 },
     enablePinchToZoom = new() { value = true },
     showResumeDialog = new() { value = false },
-    autoPlayEpisodeCount = new() { value = 0 },
     playDefaultAudioTrack = new() { value = true },
     audioTranscodeMode = new() { value = AudioTranscodeMode.Auto },
     defaultBitrate = new() { value = null },
