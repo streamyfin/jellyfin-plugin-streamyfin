@@ -8,6 +8,30 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the Application tab matched to the app
+
+The Application tab offers what the app reads, the way the app offers it (#215). Four settings
+the app declares in its type but reads nowhere are gone: the device profile, the media list
+collections, the popular lists and the titles on the home screen. So is the video player, which
+picked the engine and the controls for every platform at once, so that ExoPlayer, which Android
+TV needs for HDR, also took every iPhone off the native controls; the two switches that each
+name one platform stay. The auto play episode count went too, being the counter the player
+keeps against the maximum rather than a setting. A configuration an unstable build stored with
+any of them still loads.
+
+Labels and order follow the app's pickers, and eleven numbers take the bounds of the app's
+steppers and option lists. The subtitle size had the wrong ones: it is a percentage here and a
+scale in the app, which reads anything under 10 as a scale, so the old range let a 5 through as
+five times the normal size. A value a level already stores outside the new bounds is left
+alone, since every tab saves the whole configuration and a restore checks every level; only a
+value that changes is held to them.
+
+Descriptions and Keys are on every tab that lists settings, with one remembered choice. The
+legend is a banner of its own at the top of the Application, Targeting and Notifications tabs,
+in the shape each tab's rows draw: the three states beside the boxes, a level's states, the
+boxes alone. Its cross closes it on that tab only. A maintainer went through all of it on the
+beta server, on Jellyfin 13.0.0, with #216 and #217, which merge next.
+
 ## 2026-10-06, the drawer's mark, and Jellyfin 13
 
 The plugin's row in the dashboard drawer shows its mark the way the icons beside it are drawn
