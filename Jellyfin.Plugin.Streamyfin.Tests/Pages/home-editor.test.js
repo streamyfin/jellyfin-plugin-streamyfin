@@ -4,13 +4,19 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+    EXAMPLES,
     KINDS,
+    KIND_LABELS,
+    ORIENTATION_LABELS,
     add,
     blank,
     fieldsFor,
+    fromExample,
     inOrder,
     move,
+    moveTo,
     orientations,
+    preview,
     remove,
     renumber,
     summarise,
@@ -56,12 +62,22 @@ describe("fieldsFor", () => {
 
         expect(fields).toEqual({
             sortBy: "Choices",
-            genres: "List",
             parentId: "Text",
             filters: "Choices",
             includeItemTypes: "Choices",
             limit: "Number",
         });
+    });
+
+    // Home.tsx asks the items query without genres, and Next up and Recently added
+    // without a library, so offering those read as filters that never happen.
+    test("a field the app does not send to Jellyfin is not offered", () => {
+        const keys = (kind) => fieldsFor(SCHEMA, kind).map((field) => field.key);
+
+        expect(keys("items")).not.toContain("genres");
+        expect(keys("items")).toContain("parentId");
+        expect(keys("nextUp")).not.toContain("parentId");
+        expect(keys("latest")).not.toContain("parentId");
     });
 
     test("a list of enums carries what there is to choose", () => {
@@ -170,18 +186,19 @@ describe("inOrder", () => {
 });
 
 describe("what a card says", () => {
+    // Named as the kind picker names it, not by the key the configuration stores.
     test("the kind, and what the payload narrows", () => {
         expect(summarise({ kind: "items", items: { limit: 20, includeItemTypes: ["Movie"] } }))
-            .toBe("items · 20 at most · Movie");
+            .toBe("Items you choose · 20 at most · Movie");
     });
 
     test("an endpoint is the useful half of a custom section", () => {
         expect(summarise({ kind: "custom", custom: { endpoint: "/UserItems/Resume" } }))
-            .toBe("custom · /UserItems/Resume");
+            .toBe("An endpoint · /UserItems/Resume");
     });
 
     test("a section written before the kind existed is read by what it carries", () => {
-        expect(summarise({ latest: { limit: 10 } })).toBe("latest · 10 at most");
+        expect(summarise({ latest: { limit: 10 } })).toBe("Recently added · 10 at most");
     });
 
     test("a section carrying nothing says so rather than pretending", () => {
@@ -197,5 +214,75 @@ describe("the kinds", () => {
     test("the orientations come from the schema, with a fallback that matches it", () => {
         expect(orientations(SCHEMA)).toEqual(["vertical", "horizontal"]);
         expect(orientations({})).toEqual(["vertical", "horizontal"]);
+    });
+});
+
+// Dragging a section drops it where it lands, rather than a step at a time.
+describe("moveTo", () => {
+    const three = renumber([{ title: "A" }, { title: "B" }, { title: "C" }]);
+
+    test("puts a section where it was dropped, and renumbers", () => {
+        expect(moveTo(three, 2, 0).map((section) => [section.title, section.order])).toEqual([["C", 0], ["A", 1], ["B", 2]]);
+        expect(moveTo(three, 0, 2).map((section) => section.title)).toEqual(["B", "C", "A"]);
+    });
+
+    test("a drop outside the list, or on itself, changes nothing", () => {
+        expect(moveTo(three, 1, 1).map((section) => section.title)).toEqual(["A", "B", "C"]);
+        expect(moveTo(three, 0, 5).map((section) => section.title)).toEqual(["A", "B", "C"]);
+    });
+});
+
+describe("the preview", () => {
+    test("draws the sections in the app's order, with the shape and the filling of each", () => {
+        const rows = preview([
+            { title: "Second", order: 1, kind: "latest", latest: {} },
+            { title: "First", order: 0, kind: "nextUp", orientation: "horizontal", nextUp: {} },
+        ]);
+
+        expect(rows).toEqual([
+            { title: "First", orientation: "horizontal", filledBy: KIND_LABELS.nextUp },
+            // A section that says nothing is drawn as the app draws it, in posters.
+            { title: "Second", orientation: "vertical", filledBy: KIND_LABELS.latest },
+        ]);
+    });
+
+    test("a section with no title or kind still has a row", () => {
+        expect(preview([{}])).toEqual([{ title: "Untitled", orientation: "vertical", filledBy: "Nothing yet" }]);
+    });
+});
+
+describe("the examples", () => {
+    // Values the server's schema takes for these, so an example never loads a section the
+    // save would then refuse.
+    const KNOWN = {
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        filters: ["IsUnplayed", "IsPlayed", "IsFavorite", "IsResumable"],
+        sortBy: ["DateCreated", "SortName", "PremiereDate", "Random"],
+        sortOrder: ["Ascending", "Descending"],
+    };
+
+    test("each is a home screen of named sections, each filled by one kind", () => {
+        for (const example of EXAMPLES) {
+            expect(example.name).toBeTruthy();
+            expect(example.description).toBeTruthy();
+            expect(example.sections.length).toBeGreaterThan(1);
+            for (const section of example.sections) {
+                expect(section.title).toBeTruthy();
+                expect(KINDS).toContain(section.kind);
+                expect(Object.keys(ORIENTATION_LABELS)).toContain(section.orientation);
+                expect(section[section.kind]).toBeDefined();
+                for (const [key, values] of Object.entries(section[section.kind])) {
+                    if (KNOWN[key]) for (const value of values) expect(KNOWN[key]).toContain(value);
+                }
+            }
+        }
+    });
+
+    test("loading one numbers its sections and leaves the example as it was", () => {
+        const loaded = fromExample(EXAMPLES[0]);
+        loaded[0].title = "Changed";
+
+        expect(loaded.map((section) => section.order)).toEqual(EXAMPLES[0].sections.map((_, index) => index));
+        expect(EXAMPLES[0].sections[0].title).not.toBe("Changed");
     });
 });

@@ -12,6 +12,38 @@
 /// The four kinds, in the order the editor offers them.
 export const KINDS = ["items", "nextUp", "latest", "custom"];
 
+/// What each kind fills its row with, said for an administrator rather than a developer.
+export const KIND_LABELS = {
+    items: "Items you choose",
+    nextUp: "Next up",
+    latest: "Recently added",
+    custom: "An endpoint",
+};
+
+export const KIND_HELP = {
+    items: "Movies, shows or episodes picked by type, filters and an order, from every library or one.",
+    nextUp: "The next episode of each show somebody is watching.",
+    latest: "What arrived most recently, newest first.",
+    custom: "Whatever an address of the server answers, such as the plugin's My media and For you rows.",
+};
+
+/// Every row scrolls sideways in the app; the orientation is the shape of its cards.
+export const ORIENTATION_LABELS = {
+    vertical: "Posters (portrait)",
+    horizontal: "Wide (16:9)",
+};
+
+// Fields the payload types declare that the app does not send to Jellyfin: Home.tsx asks
+// the items query without genres, and Next up and Recently added without a library. The
+// plugin still reads a library named on those two, to keep the section from users who
+// cannot open it, so the fields stay in the configuration; offering them here read as
+// a filter that never happens.
+const NOT_OFFERED = {
+    items: ["genres"],
+    nextUp: ["parentId"],
+    latest: ["parentId"],
+};
+
 const PAYLOAD_TYPES = {
     items: "Items",
     nextUp: "NextUp",
@@ -67,6 +99,7 @@ export const fieldsFor = (schema, kind) => {
     if (!payload?.properties) return [];
 
     return Object.entries(payload.properties).flatMap(([key, property]) => {
+        if (NOT_OFFERED[kind]?.includes(key)) return [];
         const control = controlFor(schema, property);
         if (!control) return [];
         return [{
@@ -120,6 +153,16 @@ export const move = (sections, from, by) => {
     return renumber(list);
 };
 
+/// The sections with the one at `from` put at `to`, as a drag drops it, renumbered.
+export const moveTo = (sections, from, to) => {
+    const list = [...(sections ?? [])];
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return renumber(list);
+
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    return renumber(list);
+};
+
 /// The sections with one of this kind added at the end, renumbered.
 export const add = (sections, kind) => renumber([...(sections ?? []), blank(kind)]);
 
@@ -139,5 +182,54 @@ export const summarise = (section) => {
     if (payload.filters?.length) said.push(payload.filters.join(", "));
     if (payload.endpoint) said.push(payload.endpoint);
 
-    return said.length ? `${kind} · ${said.join(" · ")}` : kind;
+    const named = KIND_LABELS[kind] ?? kind;
+    return said.length ? `${named} · ${said.join(" · ")}` : named;
 };
+
+/// What the preview draws for each section: its title, the shape of its cards, and what
+/// fills it, in the order the app draws them.
+export const preview = (sections) => inOrder(sections).map((section) => {
+    const kind = section?.kind ?? KINDS.find((candidate) => section?.[candidate]) ?? null;
+    return {
+        title: section?.title || "Untitled",
+        // The app's own default when a section says nothing.
+        orientation: section?.orientation === "horizontal" ? "horizontal" : "vertical",
+        filledBy: kind ? KIND_LABELS[kind] : "Nothing yet",
+    };
+});
+
+/// Home screens to start from, each one a real layout an administrator can then adjust.
+/// The endpoints are Jellyfin's and the plugin's own, so each works on any server.
+export const EXAMPLES = [
+    {
+        name: "Watching, then new",
+        description: "What people are part way through, the next episodes, then what arrived lately.",
+        sections: [
+            { title: "Continue Watching", kind: "custom", orientation: "horizontal", custom: { endpoint: "/UserItems/Resume" } },
+            { title: "Next Up", kind: "nextUp", orientation: "horizontal", nextUp: { limit: 20 } },
+            { title: "Latest Movies", kind: "latest", orientation: "vertical", latest: { includeItemTypes: ["Movie"], limit: 20 } },
+            { title: "Latest Episodes", kind: "latest", orientation: "horizontal", latest: { includeItemTypes: ["Episode"], limit: 20 } },
+        ],
+    },
+    {
+        name: "Libraries first",
+        description: "The libraries each person can open, then what they are watching and what is new.",
+        sections: [
+            { title: "My Media", kind: "custom", orientation: "horizontal", custom: { endpoint: "/streamyfin/v1/my-media" } },
+            { title: "Continue Watching", kind: "custom", orientation: "horizontal", custom: { endpoint: "/UserItems/Resume" } },
+            { title: "Recently Added", kind: "latest", orientation: "vertical", latest: { limit: 20 } },
+        ],
+    },
+    {
+        name: "A movie night",
+        description: "Unwatched films, newest first, and suggestions from what each person watched.",
+        sections: [
+            { title: "Unwatched Movies", kind: "items", orientation: "vertical", items: { includeItemTypes: ["Movie"], filters: ["IsUnplayed"], sortBy: ["DateCreated"], sortOrder: ["Descending"], limit: 20 } },
+            { title: "For You", kind: "custom", orientation: "vertical", custom: { endpoint: "/streamyfin/v1/for-you" } },
+            { title: "Favorites", kind: "items", orientation: "vertical", items: { includeItemTypes: ["Movie", "Series"], filters: ["IsFavorite"], limit: 20 } },
+        ],
+    },
+];
+
+/// An example's sections, numbered and copied so editing them leaves the example alone.
+export const fromExample = (example) => renumber(structuredClone(example?.sections ?? []));

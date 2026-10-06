@@ -23,6 +23,11 @@ export default function (view, params) {
             const discardBtn = find("sf-discard");
             const addBtn = find("sf-add");
             const kindPicker = find("sf-new-kind");
+            const previewBox = find("sf-preview");
+            const moved = find("sf-moved");
+            const examplePicker = find("sf-example");
+            const exampleAbout = find("sf-example-about");
+            const loadExample = find("sf-load-example");
 
             const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
             renderer.applyTheme(find("sf-app"));
@@ -78,7 +83,30 @@ export default function (view, params) {
                 return count === 1 ? "1 section" : `${count} sections`;
             };
 
+            // The phone on the right: each row as the app draws it, cards shaped as its
+            // orientation says, in the order the list is in.
+            const drawPreview = () => {
+                const rows = home.preview(sections);
+                if (!rows.length) {
+                    previewBox.replaceChildren(el("p", "sf-preview-empty", "Nothing set here: the app draws its own home screen."));
+                    return;
+                }
+                previewBox.replaceChildren(...rows.map((one) => {
+                    const line = el("div", "sf-prow");
+                    line.appendChild(el("div", "sf-prow-title", one.title));
+                    const cards = el("div", "sf-prow-cards");
+                    const shape = one.orientation === "horizontal" ? "is-wide" : "is-portrait";
+                    for (let index = 0; index < (shape === "is-wide" ? 3 : 5); index += 1) {
+                        cards.appendChild(el("span", `sf-pcard ${shape}`));
+                    }
+                    line.appendChild(cards);
+                    line.appendChild(el("div", "sf-prow-what", one.filledBy));
+                    return line;
+                }));
+            };
+
             const touched = () => {
+                drawPreview();
                 dirty = true;
                 dot.hidden = false;
                 summary.textContent = `${said()}, not saved`;
@@ -212,6 +240,37 @@ export default function (view, params) {
                 const pill = el("span", "sf-count", home.summarise(section));
                 header.appendChild(pill);
 
+                // Drag by the handle, which is the only thing that drags, so the title and
+                // the fields keep selecting text. The arrows stay for the keyboard.
+                const grip = el("span", "sf-grip", "⋮⋮");
+                grip.title = "Drag to move";
+                grip.draggable = true;
+                grip.setAttribute("aria-hidden", "true");
+                grip.addEventListener("dragstart", (event) => {
+                    event.dataTransfer.setData("text/plain", String(index));
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setDragImage(box, 24, 24);
+                    box.classList.add("is-dragging");
+                });
+                grip.addEventListener("dragend", () => box.classList.remove("is-dragging"));
+                box.addEventListener("dragover", (event) => {
+                    event.preventDefault();
+                    box.classList.add("is-drop-target");
+                });
+                box.addEventListener("dragleave", () => box.classList.remove("is-drop-target"));
+                box.addEventListener("drop", (event) => {
+                    event.preventDefault();
+                    box.classList.remove("is-drop-target");
+                    const from = Number(event.dataTransfer.getData("text/plain"));
+                    if (!Number.isInteger(from) || from === index) return;
+                    const title = sections[from]?.title || "The section";
+                    sections = home.moveTo(sections, from, index);
+                    moved.textContent = `${title} moved to place ${index + 1} of ${sections.length}.`;
+                    touched();
+                    redraw();
+                });
+                header.insertBefore(grip, title);
+
                 const up = el("button", "sf-btn", "↑");
                 up.type = "button";
                 up.title = "Move up";
@@ -250,7 +309,7 @@ export default function (view, params) {
 
                 const orientation = el("select", "sf-select");
                 for (const option of home.orientations(schema)) {
-                    const node = el("option", null, option);
+                    const node = el("option", null, home.ORIENTATION_LABELS[option] ?? option);
                     node.value = option;
                     orientation.appendChild(node);
                 }
@@ -259,7 +318,8 @@ export default function (view, params) {
                     section.orientation = orientation.value;
                     touched();
                 });
-                body.appendChild(row("Orientation", orientation, "How the posters in this row are shaped"));
+                body.appendChild(row("Shape of the cards", orientation, "The row scrolls sideways either way"));
+                if (kind) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
 
                 for (const field of home.fieldsFor(schema, kind)) {
                     const node = control(field, payload[field.key], (value) => {
@@ -282,13 +342,35 @@ export default function (view, params) {
                     grid.appendChild(el("p", "sf-status", "No sections yet. The app falls back to its own home screen."));
                 }
                 editor.replaceChildren(grid);
+                drawPreview();
             };
 
             for (const kind of home.KINDS) {
-                const option = el("option", null, kind);
+                const option = el("option", null, home.KIND_LABELS[kind]);
                 option.value = kind;
+                option.title = home.KIND_HELP[kind];
                 kindPicker.appendChild(option);
             }
+
+            for (const [at, example] of home.EXAMPLES.entries()) {
+                const option = el("option", null, example.name);
+                option.value = String(at);
+                examplePicker.appendChild(option);
+            }
+            const sayExample = () => {
+                exampleAbout.textContent = home.EXAMPLES[Number(examplePicker.value)]?.description ?? "";
+            };
+            sayExample();
+            examplePicker.addEventListener("change", sayExample);
+
+            loadExample.addEventListener("click", async () => {
+                const example = home.EXAMPLES[Number(examplePicker.value)];
+                if (!example) return;
+                if (sections.length && !await shared.confirmed(`Replace the ${said()} with “${example.name}”? Nothing is saved until you save.`)) return;
+                sections = home.fromExample(example);
+                touched();
+                redraw();
+            });
 
             addBtn.addEventListener("click", () => {
                 sections = home.add(sections, kindPicker.value);

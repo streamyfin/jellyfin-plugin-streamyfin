@@ -418,3 +418,28 @@
 .sf-page .sf-wording .sf-wording-drop { flex: none; }
 .sf-page .sf-card--wording .sf-adder { display: flex; gap: 0.6rem; padding: 0.4rem 0 0.8rem; }
 .sf-page .sf-card--wording .sf-adder .sf-select { flex: 1 1 auto; min-width: 0; }
+
+/* The Home tab: the sections, and beside them the app's home screen as it will be drawn. */
+.sf-page .sf-home { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 1.2rem; align-items: start; }
+@media (max-width: 70em) { .sf-page .sf-home { grid-template-columns: minmax(0, 1fr); } }
+.sf-page .sf-preview { position: sticky; top: 5.5rem; }
+.sf-page .sf-preview-title { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sf-ink-3); margin: 0 0 0.5rem 0.3rem; }
+.sf-page .sf-phone { border: 1px solid var(--sf-line); border-radius: 1.4rem; padding: 0.9rem 0.8rem 1.1rem; background: var(--sf-card); max-height: 70vh; overflow: hidden; }
+.sf-page .sf-prow + .sf-prow { margin-top: 0.75rem; }
+.sf-page .sf-prow-title { font-weight: 600; font-size: 0.86rem; color: var(--sf-ink); margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-page .sf-prow-cards { display: flex; gap: 0.35rem; overflow: hidden; }
+.sf-page .sf-pcard { flex: none; border-radius: 0.3rem; background: var(--sf-raised); }
+.sf-page .sf-pcard.is-portrait { width: 3.1rem; aspect-ratio: 10 / 15; }
+.sf-page .sf-pcard.is-wide { width: 5.4rem; aspect-ratio: 16 / 9; }
+.sf-page .sf-prow-what { font-size: 0.72rem; color: var(--sf-ink-3); margin-top: 0.25rem; }
+.sf-page .sf-preview-empty { margin: 0; font-size: 0.86rem; color: var(--sf-ink-3); }
+.sf-page .sf-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0 0 1rem; }
+.sf-page .sf-examples .sf-desc { margin: 0; flex-basis: 100%; }
+.sf-page .sf-banner p { margin: 0; }
+.sf-page .sf-banner p + p { margin-top: 0.45rem; }
+.sf-page .sf-grip { cursor: grab; color: var(--sf-ink-3); font-size: 1.1rem; letter-spacing: -0.2em; padding: 0 0.35rem 0 0; user-select: none; }
+.sf-page .sf-card.is-dragging { opacity: 0.45; }
+.sf-page .sf-card.is-drop-target { outline: 2px dashed var(--sf-ac); outline-offset: 2px; }
+.sf-page .sf-kind-help { column-span: all; margin: 0 0 0.6rem; }
+/* Read out, not shown. */
+.sf-page .sf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
