@@ -10,12 +10,24 @@ using System.Collections.ObjectModel;
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
 
+// Labelled as the app's library options sheet, LibraryOptionsSheet.tsx, labels them.
 public class LibraryOptions
 {
+    [Display(Name = "Display")]
     public DisplayType display { get; set; } = DisplayType.list;
+
+    // In the app's type and default, but read by nothing it draws, so the form keeps the
+    // value and does not offer it.
+    [System.ComponentModel.Browsable(false)]
     public CardStyle cardStyle { get; set; } = CardStyle.detailed;
+
+    [Display(Name = "Image style")]
     public ImageStyle imageStyle { get; set; } = ImageStyle.cover;
+
+    [Display(Name = "Show titles")]
     public bool showTitles { get; set; } = true;
+
+    [Display(Name = "Show stats")]
     public bool showStats { get; set; } = true;
 };
 
@@ -722,7 +734,7 @@ public class Settings
     
     // Misc.
     [NotNull]
-    [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
+    [Display(Name = "Library options", Description = "How the app's library tab shows its items")]
     [SettingScope("Advanced")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
 

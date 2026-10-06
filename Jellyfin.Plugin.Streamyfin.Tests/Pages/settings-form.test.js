@@ -763,6 +763,47 @@ describe("putting a setting back to the app's default", () => {
     });
 });
 
+const LIBRARY = field("libraryOptions", "Fields", {
+    category: "Advanced",
+    group: null,
+    title: "Library options",
+    parts: [
+        field("display", "Select", { title: "Display", options: [{ value: "row", label: "Row" }, { value: "list", label: "List" }] }),
+        field("imageStyle", "Select", { title: "Image style", options: [{ value: "poster", label: "Poster" }, { value: "cover", label: "Cover" }] }),
+        field("showTitles", "Toggle", { title: "Show titles" }),
+        field("showStats", "Toggle", { title: "Show stats" }),
+    ],
+});
+const STORED_LIBRARY = { display: "list", cardStyle: "detailed", imageStyle: "cover", showTitles: true, showStats: true };
+
+// The library's display options were "Edited as YAML for now", with a link to the Yaml tab.
+describe("a setting made of switches and choices", () => {
+    const mountLibrary = (stored) => mountForm({ libraryOptions: stored }, { fields: [LIBRARY], defaults: { libraryOptions: { value: STORED_LIBRARY, locked: false } } });
+    const part = (mount, key) => row(mount, "libraryOptions").querySelector(`[data-part="${key}"]`);
+
+    test("shows each part as the app's sheet does", () => {
+        const { mount } = mountLibrary({ value: { ...STORED_LIBRARY, display: "row", showStats: false }, locked: true });
+
+        expect(part(mount, "display").value).toBe("row");
+        expect(part(mount, "imageStyle").value).toBe("cover");
+        expect(part(mount, "showTitles").checked).toBe(true);
+        expect(part(mount, "showStats").checked).toBe(false);
+        expect(row(mount, "libraryOptions").textContent).not.toContain("Yaml");
+    });
+
+    test("writes every part back, and keeps the one it does not offer", () => {
+        const { mount, form } = mountLibrary({ value: STORED_LIBRARY, locked: false });
+
+        change(part(mount, "imageStyle"), (select) => { select.value = "poster"; });
+        change(part(mount, "showTitles"), (box) => { box.checked = false; });
+
+        expect(form.toSettings().libraryOptions).toEqual({
+            value: { display: "list", cardStyle: "detailed", imageStyle: "poster", showTitles: false, showStats: true },
+            locked: false,
+        });
+    });
+});
+
 describe("themeFromBackground", () => {
     test("a dark dashboard background is dark, a light one is light", () => {
         expect(themeFromBackground("rgb(16, 16, 16)")).toBe("dark");

@@ -66,6 +66,32 @@ public class SettingsFormTests
     }
 
     /// <summary>
+    /// The library's display options are drawn as the switches and choices of the app's
+    /// own sheet, and the card style, which the app reads nowhere, is kept but not offered.
+    /// </summary>
+    [Fact]
+    public void TheLibraryOptionsAreDrawnAsTheirParts()
+    {
+        var field = Field("libraryOptions");
+
+        Assert.Equal(SettingsControl.Fields, field.Control);
+        Assert.Equal(
+            new[] { "display:Display", "imageStyle:Image style", "showTitles:Show titles", "showStats:Show stats" },
+            field.Parts!.Select(p => $"{p.Key}:{p.Title}"));
+        Assert.Equal(new[] { "Row", "List" }, field.Parts!.Single(p => p.Key == "display").Options.Select(o => o.Label));
+    }
+
+    /// <summary>
+    /// The home layout, which has fields of its own, keeps the control written for it.
+    /// </summary>
+    [Fact]
+    public void TheHomeLayoutIsNotDrawnAsParts()
+    {
+        Assert.Equal(SettingsControl.Composite, Field("home").Control);
+        Assert.Null(Field("home").Parts);
+    }
+
+    /// <summary>
     /// A list of values the app knows arrives with them, so the page draws boxes rather
     /// than asking for the keys.
     /// </summary>

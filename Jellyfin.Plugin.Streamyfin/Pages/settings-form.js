@@ -155,6 +155,7 @@ const typeDefault = (field) => {
         case "Toggle": return false;
         case "Text": case "Secret": return "";
         case "List": return [];
+        case "Fields": return {};
         default: return null;
     }
 };
@@ -263,6 +264,33 @@ const buildControl = (field, cultures) => {
             control.rows = 3;
             control.placeholder = "One per line";
             break;
+        case "Fields": {
+            // A shape made only of switches and choices, the library's display options:
+            // one control per part, each marked so that a change reaches the row.
+            control = el("div", "sf-fields");
+            control.setAttribute("role", "group");
+            for (const part of field.parts ?? []) {
+                const line = el("label", "sf-part");
+                let input;
+                if (part.control === "Toggle") {
+                    input = el("input", "sf-check");
+                    input.type = "checkbox";
+                    line.append(input, el("span", null, part.title));
+                } else {
+                    input = el("select", "sf-select");
+                    for (const option of part.options ?? []) {
+                        const node = el("option", null, option.label);
+                        node.value = option.value ?? "";
+                        input.appendChild(node);
+                    }
+                    line.append(el("span", null, part.title), input);
+                }
+                input.dataset.part = part.key;
+                input.setAttribute("data-control", field.control);
+                control.appendChild(line);
+            }
+            break;
+        }
         case "Language": {
             control = el("select", "sf-select");
             const blank = el("option", null, "Choose a language");
@@ -321,6 +349,14 @@ const drawChecks = (control, field, chosen) => {
     }));
 };
 
+const writeParts = (control, value) => {
+    for (const input of control.querySelectorAll("[data-part]")) {
+        const part = value?.[input.dataset.part];
+        if (input.type === "checkbox") input.checked = part === true;
+        else input.value = part === undefined || part === null ? input.options[0]?.value ?? "" : String(part);
+    }
+};
+
 const writeControl = (row) => {
     const { field, control, value } = row;
     if (!control) return;
@@ -343,6 +379,9 @@ const writeControl = (row) => {
                 }
                 control.value = "";
                 control.placeholder = "App default";
+                break;
+            case "Fields":
+                writeParts(control, {});
                 break;
             default:
                 control.value = "";
@@ -380,6 +419,9 @@ const writeControl = (row) => {
             else control.value = chosen.join("\n");
             break;
         }
+        case "Fields":
+            writeParts(control, value ?? {});
+            break;
         case "Language":
             // The config spells the two fields camelCase, the way YamlDotNet reads them; a
             // level written as JSON keeps the CLR names. Both open on the stored culture.
@@ -413,6 +455,15 @@ const readControl = (row, cultures) => {
             return field.options?.length
                 ? [...control.querySelectorAll("input:checked")].map((box) => box.value)
                 : control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        case "Fields": {
+            // From what is stored, so a member the form does not offer, the library's
+            // card style, keeps its value.
+            const value = { ...(row.value ?? {}) };
+            for (const input of control.querySelectorAll("[data-part]")) {
+                value[input.dataset.part] = input.type === "checkbox" ? input.checked : input.value;
+            }
+            return value;
+        }
         case "Language": {
             const culture = (cultures ?? []).find((c) => c.ThreeLetterISOLanguageName === control.value);
             return culture
@@ -613,6 +664,12 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             case "Toggle": return value ? "on" : "off";
             case "Select": return (field.options ?? []).find((o) => (o.value ?? null) === value)?.label ?? String(value ?? "nothing");
             case "List": return Array.isArray(value) && value.length ? value.join(", ") : "nothing";
+            case "Fields": return (field.parts ?? []).map((part) => {
+                const one = value?.[part.key];
+                return part.control === "Toggle"
+                    ? `${part.title} ${one ? "on" : "off"}`
+                    : `${part.title} ${(part.options ?? []).find((o) => o.value === one)?.label ?? one}`;
+            }).join(", ");
             case "Language": return value?.displayName ?? value?.DisplayName ?? "nothing";
             default: return value === null || value === "" ? "nothing" : String(value);
         }

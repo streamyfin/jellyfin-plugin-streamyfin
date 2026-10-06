@@ -46,7 +46,10 @@ public enum SettingsControl
     Language,
 
     /// <summary>A shape with fields of its own, edited by a control written for it.</summary>
-    Composite
+    Composite,
+
+    /// <summary>A shape made only of switches and choices, drawn as those.</summary>
+    Fields
 }
 
 /// <summary>
@@ -76,6 +79,7 @@ public sealed record SettingsChoice(
 /// <param name="Integer">Whether a <see cref="SettingsControl.Number"/> takes whole numbers only.</param>
 /// <param name="Probe">The service the server can try this address against, when there is one.</param>
 /// <param name="Address">Whether the value has to be a whole http or https address.</param>
+/// <param name="Parts">The switches and choices a <see cref="SettingsControl.Fields"/> shape is drawn as, or <c>null</c>.</param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -91,7 +95,8 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("dependsOn")] string? DependsOn,
     [property: JsonPropertyName("integer")] bool Integer,
     [property: JsonPropertyName("probe")] string? Probe,
-    [property: JsonPropertyName("address")] bool Address);
+    [property: JsonPropertyName("address")] bool Address,
+    [property: JsonPropertyName("parts")] IReadOnlyList<SettingsFormField>? Parts = null);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.
@@ -138,7 +143,8 @@ public static class SettingsForm
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
             Integer: control == SettingsControl.Number && IsWhole(type),
             Probe: descriptor.Probe?.Kind.ToString(),
-            Address: descriptor.IsWebAddress);
+            Address: descriptor.IsWebAddress,
+            Parts: control == SettingsControl.Fields ? PartsOf(Nullable.GetUnderlyingType(type) ?? type) : null);
     }
 
     private static SettingsControl ControlFor(SettingDescriptor descriptor, Type type, Type? enumType)
@@ -179,11 +185,47 @@ public static class SettingsForm
             return SettingsControl.List;
         }
 
-        // A shape with fields of its own: the home layout, a device profile, a library's
-        // display options. Each gets a control written for it rather than a generic one
-        // that would describe none of them well.
+        // A shape made only of switches and choices, a library's display options, is
+        // drawn as those. One with fields of its own, the home layout, gets a control
+        // written for it rather than a generic one that would describe it badly.
+        if (underlying.IsClass && Offered(underlying).Any() && Offered(underlying).All(IsSimplePart))
+        {
+            return SettingsControl.Fields;
+        }
+
         return underlying.IsClass ? SettingsControl.Composite : SettingsControl.Unknown;
     }
+
+    // The members of a shape the form offers. One marked [Browsable(false)] keeps its
+    // value, read and written back untouched, but is not offered.
+    private static IEnumerable<PropertyInfo> Offered(Type type) =>
+        type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p.GetCustomAttribute<System.ComponentModel.BrowsableAttribute>()?.Browsable != false);
+
+    private static bool IsSimplePart(PropertyInfo property) =>
+        property.PropertyType == typeof(bool) || property.PropertyType.IsEnum;
+
+    // One switch or one dropdown per member, labelled by its Display name.
+    private static List<SettingsFormField> PartsOf(Type type) =>
+        Offered(type)
+            .Select(property => new SettingsFormField(
+                Key: property.Name,
+                Category: null,
+                Group: null,
+                Title: property.GetCustomAttribute<DisplayAttribute>()?.Name ?? Humanize(property.Name),
+                Description: null,
+                Control: property.PropertyType == typeof(bool) ? SettingsControl.Toggle : SettingsControl.Select,
+                Lockable: false,
+                Minimum: null,
+                Maximum: null,
+                Step: null,
+                Options: property.PropertyType.IsEnum ? Choices(property.PropertyType, false) : _noOptions,
+                DependsOn: null,
+                Integer: false,
+                Probe: null,
+                Address: false))
+            .ToList();
 
     // Whole numbers only. The form steps by one and refuses a fraction, which the
     // server would otherwise refuse with a message that points at no field.
