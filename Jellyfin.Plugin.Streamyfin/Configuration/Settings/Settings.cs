@@ -471,7 +471,7 @@ public class Settings
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
-    [Display(Name = "Hidden libraries", Description = "The libraries to hide from users. The Yaml tab takes their ids")]
+    [Display(Name = "Hidden libraries", Description = "The libraries to hide from users")]
     [SettingScope("Home and appearance", Group = "App")]
     [Libraries]
     public Lockable<string[]>? hiddenLibraries { get; set; } // = [];
