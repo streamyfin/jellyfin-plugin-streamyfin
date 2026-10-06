@@ -230,9 +230,9 @@ each was checked rather than derived:
 
 - `showHomeBackdrop`, `showSeriesPosterOnEpisode` and `tvThemeMusicEnabled`, where
   nothing outside a `.tv.*` file or `useTVThemeMusic.ts` reads them.
-- `videoPlayer` and the two native player toggles, which #138 already describes,
-  including that `Native` is a phone and tablet value and that a TV chooses
-  through the two toggles instead.
+- The two native player toggles, which #138 already describes. `videoPlayer` was
+  among them until it left the plugin: it picked for every platform at once, see
+  settings-parity.md.
 
 If a future setting is genuinely platform specific, the answer is a sentence in
 its `[Display]` description, not a field that claims to know for all 95.

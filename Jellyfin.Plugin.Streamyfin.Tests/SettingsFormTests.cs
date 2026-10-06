@@ -48,12 +48,12 @@ public class SettingsFormTests
     /// each page that renders a setting.
     /// </summary>
     [Theory]
-    [InlineData("showHomeTitles", SettingsControl.Toggle)]
+    [InlineData("showHomeBackdrop", SettingsControl.Toggle)]
     [InlineData("forwardSkipTime", SettingsControl.Number)]
     [InlineData("jellyseerrServerUrl", SettingsControl.Text)]
     [InlineData("jellyseerrApiKey", SettingsControl.Secret)]
     [InlineData("openSubtitlesApiKey", SettingsControl.Secret)]
-    [InlineData("videoPlayer", SettingsControl.Select)]
+    [InlineData("audioTranscodeMode", SettingsControl.Select)]
     [InlineData("defaultBitrate", SettingsControl.Select)]
     [InlineData("hiddenLibraries", SettingsControl.List)]
     [InlineData("defaultAudioLanguage", SettingsControl.Language)]
@@ -69,7 +69,7 @@ public class SettingsFormTests
     [Fact]
     public void ASelectCarriesItsChoices()
     {
-        var options = Field("videoPlayer").Options;
+        var options = Field("audioTranscodeMode").Options;
 
         Assert.NotEmpty(options);
         Assert.Empty(options.Where(o => string.IsNullOrWhiteSpace(o.Value)));
@@ -87,8 +87,18 @@ public class SettingsFormTests
     /// wrong.
     /// </remarks>
     [Theory]
-    [InlineData("defaultBitrate", "_250KB", "250 KB")]
+    [InlineData("defaultBitrate", "_250KB", "250 Kb/s")]
     [InlineData("subtitleMode", "OnlyForced", "Only forced")]
+    // The labels the app's own pickers show, so an administrator reads the same words in
+    // both places: "Allow 51" and "Allow all" were derived from the member names.
+    [InlineData("audioTranscodeMode", "5.1", "Allow 5.1")]
+    [InlineData("audioTranscodeMode", "passthrough", "Passthrough")]
+    [InlineData("skipIntro", "ask", "Ask to skip")]
+    [InlineData("skipIntro", "auto", "Skip")]
+    [InlineData("mpvCacheEnabled", "yes", "Enabled")]
+    [InlineData("mpvVoDriver", "gpu-next", "gpu-next (Recommended)")]
+    [InlineData("inactivityTimeout", "OneMinute", "1 minute")]
+    [InlineData("defaultVideoOrientation", "Default", "Follow device orientation")]
     // #110. The app's own picker calls this "Landscape auto", and deriving from the
     // member name gives "Landscape", so the two screens named the same choice
     // differently and an administrator had no way to tell they matched.
@@ -98,6 +108,22 @@ public class SettingsFormTests
         var option = Assert.Single(Field(key).Options.Where(o => o.Value == value));
 
         Assert.Equal(expected, option.Label);
+    }
+
+    /// <summary>
+    /// A dropdown lists its choices in the order the app's own picker does.
+    /// </summary>
+    /// <remarks>
+    /// The order was the enum's declaration order, so the subtitle modes came as Default,
+    /// Always, Only forced, None, Smart, and the qualities slowest first.
+    /// </remarks>
+    [Theory]
+    [InlineData("subtitleMode", "Default,Smart,OnlyForced,Always,None")]
+    [InlineData("skipIntro", "auto,ask,none")]
+    [InlineData("defaultBitrate", ",_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
+    public void AChoiceListFollowsTheAppsOrder(string key, string expected)
+    {
+        Assert.Equal(expected, string.Join(",", Field(key).Options.Select(o => o.Value ?? "")));
     }
 
     /// <summary>
@@ -135,12 +161,30 @@ public class SettingsFormTests
     /// dropped all three, since nothing in C# recorded them, and a skip time has been
     /// unbounded ever since. They live on the property now, where both the form and a
     /// future validator can read them.
+    ///
+    /// <para>
+    /// Each follows the app's own control: the stepper's min, max and step where it has
+    /// one, the ends of its option list where it offers a list. The subtitle size is a
+    /// percentage here and a scale of 0.1 to 3 in the app, which divides anything from 10
+    /// up by 100 and reads anything below as a scale.
+    /// </para>
     /// </remarks>
     [Theory]
-    [InlineData("forwardSkipTime", 0, 60, 5)]
-    [InlineData("rewindSkipTime", 0, 60, 5)]
-    [InlineData("subtitleSize", 0, 120, 5)]
-    public void ANumberCarriesItsBounds(string key, double min, double max, double step)
+    [InlineData("forwardSkipTime", 0, 60, 5.0)]
+    [InlineData("rewindSkipTime", 0, 60, 5.0)]
+    [InlineData("subtitleSize", 10, 300, 10.0)]
+    [InlineData("subtitleMarginY", -100, 100, 5.0)]
+    [InlineData("subtitleBackgroundOpacity", 0, 100, 5.0)]
+    [InlineData("subtitleBackgroundPadding", 0, 30, null)]
+    [InlineData("maxAutoPlayEpisodeCount", -1, 7, null)]
+    [InlineData("defaultPlaybackSpeed", 0.25, 3, 0.25)]
+    [InlineData("holdToSpeedRate", 0.25, 3, 0.25)]
+    [InlineData("audioLookaheadCount", 1, 5, null)]
+    [InlineData("audioMaxCacheSizeMB", 100, 2048, null)]
+    [InlineData("mpvCacheSeconds", 5, 120, 5.0)]
+    [InlineData("mpvDemuxerMaxBytes", 50, 500, 25.0)]
+    [InlineData("mpvDemuxerMaxBackBytes", 25, 200, 25.0)]
+    public void ANumberCarriesItsBounds(string key, double min, double max, double? step)
     {
         var field = Field(key);
 
@@ -155,7 +199,7 @@ public class SettingsFormTests
     [Fact]
     public void AnUnboundedNumberClaimsNoBounds()
     {
-        var field = Field("maxAutoPlayEpisodeCount");
+        var field = Field("showHomeBackdrop");
 
         Assert.Null(field.Minimum);
         Assert.Null(field.Maximum);
@@ -283,7 +327,7 @@ public class SettingsFormTests
     [Fact]
     public void TheControlTravelsByName()
     {
-        var json = System.Text.Json.JsonSerializer.Serialize(Field("showHomeTitles"));
+        var json = System.Text.Json.JsonSerializer.Serialize(Field("showHomeBackdrop"));
 
         Assert.Contains("\"control\":\"Toggle\"", json);
         Assert.Contains("\"dependsOn\":null", json);

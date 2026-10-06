@@ -7,6 +7,8 @@
             <h1>Targeting</h1>
             <span class="sf-meta" id="sf-meta"></span>
             <button type="button" class="sf-toggle" id="sf-terse" aria-pressed="true">Descriptions <span class="sf-pip">ON</span></button>
+            <button type="button" class="sf-toggle" id="sf-keys" aria-pressed="false">Keys <span class="sf-pip">OFF</span></button>
+            <button type="button" class="sf-toggle" id="sf-legend-toggle" aria-pressed="true" aria-controls="sf-legend-banner">Legend <span class="sf-pip">ON</span></button>
             <label class="sf-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                 <input class="sf-find" id="sf-find" type="search" placeholder="Search this level's overrides" aria-label="Search this level's overrides" autocomplete="off">
@@ -23,6 +25,12 @@
             <span class="sf-lv sf-lv--user">One user
                 <select id="sf-user" aria-label="Settings for one user"></select>
             </span>
+        </div>
+
+        <div class="sf-banner" id="sf-legend-banner" data-sf-legend-banner="Targeting">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div class="sf-legend" id="sf-legend"></div>
+            <button type="button" class="sf-banner-close" data-sf-legend-close aria-label="Hide the legend">&times;</button>
         </div>
 
         <div class="sf-status" id="sf-status">Loading the groups…</div>
@@ -47,7 +55,7 @@
                 </div>
             </section>
 
-            <section class="sf-card" id="sf-events-card">
+            <section class="sf-card" id="sf-events-card" data-sf-follows-display>
                 <header><h2>What these people are told</h2><span class="sf-count" id="sf-events-count">nothing changed</span></header>
                 <div class="sf-body">
                     <p class="sf-desc">

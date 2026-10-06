@@ -160,10 +160,12 @@
 .sf-page .sf-head { display: flex; align-items: center; gap: 0.8rem; }
 .sf-page .sf-name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--sf-ink); font-size: 1.02rem; }
 .sf-page .sf-key { display: block; font-style: normal; font-size: 0.76rem; color: var(--sf-key); font-weight: 400; font-family: var(--sf-mono); margin-top: 0.1rem; }
-.sf-page .sf-form.is-keyless .sf-key { display: none; }
+.sf-page .is-keyless .sf-key:not(.sf-keep) { display: none; }
 .sf-page .sf-desc { margin: 0.45rem 0 0; font-size: 0.92rem; color: var(--sf-ink-3); }
 .sf-page .sf-desc strong { color: var(--sf-pin); font-weight: 600; }
-.sf-page .sf-form.is-terse .sf-desc { display: none; }
+/* What is wrong with a value, an empty list's one line, and what a row needs to be read
+   (sf-keep), stay with the help off. */
+.sf-page .is-terse .sf-desc:not(.sf-problem):not(.sf-empty):not(.sf-keep) { display: none; }
 .sf-page .sf-why { margin: 0.4rem 0 0; font-size: 0.88rem; font-style: italic; color: var(--sf-ink-3); }
 .sf-page .is-inert .sf-why { color: var(--sf-pin); }
 .sf-page .sf-problem { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--sf-danger); }
@@ -196,7 +198,13 @@
     border-radius: 0.3em; padding: 0.6em 0.85em; font-size: 0.98rem;
 }
 .sf-page .sf-number:focus, .sf-page .sf-text:focus, .sf-page .sf-select:focus, .sf-page .sf-list:focus { border-color: var(--sf-ac); outline: none; }
-.sf-page .sf-number { width: 8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.sf-page .sf-number { width: 9rem; text-align: right; font-variant-numeric: tabular-nums; }
+/* The browser's up and down arrows sit inside the field, against the right-aligned
+   digits. A gap keeps the two apart, and the colour scheme draws the arrows in the
+   page's theme instead of as a white box on a dark page. */
+.sf-page .sf-number::-webkit-inner-spin-button { margin-left: 0.6em; }
+.sf-page[data-sf-theme="dark"] .sf-number { color-scheme: dark; }
+.sf-page[data-sf-theme="light"] .sf-number { color-scheme: light; }
 .sf-page .sf-text { flex: 1 1 12rem; min-width: 0; }
 .sf-page .sf-select { min-width: 9rem; max-width: 100%; }
 .sf-page .sf-list { flex: 1 1 100%; min-height: 4rem; resize: vertical; font-family: var(--sf-mono); font-size: 0.86rem; }
@@ -416,3 +424,19 @@
 .sf-page .sf-wording .sf-wording-drop { flex: none; }
 .sf-page .sf-card--wording .sf-adder { display: flex; gap: 0.6rem; padding: 0.4rem 0 0.8rem; }
 .sf-page .sf-card--wording .sf-adder .sf-select { flex: 1 1 auto; min-width: 0; }
+
+/* What the boxes and the three states mean, under the list. At the foot of a page it
+   keeps clear of the save dock, which floats over the bottom. */
+.sf-page .sf-legend { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0.4rem 2.2rem; flex: 1; min-width: 0; }
+.sf-page .sf-legend-h { margin: 0 0 0.45rem; font-weight: 600; font-size: 0.9rem; color: var(--sf-ink); }
+.sf-page .sf-legend-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.22rem 0; font-size: 0.92rem; color: var(--sf-ink-2); }
+.sf-page .sf-legend-item b { color: var(--sf-ink); font-weight: 600; }
+.sf-page .sf-legend-note { grid-column: 1 / -1; margin: 0.5rem 0 0; font-size: 0.86rem; color: var(--sf-ink-3); }
+.sf-page .sf-legend.is-single { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 720px) { .sf-page .sf-legend { grid-template-columns: minmax(0, 1fr); } }
+.sf-page .sf-legend .sf-check { flex: none; width: 1.05rem; height: 1.05rem; margin: 0; cursor: default; }
+.sf-page .sf-legend .sf-check:checked::after { left: 0.27rem; top: 0.05rem; width: 0.3rem; height: 0.58rem; border-width: 0 2px 2px 0; }
+.sf-page .sf-legend .sf-check:indeterminate::after { left: 0.2rem; right: 0.2rem; height: 2px; }
+.sf-page .sf-legend .sf-edge { flex: none; display: inline-block; width: 4px; height: 1.25rem; border-radius: 2px; border: 1px solid var(--sf-line); }
+.sf-page .sf-legend .sf-edge.is-suggested { background: var(--sf-ac); border-color: var(--sf-ac); }
+.sf-page .sf-legend .sf-edge.is-locked { background: var(--sf-pin); border-color: var(--sf-pin); }

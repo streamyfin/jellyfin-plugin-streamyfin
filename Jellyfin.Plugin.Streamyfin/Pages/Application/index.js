@@ -9,9 +9,6 @@
 // through untouched, so a save never loses what the Yaml tab wrote.
 
 const PLUGIN_ID = "1e9e5d38-6e67-4615-8719-e98a5c34f004";
-const TERSE_KEY = "streamyfin.admin.descriptions";
-const BANNER_KEY = "streamyfin.admin.banner";
-const KEYS_KEY = "streamyfin.admin.keys";
 
 // One glyph per category the app uses, as the elements of a 16 by 16 line icon. A
 // category without one shows its name alone.
@@ -70,29 +67,6 @@ const readCultures = async () => {
         return [];
     }
 };
-
-
-const remember = (key, value) => {
-    try {
-        window.localStorage.setItem(key, value);
-    } catch {
-        // A dashboard that blocks storage just forgets the choice.
-    }
-};
-
-const recalled = (key) => {
-    try {
-        return window.localStorage.getItem(key);
-    } catch {
-        return null;
-    }
-};
-
-const readTerse = () => recalled(TERSE_KEY) === "off";
-const writeTerse = (terse) => remember(TERSE_KEY, terse ? "off" : "on");
-// The YAML keys are for the hands that live in the Yaml tab; everyone else sees names.
-const readKeys = () => recalled(KEYS_KEY) === "on";
-const writeKeys = (on) => remember(KEYS_KEY, on ? "on" : "off");
 
 export default function (view) {
     let form = null;
@@ -267,37 +241,6 @@ export default function (view) {
         });
     };
 
-    const wireBanner = () => {
-        const banner = el("sf-banner");
-        banner.hidden = recalled(BANNER_KEY) === "off";
-        listen("sf-banner-close", "click", () => {
-            banner.hidden = true;
-            remember(BANNER_KEY, "off");
-        });
-    };
-
-    // The two switches in the top row: descriptions on or off, keys on or off.
-    const wireSwitch = (id, read, write, apply) => {
-        const toggle = el(id);
-        const show = (on) => {
-            toggle.setAttribute("aria-pressed", String(on));
-            toggle.querySelector(".sf-pip").textContent = on ? "ON" : "OFF";
-            apply(on);
-        };
-
-        show(read());
-        listen(id, "click", () => {
-            const on = toggle.getAttribute("aria-pressed") !== "true";
-            write(on);
-            show(on);
-        });
-    };
-
-    const wireTerse = () => {
-        wireSwitch("sf-terse", () => !readTerse(), (on) => writeTerse(!on), (on) => form.setTerse(!on));
-        wireSwitch("sf-keys", readKeys, writeKeys, (on) => form.setKeys(on));
-    };
-
     const wireDock = (shared) => {
         listen("sf-discard", "click", () => form.reset());
         listen("sf-save", "click", async () => {
@@ -344,16 +287,19 @@ export default function (view) {
             // shows this value, since it is what a user gets when the server says nothing.
             defaults: defaults.settings ?? {},
             cultures,
-            terse: readTerse(),
-            keys: readKeys(),
+            terse: !shared.showsDescriptions(),
+            keys: shared.showsKeys(),
             probe: shared.probeIntegration,
         });
 
         el("sf-meta").textContent = [version, `${fields.length} settings`].filter(Boolean).join(" · ");
 
         buildNavigation();
-        wireTerse();
-        wireBanner();
+        shared.drawLegend(el("sf-legend"));
+        shared.wireDisplaySwitches(view, showing.signal, ({ descriptions, keys }) => {
+            form?.setTerse(!descriptions);
+            form?.setKeys(keys);
+        });
         wireDock(shared);
         shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
             goTo?.(found.category);
