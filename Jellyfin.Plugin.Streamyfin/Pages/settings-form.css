@@ -208,14 +208,18 @@
     border-radius: 0.3em; padding: 0.6em 0.9em; font-size: 0.9rem; font-weight: 600;
 }
 
-/* Back to the app's own value: quiet text beside the three states. */
+/* Back to the app's own value, with the value it puts back rather than beside the three
+   states, where it read as a fourth. A few words at most, and cut short before a narrow
+   card is. */
 .sf-page .sf-reset {
-    flex: none; cursor: pointer; background: none; border: 0; border-radius: 0.3em;
-    color: var(--sf-ac); font-size: 0.8rem; font-weight: 600; padding: 0.25em 0.5em;
+    display: inline-flex; align-items: center; gap: 0.4em; min-width: 0; max-width: 100%;
+    cursor: pointer; background: none; border: 1px dashed var(--sf-edge); border-radius: 999px;
+    color: var(--sf-ink-2); font-size: 0.82rem; font-weight: 600; padding: 0.3em 0.75em;
 }
-.sf-page .sf-reset:hover, .sf-page .sf-reset:focus-visible { background: var(--sf-raised); outline: none; }
-.sf-page .sf-reset { margin-left: auto; }
-.sf-page .sf-reset:not([hidden]) + .sf-state { margin-left: 0.4rem; }
+.sf-page .sf-reset > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-page .sf-reset > svg { flex: none; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sf-page .sf-reset:hover, .sf-page .sf-reset:focus-visible { background: var(--sf-raised); color: var(--sf-ink); outline: none; }
+.sf-page .sf-foot--reset { margin-top: 0.55rem; }
 
 /* The three states, as one segmented control per row. Only the pressed segment
    carries a fill; the other two are quiet text until the pointer is over the row. */

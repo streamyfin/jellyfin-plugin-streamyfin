@@ -655,6 +655,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         if (!row.reset) return;
         const fallback = resetValue(row.field);
         row.reset.hidden = row.state === "free" || JSON.stringify(row.value) === JSON.stringify(fallback);
+        if (row.resetLine) row.resetLine.hidden = row.reset.hidden;
     };
 
     const refreshRow = (row) => {
@@ -736,6 +737,25 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
     };
 
+    // A few words for a narrow card: the value when it is a word or a number, otherwise
+    // only Reset, with the value in the title.
+    const resetLabel = (field, value) => {
+        const said = valueText(field, value);
+        return field.control === "List" || field.control === "Fields" || said.length > 18 ? "Reset" : `Reset to ${said}`;
+    };
+
+    const resetArrow = () => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("aria-hidden", "true");
+        for (const d of ["M3 12a9 9 0 1 0 3-6.7", "M3 4v5h5"]) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", d);
+            svg.appendChild(path);
+        }
+        return svg;
+    };
+
     const overridden = () => [...rows.values()].filter((row) => row.state !== "free").map((row) => row.field.key);
 
     const setState = (row, state) => {
@@ -801,8 +821,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         // Back to the app's own value, keeping the state. Only where there is one, and not
         // on a level, whose defaults are what the level above gives.
         if (!overridesOnly && field.control !== "Composite" && resetValue(field) !== undefined) {
-            row.reset = el("button", "sf-reset", "Reset");
+            row.reset = el("button", "sf-reset");
             row.reset.type = "button";
+            row.reset.append(resetArrow(), el("span", null, resetLabel(field, resetValue(field) ?? null)));
             row.reset.title = `Put back the app's default, ${valueText(field, resetValue(field) ?? null)}`;
             row.reset.setAttribute("aria-label", `Put back the app's default for ${field.title ?? field.key}`);
             row.reset.addEventListener("click", () => {
@@ -810,7 +831,6 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 refreshRow(row);
                 notify();
             });
-            head.appendChild(row.reset);
         }
         head.appendChild(states);
         if (overridesOnly) {
@@ -918,7 +938,13 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 foot.appendChild(test);
                 foot.appendChild(said);
             }
+            if (row.reset) foot.appendChild(row.reset);
             row.el.appendChild(foot);
+        } else if (row.reset) {
+            // A switch has its value in the title line, where Reset read as a fourth state.
+            row.resetLine = el("div", "sf-foot sf-foot--reset");
+            row.resetLine.appendChild(row.reset);
+            row.el.appendChild(row.resetLine);
         }
 
         if (overridesOnly && field.control !== "Composite") {

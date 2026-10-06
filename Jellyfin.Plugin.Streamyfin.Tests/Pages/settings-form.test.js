@@ -766,6 +766,44 @@ describe("putting a setting back to the app's default", () => {
         expect(form.dirtyCount()).toBe(1);
     });
 
+    // Beside the three states it read as a fourth one. It goes with the value it puts back,
+    // and says which in a few words, so a narrow card still holds it.
+    test("sits with the value it puts back, and says which in a few words", () => {
+        const { mount } = mountForm({ forwardSkipTime: { value: 15, locked: true } });
+
+        expect(reset(mount, "forwardSkipTime").closest(".sf-head")).toBeNull();
+        expect(reset(mount, "forwardSkipTime").closest(".sf-foot")).not.toBeNull();
+        expect(reset(mount, "forwardSkipTime").textContent).toBe("Reset to 30");
+    });
+
+    test("on a switch, has a line of its own under the help, shown only with it", () => {
+        const fields = [field("enableHorizontalSwipeSkip", "Toggle", { title: "Horizontal swipe to skip", description: "Swipe to skip", appDefault: true })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, { fields, values: { enableHorizontalSwipeSkip: { value: true, locked: true } }, defaults: {}, cultures: CULTURES });
+        const line = reset(mount, "enableHorizontalSwipeSkip").closest(".sf-foot");
+
+        expect(line).not.toBeNull();
+        expect(line.hidden).toBe(true);
+
+        const box = control(mount, "enableHorizontalSwipeSkip");
+        box.checked = false;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(line.hidden).toBe(false);
+        expect(reset(mount, "enableHorizontalSwipeSkip").textContent).toBe("Reset to on");
+    });
+
+    test("says only Reset when what it puts back would not fit", () => {
+        const fields = [field("hiddenHomeHeroSections", "List", { title: "Hidden hero sections", options: [{ value: "nextUp", label: "Next up" }], appDefault: ["nextUp"] })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, { fields, values: { hiddenHomeHeroSections: { value: [], locked: false } }, defaults: {}, cultures: CULTURES });
+
+        expect(reset(mount, "hiddenHomeHeroSections").textContent).toBe("Reset");
+        expect(reset(mount, "hiddenHomeHeroSections").title).toBe("Put back the app's default, Next up");
+    });
+
     // A typed value was read when the field was left, so Reset showed on the next click,
     // often on Suggested or Locked, and looked like it answered the state pressed.
     test("follows a value as it is typed, before the field is left", () => {
