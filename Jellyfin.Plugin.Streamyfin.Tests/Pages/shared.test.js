@@ -104,7 +104,7 @@ describe("the display switches", () => {
 
         wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
 
-        expect(applied).toEqual([{ descriptions: false, keys: false }]);
+        expect(applied).toEqual([{ descriptions: false, keys: false, legend: true }]);
         expect(root.querySelector("#sf-terse").getAttribute("aria-pressed")).toBe("false");
         expect(root.querySelector("#sf-terse .sf-pip").textContent).toBe("OFF");
     });
@@ -116,7 +116,7 @@ describe("the display switches", () => {
 
         root.querySelector("#sf-keys").click();
 
-        expect(applied.at(-1)).toEqual({ descriptions: true, keys: true });
+        expect(applied.at(-1)).toEqual({ descriptions: true, keys: true, legend: true });
         expect(window.localStorage.getItem("streamyfin.admin.keys")).toBe("on");
         expect(root.querySelector("#sf-keys .sf-pip").textContent).toBe("ON");
     });
@@ -129,7 +129,7 @@ describe("the display switches", () => {
         const applied = [];
         paintDisplaySwitches(view("sf-terse", "sf-keys"), (choice) => applied.push(choice));
 
-        expect(applied).toEqual([{ descriptions: false, keys: false }]);
+        expect(applied).toEqual([{ descriptions: false, keys: false, legend: true }]);
     });
 
     test("a click applies what was clicked even when storage refuses it", () => {
@@ -145,7 +145,7 @@ describe("the display switches", () => {
         }
 
         expect(root.querySelector("#sf-terse").getAttribute("aria-pressed")).toBe("false");
-        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false, legend: true });
     });
 
     // Notifications wires its switches once and repaints them on each showing. A click
@@ -159,7 +159,7 @@ describe("the display switches", () => {
         paintDisplaySwitches(root, () => {});
         root.querySelector("#sf-keys").click();
 
-        expect(applied.at(-1)).toEqual({ descriptions: false, keys: true });
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: true, legend: true });
     });
 
     // The Targeting tab's events card is outside the form, and kept its help text with
@@ -181,6 +181,46 @@ describe("the display switches", () => {
         expect(card.classList.contains("is-keyless")).toBe(false);
     });
 
+    // One choice for every tab: closed on one, it stays closed on the others.
+    test("the Legend switch shows and hides the legend's banner", () => {
+        const root = view("sf-terse", "sf-keys", "sf-legend-toggle");
+        const banner = document.createElement("div");
+        banner.setAttribute("data-sf-legend-banner", "");
+        root.appendChild(banner);
+        wireDisplaySwitches(root, undefined, () => {});
+
+        expect(banner.hidden).toBe(false);
+        root.querySelector("#sf-legend-toggle").click();
+        expect(banner.hidden).toBe(true);
+        expect(window.localStorage.getItem("streamyfin.admin.legend")).toBe("off");
+
+        const next = view("sf-legend-toggle");
+        const other = document.createElement("div");
+        other.setAttribute("data-sf-legend-banner", "");
+        next.appendChild(other);
+        paintDisplaySwitches(next, () => {});
+        expect(other.hidden).toBe(true);
+        expect(next.querySelector("#sf-legend-toggle .sf-pip").textContent).toBe("OFF");
+    });
+
+    test("the banner's cross is the Legend switch turned off", () => {
+        const root = view("sf-terse", "sf-legend-toggle");
+        const banner = document.createElement("div");
+        banner.setAttribute("data-sf-legend-banner", "");
+        const cross = document.createElement("button");
+        cross.setAttribute("data-sf-legend-close", "");
+        banner.appendChild(cross);
+        root.appendChild(banner);
+        const applied = [];
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+
+        cross.click();
+
+        expect(banner.hidden).toBe(true);
+        expect(root.querySelector("#sf-legend-toggle").getAttribute("aria-pressed")).toBe("false");
+        expect(applied.at(-1)).toMatchObject({ descriptions: true, legend: false });
+    });
+
     test("a view without one of the switches is still wired", () => {
         const root = view("sf-terse");
         const applied = [];
@@ -188,7 +228,7 @@ describe("the display switches", () => {
         wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
         root.querySelector("#sf-terse").click();
 
-        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false, legend: true });
     });
 });
 
@@ -231,12 +271,23 @@ describe("the legend", () => {
     test("on a level, says what a level does", () => {
         const mount = document.createElement("div");
 
-        drawLegend(mount, { level: true });
+        drawLegend(mount, { kind: "level" });
 
         expect(items(mount)).toContain("Not listed the level above decides");
         expect(items(mount).some((text) => text.startsWith("Free"))).toBe(false);
         expect(mount.querySelectorAll("input.sf-check")).toHaveLength(2);
         expect(mount.querySelector(".sf-legend-note")).toBeNull();
+    });
+
+    // Notifications and Home have boxes and nothing free or locked.
+    test("where nothing is free or locked, says what a box says and nothing else", () => {
+        const mount = document.createElement("div");
+
+        drawLegend(mount, { kind: "boxes" });
+
+        expect(headings(mount)).toEqual(["What a box says"]);
+        expect(items(mount)).toEqual(["On", "Off"]);
+        expect(mount.classList.contains("is-single")).toBe(true);
     });
 
     test("is drawn once however often the page is shown", () => {

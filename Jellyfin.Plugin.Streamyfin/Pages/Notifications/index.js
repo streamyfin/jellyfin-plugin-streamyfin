@@ -298,6 +298,7 @@ export default function (view, params) {
             renderer.applyTheme(find("sf-app"));
 
             find("notification-endpoint").innerText = shared.NOTIFICATION_URL;
+            shared.drawLegend(find("sf-legend"), { kind: "boxes" });
             if (switchesWired) shared.paintDisplaySwitches(view, applyDisplay);
             else shared.wireDisplaySwitches(view, undefined, applyDisplay);
             switchesWired = true;

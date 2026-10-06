@@ -60,6 +60,7 @@ export const wireFindProblem = (button, form, signal, goTo) => {
 // tab is off on the others, since it was turned off for the settings and not for a tab.
 const DESCRIPTIONS_KEY = "streamyfin.admin.descriptions";
 const KEYS_KEY = "streamyfin.admin.keys";
+const LEGEND_KEY = "streamyfin.admin.legend";
 
 const recall = (key) => {
     try {
@@ -80,10 +81,13 @@ const keep = (key, value) => {
 export const showsDescriptions = () => recall(DESCRIPTIONS_KEY) !== "off";
 // The YAML keys are for the hands that live in the Yaml tab; everyone else sees names.
 export const showsKeys = () => recall(KEYS_KEY) === "on";
+// The legend is shown until it is closed, on one tab for all of them.
+export const showsLegend = () => recall(LEGEND_KEY) !== "off";
 
 const DISPLAY_SWITCHES = [
     ["sf-terse", showsDescriptions, (on) => keep(DESCRIPTIONS_KEY, on ? "on" : "off")],
     ["sf-keys", showsKeys, (on) => keep(KEYS_KEY, on ? "on" : "off")],
+    ["sf-legend-toggle", showsLegend, (on) => keep(LEGEND_KEY, on ? "on" : "off")],
 ];
 
 const paintSwitch = (toggle, on) => {
@@ -94,10 +98,14 @@ const paintSwitch = (toggle, on) => {
 
 // A card a page draws outside its form follows the switches by carrying this attribute:
 // the Targeting tab's events card kept its help text with Descriptions off.
+// The legend's banner, on every tab that has one, shows with the Legend switch.
 const applyToFollowers = (view, choice) => {
     for (const node of view.querySelectorAll("[data-sf-follows-display]")) {
         node.classList.toggle("is-terse", !choice.descriptions);
         node.classList.toggle("is-keyless", !choice.keys);
+    }
+    for (const banner of view.querySelectorAll("[data-sf-legend-banner]")) {
+        banner.hidden = !choice.legend;
     }
 };
 
@@ -107,7 +115,11 @@ const shown = (view) => {
         const toggle = view.querySelector(`#${id}`);
         return toggle ? toggle.getAttribute("aria-pressed") === "true" : read();
     };
-    return { descriptions: pressed("sf-terse", showsDescriptions), keys: pressed("sf-keys", showsKeys) };
+    return {
+        descriptions: pressed("sf-terse", showsDescriptions),
+        keys: pressed("sf-keys", showsKeys),
+        legend: pressed("sf-legend-toggle", showsLegend),
+    };
 };
 
 // Shows the remembered choices on whichever switches the view has, and hands them to
@@ -117,7 +129,7 @@ export const paintDisplaySwitches = (view, apply) => {
         const toggle = view.querySelector(`#${id}`);
         if (toggle) paintSwitch(toggle, read());
     }
-    const choice = { descriptions: showsDescriptions(), keys: showsKeys() };
+    const choice = { descriptions: showsDescriptions(), keys: showsKeys(), legend: showsLegend() };
     applyToFollowers(view, choice);
     apply(choice);
 };
@@ -140,39 +152,53 @@ export const wireDisplaySwitches = (view, signal, apply) => {
             apply(choice);
         }, { signal });
     }
+    // The banner's own cross is the Legend switch turned off.
+    for (const close of view.querySelectorAll("[data-sf-legend-close]")) {
+        close.addEventListener("click", () => {
+            keep(LEGEND_KEY, "off");
+            const toggle = view.querySelector("#sf-legend-toggle");
+            if (toggle) paintSwitch(toggle, false);
+            const choice = { ...shown(view), legend: false };
+            applyToFollowers(view, choice);
+            apply(choice);
+        }, { signal });
+    }
     paintDisplaySwitches(view, apply);
 };
 
-// What the states and the boxes mean, in the shapes the rows draw them in. On the
-// Application tab it is the banner at the top, which can be closed and opened again with
-// the Legend switch; on a level it ends the overrides. It was a loose line under the last
-// card, which read as something left over.
-const LEGEND = {
-    states: ["How a setting reaches users", [
-        ["edge", "free", "Free", "each user decides"],
-        ["edge", "suggested", "Suggested", "your value, set once as each user's starting point"],
-        ["edge", "locked", "Locked", "your value, and users cannot change it"],
-    ]],
-    boxes: ["What a box says", [
-        ["box", "on", "On", null],
-        ["box", "off", "Off", null],
-        ["box", "unset", "Not set", "the app uses its own default"],
-    ]],
-    note: "Only what you set here travels. Everything else stays the app's own default.",
-};
-
-// A level has no Free and no unset box: a setting is overridden there or falls through.
-const LEVEL_LEGEND = {
-    states: ["How this level reaches its users", [
-        ["edge", "suggested", "Suggested", "this level's value, set once as each user's starting point"],
-        ["edge", "locked", "Locked", "this level's value, and users cannot change it"],
-        ["edge", "free", "Not listed", "the level above decides"],
-    ]],
-    boxes: ["What a box says", [
-        ["box", "on", "On", null],
-        ["box", "off", "Off", null],
-    ]],
-    note: null,
+// What the states and the boxes mean, in the shapes the rows draw them in, as a banner
+// at the top of every tab that has either: a setting's three states and three boxes on
+// the Application tab, a level's on the Targeting tab, and the two boxes alone where
+// nothing is free or locked. Its cross and the Legend switch close it on every tab.
+const BOXES = [
+    ["box", "on", "On", null],
+    ["box", "off", "Off", null],
+];
+const LEGENDS = {
+    settings: {
+        states: ["How a setting reaches users", [
+            ["edge", "free", "Free", "each user decides"],
+            ["edge", "suggested", "Suggested", "your value, set once as each user's starting point"],
+            ["edge", "locked", "Locked", "your value, and users cannot change it"],
+        ]],
+        boxes: ["What a box says", [...BOXES, ["box", "unset", "Not set", "the app uses its own default"]]],
+        note: "Only what you set here travels. Everything else stays the app's own default.",
+    },
+    // A level has no Free and no unset box: a setting is overridden there or falls through.
+    level: {
+        states: ["How this level reaches its users", [
+            ["edge", "suggested", "Suggested", "this level's value, set once as each user's starting point"],
+            ["edge", "locked", "Locked", "this level's value, and users cannot change it"],
+            ["edge", "free", "Not listed", "the level above decides"],
+        ]],
+        boxes: ["What a box says", BOXES],
+        note: null,
+    },
+    boxes: {
+        states: null,
+        boxes: ["What a box says", BOXES],
+        note: null,
+    },
 };
 
 const legendMark = (shape, state) => {
@@ -192,12 +218,13 @@ const legendMark = (shape, state) => {
     return edge;
 };
 
-export const drawLegend = (mount, { level = false } = {}) => {
+export const drawLegend = (mount, { kind = "settings" } = {}) => {
     if (!mount) return;
-    const legend = level ? LEVEL_LEGEND : LEGEND;
+    const legend = LEGENDS[kind] ?? LEGENDS.settings;
     mount.replaceChildren();
-    mount.setAttribute("aria-label", "What the boxes and states mean");
-    for (const [heading, items] of [legend.states, legend.boxes]) {
+    mount.classList.toggle("is-single", !legend.states);
+    mount.setAttribute("aria-label", legend.states ? "What the boxes and states mean" : "What the boxes mean");
+    for (const [heading, items] of [legend.states, legend.boxes].filter(Boolean)) {
         const column = document.createElement("div");
         column.className = "sf-legend-col";
         const title = document.createElement("p");

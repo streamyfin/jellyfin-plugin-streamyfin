@@ -9,7 +9,6 @@
 // through untouched, so a save never loses what the Yaml tab wrote.
 
 const PLUGIN_ID = "1e9e5d38-6e67-4615-8719-e98a5c34f004";
-const BANNER_KEY = "streamyfin.admin.banner";
 
 // One glyph per category the app uses, as the elements of a 16 by 16 line icon. A
 // category without one shows its name alone.
@@ -66,22 +65,6 @@ const readCultures = async () => {
         return await window.ApiClient.getCultures();
     } catch {
         return [];
-    }
-};
-
-const remember = (key, value) => {
-    try {
-        window.localStorage.setItem(key, value);
-    } catch {
-        // A dashboard that blocks storage just forgets the choice.
-    }
-};
-
-const recalled = (key) => {
-    try {
-        return window.localStorage.getItem(key);
-    } catch {
-        return null;
     }
 };
 
@@ -258,26 +241,6 @@ export default function (view) {
         });
     };
 
-    // The banner is the legend. Closed with its cross or the Legend switch, and opened
-    // again with the switch, which a closed banner had no way back from.
-    const wireBanner = () => {
-        const banner = el("sf-banner");
-        const toggle = el("sf-legend-toggle");
-        const show = (on) => {
-            banner.hidden = !on;
-            toggle?.setAttribute("aria-pressed", String(on));
-            const pip = toggle?.querySelector(".sf-pip");
-            if (pip) pip.textContent = on ? "ON" : "OFF";
-        };
-        show(recalled(BANNER_KEY) !== "off");
-        const choose = (on) => {
-            show(on);
-            remember(BANNER_KEY, on ? "on" : "off");
-        };
-        listen("sf-banner-close", "click", () => choose(false));
-        listen("sf-legend-toggle", "click", () => choose(banner.hidden));
-    };
-
     const wireDock = (shared) => {
         listen("sf-discard", "click", () => form.reset());
         listen("sf-save", "click", async () => {
@@ -337,7 +300,6 @@ export default function (view) {
             form?.setTerse(!descriptions);
             form?.setKeys(keys);
         });
-        wireBanner();
         wireDock(shared);
         shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
             goTo?.(found.category);

@@ -469,7 +469,7 @@ export default function (view) {
 
     const load = async (loaded) => {
         setStatus("Loading the groups…");
-        shared.drawLegend(el("sf-legend"), { level: true });
+        shared.drawLegend(el("sf-legend"), { kind: "level" });
 
         const [form_, allGroups, allEvents, cultures] = await Promise.all([
             readJson("settings/form"),
