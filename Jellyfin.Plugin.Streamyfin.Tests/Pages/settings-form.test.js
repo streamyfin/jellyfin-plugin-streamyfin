@@ -713,6 +713,56 @@ describe("a list of values the app knows", () => {
     });
 });
 
+// Putting a setting back to the app's own value meant knowing it: 30 seconds, off, the
+// app's list. The plugin declares those defaults already, and the form offers them.
+describe("putting a setting back to the app's default", () => {
+    const reset = (mount, key) => row(mount, key).querySelector(".sf-reset");
+
+    test("is offered once a set value differs from the default, and puts it back", () => {
+        const { mount, form } = mountForm({ forwardSkipTime: { value: 15, locked: true } });
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(reset(mount, "forwardSkipTime").title).toBe("Put back the app's default, 30");
+
+        reset(mount, "forwardSkipTime").click();
+
+        expect(form.toSettings().forwardSkipTime).toEqual({ value: 30, locked: true });
+        expect(control(mount, "forwardSkipTime").value).toBe("30");
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(form.dirtyCount()).toBe(1);
+    });
+
+    test("is not offered for a free setting, or one already at the default", () => {
+        const { mount } = mountForm({ forwardSkipTime: { value: 30, locked: false } });
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(reset(mount, "enableDoubleTapToSeek").hidden).toBe(true);
+    });
+
+    // The mpv buffers default to one number on a phone and another on Android TV, so the
+    // plugin declares none, and there is nothing to put back.
+    test("is not offered where the plugin declares no default", () => {
+        const { mount } = mountForm({ jellyseerrServerUrl: { value: "https://seerr.test", locked: false } });
+
+        expect(reset(mount, "jellyseerrServerUrl")).toBeNull();
+    });
+
+    // On the Targeting tab the defaults are what the level above gives, not the app's.
+    test("is not offered on a level, which has its own way back", () => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, {
+            fields: FIELDS,
+            values: { forwardSkipTime: { value: 15, locked: true } },
+            defaults: DEFAULTS,
+            cultures: CULTURES,
+            mode: "overrides",
+        });
+
+        expect(reset(mount, "forwardSkipTime")).toBeNull();
+    });
+});
+
 describe("themeFromBackground", () => {
     test("a dark dashboard background is dark, a light one is light", () => {
         expect(themeFromBackground("rgb(16, 16, 16)")).toBe("dark");

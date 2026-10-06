@@ -560,6 +560,13 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
     };
 
+    // Offered on a set value that is not the app's own, where the plugin declares one.
+    const refreshReset = (row) => {
+        if (!row.reset) return;
+        const fallback = defaultValue(row.field);
+        row.reset.hidden = row.state === "free" || JSON.stringify(row.value) === JSON.stringify(fallback);
+    };
+
     const refreshRow = (row) => {
         setPressed(row);
         // Assigning a control's value fires no input event, so a value put back by
@@ -574,6 +581,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
+        refreshReset(row);
         for (const dependent of rows.values()) {
             if (dependent.field.dependsOn !== row.field.key) continue;
             refreshGating(dependent);
@@ -667,6 +675,20 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             button.dataset.state = state;
             states.appendChild(button);
             row.buttons.push(button);
+        }
+        // Back to the app's own value, keeping the state. Only where the plugin declares
+        // that value, and not on a level, whose defaults are what the level above gives.
+        if (!overridesOnly && field.control !== "Composite" && defaultValue(field) !== undefined) {
+            row.reset = el("button", "sf-reset", "Reset");
+            row.reset.type = "button";
+            row.reset.title = `Put back the app's default, ${inheritedText(field)}`;
+            row.reset.setAttribute("aria-label", `Put back the app's default for ${field.title ?? field.key}`);
+            row.reset.addEventListener("click", () => {
+                row.value = structuredClone(defaultValue(field));
+                refreshRow(row);
+                notify();
+            });
+            head.appendChild(row.reset);
         }
         head.appendChild(states);
         if (overridesOnly) {
