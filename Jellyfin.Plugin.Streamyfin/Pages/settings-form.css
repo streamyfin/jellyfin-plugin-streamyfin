@@ -382,8 +382,10 @@
 .sf-page .sf-checkline .sf-check:checked::after { left: 0.33rem; top: 0.08rem; width: 0.34rem; height: 0.68rem; border-width: 0 2px 2px 0; }
 
 /* Actions that belong to the page rather than to a row: the Yaml editor's help,
-   examples and example loader. They sit at the end of the top row. */
-.sf-page .sf-actions { display: flex; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
+   examples and example loader, and the Home tab's new section. They sit at the end of
+   the top row, centred on one line: stretched, a label among them kept its text at the
+   top of the height the picker and the button give the row. */
+.sf-page .sf-actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
 .sf-page .sf-actions .sf-btn { padding: 0.55em 1.1em; font-size: 0.94rem; }
 .sf-page a.sf-btn { text-decoration: none; display: inline-flex; align-items: center; }
 
