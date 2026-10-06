@@ -58,6 +58,20 @@ export default function (view, params) {
                 return;
             }
 
+            // The server's libraries, read from Jellyfin itself, so a library is picked by
+            // name. A page that cannot read them still edits, with the id typed.
+            const libraries = await window.ApiClient.ajax({
+                type: "GET",
+                url: window.ApiClient.getUrl("Library/VirtualFolders"),
+                contentType: "application/json",
+            })
+                .then((response) => response.json())
+                .then(home.libraryChoices)
+                .catch((error) => {
+                    console.error(error);
+                    return [];
+                });
+
             // The examples are a convenience: a page that cannot read them still edits.
             const examples = await fetch(window.ApiClient.getUrl(`web/configurationpage?name=${home.EXAMPLES_PAGE}`))
                 .then((response) => (response.ok ? response.json() : []))
@@ -220,6 +234,27 @@ export default function (view, params) {
                         box.append(head, list);
                         return box;
                     }
+                    // A library by name. One that is no longer on the server is kept, and
+                    // shown as its id, rather than dropped the next time this is saved.
+                    case "Library": {
+                        const select = el("select", "sf-select");
+                        const none = el("option", null, field.empty);
+                        none.value = "";
+                        select.appendChild(none);
+                        for (const option of field.options) {
+                            const node = el("option", null, option.label);
+                            node.value = option.value;
+                            select.appendChild(node);
+                        }
+                        if (value && !field.options.some((option) => option.value === value)) {
+                            const other = el("option", null, `Other (${value})`);
+                            other.value = value;
+                            select.appendChild(other);
+                        }
+                        select.value = value ?? "";
+                        select.addEventListener("change", () => onChange(select.value === "" ? null : select.value));
+                        return select;
+                    }
                     case "Select": {
                         const select = el("select", "sf-select");
                         const blankOption = el("option", null, "Nothing chosen");
@@ -365,7 +400,7 @@ export default function (view, params) {
                 body.appendChild(row("Shape of the cards", orientation, "The row scrolls sideways either way"));
                 if (kind) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
 
-                for (const field of home.fieldsFor(schema, kind)) {
+                for (const field of home.fieldsFor(schema, kind, libraries)) {
                     const node = control(field, payload[field.key], (value) => {
                         if (value === null || value === undefined) delete payload[field.key];
                         else payload[field.key] = value;

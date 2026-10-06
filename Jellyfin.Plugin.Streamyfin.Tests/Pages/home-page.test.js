@@ -43,9 +43,19 @@ const PAGES = new URL("../../Jellyfin.Plugin.Streamyfin/Pages/", import.meta.url
 const SCHEMA = {
     definitions: {
         SectionOrientation: { type: "string", enum: ["vertical", "horizontal"] },
-        Latest: { properties: { limit: { title: "Page limit", type: ["integer", "null"] } } },
+        Latest: {
+            properties: {
+                parentId: { title: "Parent id", type: ["null", "string"] },
+                limit: { title: "Page limit", type: ["integer", "null"] },
+            },
+        },
     },
 };
+const FOLDERS = [
+    { Name: "Movies", ItemId: "f137a2dd21bbc1b99aa5c0f6bf02a805", CollectionType: "movies" },
+    { Name: "Shows", ItemId: "a656b907eb3a73532e40e44b968d0225", CollectionType: "tvshows" },
+];
+let folders = async () => FOLDERS;
 
 window.Streamyfin = { shared: true };
 globalThis.LibraryMenu = { setTabs() {} };
@@ -54,7 +64,9 @@ window.ApiClient = {
         const page = /configurationpage\?name=(.+)$/.exec(path);
         return page ? `${PAGES}${page[1]}` : `http://server/${path}`;
     },
-    ajax: async () => ({ json: async () => SCHEMA }),
+    ajax: async ({ url }) => (String(url).includes("Library/VirtualFolders")
+        ? { json: folders }
+        : { json: async () => SCHEMA }),
 };
 
 const shared = await import(`${PAGES}shared.js`);
@@ -63,6 +75,7 @@ const { default: homeTab } = await import(`${PAGES}Home/index.js`);
 const realFetch = globalThis.fetch;
 afterEach(() => {
     globalThis.fetch = realFetch;
+    folders = async () => FOLDERS;
 });
 
 const serveExamples = (answer) => {
@@ -171,6 +184,50 @@ describe("a section's card", () => {
 
         expect(cards(view)[0].querySelector(".sf-body select").value).toBe("vertical");
         expect(view.querySelector(".sf-pcard").classList.contains("is-portrait")).toBe(true);
+    });
+});
+
+describe("a section's library", () => {
+    const libraryRow = (view) => [...cards(view)[0].querySelectorAll(".sf-row")].find((row) => row.textContent.includes("Library"));
+
+    test("is picked from the server's libraries by name, the id standing behind it", async () => {
+        serveExamples(async () => new Response("[]"));
+        const view = await open([{ title: "A", kind: "latest", latest: { parentId: "a656b907eb3a73532e40e44b968d0225" } }]);
+        const select = libraryRow(view).querySelector("select");
+
+        expect([...select.options].map((option) => option.textContent)).toEqual(["None, everyone sees the row", "Movies", "Shows"]);
+        expect(select.value).toBe("a656b907eb3a73532e40e44b968d0225");
+
+        select.value = "f137a2dd21bbc1b99aa5c0f6bf02a805";
+        select.dispatchEvent(new Event("change"));
+        expect(view.querySelector("#sf-save").disabled).toBe(false);
+    });
+
+    // Removed from the server since: kept, and shown as the id it is.
+    test("one the server no longer has is kept and shown as its id", async () => {
+        serveExamples(async () => new Response("[]"));
+        const view = await open([{ title: "A", kind: "latest", latest: { parentId: "0badc0de0badc0de0badc0de0badc0de" } }]);
+        const select = libraryRow(view).querySelector("select");
+
+        expect(select.value).toBe("0badc0de0badc0de0badc0de0badc0de");
+        expect(select.selectedOptions[0].textContent).toBe("Other (0badc0de0badc0de0badc0de0badc0de)");
+    });
+
+    test("is typed as an id when the libraries cannot be read", async () => {
+        const quiet = console.error;
+        console.error = () => {};
+        serveExamples(async () => new Response("[]"));
+        folders = async () => {
+            throw new Error("offline");
+        };
+        try {
+            const view = await open([{ title: "A", kind: "latest", latest: { parentId: "abc" } }]);
+            const row = [...cards(view)[0].querySelectorAll(".sf-row")].find((one) => one.textContent.includes("Parent id"));
+
+            expect(row.querySelector("input.sf-text").value).toBe("abc");
+        } finally {
+            console.error = quiet;
+        }
     });
 });
 

@@ -16,6 +16,7 @@ import {
     fromExample,
     inOrder,
     kindOf,
+    libraryChoices,
     move,
     moveTo,
     orientations,
@@ -123,6 +124,35 @@ describe("fieldsFor", () => {
     test("a kind nothing describes has no fields rather than a broken card", () => {
         expect(fieldsFor({}, "items")).toEqual([]);
         expect(fieldsFor(SCHEMA, "nonsense")).toEqual([]);
+    });
+});
+
+// An id is what the app compares and nobody knows one by heart, so with the server's
+// libraries the field is a menu of their names.
+describe("a library", () => {
+    const LIBRARIES = [
+        { value: "f137a2dd21bbc1b99aa5c0f6bf02a805", label: "Movies" },
+        { value: "a656b907eb3a73532e40e44b968d0225", label: "Shows" },
+    ];
+    const library = (kind, libraries) => fieldsFor(SCHEMA, kind, libraries).find((field) => field.key === "parentId");
+
+    test("is picked by name once the server's libraries are known", () => {
+        expect(library("items", LIBRARIES)).toMatchObject({ control: "Library", title: "Library", options: LIBRARIES, empty: "Every library" });
+    });
+
+    test("says what leaving it out means where the app does not narrow the row", () => {
+        expect(library("latest", LIBRARIES).empty).toBe("None, everyone sees the row");
+        expect(library("nextUp", LIBRARIES).empty).toBe("None, everyone sees the row");
+    });
+
+    test("is an id to type without them", () => {
+        expect(library("items").control).toBe("Text");
+    });
+
+    test("comes from Jellyfin's virtual folders, each name standing for its id", () => {
+        expect(libraryChoices([{ Name: "Movies", ItemId: "f1", CollectionType: "movies" }, { Name: "", ItemId: "x" }, null]))
+            .toEqual([{ value: "f1", label: "Movies" }]);
+        expect(libraryChoices(undefined)).toEqual([]);
     });
 });
 

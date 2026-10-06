@@ -53,6 +53,19 @@ const DESCRIBED = {
     latest: { parentId: VISIBILITY_ONLY },
 };
 
+// What leaving the library out means, which is not the same for the three.
+const NO_LIBRARY = {
+    items: "Every library",
+    nextUp: "None, everyone sees the row",
+    latest: "None, everyone sees the row",
+};
+
+/// The server's libraries as the choices a library field offers: Jellyfin's virtual
+/// folders, by name, standing for their id.
+export const libraryChoices = (folders) => (Array.isArray(folders) ? folders : [])
+    .filter((folder) => folder?.ItemId && folder?.Name)
+    .map((folder) => ({ value: folder.ItemId, label: folder.Name }));
+
 const PAYLOAD_TYPES = {
     items: "Items",
     nextUp: "NextUp",
@@ -102,18 +115,21 @@ const controlFor = (schema, property) => {
     return null;
 };
 
-/// The fields a kind's payload has, in the order the payload declares them.
-export const fieldsFor = (schema, kind) => {
+/// The fields a kind's payload has, in the order the payload declares them. With the
+/// server's libraries, a library is picked by name rather than typed as an id.
+export const fieldsFor = (schema, kind, libraries = []) => {
     const payload = definitions(schema)[PAYLOAD_TYPES[kind]];
     if (!payload?.properties) return [];
 
     return Object.entries(payload.properties).flatMap(([key, property]) => {
         if (NOT_OFFERED[kind]?.includes(key)) return [];
-        const control = controlFor(schema, property);
+        const control = key === "parentId" && libraries.length
+            ? { control: "Library", options: libraries, empty: NO_LIBRARY[kind] ?? "None" }
+            : controlFor(schema, property);
         if (!control) return [];
         return [{
             key,
-            title: property.title ?? key,
+            title: control.control === "Library" ? "Library" : property.title ?? key,
             description: DESCRIBED[kind]?.[key] ?? property.description ?? null,
             ...control,
         }];
