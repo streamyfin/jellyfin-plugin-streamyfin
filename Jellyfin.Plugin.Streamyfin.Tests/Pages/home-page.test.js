@@ -118,7 +118,8 @@ const three = [
 describe("the legend", () => {
     test("is a banner of its own, opened by the Legend switch", async () => {
         const host = await mount();
-        const banner = host.querySelector("#sf-legend-banner[data-sf-legend-banner]");
+        // Named after the tab, which remembers whether it was closed.
+        const banner = host.querySelector('#sf-legend-banner[data-sf-legend-banner="Home"]');
 
         expect(banner.querySelector("#sf-legend")).not.toBeNull();
         expect(banner.parentElement.closest(".sf-banner")).toBeNull();
