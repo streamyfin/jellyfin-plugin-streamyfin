@@ -74,6 +74,9 @@ public sealed class SettingsResolutionService(
             Sections.KeepVisible(resolved, canOpen);
         }
 
+        // Last, so a list the filter emptied leaves as the app's own home screen too.
+        Sections.EmptyAsNone(resolved);
+
         // Here rather than refused on the way in, because the engine and the address it
         // needs can come from different levels: a group may choose Streamystats while the
         // server holds its address, and neither level is wrong on its own.

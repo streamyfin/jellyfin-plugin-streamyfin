@@ -58,6 +58,14 @@ export default function (view, params) {
                 return;
             }
 
+            // The examples are a convenience: a page that cannot read them still edits.
+            const examples = await fetch(window.ApiClient.getUrl(`web/configurationpage?name=${home.EXAMPLES_PAGE}`))
+                .then((response) => (response.ok ? response.json() : []))
+                .catch((error) => {
+                    console.error(error);
+                    return [];
+                });
+
             const el = (tag, className, text) => {
                 const node = document.createElement(tag);
                 if (className) node.className = className;
@@ -105,13 +113,19 @@ export default function (view, params) {
                 }));
             };
 
+            // The preview is drawn by redraw() after a change to the list, and by edited()
+            // after a change inside one card, so it is drawn once either way.
             const touched = () => {
-                drawPreview();
                 dirty = true;
                 dot.hidden = false;
                 summary.textContent = `${said()}, not saved`;
                 saveBtn.disabled = false;
                 discardBtn.disabled = false;
+            };
+
+            const edited = () => {
+                touched();
+                drawPreview();
             };
 
             const settled = () => {
@@ -123,10 +137,27 @@ export default function (view, params) {
             };
 
             const payloadOf = (section) => {
-                const kind = section.kind ?? home.KINDS.find((candidate) => section[candidate]);
+                const kind = home.kindOf(section);
                 if (!kind) return { kind: null, payload: {} };
                 section[kind] = section[kind] ?? {};
                 return { kind, payload: section[kind] };
+            };
+
+            // The section being dragged, by index. Set by its handle and nothing else, so a
+            // file, or text dragged into a field, is left to the browser rather than read as
+            // a section. Cleared on the drop as well: redrawing removes the handle, and a
+            // handle that left the page does not always hear its dragend.
+            let dragging = null;
+
+            // A move made with the arrows is said, as a drag's is, and the arrow that made
+            // it keeps the focus once the list is drawn again.
+            const placed = (to, title, arrow) => {
+                moved.textContent = `${title} moved to place ${to + 1} of ${sections.length}.`;
+                if (!arrow) return;
+                const card = editor.querySelectorAll(".sf-card")[to];
+                const again = card?.querySelector(`[data-move="${arrow}"]`);
+                const other = card?.querySelector(`[data-move="${arrow === "up" ? "down" : "up"}"]`);
+                (again && !again.disabled ? again : other)?.focus();
             };
 
             const control = (field, value, onChange) => {
@@ -233,7 +264,9 @@ export default function (view, params) {
                 title.setAttribute("aria-label", "Section title");
                 title.addEventListener("change", () => {
                     section.title = title.value;
-                    touched();
+                    // The arrows name the section they move, so they follow its title.
+                    for (const button of [up, down]) button.setAttribute("aria-label", named(button.title));
+                    edited();
                 });
                 header.appendChild(title);
 
@@ -247,49 +280,60 @@ export default function (view, params) {
                 grip.draggable = true;
                 grip.setAttribute("aria-hidden", "true");
                 grip.addEventListener("dragstart", (event) => {
-                    event.dataTransfer.setData("text/plain", String(index));
+                    dragging = index;
+                    // A type of its own rather than text, which a field would take on a drop.
+                    // Firefox starts no drag without some data set.
+                    event.dataTransfer.setData("application/x-streamyfin-section", String(index));
                     event.dataTransfer.effectAllowed = "move";
                     event.dataTransfer.setDragImage(box, 24, 24);
-                    box.classList.add("is-dragging");
+                    // After the browser has taken its picture of the card, or the picture
+                    // that follows the pointer is faded as well.
+                    requestAnimationFrame(() => box.classList.add("is-dragging"));
                 });
-                grip.addEventListener("dragend", () => box.classList.remove("is-dragging"));
+                grip.addEventListener("dragend", () => {
+                    dragging = null;
+                    box.classList.remove("is-dragging");
+                });
                 box.addEventListener("dragover", (event) => {
+                    if (dragging === null) return;
                     event.preventDefault();
                     box.classList.add("is-drop-target");
                 });
                 box.addEventListener("dragleave", () => box.classList.remove("is-drop-target"));
                 box.addEventListener("drop", (event) => {
+                    if (dragging === null) return;
                     event.preventDefault();
                     box.classList.remove("is-drop-target");
-                    const from = Number(event.dataTransfer.getData("text/plain"));
-                    if (!Number.isInteger(from) || from === index) return;
-                    const title = sections[from]?.title || "The section";
+                    const from = dragging;
+                    dragging = null;
+                    if (from === index) return;
+                    const moving = sections[from]?.title || "The section";
                     sections = home.moveTo(sections, from, index);
-                    moved.textContent = `${title} moved to place ${index + 1} of ${sections.length}.`;
                     touched();
                     redraw();
+                    placed(index, moving);
                 });
                 header.insertBefore(grip, title);
 
-                const up = el("button", "sf-btn", "↑");
-                up.type = "button";
-                up.title = "Move up";
-                up.disabled = index === 0;
-                up.addEventListener("click", () => {
-                    sections = home.move(sections, index, -1);
-                    touched();
-                    redraw();
-                });
-
-                const down = el("button", "sf-btn", "↓");
-                down.type = "button";
-                down.title = "Move down";
-                down.disabled = index === sections.length - 1;
-                down.addEventListener("click", () => {
-                    sections = home.move(sections, index, 1);
-                    touched();
-                    redraw();
-                });
+                const named = (label) => `${label}: ${section.title || "this section"}`;
+                const arrow = (direction, label, by) => {
+                    const button = el("button", "sf-btn", direction === "up" ? "↑" : "↓");
+                    button.type = "button";
+                    button.title = label;
+                    button.setAttribute("aria-label", named(label));
+                    button.dataset.move = direction;
+                    button.disabled = direction === "up" ? index === 0 : index === sections.length - 1;
+                    button.addEventListener("click", () => {
+                        const moving = section.title || "The section";
+                        sections = home.move(sections, index, by);
+                        touched();
+                        redraw();
+                        placed(index + by, moving, direction);
+                    });
+                    return button;
+                };
+                const up = arrow("up", "Move up", -1);
+                const down = arrow("down", "Move down", 1);
 
                 const drop = el("button", "sf-drop", "×");
                 drop.type = "button";
@@ -313,10 +357,10 @@ export default function (view, params) {
                     node.value = option;
                     orientation.appendChild(node);
                 }
-                orientation.value = section.orientation ?? "horizontal";
+                orientation.value = section.orientation ?? home.DEFAULT_ORIENTATION;
                 orientation.addEventListener("change", () => {
                     section.orientation = orientation.value;
-                    touched();
+                    edited();
                 });
                 body.appendChild(row("Shape of the cards", orientation, "The row scrolls sideways either way"));
                 if (kind) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
@@ -326,7 +370,7 @@ export default function (view, params) {
                         if (value === null || value === undefined) delete payload[field.key];
                         else payload[field.key] = value;
                         pill.textContent = home.summarise(section);
-                        touched();
+                        edited();
                     });
                     body.appendChild(row(field.title, node, field.description));
                 }
@@ -352,19 +396,20 @@ export default function (view, params) {
                 kindPicker.appendChild(option);
             }
 
-            for (const [at, example] of home.EXAMPLES.entries()) {
+            for (const [at, example] of examples.entries()) {
                 const option = el("option", null, example.name);
                 option.value = String(at);
                 examplePicker.appendChild(option);
             }
+            examplePicker.closest(".sf-examples").hidden = examples.length === 0;
             const sayExample = () => {
-                exampleAbout.textContent = home.EXAMPLES[Number(examplePicker.value)]?.description ?? "";
+                exampleAbout.textContent = examples[Number(examplePicker.value)]?.description ?? "";
             };
             sayExample();
             examplePicker.addEventListener("change", sayExample);
 
             loadExample.addEventListener("click", async () => {
-                const example = home.EXAMPLES[Number(examplePicker.value)];
+                const example = examples[Number(examplePicker.value)];
                 if (!example) return;
                 if (sections.length && !await shared.confirmed(`Replace the ${said()} with “${example.name}”? Nothing is saved until you save.`)) return;
                 sections = home.fromExample(example);

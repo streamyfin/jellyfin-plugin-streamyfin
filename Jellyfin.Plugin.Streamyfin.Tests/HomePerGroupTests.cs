@@ -124,7 +124,8 @@ public class HomePerGroupTests : IDisposable
 
     /// <summary>
     /// A group that says nothing about the home leaves the server's standing, and a group
-    /// that says the home is empty is a different answer from one that says nothing.
+    /// that says the home is empty is a different answer from one that says nothing: it
+    /// takes the server's layout away and leaves the app its own home screen.
     /// </summary>
     [Fact]
     public void SayingNothingAndSayingNoneAreDifferentAnswers()
@@ -152,7 +153,12 @@ public class HomePerGroupTests : IDisposable
         var global = new Settings { home = new Lockable<Home> { value = Layout("Everyone") } };
 
         Assert.Equal(["Everyone"], Titles(Resolved(quiet, global).home!.value.sections!, section => section.title));
-        Assert.Empty(Resolved(bare, global).home!.value.sections!);
+
+        // The empty list leaves as no list, which the app answers with its own home
+        // screen. Served as an empty list, it drew a home screen with nothing on it.
+        var none = Resolved(bare, global).home;
+        Assert.NotNull(none);
+        Assert.Null(none!.value.sections);
     }
 
     /// <inheritdoc />

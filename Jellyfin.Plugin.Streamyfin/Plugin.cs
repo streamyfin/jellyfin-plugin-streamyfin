@@ -316,6 +316,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             EmbeddedResourcePath = _prefix + ".Pages.home-editor.js"
         };
 
+        // The home screens the Home tab offers to start from, held to the schema by a test.
+        yield return new PluginPageInfo
+        {
+            Name = "home-examples.json",
+            EmbeddedResourcePath = _prefix + ".Pages.home-examples.json"
+        };
+
         // What a wording is, and what is wrong with one, without a DOM.
         yield return new PluginPageInfo
         {

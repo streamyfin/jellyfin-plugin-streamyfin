@@ -3,8 +3,10 @@
 // that is what the page reads and getting it wrong draws the wrong control.
 
 import { describe, expect, test } from "bun:test";
+import EXAMPLES from "../../Jellyfin.Plugin.Streamyfin/Pages/home-examples.json";
 import {
-    EXAMPLES,
+    DEFAULT_ORIENTATION,
+    EXAMPLES_PAGE,
     KINDS,
     KIND_LABELS,
     ORIENTATION_LABELS,
@@ -13,6 +15,7 @@ import {
     fieldsFor,
     fromExample,
     inOrder,
+    kindOf,
     move,
     moveTo,
     orientations,
@@ -46,7 +49,14 @@ const SCHEMA = {
                 enableResumable: { title: "Enable resumable", type: ["boolean", "null"] },
             },
         },
-        Latest: { properties: { groupItems: { title: "Group items", type: ["boolean", "null"] } } },
+        Latest: {
+            properties: {
+                parentId: { title: "Parent id", type: ["null", "string"] },
+                limit: { title: "Page limit", type: ["integer", "null"] },
+                groupItems: { title: "Group items", type: ["boolean", "null"] },
+                includeItemTypes: { title: "Include item types", type: ["array", "null"], items: { $ref: "#/definitions/BaseItemKind" } },
+            },
+        },
         CustomEndpoint: {
             properties: {
                 endpoint: { title: "Endpoint", type: "string" },
@@ -69,15 +79,22 @@ describe("fieldsFor", () => {
         });
     });
 
-    // Home.tsx asks the items query without genres, and Next up and Recently added
-    // without a library, so offering those read as filters that never happen.
-    test("a field the app does not send to Jellyfin is not offered", () => {
-        const keys = (kind) => fieldsFor(SCHEMA, kind).map((field) => field.key);
+    // Home.tsx asks the items query without genres, so offering it read as a filter that
+    // never happens.
+    test("a field the app does not send to Jellyfin, and nothing else reads, is not offered", () => {
+        expect(fieldsFor(SCHEMA, "items").map((field) => field.key)).not.toContain("genres");
+    });
 
-        expect(keys("items")).not.toContain("genres");
-        expect(keys("items")).toContain("parentId");
-        expect(keys("nextUp")).not.toContain("parentId");
-        expect(keys("latest")).not.toContain("parentId");
+    // Next up and Recently added are asked without a library too, but the plugin leaves
+    // the section out for anyone who cannot open the one named: hiding the field hid that.
+    test("a library the app does not filter by is offered for what it does", () => {
+        const library = (kind) => fieldsFor(SCHEMA, kind).find((field) => field.key === "parentId");
+
+        for (const kind of ["nextUp", "latest"]) {
+            expect(library(kind).description).toContain("do not see the row");
+            expect(library(kind).description).toContain("does not narrow");
+        }
+        expect(library("items").description).toContain("filled from");
     });
 
     test("a list of enums carries what there is to choose", () => {
@@ -93,7 +110,7 @@ describe("fieldsFor", () => {
     });
 
     test("a booleans and an endpoint come out as themselves", () => {
-        expect(fieldsFor(SCHEMA, "latest")[0]).toMatchObject({ key: "groupItems", control: "Toggle" });
+        expect(fieldsFor(SCHEMA, "latest").find((field) => field.key === "groupItems")).toMatchObject({ control: "Toggle" });
         expect(fieldsFor(SCHEMA, "custom")[0]).toMatchObject({ key: "endpoint", control: "Text" });
     });
 
@@ -189,7 +206,14 @@ describe("what a card says", () => {
     // Named as the kind picker names it, not by the key the configuration stores.
     test("the kind, and what the payload narrows", () => {
         expect(summarise({ kind: "items", items: { limit: 20, includeItemTypes: ["Movie"] } }))
-            .toBe("Items you choose · 20 at most · Movie");
+            .toBe("Items you choose · 20 at a time · Movie");
+    });
+
+    // The app asks for items and Next up a page of that many at a time and keeps asking
+    // while the row scrolls. Only Recently added stops there.
+    test("a limit is a page, except on Recently added", () => {
+        expect(summarise({ kind: "nextUp", nextUp: { limit: 20 } })).toBe("Next up · 20 at a time");
+        expect(summarise({ kind: "latest", latest: { limit: 20 } })).toBe("Recently added · 20 at most");
     });
 
     test("an endpoint is the useful half of a custom section", () => {
@@ -203,6 +227,19 @@ describe("what a card says", () => {
 
     test("a section carrying nothing says so rather than pretending", () => {
         expect(summarise({ title: "empty" })).toBe("No kind, and nothing to imply one");
+    });
+});
+
+describe("kindOf", () => {
+    test("a declared kind is the answer, whatever the payloads", () => {
+        expect(kindOf({ kind: "latest", items: {} })).toBe("latest");
+    });
+
+    test("one payload implies its kind, two imply nothing, as on the server", () => {
+        expect(kindOf({ nextUp: {} })).toBe("nextUp");
+        expect(kindOf({ items: {}, latest: {} })).toBeNull();
+        expect(kindOf({})).toBeNull();
+        expect(kindOf(null)).toBeNull();
     });
 });
 
@@ -247,13 +284,39 @@ describe("the preview", () => {
     });
 
     test("a section with no title or kind still has a row", () => {
-        expect(preview([{}])).toEqual([{ title: "Untitled", orientation: "vertical", filledBy: "Nothing yet" }]);
+        expect(preview([{}])).toEqual([{ title: "Untitled", orientation: DEFAULT_ORIENTATION, filledBy: "Nothing yet" }]);
+    });
+
+    // Home.tsx draws `section.orientation || "vertical"`.
+    test("the shape a section that names none gets is the app's", () => {
+        expect(DEFAULT_ORIENTATION).toBe("vertical");
     });
 });
 
+// The server's tests hold each example to the schema a save is held to. What is checked
+// here is what the page relies on, and what each one asks the app for.
 describe("the examples", () => {
-    // Values the server's schema takes for these, so an example never loads a section the
-    // save would then refuse.
+    test("are the file the page asks the plugin for", () => {
+        expect(EXAMPLES_PAGE).toBe("home-examples.json");
+    });
+
+    // Without it Jellyfin's Next up repeats every episode Continue watching shows above.
+    test("a Next up row leaves out what is already being watched", () => {
+        const nextUps = EXAMPLES.flatMap((example) => example.sections).filter((section) => section.kind === "nextUp");
+
+        expect(nextUps.length).toBeGreaterThan(0);
+        for (const section of nextUps) expect(section.nextUp.enableResumable).toBe(false);
+    });
+
+    // The app's own Continue watching asks for films and episodes, not audiobooks.
+    test("a resume row asks for what the app's own one does", () => {
+        const resumes = EXAMPLES.flatMap((example) => example.sections)
+            .filter((section) => section.custom?.endpoint === "/UserItems/Resume");
+
+        expect(resumes.length).toBeGreaterThan(0);
+        for (const section of resumes) expect(section.custom.query).toEqual({ includeItemTypes: "Movie,Episode" });
+    });
+
     const KNOWN = {
         includeItemTypes: ["Movie", "Series", "Episode"],
         filters: ["IsUnplayed", "IsPlayed", "IsFavorite", "IsResumable"],

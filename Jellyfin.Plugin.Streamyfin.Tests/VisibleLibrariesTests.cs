@@ -79,6 +79,35 @@ public class VisibleLibrariesTests
     }
 
     /// <summary>
+    /// A user who can open none of the libraries a layout is built on is served no list,
+    /// which the app answers with its own home screen. An empty list is a home screen with
+    /// nothing on it. The stored layout keeps its section.
+    /// </summary>
+    [Fact]
+    public void AUserWhoCanOpenNoneOfTheLayoutGetsTheAppsOwnHome()
+    {
+        var global = HomeOf(LatestIn("Recently added in Private", Private.ToString("N")));
+
+        var resolved = _resolution.Resolve(global, null, null, KidsOnly);
+
+        Assert.NotNull(resolved.home);
+        Assert.Null(resolved.home!.value!.sections);
+        Assert.Equal(new[] { "Recently added in Private" }, Titles(global));
+    }
+
+    /// <summary>
+    /// A layout stored as an empty list, which the Home tab wrote when every section was
+    /// removed, is served as none as well.
+    /// </summary>
+    [Fact]
+    public void AnEmptyLayoutIsServedAsNone()
+    {
+        var resolved = _resolution.Resolve(HomeOf(), null, null);
+
+        Assert.Null(resolved.home?.value?.sections);
+    }
+
+    /// <summary>
     /// Every payload that can name a library is read, the custom query included.
     /// </summary>
     [Fact]

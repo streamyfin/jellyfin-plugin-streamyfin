@@ -60,9 +60,9 @@ public class Home
   /// A copy of this layout holding other sections, for an answer that must not change
   /// the stored one.
   /// </summary>
-  /// <param name="kept">The sections the copy holds.</param>
+  /// <param name="kept">The sections the copy holds, or <c>null</c> for none.</param>
   /// <returns>The copy.</returns>
-  internal Home With(Section[] kept)
+  internal Home With(Section[]? kept)
   {
     var copy = (Home)MemberwiseClone();
     copy.sections = kept;

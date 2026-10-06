@@ -33,15 +33,24 @@ export const ORIENTATION_LABELS = {
     horizontal: "Wide (16:9)",
 };
 
-// Fields the payload types declare that the app does not send to Jellyfin: Home.tsx asks
-// the items query without genres, and Next up and Recently added without a library. The
-// plugin still reads a library named on those two, to keep the section from users who
-// cannot open it, so the fields stay in the configuration; offering them here read as
-// a filter that never happens.
+/// The shape the app gives a section that names none.
+export const DEFAULT_ORIENTATION = "vertical";
+
+// A field the payload types declare that the app does not send to Jellyfin: Home.tsx asks
+// the items query without genres, so offering it read as a filter that never happens.
 const NOT_OFFERED = {
     items: ["genres"],
-    nextUp: ["parentId"],
-    latest: ["parentId"],
+};
+
+// Next up and Recently added are asked without a library as well, but the plugin still
+// reads one named on them: it leaves the section out for anyone who cannot open that
+// library. The field is offered with what it really does, since hiding it hid a rule the
+// server applies. The schema has nothing to say about any of the three.
+const VISIBILITY_ONLY = "People who cannot open this library do not see the row. The app does not narrow the row to it.";
+const DESCRIBED = {
+    items: { parentId: "The library the row is filled from. People who cannot open it do not see the row." },
+    nextUp: { parentId: VISIBILITY_ONLY },
+    latest: { parentId: VISIBILITY_ONLY },
 };
 
 const PAYLOAD_TYPES = {
@@ -105,7 +114,7 @@ export const fieldsFor = (schema, kind) => {
         return [{
             key,
             title: property.title ?? key,
-            description: property.description ?? null,
+            description: DESCRIBED[kind]?.[key] ?? property.description ?? null,
             ...control,
         }];
     });
@@ -142,17 +151,6 @@ export const inOrder = (sections) => (sections ?? [])
 /// The same sections, numbered from zero in the order they are in.
 export const renumber = (sections) => (sections ?? []).map((section, index) => ({ ...section, order: index }));
 
-/// The sections with the one at `from` moved by `by` places, renumbered.
-export const move = (sections, from, by) => {
-    const list = [...(sections ?? [])];
-    const to = from + by;
-    if (from < 0 || from >= list.length || to < 0 || to >= list.length) return renumber(list);
-
-    const [moved] = list.splice(from, 1);
-    list.splice(to, 0, moved);
-    return renumber(list);
-};
-
 /// The sections with the one at `from` put at `to`, as a drag drops it, renumbered.
 export const moveTo = (sections, from, to) => {
     const list = [...(sections ?? [])];
@@ -163,21 +161,34 @@ export const moveTo = (sections, from, to) => {
     return renumber(list);
 };
 
+/// The sections with the one at `from` moved by `by` places, renumbered.
+export const move = (sections, from, by) => moveTo(sections, from, from + by);
+
 /// The sections with one of this kind added at the end, renumbered.
 export const add = (sections, kind) => renumber([...(sections ?? []), blank(kind)]);
 
 /// The sections without the one at this index, renumbered.
 export const remove = (sections, index) => renumber((sections ?? []).filter((_, at) => at !== index));
 
+/// The kind a section declares, or the one its payload implies, read the way the server's
+/// Sections.KindOf reads it: two payloads and no kind imply nothing.
+export const kindOf = (section) => {
+    if (section?.kind) return section.kind;
+    const carried = KINDS.filter((candidate) => section?.[candidate]);
+    return carried.length === 1 ? carried[0] : null;
+};
+
 /// What a section's card says under its title: the kind, and what the payload narrows.
 export const summarise = (section) => {
-    const kind = section?.kind ?? KINDS.find((candidate) => section?.[candidate]) ?? null;
+    const kind = kindOf(section);
     if (!kind) return "No kind, and nothing to imply one";
 
     const payload = section?.[kind] ?? {};
     const said = [];
 
-    if (payload.limit) said.push(`${payload.limit} at most`);
+    // Only Recently added stops at its limit. The app asks for the others a page of that
+    // many at a time, and asks again while the row is scrolled.
+    if (payload.limit) said.push(kind === "latest" ? `${payload.limit} at most` : `${payload.limit} at a time`);
     if (payload.includeItemTypes?.length) said.push(payload.includeItemTypes.join(", "));
     if (payload.filters?.length) said.push(payload.filters.join(", "));
     if (payload.endpoint) said.push(payload.endpoint);
@@ -189,47 +200,17 @@ export const summarise = (section) => {
 /// What the preview draws for each section: its title, the shape of its cards, and what
 /// fills it, in the order the app draws them.
 export const preview = (sections) => inOrder(sections).map((section) => {
-    const kind = section?.kind ?? KINDS.find((candidate) => section?.[candidate]) ?? null;
+    const kind = kindOf(section);
     return {
         title: section?.title || "Untitled",
-        // The app's own default when a section says nothing.
-        orientation: section?.orientation === "horizontal" ? "horizontal" : "vertical",
+        orientation: section?.orientation === "horizontal" ? "horizontal" : DEFAULT_ORIENTATION,
         filledBy: kind ? KIND_LABELS[kind] : "Nothing yet",
     };
 });
 
-/// Home screens to start from, each one a real layout an administrator can then adjust.
-/// The endpoints are Jellyfin's and the plugin's own, so each works on any server.
-export const EXAMPLES = [
-    {
-        name: "Watching, then new",
-        description: "What people are part way through, the next episodes, then what arrived lately.",
-        sections: [
-            { title: "Continue Watching", kind: "custom", orientation: "horizontal", custom: { endpoint: "/UserItems/Resume" } },
-            { title: "Next Up", kind: "nextUp", orientation: "horizontal", nextUp: { limit: 20 } },
-            { title: "Latest Movies", kind: "latest", orientation: "vertical", latest: { includeItemTypes: ["Movie"], limit: 20 } },
-            { title: "Latest Episodes", kind: "latest", orientation: "horizontal", latest: { includeItemTypes: ["Episode"], limit: 20 } },
-        ],
-    },
-    {
-        name: "Libraries first",
-        description: "The libraries each person can open, then what they are watching and what is new.",
-        sections: [
-            { title: "My Media", kind: "custom", orientation: "horizontal", custom: { endpoint: "/streamyfin/v1/my-media" } },
-            { title: "Continue Watching", kind: "custom", orientation: "horizontal", custom: { endpoint: "/UserItems/Resume" } },
-            { title: "Recently Added", kind: "latest", orientation: "vertical", latest: { limit: 20 } },
-        ],
-    },
-    {
-        name: "A movie night",
-        description: "Unwatched films, newest first, and suggestions from what each person watched.",
-        sections: [
-            { title: "Unwatched Movies", kind: "items", orientation: "vertical", items: { includeItemTypes: ["Movie"], filters: ["IsUnplayed"], sortBy: ["DateCreated"], sortOrder: ["Descending"], limit: 20 } },
-            { title: "For You", kind: "custom", orientation: "vertical", custom: { endpoint: "/streamyfin/v1/for-you" } },
-            { title: "Favorites", kind: "items", orientation: "vertical", items: { includeItemTypes: ["Movie", "Series"], filters: ["IsFavorite"], limit: 20 } },
-        ],
-    },
-];
+/// Where the Home tab reads the home screens it offers to start from. They live in a file
+/// of their own so the server's tests can hold each one to the schema a save is held to.
+export const EXAMPLES_PAGE = "home-examples.json";
 
 /// An example's sections, numbered and copied so editing them leaves the example alone.
 export const fromExample = (example) => renumber(structuredClone(example?.sections ?? []));

@@ -126,7 +126,7 @@ public static class SettingsValidation
     }
 
     /// <summary>
-    /// Trims the settings that are addresses, in place.
+    /// Trims the settings that are addresses, and writes an empty home as none, in place.
     /// </summary>
     /// <param name="settings">The settings, which may be null.</param>
     /// <remarks>
@@ -140,6 +140,8 @@ public static class SettingsValidation
         {
             return;
         }
+
+        Sections.EmptyAsNone(settings);
 
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
