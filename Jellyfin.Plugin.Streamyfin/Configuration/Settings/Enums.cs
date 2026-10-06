@@ -26,6 +26,7 @@ public enum OrientationLock {
      * The default orientation. On iOS, this will allow all orientations except `Orientation.PORTRAIT_DOWN`.
      * On Android, this lets the system decide the best orientation.
      */
+    [Display(Name = "Follow device orientation")]
     Default = 0,
     /**
      * Right-side up portrait only.
@@ -34,10 +35,9 @@ public enum OrientationLock {
     /**
      * Both landscape directions, letting the device rotate between them.
      */
-    // The one member whose derived label would not match the app. Humanize turns the
-    // name into "Landscape", and the app calls this "Landscape auto" in its own picker,
-    // so an administrator reading the two side by side would not know they were the
-    // same choice. Every other member here derives correctly.
+    // The app's own orientation picker calls this "Landscape auto", and Default "Follow
+    // device orientation". Derived from the names, the two screens would name the same
+    // choices differently; the other members derive as the app labels them.
     [Display(Name = "Landscape auto")]
     Landscape = 5,
     /**
@@ -71,26 +71,36 @@ public enum ImageStyle
     cover
 };
 
+// Labelled and ordered as the app's quality picker, BITRATES in BitrateSelector.tsx:
+// Max, which is null here, then the fastest first. The values are what travels.
 public enum Bitrate
 {
-    _250KB = 250000,
-    _500KB = 500000,
-    _1MB = 1000000,
-    _2MB = 2000000,
-    _4MB = 4000000,
+    [Display(Name = "8 Mb/s")]
     _8MB = 8000000,
+    [Display(Name = "4 Mb/s")]
+    _4MB = 4000000,
+    [Display(Name = "2 Mb/s")]
+    _2MB = 2000000,
+    [Display(Name = "1 Mb/s")]
+    _1MB = 1000000,
+    [Display(Name = "500 Kb/s")]
+    _500KB = 500000,
+    [Display(Name = "250 Kb/s")]
+    _250KB = 250000,
 };
 
 // These enums were removed from Jellyfin.Data.Enums in Jellyfin 10.11
 // Kept here for backward compatibility
 [JsonConverter(typeof(StringEnumConverter))]
+// Declared in the order the app's subtitle mode picker lists them, SubtitleToggles.tsx,
+// which is the dropdown's order. The numbers are what storage keeps.
 public enum SubtitlePlaybackMode
 {
     Default = 0,
-    Always = 1,
+    Smart = 4,
     OnlyForced = 2,
-    None = 3,
-    Smart = 4
+    Always = 1,
+    None = 3
 }
 
 [JsonConverter(typeof(StringEnumConverter))]
@@ -101,10 +111,14 @@ public enum SortOrder
 }
 
 [JsonConverter(typeof(StringEnumConverter))]
+// Labelled as the app's segment skip page labels them.
 public enum SegmentSkipMode
 {
+    [Display(Name = "None")]
     none = 0,
+    [Display(Name = "Ask to skip")]
     ask = 1,
+    [Display(Name = "Skip")]
     auto = 2
 }
 
@@ -128,10 +142,12 @@ public enum AudioTranscodeMode
     // "5.1" is not a C# identifier, so the member name and the wire value differ.
     [EnumMember(Value = "5.1")]
     [JsonStringEnumMemberName("5.1")]
+    [Display(Name = "Allow 5.1")]
     Allow51,
 
     [EnumMember(Value = "passthrough")]
     [JsonStringEnumMemberName("passthrough")]
+    [Display(Name = "Passthrough")]
     AllowAll
 };
 
@@ -144,10 +160,12 @@ public enum MpvCacheMode
 
     [EnumMember(Value = "yes")]
     [JsonStringEnumMemberName("yes")]
+    [Display(Name = "Enabled")]
     Yes,
 
     [EnumMember(Value = "no")]
     [JsonStringEnumMemberName("no")]
+    [Display(Name = "Disabled")]
     No
 };
 
@@ -157,10 +175,12 @@ public enum MpvVoDriver
     // "gpu-next" is not a C# identifier.
     [EnumMember(Value = "gpu-next")]
     [JsonStringEnumMemberName("gpu-next")]
+    [Display(Name = "gpu-next (Recommended)")]
     GpuNext,
 
     [EnumMember(Value = "gpu")]
     [JsonStringEnumMemberName("gpu")]
+    [Display(Name = "gpu")]
     Gpu
 };
 
@@ -239,11 +259,18 @@ public enum SubtitleAlignY
 public enum InactivityTimeout
 {
     Disabled = 0,
+    [Display(Name = "1 minute")]
     OneMinute = 60000,
+    [Display(Name = "5 minutes")]
     FiveMinutes = 300000,
+    [Display(Name = "15 minutes")]
     FifteenMinutes = 900000,
+    [Display(Name = "30 minutes")]
     ThirtyMinutes = 1800000,
+    [Display(Name = "1 hour")]
     OneHour = 3600000,
+    [Display(Name = "4 hours")]
     FourHours = 14400000,
+    [Display(Name = "24 hours")]
     TwentyFourHours = 86400000
 };

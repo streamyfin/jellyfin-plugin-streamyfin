@@ -720,7 +720,7 @@ public class Settings
     public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
+    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity")]
     [SettingScope("Security")]
     public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
 

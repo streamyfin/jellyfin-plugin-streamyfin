@@ -87,8 +87,18 @@ public class SettingsFormTests
     /// wrong.
     /// </remarks>
     [Theory]
-    [InlineData("defaultBitrate", "_250KB", "250 KB")]
+    [InlineData("defaultBitrate", "_250KB", "250 Kb/s")]
     [InlineData("subtitleMode", "OnlyForced", "Only forced")]
+    // The labels the app's own pickers show, so an administrator reads the same words in
+    // both places: "Allow 51" and "Allow all" were derived from the member names.
+    [InlineData("audioTranscodeMode", "5.1", "Allow 5.1")]
+    [InlineData("audioTranscodeMode", "passthrough", "Passthrough")]
+    [InlineData("skipIntro", "ask", "Ask to skip")]
+    [InlineData("skipIntro", "auto", "Skip")]
+    [InlineData("mpvCacheEnabled", "yes", "Enabled")]
+    [InlineData("mpvVoDriver", "gpu-next", "gpu-next (Recommended)")]
+    [InlineData("inactivityTimeout", "OneMinute", "1 minute")]
+    [InlineData("defaultVideoOrientation", "Default", "Follow device orientation")]
     // #110. The app's own picker calls this "Landscape auto", and deriving from the
     // member name gives "Landscape", so the two screens named the same choice
     // differently and an administrator had no way to tell they matched.
@@ -98,6 +108,21 @@ public class SettingsFormTests
         var option = Assert.Single(Field(key).Options.Where(o => o.Value == value));
 
         Assert.Equal(expected, option.Label);
+    }
+
+    /// <summary>
+    /// A dropdown lists its choices in the order the app's own picker does.
+    /// </summary>
+    /// <remarks>
+    /// The order was the enum's declaration order, so the subtitle modes came as Default,
+    /// Always, Only forced, None, Smart, and the qualities slowest first.
+    /// </remarks>
+    [Theory]
+    [InlineData("subtitleMode", "Default,Smart,OnlyForced,Always,None")]
+    [InlineData("defaultBitrate", ",_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
+    public void AChoiceListFollowsTheAppsOrder(string key, string expected)
+    {
+        Assert.Equal(expected, string.Join(",", Field(key).Options.Select(o => o.Value ?? "")));
     }
 
     /// <summary>
