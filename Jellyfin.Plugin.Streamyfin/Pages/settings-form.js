@@ -252,6 +252,13 @@ const buildControl = (field, cultures) => {
             }
             break;
         case "List":
+            // A list of values the app knows arrives with them, and boxes say what there
+            // is to choose. One it could not enumerate stays a line per entry.
+            if (field.options?.length) {
+                control = el("div", "sf-checks");
+                control.setAttribute("role", "group");
+                break;
+            }
             control = el("textarea", "sf-list");
             control.rows = 3;
             control.placeholder = "One per line";
@@ -293,6 +300,27 @@ const placeholderOption = (select) => {
     return option;
 };
 
+// The boxes of a list of known values, the chosen ones ticked. A stored value the list
+// does not offer, typed on the Yaml tab or dropped by the app since, stays as a ticked
+// box of its own rather than vanish on the next save.
+const drawChecks = (control, field, chosen) => {
+    const known = new Set(field.options.map((option) => option.value));
+    const choices = [
+        ...field.options,
+        ...chosen.filter((one) => !known.has(one)).map((one) => ({ value: one, label: `Other (${one})` })),
+    ];
+    control.replaceChildren(...choices.map((option) => {
+        const line = el("label", "sf-checkline");
+        const box = el("input", "sf-check");
+        box.type = "checkbox";
+        box.value = option.value;
+        box.checked = chosen.includes(option.value);
+        box.setAttribute("data-control", field.control);
+        line.append(box, el("span", null, option.label));
+        return line;
+    }));
+};
+
 const writeControl = (row) => {
     const { field, control, value } = row;
     if (!control) return;
@@ -307,6 +335,14 @@ const writeControl = (row) => {
                 break;
             case "Select":
                 placeholderOption(control).selected = true;
+                break;
+            case "List":
+                if (field.options?.length) {
+                    drawChecks(control, field, []);
+                    break;
+                }
+                control.value = "";
+                control.placeholder = "App default";
                 break;
             default:
                 control.value = "";
@@ -338,9 +374,12 @@ const writeControl = (row) => {
             control.value = wanted;
             break;
         }
-        case "List":
-            control.value = Array.isArray(value) ? value.join("\n") : "";
+        case "List": {
+            const chosen = Array.isArray(value) ? value : [];
+            if (field.options?.length) drawChecks(control, field, chosen);
+            else control.value = chosen.join("\n");
             break;
+        }
         case "Language":
             // The config spells the two fields camelCase, the way YamlDotNet reads them; a
             // level written as JSON keeps the CLR names. Both open on the stored culture.
@@ -371,7 +410,9 @@ const readControl = (row, cultures) => {
             // would store it.
             return field?.address ? control.value.trim() : control.value;
         case "List":
-            return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+            return field.options?.length
+                ? [...control.querySelectorAll("input:checked")].map((box) => box.value)
+                : control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
         case "Language": {
             const culture = (cultures ?? []).find((c) => c.ThreeLetterISOLanguageName === control.value);
             return culture

@@ -675,6 +675,44 @@ describe("a setting the app picks from a list", () => {
     });
 });
 
+const HERO_KINDS = field("hiddenHomeHeroMediaTypes", "List", {
+    category: "Home and appearance",
+    group: "Hero carousel",
+    title: "Hidden hero media types",
+    options: [{ value: "movie", label: "Movies" }, { value: "tv", label: "TV shows" }],
+});
+
+// The hero carousel's filters asked for typed keys, continueWatching and the like, which
+// an administrator had to copy out of the description.
+describe("a list of values the app knows", () => {
+    const mountHero = (stored) => mountForm(stored === undefined ? {} : { hiddenHomeHeroMediaTypes: stored }, { fields: [HERO_KINDS], defaults: {} });
+    const boxes = (mount) => [...control(mount, "hiddenHomeHeroMediaTypes").querySelectorAll("input")];
+
+    test("is a box per value, the stored ones ticked", () => {
+        const { mount, form } = mountHero({ value: ["tv"], locked: false });
+
+        expect(boxes(mount).map((box) => [box.value, box.checked])).toEqual([["movie", false], ["tv", true]]);
+
+        change(boxes(mount)[0], (box) => { box.checked = true; });
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["movie", "tv"], locked: false });
+    });
+
+    test("a stored value the app does not offer stays, ticked, under its own name", () => {
+        const { mount, form } = mountHero({ value: ["music"], locked: true });
+        const other = boxes(mount).find((box) => box.value === "music");
+
+        expect(other.checked).toBe(true);
+        expect(other.parentElement.textContent).toBe("Other (music)");
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["music"], locked: true });
+    });
+
+    test("with nothing set, offers every value unticked", () => {
+        const { mount } = mountHero();
+
+        expect(boxes(mount).map((box) => box.checked)).toEqual([false, false]);
+    });
+});
+
 describe("themeFromBackground", () => {
     test("a dark dashboard background is dark, a light one is light", () => {
         expect(themeFromBackground("rgb(16, 16, 16)")).toBe("dark");

@@ -266,13 +266,15 @@ public class Settings
     // enum would validate the members, and would also make an administrator's YAML
     // fail to load the day the app adds a section name the plugin does not know yet.
     [NotNull]
-    [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
+    [Display(Name = "Hidden hero sections", Description = "The groups to keep out of the hero carousel")]
     [SettingScope("Home and appearance", Group = "Hero carousel")]
+    [Choices(typeof(HomeHeroSections))]
     public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
 
     [NotNull]
-    [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
+    [Display(Name = "Hidden hero media types", Description = "The kinds of media to keep out of the hero carousel")]
     [SettingScope("Home and appearance", Group = "Hero carousel")]
+    [Choices(typeof(HomeHeroMediaTypes))]
     public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
 
     [NotNull]

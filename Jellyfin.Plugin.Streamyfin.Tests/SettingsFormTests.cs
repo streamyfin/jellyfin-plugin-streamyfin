@@ -66,6 +66,21 @@ public class SettingsFormTests
     }
 
     /// <summary>
+    /// A list of values the app knows arrives with them, so the page draws boxes rather
+    /// than asking for the keys.
+    /// </summary>
+    [Theory]
+    [InlineData("hiddenHomeHeroSections", "continueWatching,nextUp,recentlyAdded")]
+    [InlineData("hiddenHomeHeroMediaTypes", "movie,tv")]
+    public void AListOfKnownValuesCarriesThem(string key, string expected)
+    {
+        var field = Field(key);
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Equal(expected, string.Join(",", field.Options.Select(o => o.Value)));
+    }
+
+    /// <summary>
     /// A dropdown arrives with its choices, so the page holds no list of its own.
     /// </summary>
     [Fact]
@@ -133,11 +148,12 @@ public class SettingsFormTests
     }
 
     /// <summary>
-    /// A list of choices is for a setting stored as text.
+    /// A list of choices is for a setting stored as text, or as a list of texts.
     /// </summary>
     /// <remarks>
-    /// The page reads a choice back as the string its option holds. On a setting stored as
-    /// anything else it would write a value the store refuses.
+    /// The page reads a choice back as the string its option holds, and a ticked box as
+    /// one string of the list. On a setting stored as anything else it would write a value
+    /// the store refuses.
     /// </remarks>
     [Fact]
     public void AListOfChoicesIsForASettingStoredAsText()
@@ -147,7 +163,9 @@ public class SettingsFormTests
             .ToArray();
 
         Assert.NotEmpty(listed);
-        Assert.Empty(listed.Where(d => d.ValueType != typeof(string)).Select(d => d.Key));
+        Assert.Empty(listed
+            .Where(d => d.ValueType != typeof(string) && d.ValueType != typeof(string[]))
+            .Select(d => d.Key));
     }
 
     /// <summary>

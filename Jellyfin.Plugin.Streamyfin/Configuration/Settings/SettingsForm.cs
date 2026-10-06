@@ -116,7 +116,10 @@ public static class SettingsForm
         var type = descriptor.ValueType;
         var enumType = EnumTypeOf(type);
         var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>();
-        var control = listed is null ? ControlFor(descriptor, type, enumType) : SettingsControl.Select;
+        // A list of values the app knows becomes boxes to tick, a single one a dropdown.
+        var control = listed is null
+            ? ControlFor(descriptor, type, enumType)
+            : type.IsArray ? SettingsControl.List : SettingsControl.Select;
         var bounds = descriptor.Bounds;
         var step = descriptor.Property.GetCustomAttribute<StepAttribute>();
 

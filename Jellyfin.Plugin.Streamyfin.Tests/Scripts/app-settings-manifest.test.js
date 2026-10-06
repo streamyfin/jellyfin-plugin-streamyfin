@@ -374,6 +374,44 @@ export const APP_LANGUAGES = _APP_LANGUAGES;
     });
 });
 
+describe("the values the app offers from a record of translation keys", () => {
+    // The hero carousel's filter, as the app writes it: each value mapped to the key its
+    // label is translated under, and the English read from translations/en.json.
+    const HERO = `
+const MEDIA_LABEL_KEYS: Record<HomeHeroMediaType, string> = {
+  movie: "common.movies",
+  tv: "home.hero.tv_shows",
+};
+const toggle = (next) => updateSettings({ hiddenHomeHeroMediaTypes: next });
+`;
+    const EN = JSON.stringify({ common: { movies: "Movies" }, home: { hero: { tv_shows: "TV shows" } } });
+
+    const app = ({ hero = HERO, en = EN } = {}) => checkout(
+        settings(
+            '  hiddenHomeHeroMediaTypes?: ("movie" | "tv")[];\n  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;',
+            "  hiddenHomeHeroMediaTypes: [],\n  autoLoginSeerr: true,"),
+        { "components/home/HomeHeroCarousel.tsx": hero, "translations/en.json": en });
+
+    test("are labelled with the app's English, sorted by value", () => {
+        expect(buildManifest(app()).find((entry) => entry.key === "hiddenHomeHeroMediaTypes").options).toEqual([
+            { value: "movie", label: "Movies" },
+            { value: "tv", label: "TV shows" },
+        ]);
+    });
+
+    test("a translation key with no English stops the run", () => {
+        const en = JSON.stringify({ common: { movies: "Movies" } });
+
+        expect(() => buildManifest(app({ en }))).toThrow(/en\.json has no string for home\.hero\.tv_shows/);
+    });
+
+    test("a carousel that no longer writes the setting stops the run", () => {
+        const hero = HERO.replace("hiddenHomeHeroMediaTypes", "hiddenHeroKinds");
+
+        expect(() => buildManifest(app({ hero }))).toThrow(/HomeHeroCarousel\.tsx no longer writes hiddenHomeHeroMediaTypes/);
+    });
+});
+
 test("the entries come out sorted by key", () => {
     const root = checkout(settings(
         "  zeta: number;\n  alpha: number;\n  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;",

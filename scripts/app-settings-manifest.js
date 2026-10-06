@@ -69,6 +69,10 @@ const RESHAPED = {
 // SettingsParityTests holds equal to this. Each screen is checked on every run: one that
 // stops importing the list, or stops writing the setting, stops the run rather than leave
 // the manifest describing a list nothing offers any more.
+//
+// A list is either { label, value } pairs, or, with `translated`, a record from each value
+// to the translation key its label is shown under, read from the app's English strings.
+const HERO = path.join('components', 'home', 'HomeHeroCarousel.tsx');
 const CHOICES = {
     preferedLanguage: {
         file: 'i18n.ts',
@@ -78,7 +82,19 @@ const CHOICES = {
             path.join('app', '(auth)', '(tabs)', '(home)', 'settings.tv.tsx'),
         ],
     },
+    hiddenHomeHeroSections: { file: HERO, name: 'SECTION_LABEL_KEYS', translated: true, offeredBy: [HERO] },
+    hiddenHomeHeroMediaTypes: { file: HERO, name: 'MEDIA_LABEL_KEYS', translated: true, offeredBy: [HERO] },
 };
+
+/** The app's English string for a translation key such as "home.next_up". */
+function english(appRoot, key) {
+    const strings = JSON.parse(fs.readFileSync(path.join(appRoot, 'translations', 'en.json'), 'utf8'));
+    const text = key.split('.').reduce((node, part) => (isPlainObject(node) ? node[part] : undefined), strings);
+    if (typeof text !== 'string' || text === '') {
+        throw new Unreadable(`translations/en.json has no string for ${key}`);
+    }
+    return text;
+}
 
 // A default the app picks by platform has no single value to declare.
 const PLATFORM = Symbol('platform');
@@ -720,7 +736,7 @@ function readWireNames(overrides, before = []) {
 function readChoices(appRoot, keys) {
     const choices = new Map();
 
-    for (const [key, { file, name, offeredBy }] of Object.entries(CHOICES)) {
+    for (const [key, { file, name, offeredBy, translated }] of Object.entries(CHOICES)) {
         if (!keys.has(key)) {
             continue;
         }
@@ -733,7 +749,8 @@ function readChoices(appRoot, keys) {
             }
             const source = fs.readFileSync(where, 'utf8');
             const brought = readModule(where, source).imports.get(name);
-            if (brought?.module !== specifier || brought.name !== name) {
+            // A screen that defines the list itself has nothing to import it from.
+            if (screen !== file && (brought?.module !== specifier || brought.name !== name)) {
                 throw new Unreadable(`${screen} no longer imports ${name} from ${specifier}, so it may not offer it for ${key}`);
             }
             if (!new RegExp(`\\b${key}\\s*:`).test(source)) {
@@ -751,6 +768,12 @@ function readChoices(appRoot, keys) {
             list = evaluate(module.consts.get(name), { module, appRoot, verified: new Set() });
         } catch (error) {
             throw error instanceof Unreadable ? new Unreadable(`${name} in ${file}: ${error.message}`) : error;
+        }
+        if (translated) {
+            if (!isPlainObject(list)) {
+                throw new Unreadable(`${name} in ${file} is not a record of translation keys`);
+            }
+            list = Object.entries(list).map(([value, label]) => ({ value, label: english(appRoot, String(label)) }));
         }
         choices.set(key, choiceList(list, `${name} in ${file}`));
     }
