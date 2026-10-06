@@ -39,7 +39,9 @@ all pick it up with no further change.
 
 **50 of the 52 are decided as declarable.** Two are not. One of the 50,
 `downloadQuality`, needs a matching app change before it can land, for the reason
-given under the type rules below.
+given under the type rules below. These are the first study's numbers, on the 52
+settings the app had then; the manifest records 95 now, and the keys taken out since are
+under "Six keys left again" below.
 
 `playbackSpeedPerMedia` and `playbackSpeedPerShow` stay out. They are not
 settings. They are `Record<string, number>` maps the player writes by itself,
@@ -47,8 +49,8 @@ keyed by item and by series id, so there is nothing an administrator could
 usefully put in them. Declaring them would also put a field nobody can fill into
 the generated admin forms of P3.
 
-Six of the 50 were weighed rather than waved through, and are declared with the
-caveat written next to them in `examples/full.yml`:
+Seven were weighed rather than waved through, and are declared with the caveat written
+next to them in `examples/full.yml`:
 
 - **The five mpv keys** (`mpvCacheEnabled`, `mpvCacheSeconds`, `mpvDemuxerMaxBytes`,
   `mpvDemuxerMaxBackBytes`, `mpvVoDriver`) describe what a device can do, not what a
@@ -147,16 +149,17 @@ treatment for the simpler reason that the app has no default for them either.
 Two keys are plain arrays, `hiddenHomeHeroSections` and `hiddenHomeHeroMediaTypes`,
 and follow `Home.sections`, which is already an array property.
 
-**Five keys left again.** `deviceProfile`, `mediaListCollectionIds`, `usePopularPlugin`
+**Six keys left again.** `deviceProfile`, `mediaListCollectionIds`, `usePopularPlugin`
 and `showHomeTitles` were declared from the app's `Settings` type, but the app reads none
 of them: nothing has read `deviceProfile` since the app built its device profile from the
 active player, the other three lost their last reader with the large carousel, or never
 had one. `videoPlayer` picks the engine and the controls for every platform at once, so a
 value an administrator set for Android TV, ExoPlayer for HDR, also moved every iPhone
-off the native controls. The five are in `NotDeclared` with the commits that show it, and
-the two native player switches, which each name one platform, stay. None of the five was
-in 0.68.1, so only an unstable build ever stored one; a stored configuration that holds
-one still loads, without it.
+off the native controls. `autoPlayEpisodeCount` is no setting: it is the counter the player
+keeps against the maximum, and a locked value would stop auto play for good or never. The
+six are in `NotDeclared` with the reasons, and the two native player switches, which each
+name one platform, stay. None of the six was in 0.68.1, so only an unstable build ever
+stored one; a stored configuration that holds one still loads, without it.
 
 ## The manifest, and the test that reads it
 
