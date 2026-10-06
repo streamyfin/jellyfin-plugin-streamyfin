@@ -8,7 +8,6 @@
 // through json-editor, whose property picker never actually added a setting, so an
 // override could be read and changed but never created. That is what this replaces.
 
-
 const url = (path) => window.ApiClient.getUrl(`streamyfin/v1/${path}`);
 
 const readJson = (path) =>
@@ -470,7 +469,7 @@ export default function (view) {
 
     const load = async (loaded) => {
         setStatus("Loading the groups…");
-        shared.drawLegend(el("sf-legend"));
+        shared.drawLegend(el("sf-legend"), { level: true });
 
         const [form_, allGroups, allEvents, cultures] = await Promise.all([
             readJson("settings/form"),

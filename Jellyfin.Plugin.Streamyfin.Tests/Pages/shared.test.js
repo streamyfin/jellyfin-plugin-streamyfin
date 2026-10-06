@@ -132,6 +132,22 @@ describe("the display switches", () => {
         expect(applied).toEqual([{ descriptions: false, keys: false }]);
     });
 
+    test("a click applies what was clicked even when storage refuses it", () => {
+        const root = view("sf-terse", "sf-keys");
+        const applied = [];
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+        const setItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = () => { throw new Error("full"); };
+        try {
+            root.querySelector("#sf-terse").click();
+        } finally {
+            Storage.prototype.setItem = setItem;
+        }
+
+        expect(root.querySelector("#sf-terse").getAttribute("aria-pressed")).toBe("false");
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
+    });
+
     test("a view without one of the switches is still wired", () => {
         const root = view("sf-terse");
         const applied = [];
@@ -166,6 +182,19 @@ describe("the legend", () => {
             [false, false, true],
             [false, true, true],
         ]);
+    });
+
+    // On a level there is no Free and nothing unset: a setting is listed there or the
+    // level above decides it.
+    test("on a level, says what a level does", () => {
+        const mount = document.createElement("div");
+
+        drawLegend(mount, { level: true });
+
+        const said = [...mount.children].map((item) => item.textContent);
+        expect(said).toContain("Not listed: the level above decides");
+        expect(said.some((text) => text.startsWith("Free"))).toBe(false);
+        expect(mount.querySelectorAll("input.sf-check")).toHaveLength(2);
     });
 
     test("is drawn once however often the page is shown", () => {

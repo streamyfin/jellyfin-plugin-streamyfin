@@ -102,8 +102,11 @@ export const paintDisplaySwitches = (view, apply) => {
     apply({ descriptions: showsDescriptions(), keys: showsKeys() });
 };
 
-// Wires the switches for one showing of the view, the listeners dropped with signal.
+// Wires the switches for one showing of the view, the listeners dropped with signal. A
+// click applies what was clicked: storage only remembers it, and a dashboard that
+// refuses to store would otherwise show a switch saying one thing and a page another.
 export const wireDisplaySwitches = (view, signal, apply) => {
+    const choice = { descriptions: showsDescriptions(), keys: showsKeys() };
     for (const [id, read, write] of DISPLAY_SWITCHES) {
         const toggle = view.querySelector(`#${id}`);
         if (!toggle) continue;
@@ -111,7 +114,8 @@ export const wireDisplaySwitches = (view, signal, apply) => {
             const on = toggle.getAttribute("aria-pressed") !== "true";
             write(on);
             paintSwitch(toggle, on);
-            apply({ descriptions: showsDescriptions(), keys: showsKeys() });
+            choice[id === "sf-keys" ? "keys" : "descriptions"] = on;
+            apply({ ...choice });
         }, { signal });
     }
     paintDisplaySwitches(view, apply);
@@ -128,11 +132,20 @@ const LEGEND = [
     ["edge", "locked", "Locked: your value, and users cannot change it"],
 ];
 
-export const drawLegend = (mount) => {
+// A level has no Free and no unset box: a setting is overridden there or falls through.
+const LEVEL_LEGEND = [
+    ["box", "on", "On"],
+    ["box", "off", "Off"],
+    ["edge", "suggested", "Suggested: this level's value, set once as each user's starting point"],
+    ["edge", "locked", "Locked: this level's value, and users cannot change it"],
+    ["edge", "free", "Not listed: the level above decides"],
+];
+
+export const drawLegend = (mount, { level = false } = {}) => {
     if (!mount) return;
     mount.replaceChildren();
     mount.setAttribute("aria-label", "What the boxes and states mean");
-    for (const [shape, state, text] of LEGEND) {
+    for (const [shape, state, text] of level ? LEVEL_LEGEND : LEGEND) {
         const item = document.createElement("span");
         if (shape === "box") {
             const box = document.createElement("input");

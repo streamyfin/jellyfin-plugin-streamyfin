@@ -69,7 +69,6 @@ const readCultures = async () => {
     }
 };
 
-
 const remember = (key, value) => {
     try {
         window.localStorage.setItem(key, value);
@@ -85,7 +84,6 @@ const recalled = (key) => {
         return null;
     }
 };
-
 
 export default function (view) {
     let form = null;

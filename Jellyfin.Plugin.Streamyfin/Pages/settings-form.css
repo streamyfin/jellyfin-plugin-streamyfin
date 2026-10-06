@@ -160,11 +160,12 @@
 .sf-page .sf-head { display: flex; align-items: center; gap: 0.8rem; }
 .sf-page .sf-name { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--sf-ink); font-size: 1.02rem; }
 .sf-page .sf-key { display: block; font-style: normal; font-size: 0.76rem; color: var(--sf-key); font-weight: 400; font-family: var(--sf-mono); margin-top: 0.1rem; }
-.sf-page .is-keyless .sf-key { display: none; }
+.sf-page .is-keyless .sf-key:not(.sf-keep) { display: none; }
 .sf-page .sf-desc { margin: 0.45rem 0 0; font-size: 0.92rem; color: var(--sf-ink-3); }
 .sf-page .sf-desc strong { color: var(--sf-pin); font-weight: 600; }
-/* What is wrong with a value, and an empty list's one line, stay with the help off. */
-.sf-page .is-terse .sf-desc:not(.sf-problem):not(.sf-empty) { display: none; }
+/* What is wrong with a value, an empty list's one line, and what a row needs to be read
+   (sf-keep), stay with the help off. */
+.sf-page .is-terse .sf-desc:not(.sf-problem):not(.sf-empty):not(.sf-keep) { display: none; }
 .sf-page .sf-why { margin: 0.4rem 0 0; font-size: 0.88rem; font-style: italic; color: var(--sf-ink-3); }
 .sf-page .is-inert .sf-why { color: var(--sf-pin); }
 .sf-page .sf-problem { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--sf-danger); }
