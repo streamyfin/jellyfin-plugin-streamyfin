@@ -89,7 +89,6 @@ public class SerializationHelper
         options.Converters.Insert(0, new JsonNumberEnumConverter<SubtitlePlaybackMode>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<OrientationLock>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<Bitrate>());
-        options.Converters.Insert(0, new JsonNumberEnumConverter<VideoPlayer>());
         options.Converters.Insert(0, new JsonNumberEnumConverter<InactivityTimeout>());
 
 #if DEBUG

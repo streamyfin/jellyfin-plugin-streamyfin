@@ -153,6 +153,35 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
+    /// A configuration a preview stored still loads once a setting it holds is no longer
+    /// declared, and the rest of it is still served.
+    /// </summary>
+    /// <remarks>
+    /// videoPlayer, deviceProfile and three settings the app reads nowhere left the plugin
+    /// between two unstable builds. A server that saved one of them keeps it in its
+    /// database, and refusing the whole document over it would serve nothing at all.
+    /// </remarks>
+    [Fact]
+    public void AStoredSettingThisVersionNoLongerDeclaresIsLeftBehind()
+    {
+        _db.SaveGlobalConfigJson(
+            """
+            {"settings": {
+              "videoPlayer": {"locked": true, "value": 1},
+              "deviceProfile": {"locked": false, "value": "Expo"},
+              "showHomeTitles": {"locked": false, "value": true},
+              "usePopularPlugin": {"locked": false, "value": true},
+              "mediaListCollectionIds": {"locked": false, "value": []},
+              "forwardSkipTime": {"locked": true, "value": 15}
+            }}
+            """);
+
+        var current = new GlobalConfigurationStore(_db, _serialization).Current;
+
+        Assert.Equal(15, current.settings?.forwardSkipTime?.value);
+    }
+
+    /// <summary>
     /// A file whose settings this version all declares reports nothing.
     /// </summary>
     [Fact]

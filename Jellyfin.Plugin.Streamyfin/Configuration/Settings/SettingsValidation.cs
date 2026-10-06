@@ -40,8 +40,9 @@ public static class SettingsValidation
     /// The reasons these settings cannot be stored, one line each.
     /// </summary>
     /// <param name="settings">The settings, or the part of them a level carries.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
     /// <returns>The problems, in declaration order. Empty when there are none.</returns>
-    internal static IReadOnlyList<string> Problems(Settings? settings)
+    internal static IReadOnlyList<string> Problems(Settings? settings, Settings? before = null)
     {
         if (settings is null)
         {
@@ -82,7 +83,11 @@ public static class SettingsValidation
             }
 
             var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-            if (number < bounds.Minimum || number > bounds.Maximum)
+            // A value the level already holds is left alone: bounds that arrived after
+            // it was stored, as the app's own ranges did in 0.70, would otherwise refuse
+            // every save of any tab, and the restore of the server's own backup, over a
+            // setting nobody touched. A value that changed is held to them.
+            if ((number < bounds.Minimum || number > bounds.Maximum) && !Equals(descriptor.Read(before), value))
             {
                 problems.Add(string.Format(
                     CultureInfo.InvariantCulture,
@@ -101,12 +106,13 @@ public static class SettingsValidation
     /// Tidies these settings and says what still cannot be stored.
     /// </summary>
     /// <param name="settings">The settings, which are trimmed in place.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
     /// <returns>The message to refuse with, or <c>null</c> when they can be stored.</returns>
     /// <remarks>
     /// One call, because the two halves have to happen in this order and a write path
     /// that did only the second stored an address with the space the first removes.
     /// </remarks>
-    public static string? Check(Settings? settings)
+    public static string? Check(Settings? settings, Settings? before = null)
     {
         // Before anything else: a document that writes one setting twice and disagrees
         // with itself is refused rather than resolved by precedence, since an
@@ -122,7 +128,7 @@ public static class SettingsValidation
 
         Tidy(settings);
 
-        return Message(settings);
+        return Message(settings, before);
     }
 
     /// <summary>
@@ -179,10 +185,11 @@ public static class SettingsValidation
     /// The problems as one message, or null when there are none.
     /// </summary>
     /// <param name="settings">The settings to check.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
     /// <returns>The message, or <c>null</c>.</returns>
-    internal static string? Message(Settings? settings)
+    internal static string? Message(Settings? settings, Settings? before = null)
     {
-        var problems = Problems(settings);
+        var problems = Problems(settings, before);
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
@@ -190,9 +197,10 @@ public static class SettingsValidation
     private static bool IsNumber(object value) =>
         value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
-    // 60 rather than 60.0, since every bound declared today is a whole number and an
-    // administrator reading the message is not thinking in doubles. The comparison is a
-    // difference rather than an equality, which is how a double says "whole".
+    // 60 rather than 60.0, since an administrator reading the message is not thinking in
+    // doubles; a bound that is not whole, a speed's 0.25, keeps its fraction. The
+    // comparison is a difference rather than an equality, which is how a double says
+    // "whole".
     private static string Number(double value) =>
         Math.Abs(value - Math.Truncate(value)) < 1e-9 && Math.Abs(value) < 1e15
             ? ((long)value).ToString(CultureInfo.InvariantCulture)

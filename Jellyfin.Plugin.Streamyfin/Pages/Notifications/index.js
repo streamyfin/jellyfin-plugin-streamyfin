@@ -135,7 +135,8 @@ const wordingCard = async (sentences, edited) => {
             const text = el("input", "sf-text sf-wording-text");
             const drop = el("button", "sf-danger sf-wording-drop", "Remove");
 
-            name.appendChild(el("i", "sf-key", `${sentence?.placeholders ?? 0} placeholder(s)`));
+            // Kept with the keys hidden: the card asks to keep the placeholders.
+            name.appendChild(el("i", "sf-key sf-keep", `${sentence?.placeholders ?? 0} placeholder(s)`));
             head.appendChild(name);
 
             locale.type = "text";
@@ -171,7 +172,8 @@ const wordingCard = async (sentences, edited) => {
             row.appendChild(head);
 
             if (sentence?.describes) row.appendChild(el("p", "sf-desc", sentence.describes));
-            if (sentence) row.appendChild(el("p", "sf-desc", `Today: ${sentence.text}`));
+            // The sentence being rewritten, not help about it, so it stays with the help off.
+            if (sentence) row.appendChild(el("p", "sf-desc sf-keep", `Today: ${sentence.text}`));
 
             const problem = found.get(at);
             if (problem) {
@@ -183,7 +185,7 @@ const wordingCard = async (sentences, edited) => {
         });
 
         if (list.length === 0) {
-            rows.appendChild(el("p", "sf-desc", "Nothing here: every notification is written the way the plugin writes it."));
+            rows.appendChild(el("p", "sf-desc sf-empty", "Nothing here: every notification is written the way the plugin writes it."));
         }
     };
 
@@ -261,6 +263,16 @@ export default function (view, params) {
     // each one. Drawn once: a second run would find the status line it had already
     // removed and throw on the way past.
     let drawn = null;
+    // Wired once: the first draw runs again when it failed, and a second set of
+    // listeners would flip each switch twice per click.
+    let switchesWired = false;
+
+    // The Descriptions and Keys switches, shared with the other tabs that list settings.
+    const applyDisplay = ({ descriptions, keys }) => {
+        const editor = view.querySelector("#sf-editor");
+        editor.classList.toggle("is-terse", !descriptions);
+        editor.classList.toggle("is-keyless", !keys);
+    };
 
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
@@ -268,6 +280,7 @@ export default function (view, params) {
 
             if (drawn) {
                 drawn(shared.getConfig()?.notifications);
+                shared.paintDisplaySwitches(view, applyDisplay);
                 return;
             }
 
@@ -285,6 +298,10 @@ export default function (view, params) {
             renderer.applyTheme(find("sf-app"));
 
             find("notification-endpoint").innerText = shared.NOTIFICATION_URL;
+            shared.drawLegend(find("sf-legend"), { kind: "boxes" });
+            if (switchesWired) shared.paintDisplaySwitches(view, applyDisplay);
+            else shared.wireDisplaySwitches(view, undefined, applyDisplay);
+            switchesWired = true;
 
             let edits = 0;
             const edited = () => {

@@ -8,6 +8,7 @@
             <span class="sf-meta" id="sf-meta"></span>
             <button type="button" class="sf-toggle" id="sf-terse" aria-pressed="true">Descriptions <span class="sf-pip">ON</span></button>
             <button type="button" class="sf-toggle" id="sf-keys" aria-pressed="false">Keys <span class="sf-pip">OFF</span></button>
+            <button type="button" class="sf-toggle" id="sf-legend-toggle" aria-pressed="true" aria-controls="sf-legend-banner">Legend <span class="sf-pip">ON</span></button>
             <div class="sf-filter" id="sf-filter" role="group" aria-label="Show">
                 <button type="button" data-filter="all" aria-pressed="true">All</button>
                 <button type="button" data-filter="set" aria-pressed="false">Set</button>
@@ -22,18 +23,14 @@
         <div class="sf-pills" id="sf-pills" role="tablist" aria-label="Setting categories"></div>
         <div class="sf-chips" id="sf-chips"></div>
 
-        <div class="sf-banner" id="sf-banner">
+        <div class="sf-banner" id="sf-legend-banner" data-sf-legend-banner="Application">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
-            <div>Each setting does one of three things. <b>Free</b> leaves it to the user.
-                <b>Suggested</b> pushes your value once as their starting point, and they can still change it.
-                <b>Locked</b> pins it and takes the control away. Only what you set here travels;
-                everything else stays the app's own default.</div>
-            <button type="button" class="sf-banner-close" id="sf-banner-close" aria-label="Got it, hide this">&times;</button>
+            <div class="sf-legend" id="sf-legend"></div>
+            <button type="button" class="sf-banner-close" data-sf-legend-close aria-label="Hide the legend">&times;</button>
         </div>
 
         <div class="sf-status" id="sf-status">Loading the settings…</div>
         <div id="sf-editor"></div>
-
         <div class="sf-dock is-clean" id="sf-dock" hidden>
             <span class="sf-dock-text"><span class="sf-dot"></span><span id="sf-dock-summary">Nothing to save</span></span>
             <button type="button" class="sf-btn sf-find-problem" id="sf-find-problem" hidden>Show me</button>
