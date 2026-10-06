@@ -214,6 +214,16 @@ go: copies of the app from before the block read nothing else. The answer then i
 entry in `KeptForAppsInTheField`, which dies once the plugin stops declaring the key
 or the app reads it again.
 
+**A setting the app picks from a list of its own.** The app language is a string the
+app's pickers choose from `APP_LANGUAGES` in `i18n.ts`, and the Application tab offers
+the same list rather than free text, so the plugin keeps a copy of it, `AppLanguages`.
+The manifest records the app's list as the setting's `options`, read from `i18n.ts` the
+way a default is, and the run stops if either picker no longer imports the list or no
+longer writes the setting. It is sorted by value, because the app sorts by label in each
+device's own collation, which is no one order. Two tests read it beside the rules below:
+the plugin offers the app's list value for value and label for label, and offers no list
+the manifest does not record.
+
 Three rules read it. The rest of the tests in the file refuse an excuse that has
 outlived either the setting it names or the reason it was written for, from
 whichever side moved: the app dropping a key, the app catching up, or the plugin

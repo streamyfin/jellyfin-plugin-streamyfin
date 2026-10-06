@@ -610,6 +610,71 @@ describe("a declared default that is empty", () => {
     });
 });
 
+// The app language: a string the app picks from a list of its own, offered as one. The
+// device's language comes first with no value key at all, the way Jellyfin's JSON writes
+// the null it stands for.
+const LANGUAGE = field("preferedLanguage", "Select", {
+    category: "Home and appearance",
+    group: "App",
+    title: "App language",
+    options: [{ label: "Device language" }, { value: "de", label: "Deutsch" }, { value: "fr", label: "Français" }],
+});
+
+describe("a setting the app picks from a list", () => {
+    const mountLanguage = (stored) => mountForm(stored === undefined ? {} : { preferedLanguage: stored }, { fields: [LANGUAGE], defaults: {} });
+
+    test("offers the device's language first, and stores nothing for it", () => {
+        const { mount, form } = mountLanguage({ value: "fr", locked: true });
+        const select = control(mount, "preferedLanguage");
+
+        expect([...select.options].map((option) => option.textContent)).toEqual(["Device language", "Deutsch", "Français"]);
+        expect(select.value).toBe("fr");
+
+        change(select, (el) => { el.value = ""; });
+
+        expect(form.invalid()).toEqual([]);
+        expect(form.toSettings().preferedLanguage).toEqual({ value: null, locked: true });
+    });
+
+    // A language the app has dropped, or a code typed on the Yaml tab, is still what the
+    // store holds and what the app is sent. An empty dropdown would say nothing is set.
+    test("a stored value the list does not offer is shown as itself, and stays selectable", () => {
+        const { mount, form } = mountLanguage({ value: "xx", locked: true });
+        const select = control(mount, "preferedLanguage");
+
+        expect(select.value).toBe("xx");
+        expect(select.selectedOptions[0].textContent).toBe("Other (xx)");
+        expect(form.invalid()).toEqual([]);
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "xx", locked: true });
+
+        change(select, (el) => { el.value = "de"; });
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "de", locked: true });
+        expect([...select.options].map((option) => option.value)).toContain("xx");
+
+        change(select, (el) => { el.value = "xx"; });
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "xx", locked: true });
+    });
+
+    test("discarding brings back a value the list does not offer", () => {
+        const { mount, form } = mountLanguage({ value: "xx", locked: false });
+        const select = control(mount, "preferedLanguage");
+
+        change(select, (el) => { el.value = "fr"; });
+        form.reset();
+
+        expect(select.value).toBe("xx");
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    // Free means the plugin says nothing, and the app keeps whatever the user chose.
+    test("free, it says the app decides rather than naming a language", () => {
+        const { mount, form } = mountLanguage();
+
+        expect(control(mount, "preferedLanguage").selectedOptions[0].textContent).toBe("App default");
+        expect(form.toSettings()).toEqual({});
+    });
+});
+
 describe("themeFromBackground", () => {
     test("a dark dashboard background is dark, a light one is light", () => {
         expect(themeFromBackground("rgb(16, 16, 16)")).toBe("dark");

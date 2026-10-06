@@ -648,8 +648,9 @@ public class Settings
     // the user picks one, so shipping a value would impose a language on everyone who
     // never chose.
     [NotNull]
-    [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
+    [Display(Name = "App language", Description = "The language the app's text is shown in. Device language follows the language each device is set to")]
     [SettingScope("Home and appearance", Group = "App")]
+    [Choices(typeof(AppLanguages))]
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]

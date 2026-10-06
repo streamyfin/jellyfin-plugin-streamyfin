@@ -55,6 +55,8 @@ public class SettingsFormTests
     [InlineData("openSubtitlesApiKey", SettingsControl.Secret)]
     [InlineData("videoPlayer", SettingsControl.Select)]
     [InlineData("defaultBitrate", SettingsControl.Select)]
+    // A string, offered as the app's own list of languages rather than as free text.
+    [InlineData("preferedLanguage", SettingsControl.Select)]
     [InlineData("hiddenLibraries", SettingsControl.List)]
     [InlineData("defaultAudioLanguage", SettingsControl.Language)]
     [InlineData("home", SettingsControl.Composite)]
@@ -110,6 +112,42 @@ public class SettingsFormTests
 
         Assert.Equal("Max", options[0].Label);
         Assert.Null(options[0].Value);
+    }
+
+    /// <summary>
+    /// The app language is offered the way the app's own picker offers it: the device's
+    /// language first, storing nothing, then every language the app has.
+    /// </summary>
+    /// <remarks>
+    /// It was free text, "such as fr or en", which took any code, a typo included, and
+    /// named none of the languages. Which languages those are is held to the app's list by
+    /// <c>SettingsParityTests</c>; this holds what the dropdown makes of it.
+    /// </remarks>
+    [Fact]
+    public void TheAppLanguageOffersTheDevicesOwnFirst()
+    {
+        var options = Field("preferedLanguage").Options;
+
+        Assert.Equal(new SettingsChoice(null, "Device language"), options[0]);
+        Assert.Equal(AppLanguages.Languages, options.Skip(1));
+    }
+
+    /// <summary>
+    /// A list of choices is for a setting stored as text.
+    /// </summary>
+    /// <remarks>
+    /// The page reads a choice back as the string its option holds. On a setting stored as
+    /// anything else it would write a value the store refuses.
+    /// </remarks>
+    [Fact]
+    public void AListOfChoicesIsForASettingStoredAsText()
+    {
+        var listed = SettingsSchema.Descriptors
+            .Where(d => d.Property.GetCustomAttribute<ChoicesAttribute>() is not null)
+            .ToArray();
+
+        Assert.NotEmpty(listed);
+        Assert.Empty(listed.Where(d => d.ValueType != typeof(string)).Select(d => d.Key));
     }
 
     /// <summary>

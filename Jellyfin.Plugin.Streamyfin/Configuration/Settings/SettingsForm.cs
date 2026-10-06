@@ -115,7 +115,8 @@ public static class SettingsForm
     {
         var type = descriptor.ValueType;
         var enumType = EnumTypeOf(type);
-        var control = ControlFor(descriptor, type, enumType);
+        var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>();
+        var control = listed is null ? ControlFor(descriptor, type, enumType) : SettingsControl.Select;
         var bounds = descriptor.Bounds;
         var step = descriptor.Property.GetCustomAttribute<StepAttribute>();
 
@@ -130,7 +131,7 @@ public static class SettingsForm
             Minimum: bounds?.Minimum,
             Maximum: bounds?.Maximum,
             Step: step?.Value,
-            Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)),
+            Options: listed?.Choices ?? (enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type))),
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
             Integer: control == SettingsControl.Number && IsWhole(type),
             Probe: descriptor.Probe?.Kind.ToString(),

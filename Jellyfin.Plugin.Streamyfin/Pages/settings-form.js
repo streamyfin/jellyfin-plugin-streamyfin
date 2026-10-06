@@ -324,9 +324,20 @@ const writeControl = (row) => {
         case "Number":
             control.value = value === null || value === undefined ? "" : String(value);
             break;
-        case "Select":
-            control.value = value === null || value === undefined ? "" : String(value);
+        case "Select": {
+            const wanted = value === null || value === undefined ? "" : String(value);
+            // A stored value the list does not offer, a language the app has since dropped
+            // or one typed on the Yaml tab, is shown as what it is rather than as an empty
+            // dropdown, and stays among the choices once another one is picked. Opening
+            // the page never loses it.
+            if (wanted !== "" && ![...control.options].some((option) => option.value === wanted)) {
+                const other = el("option", null, `Other (${wanted})`);
+                other.value = wanted;
+                control.appendChild(other);
+            }
+            control.value = wanted;
             break;
+        }
         case "List":
             control.value = Array.isArray(value) ? value.join("\n") : "";
             break;

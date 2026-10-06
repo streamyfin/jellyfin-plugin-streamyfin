@@ -1,7 +1,8 @@
 // Writes Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json from a checkout of
-// the app: every setting it reads, its type, its default, and the other names it reads
-// that setting under. SettingsParityTests holds the plugin to that file, and
-// docs/rewrite/settings-parity.md says why it exists.
+// the app: every setting it reads, its type, its default, the other names it reads that
+// setting under, and the values it offers for a setting it picks from a list of its own.
+// SettingsParityTests holds the plugin to that file, and docs/rewrite/settings-parity.md
+// says why it exists.
 //
 //     bun scripts/app-settings-manifest.js <path to a streamyfin checkout>
 //
@@ -60,6 +61,22 @@ const RESHAPED = {
     subtitleSize: {
         note: 'the app divides a value of 10 or more by 100',
         wire: (value) => Math.round(value * 100),
+    },
+};
+
+// The settings whose value the app picks from a list of its own, where that list is, and
+// the screens that offer it for the setting. The plugin offers the same list, which
+// SettingsParityTests holds equal to this. Each screen is checked on every run: one that
+// stops importing the list, or stops writing the setting, stops the run rather than leave
+// the manifest describing a list nothing offers any more.
+const CHOICES = {
+    preferedLanguage: {
+        file: 'i18n.ts',
+        name: 'APP_LANGUAGES',
+        offeredBy: [
+            path.join('components', 'settings', 'AppLanguageSelector.tsx'),
+            path.join('app', '(auth)', '(tabs)', '(home)', 'settings.tv.tsx'),
+        ],
     },
 };
 
@@ -688,6 +705,82 @@ function readWireNames(overrides, before = []) {
 }
 
 /**
+ * The values the app offers for each setting it picks from a list, read from the list's
+ * source the way a default is.
+ *
+ * Sorted by value. The app sorts its list by label in the collation of the device's own
+ * language, so there is no one order to record, and a manifest written on a machine set
+ * to another language would otherwise differ from this one by its order alone.
+ *
+ * @param {string} appRoot The checkout.
+ * @param {Set<string>} keys The settings the app has. One in CHOICES the app no longer
+ *     has is skipped: the plugin still declares it, and SettingsParityTests fails on that.
+ * @returns {Map<string, Array<{value: string, label: string}>>} Setting key to its values.
+ */
+function readChoices(appRoot, keys) {
+    const choices = new Map();
+
+    for (const [key, { file, name, offeredBy }] of Object.entries(CHOICES)) {
+        if (!keys.has(key)) {
+            continue;
+        }
+
+        const specifier = `@/${file.replace(/\.tsx?$/, '')}`;
+        for (const screen of offeredBy) {
+            const where = path.join(appRoot, screen);
+            if (!fs.existsSync(where)) {
+                throw new Unreadable(`${screen}, which CHOICES says offers ${name} for ${key}, is not in the checkout`);
+            }
+            const source = fs.readFileSync(where, 'utf8');
+            const brought = readModule(where, source).imports.get(name);
+            if (brought?.module !== specifier || brought.name !== name) {
+                throw new Unreadable(`${screen} no longer imports ${name} from ${specifier}, so it may not offer it for ${key}`);
+            }
+            if (!new RegExp(`\\b${key}\\s*:`).test(source)) {
+                throw new Unreadable(`${screen} no longer writes ${key}, so it may not offer ${name} for it`);
+            }
+        }
+
+        const where = path.join(appRoot, file);
+        const module = readModule(where, fs.readFileSync(where, 'utf8'));
+        if (!module.consts.has(name)) {
+            throw new Unreadable(`${file} has no "${name}" to read the values of ${key} from`);
+        }
+        let list;
+        try {
+            list = evaluate(module.consts.get(name), { module, appRoot, verified: new Set() });
+        } catch (error) {
+            throw error instanceof Unreadable ? new Unreadable(`${name} in ${file}: ${error.message}`) : error;
+        }
+        choices.set(key, choiceList(list, `${name} in ${file}`));
+    }
+
+    return choices;
+}
+
+/** A list of `{ label, value }` pairs of strings, each value once, sorted by value. */
+function choiceList(list, where) {
+    if (!Array.isArray(list) || list.length === 0) {
+        throw new Unreadable(`${where} is not a list of choices`);
+    }
+
+    const seen = new Set();
+    return list
+        .map((item, index) => {
+            if (!isPlainObject(item) || typeof item.value !== 'string' || item.value === ''
+                || typeof item.label !== 'string' || item.label === '') {
+                throw new Unreadable(`${where}[${index}] is not a { label, value } pair of strings`);
+            }
+            if (seen.has(item.value)) {
+                throw new Unreadable(`${where} offers ${item.value} twice`);
+            }
+            seen.add(item.value);
+            return { value: item.value, label: item.label };
+        })
+        .sort((a, b) => (a.value < b.value ? -1 : a.value > b.value ? 1 : 0));
+}
+
+/**
  * The manifest for one checkout of the app.
  *
  * @param {string} appRoot The checkout.
@@ -705,8 +798,13 @@ function buildManifest(appRoot, { before = [] } = {}) {
             throw new Unreadable(`readIntegrationBlocks fills ${key}, which Settings does not have`);
         }
     }
+    const choices = readChoices(appRoot, keys);
 
-    return entries.map((one) => (wireNames.has(one.key) ? { ...one, wireNames: wireNames.get(one.key) } : one));
+    return entries.map((one) => ({
+        ...one,
+        ...(wireNames.has(one.key) ? { wireNames: wireNames.get(one.key) } : {}),
+        ...(choices.has(one.key) ? { options: choices.get(one.key) } : {}),
+    }));
 }
 
 if (require.main === module) {
@@ -728,4 +826,4 @@ if (require.main === module) {
     console.log(`${entries.length} settings written to ${path.relative(process.cwd(), MANIFEST)}`);
 }
 
-module.exports = { buildManifest, readSettings, readWireNames, Unreadable };
+module.exports = { buildManifest, readChoices, readSettings, readWireNames, Unreadable };
