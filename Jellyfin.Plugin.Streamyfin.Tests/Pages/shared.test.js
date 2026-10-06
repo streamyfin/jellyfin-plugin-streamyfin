@@ -6,14 +6,26 @@
 // every cancelled confirmation as a yes, which is what deleted a settings group when the
 // administrator clicked Annuler.
 
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 // shared.js asks the dashboard for its address as it loads, and loads the configuration
 // unless a page has already done it, so both are in place before the module is.
 window.ApiClient = { getUrl: (path) => `http://server/${path}` };
 window.Streamyfin = { shared: true };
 
-const { confirmed, drawLegend, paintDisplaySwitches, wireDisplaySwitches } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
+const {
+    confirmed,
+    drawLegend,
+    forgetKept,
+    KEPT_DESCRIPTIONS,
+    paintDisplaySwitches,
+    readKept,
+    saveConfig,
+    setConfig,
+    tools,
+    warmKept,
+    wireDisplaySwitches,
+} = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
 
 afterEach(() => {
     delete window.Dashboard;
@@ -304,5 +316,73 @@ describe("the legend", () => {
         drawLegend(mount);
 
         expect(mount.querySelectorAll(".sf-legend-item")).toHaveLength(6);
+    });
+});
+
+// Moving between tabs asked for the same descriptions again each time, one round trip
+// after another, which a phone or a VPN turns into most of a second per tab.
+describe("answers kept between tabs", () => {
+    let asked;
+
+    beforeEach(() => {
+        asked = [];
+        forgetKept();
+        window.ApiClient.ajax = async ({ type = "GET", url }) => {
+            asked.push(`${type} ${url.replace("http://server/", "")}`);
+            return { json: async () => (type === "POST" ? { Error: false } : { fields: [{ key: "forwardSkipTime" }] }) };
+        };
+    });
+
+    afterEach(() => {
+        delete window.ApiClient.ajax;
+    });
+
+    test("a description asked for twice is fetched once, and each caller gets its own copy", async () => {
+        const first = await readKept("streamyfin/v1/settings/form");
+        first.fields.push({ key: "changed by the first page" });
+
+        const second = await readKept("streamyfin/v1/settings/form");
+
+        expect(asked).toEqual(["GET streamyfin/v1/settings/form"]);
+        expect(second.fields).toEqual([{ key: "forwardSkipTime" }]);
+    });
+
+    test("one older than it may be is asked for again", async () => {
+        await readKept("streamyfin/v1/settings/form");
+        await readKept("streamyfin/v1/settings/form", 0);
+
+        expect(asked).toHaveLength(2);
+    });
+
+    test("a failed answer is not kept", async () => {
+        window.ApiClient.ajax = async ({ url }) => {
+            asked.push(url);
+            throw new Error("offline");
+        };
+
+        await expect(readKept("streamyfin/v1/settings/form")).rejects.toThrow("offline");
+        await expect(readKept("streamyfin/v1/settings/form")).rejects.toThrow("offline");
+
+        expect(asked).toHaveLength(2);
+    });
+
+    test("a save forgets them, so nothing read before it is shown after", async () => {
+        window.Dashboard = { showLoadingMsg() {}, hideLoadingMsg() {}, processPluginConfigurationUpdateResult() {}, alert() {} };
+        tools.jsYaml = { dump: (value) => JSON.stringify(value) };
+        setConfig({ settings: {} });
+        await readKept("streamyfin/v1/settings/form");
+
+        expect(await saveConfig()).toBe(true);
+        await readKept("streamyfin/v1/settings/form");
+
+        expect(asked).toEqual(["GET streamyfin/v1/settings/form", "POST streamyfin/config/yaml", "GET streamyfin/v1/settings/form"]);
+    });
+
+    test("warming asks once for what each other tab starts with", async () => {
+        warmKept();
+        warmKept();
+        await Promise.all(KEPT_DESCRIPTIONS.map((path) => readKept(path)));
+
+        expect(asked).toEqual(KEPT_DESCRIPTIONS.map((path) => `GET ${path}`));
     });
 });

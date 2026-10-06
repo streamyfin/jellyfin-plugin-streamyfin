@@ -59,42 +59,31 @@ export default function (view, params) {
 
             const home = await import(window.ApiClient.getUrl("web/configurationpage?name=home-editor.js"));
 
-            let schema;
-            try {
-                schema = await window.ApiClient.ajax({
-                    type: "GET",
-                    url: shared.SCHEMA_URL,
-                    contentType: "application/json",
-                }).then((response) => response.json());
-            } catch (error) {
-                console.error(error);
-                status.textContent = renderer.askingFailed(error);
+            // The three answers this tab needs, asked together rather than one after the
+            // other, and kept between visits. The schema is the one shared.js already read.
+            const [schemaAnswer, librariesAnswer, examplesAnswer] = await Promise.allSettled([
+                shared.getJsonSchema() ?? shared.readKept("streamyfin/config/schema"),
+                shared.readKept("Library/VirtualFolders"),
+                shared.readKept(`web/configurationpage?name=${home.EXAMPLES_PAGE}`),
+            ]);
+
+            if (schemaAnswer.status === "rejected" || !schemaAnswer.value) {
+                console.error(schemaAnswer.reason);
+                status.textContent = renderer.askingFailed(schemaAnswer.reason);
                 status.classList.add("is-error");
                 loading = false;
                 return;
             }
+            const schema = schemaAnswer.value;
 
             // The server's libraries, read from Jellyfin itself, so a library is picked by
             // name. A page that cannot read them still edits, with the id typed.
-            const libraries = await window.ApiClient.ajax({
-                type: "GET",
-                url: window.ApiClient.getUrl("Library/VirtualFolders"),
-                contentType: "application/json",
-            })
-                .then((response) => response.json())
-                .then(home.libraryChoices)
-                .catch((error) => {
-                    console.error(error);
-                    return [];
-                });
+            if (librariesAnswer.status === "rejected") console.error(librariesAnswer.reason);
+            const libraries = librariesAnswer.status === "fulfilled" ? home.libraryChoices(librariesAnswer.value) : [];
 
             // The examples are a convenience: a page that cannot read them still edits.
-            const examples = await fetch(window.ApiClient.getUrl(`web/configurationpage?name=${home.EXAMPLES_PAGE}`))
-                .then((response) => (response.ok ? response.json() : []))
-                .catch((error) => {
-                    console.error(error);
-                    return [];
-                });
+            if (examplesAnswer.status === "rejected") console.error(examplesAnswer.reason);
+            const examples = examplesAnswer.status === "fulfilled" && Array.isArray(examplesAnswer.value) ? examplesAnswer.value : [];
 
             const el = (tag, className, text) => {
                 const node = document.createElement(tag);
@@ -513,6 +502,7 @@ export default function (view, params) {
             settled();
             redraw();
             drawn = true;
+            shared.warmKept();
             loading = false;
         });
     });

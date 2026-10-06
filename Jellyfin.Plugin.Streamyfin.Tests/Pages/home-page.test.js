@@ -56,6 +56,7 @@ const FOLDERS = [
     { Name: "Shows", ItemId: "a656b907eb3a73532e40e44b968d0225", CollectionType: "tvshows" },
 ];
 let folders = async () => FOLDERS;
+let examples = async () => [];
 
 window.Streamyfin = { shared: true };
 globalThis.LibraryMenu = { setTabs() {} };
@@ -64,25 +65,24 @@ window.ApiClient = {
         const page = /configurationpage\?name=(.+)$/.exec(path);
         return page ? `${PAGES}${page[1]}` : `http://server/${path}`;
     },
-    ajax: async ({ url }) => (String(url).includes("Library/VirtualFolders")
-        ? { json: folders }
-        : { json: async () => SCHEMA }),
+    ajax: async ({ url }) => {
+        if (String(url).includes("Library/VirtualFolders")) return { json: folders };
+        if (String(url).includes("home-examples.json")) return { json: examples };
+        return { json: async () => SCHEMA };
+    },
 };
 
 const shared = await import(`${PAGES}shared.js`);
 const { default: homeTab } = await import(`${PAGES}Home/index.js`);
 
-const realFetch = globalThis.fetch;
 afterEach(() => {
-    globalThis.fetch = realFetch;
     folders = async () => FOLDERS;
+    examples = async () => [];
+    shared.forgetKept();
 });
 
 const serveExamples = (answer) => {
-    globalThis.fetch = async (url) => {
-        if (!String(url).endsWith("home-examples.json")) return realFetch(url);
-        return answer();
-    };
+    examples = async () => (await answer()).json();
 };
 
 const open = async (sections) => {

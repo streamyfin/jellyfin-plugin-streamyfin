@@ -472,9 +472,9 @@ export default function (view) {
         shared.drawLegend(el("sf-legend"), { kind: "level" });
 
         const [form_, allGroups, allEvents, cultures] = await Promise.all([
-            readJson("settings/form"),
+            shared.readKept("streamyfin/v1/settings/form"),
             readJson("groups"),
-            readJson("notifications/events"),
+            shared.readKept("streamyfin/v1/notifications/events"),
             window.ApiClient.getCultures().catch(() => []),
         ]);
 
@@ -506,6 +506,7 @@ export default function (view) {
 
         renderScope();
         setStatus(null);
+        shared.warmKept();
         openGroup(groups[0] ?? blankGroup());
 
         listen("sf-new", "click", () => openGroup(blankGroup()));

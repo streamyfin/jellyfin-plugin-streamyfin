@@ -4,6 +4,44 @@ export const DEFAULT_URL = window.ApiClient.getUrl('streamyfin/config/default');
 export const NOTIFICATION_URL = window.ApiClient.getUrl('streamyfin/notification');
 export const tools = {jsYaml: undefined};
 
+// Answers that change only when the plugin is updated or the server's libraries move,
+// kept a few minutes. Every move between tabs asked for the same descriptions again, one
+// round trip after the other: nothing at home, most of a second on a phone or a VPN.
+// A failed answer is not kept, a save forgets everything, and each caller gets its own
+// copy, so a page that changes what it was handed does not change it for the next one.
+const KEPT_FOR = 5 * 60 * 1000;
+const kept = new Map();
+
+export const remembered = (key, load, maxAge = KEPT_FOR) => {
+    const entry = kept.get(key);
+    if (entry && Date.now() - entry.at < maxAge) return entry.answer.then(structuredClone);
+
+    const answer = Promise.resolve().then(load);
+    kept.set(key, { answer, at: Date.now() });
+    answer.catch(() => {
+        if (kept.get(key)?.answer === answer) kept.delete(key);
+    });
+    return answer.then(structuredClone);
+};
+
+// A GET of the server's, by path, kept as above.
+export const readKept = (path, maxAge) => remembered(path, () =>
+    window.ApiClient.ajax({ type: "GET", url: window.ApiClient.getUrl(path), contentType: "application/json" })
+        .then((response) => response.json()), maxAge);
+
+export const forgetKept = () => kept.clear();
+
+// What the other tabs ask for first, fetched once one tab has drawn, so moving to them
+// does not wait on the network either.
+export const KEPT_DESCRIPTIONS = [
+    "streamyfin/v1/settings/form",
+    "streamyfin/v1/notifications/form",
+    "streamyfin/v1/notifications/events",
+];
+export const warmKept = () => {
+    for (const path of KEPT_DESCRIPTIONS) readKept(path).catch(() => {});
+};
+
 // Asking the server to try an address, for whichever page drew the button. Here rather
 // than in each page because both tabs draw the same form from the same description, and
 // a third hand rolled ApiClient wrapper is a third place to forget when this changes.
@@ -359,6 +397,7 @@ export const saveConfig = () => {
             } 
 
             Dashboard.processPluginConfigurationUpdateResult();
+            forgetKept();
             return true;
         })
         .catch((error) => {

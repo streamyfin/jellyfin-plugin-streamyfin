@@ -1,6 +1,6 @@
 // The tabs' own markup, without their scripts.
 
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 const read = (path) => Bun.file(new URL(`../../Jellyfin.Plugin.Streamyfin/Pages/${path}`, import.meta.url)).text();
 
@@ -47,5 +47,56 @@ describe("the Targeting tab", () => {
         const host = await mount("Targeting");
 
         expect(host.querySelector("#sf-events-card").hasAttribute("data-sf-follows-display")).toBe(true);
+    });
+});
+
+// The cultures and the plugin's version are kept between tabs. A failed request used to be
+// turned into an empty list or no version before the cache saw it, which then kept that
+// failure for five minutes as an answer.
+describe("the Application tab's answers kept between tabs", () => {
+    // As the other page tests do: a dashboard that already loaded the shared module, so
+    // importing it does not fetch the configuration.
+    window.Streamyfin ??= { shared: true };
+    window.ApiClient ??= { getUrl: (path) => `http://server/${path}` };
+    const pages = "../../Jellyfin.Plugin.Streamyfin/Pages/";
+    const loading = Promise.all([import(`${pages}shared.js`), import(`${pages}Application/index.js`)]);
+
+    afterEach(async () => {
+        const [shared] = await loading;
+        shared.forgetKept();
+        delete window.ApiClient.getCultures;
+        delete window.ApiClient.getInstalledPlugins;
+    });
+
+    // Fails once, then answers.
+    const flaky = (answer) => {
+        let calls = 0;
+        const request = async () => {
+            calls += 1;
+            if (calls === 1) throw new Error("offline");
+            return answer;
+        };
+        return { request, calls: () => calls };
+    };
+
+    test("a failed request for the cultures falls back to none and is asked again", async () => {
+        const [shared, { keptCultures }] = await loading;
+        const french = [{ Name: "French", TwoLetterISOLanguageName: "fr" }];
+        const cultures = flaky(french);
+        window.ApiClient.getCultures = cultures.request;
+
+        expect(await keptCultures(shared)).toEqual([]);
+        expect(await keptCultures(shared)).toEqual(french);
+        expect(cultures.calls()).toBe(2);
+    });
+
+    test("a failed request for the plugins falls back to no version and is asked again", async () => {
+        const [shared, { keptVersion }] = await loading;
+        const plugins = flaky([{ Id: "1e9e5d38-6e67-4615-8719-e98a5c34f004", Version: "0.70.0.0" }]);
+        window.ApiClient.getInstalledPlugins = plugins.request;
+
+        expect(await keptVersion(shared)).toBeNull();
+        expect(await keptVersion(shared)).toBe("0.70.0.0");
+        expect(plugins.calls()).toBe(2);
     });
 });
