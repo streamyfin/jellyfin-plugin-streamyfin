@@ -221,7 +221,10 @@ public static class SettingsForm
                 Maximum: null,
                 Step: null,
                 Options: property.PropertyType.IsEnum ? Choices(property.PropertyType, false) : _noOptions,
-                DependsOn: null,
+                // "imageStyle=cover": a part that matters only while another holds a value.
+                DependsOn: property.GetCustomAttribute<DependsOnAttribute>() is { } depends
+                    ? depends.Value is null ? depends.Key : $"{depends.Key}={depends.Value}"
+                    : null,
                 Integer: false,
                 Probe: null,
                 Address: false))

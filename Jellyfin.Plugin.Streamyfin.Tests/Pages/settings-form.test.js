@@ -695,7 +695,40 @@ describe("a list of values the app knows", () => {
         expect(boxes(mount).map((box) => [box.value, box.checked])).toEqual([["movie", false], ["tv", true]]);
 
         change(boxes(mount)[0], (box) => { box.checked = true; });
-        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["movie", "tv"], locked: false });
+        // What was stored keeps its place; a box ticked now comes after it.
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["tv", "movie"], locked: false });
+    });
+
+    test("unticking a box and ticking it again changes nothing", () => {
+        const { mount, form } = mountHero({ value: ["tv", "movie"], locked: false });
+
+        change(boxes(mount)[1], (box) => { box.checked = false; });
+        change(boxes(mount)[1], (box) => { box.checked = true; });
+
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    // Redrawn on every change, the toggled box was replaced and the focus fell to the page.
+    test("the box just toggled is the one still there, with the focus", () => {
+        const { mount } = mountHero({ value: [], locked: false });
+        const box = boxes(mount)[0];
+        box.focus();
+
+        change(box, (one) => { one.checked = true; });
+
+        expect(box.isConnected).toBe(true);
+        expect(document.activeElement).toBe(box);
+    });
+
+    test("an Other box unticked by mistake stays, to be ticked again", () => {
+        const { mount, form } = mountHero({ value: ["music"], locked: true });
+        const other = () => boxes(mount).find((box) => box.value === "music");
+
+        change(other(), (box) => { box.checked = false; });
+        expect(other()).toBeDefined();
+        change(other(), (box) => { box.checked = true; });
+
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["music"], locked: true });
     });
 
     test("a stored value the app does not offer stays, ticked, under its own name", () => {
@@ -771,7 +804,7 @@ const LIBRARY = field("libraryOptions", "Fields", {
     parts: [
         field("display", "Select", { title: "Display", options: [{ value: "row", label: "Row" }, { value: "list", label: "List" }] }),
         field("imageStyle", "Select", { title: "Image style", options: [{ value: "poster", label: "Poster" }, { value: "cover", label: "Cover" }] }),
-        field("showTitles", "Toggle", { title: "Show titles" }),
+        field("showTitles", "Toggle", { title: "Show titles", dependsOn: "imageStyle=cover" }),
         field("showStats", "Toggle", { title: "Show stats" }),
     ],
 });
@@ -802,6 +835,29 @@ describe("a setting made of switches and choices", () => {
 
         change(part(mount, "showStats"), (box) => { box.checked = false; });
         expect(form.toSettings().libraryOptions.value.display).toBe("grid");
+    });
+
+    // A value with parts missing, or none, came out as the first choice and unticked
+    // boxes, and the first edit of any part wrote all of those back to every device.
+    test("a part the value leaves out shows, and is written as, the default", () => {
+        const { mount, form } = mountLibrary({ value: { imageStyle: "poster" }, locked: true });
+
+        expect(part(mount, "display").value).toBe("list");
+        expect(part(mount, "showTitles").checked).toBe(true);
+
+        change(part(mount, "showStats"), (box) => { box.checked = false; });
+        expect(form.toSettings().libraryOptions.value).toEqual({ ...STORED_LIBRARY, imageStyle: "poster", showStats: false });
+    });
+
+    // The app's own sheet greys Show titles out under the poster style, where its cards
+    // draw no title.
+    test("show titles is greyed out while the style is poster", () => {
+        const { mount } = mountLibrary({ value: { ...STORED_LIBRARY, imageStyle: "poster" }, locked: true });
+        const line = () => part(mount, "showTitles").closest("[data-depends]");
+
+        expect(line().classList.contains("is-inert")).toBe(true);
+        change(part(mount, "imageStyle"), (select) => { select.value = "cover"; });
+        expect(line().classList.contains("is-inert")).toBe(false);
     });
 
     test("writes every part back, and keeps the one it does not offer", () => {

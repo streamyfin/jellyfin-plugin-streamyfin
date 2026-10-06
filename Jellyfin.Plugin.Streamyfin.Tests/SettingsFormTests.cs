@@ -79,6 +79,8 @@ public class SettingsFormTests
             new[] { "display:Display", "imageStyle:Image style", "showTitles:Show titles", "showStats:Show stats" },
             field.Parts!.Select(p => $"{p.Key}:{p.Title}"));
         Assert.Equal(new[] { "Row", "List" }, field.Parts!.Single(p => p.Key == "display").Options.Select(o => o.Label));
+        // The app greys Show titles out under the poster style, whose cards draw none.
+        Assert.Equal("imageStyle=cover", field.Parts!.Single(p => p.Key == "showTitles").DependsOn);
     }
 
     /// <summary>

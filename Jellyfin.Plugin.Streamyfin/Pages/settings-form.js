@@ -286,7 +286,9 @@ const buildControl = (field, cultures) => {
                     line.append(el("span", null, part.title), input);
                 }
                 input.dataset.part = part.key;
-                input.setAttribute("data-control", field.control);
+                // A part that only matters while another holds a value, Show titles under
+                // the cover style, says so and is greyed out otherwise.
+                if (part.dependsOn) line.dataset.depends = part.dependsOn;
                 control.appendChild(line);
             }
             break;
@@ -333,20 +335,39 @@ const placeholderOption = (select) => {
 // box of its own rather than vanish on the next save.
 const drawChecks = (control, field, chosen) => {
     const known = new Set(field.options.map((option) => option.value));
-    const choices = [
-        ...field.options,
-        ...chosen.filter((one) => !known.has(one)).map((one) => ({ value: one, label: `Other (${one})` })),
-    ];
+    // Once seen, an Other box stays for the life of the page, so unticking one by
+    // mistake can be undone without discarding every other edit.
+    const others = control.sfOthers ?? (control.sfOthers = []);
+    for (const one of chosen) if (!known.has(one) && !others.includes(one)) others.push(one);
+    const choices = [...field.options, ...others.map((one) => ({ value: one, label: `Other (${one})` }))];
+
+    // The same boxes ticked in place, so the one just toggled keeps the focus.
+    const boxes = [...control.querySelectorAll("input[data-choice]")];
+    if (boxes.length === choices.length && boxes.every((box, at) => box.value === choices[at].value)) {
+        for (const box of boxes) box.checked = chosen.includes(box.value);
+        return;
+    }
     control.replaceChildren(...choices.map((option) => {
         const line = el("label", "sf-checkline");
         const box = el("input", "sf-check");
         box.type = "checkbox";
         box.value = option.value;
         box.checked = chosen.includes(option.value);
-        box.setAttribute("data-control", field.control);
+        box.dataset.choice = "";
         line.append(box, el("span", null, option.label));
         return line;
     }));
+};
+
+// A stored value the list does not offer, a language the app has since dropped or one
+// typed on the Yaml tab, is shown as what it is rather than as an empty dropdown, and
+// stays among the choices once another one is picked. Opening the page never loses it.
+const ensureOption = (select, wanted) => {
+    if (wanted !== "" && ![...select.options].some((option) => option.value === wanted)) {
+        const other = el("option", null, `Other (${wanted})`);
+        other.value = wanted;
+        select.appendChild(other);
+    }
 };
 
 const writeParts = (control, value) => {
@@ -357,14 +378,16 @@ const writeParts = (control, value) => {
             continue;
         }
         const wanted = part === undefined || part === null ? input.options[0]?.value ?? "" : String(part);
-        // As for a dropdown of its own: a stored value the part does not offer is shown
-        // as itself, or the next change to another part would store an empty one.
-        if (wanted !== "" && ![...input.options].some((option) => option.value === wanted)) {
-            const other = el("option", null, `Other (${wanted})`);
-            other.value = wanted;
-            input.appendChild(other);
-        }
+        // As for a dropdown of its own, or the next change to another part would store
+        // an empty value.
+        ensureOption(input, wanted);
         input.value = wanted;
+    }
+    for (const line of control.querySelectorAll("[data-depends]")) {
+        const [key, wanted] = line.dataset.depends.split("=");
+        const inert = control.querySelector(`[data-part="${key}"]`)?.value !== wanted;
+        line.classList.toggle("is-inert", inert);
+        line.title = inert ? `Only matters while ${key} is ${wanted}` : "";
     }
 };
 
@@ -392,7 +415,7 @@ const writeControl = (row) => {
                 control.placeholder = "App default";
                 break;
             case "Fields":
-                writeParts(control, {});
+                writeParts(control, row.fallback ?? {});
                 break;
             default:
                 control.value = "";
@@ -412,15 +435,7 @@ const writeControl = (row) => {
             break;
         case "Select": {
             const wanted = value === null || value === undefined ? "" : String(value);
-            // A stored value the list does not offer, a language the app has since dropped
-            // or one typed on the Yaml tab, is shown as what it is rather than as an empty
-            // dropdown, and stays among the choices once another one is picked. Opening
-            // the page never loses it.
-            if (wanted !== "" && ![...control.options].some((option) => option.value === wanted)) {
-                const other = el("option", null, `Other (${wanted})`);
-                other.value = wanted;
-                control.appendChild(other);
-            }
+            ensureOption(control, wanted);
             control.value = wanted;
             break;
         }
@@ -431,7 +446,9 @@ const writeControl = (row) => {
             break;
         }
         case "Fields":
-            writeParts(control, value ?? {});
+            // A part the value leaves out shows the default, which is what the server
+            // fills it with, rather than the first choice and an unticked box.
+            writeParts(control, { ...(row.fallback ?? {}), ...(value ?? {}) });
             break;
         case "Language":
             // The config spells the two fields camelCase, the way YamlDotNet reads them; a
@@ -462,14 +479,20 @@ const readControl = (row, cultures) => {
             // keeps its edges: a token that ends in a space is a token, and the Yaml tab
             // would store it.
             return field?.address ? control.value.trim() : control.value;
-        case "List":
-            return field.options?.length
-                ? [...control.querySelectorAll("input:checked")].map((box) => box.value)
-                : control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        case "List": {
+            if (!field.options?.length) return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+            const ticked = [...control.querySelectorAll("input[data-choice]:checked")].map((box) => box.value);
+            // In the order the page opened with, then the current one, so unticking a box
+            // and ticking it again is no change.
+            const reference = [...new Set([...(row.listOrder ?? []), ...(Array.isArray(row.value) ? row.value : [])])];
+            const kept = reference.filter((one) => ticked.includes(one));
+            return [...kept, ...ticked.filter((one) => !kept.includes(one))];
+        }
         case "Fields": {
-            // From what is stored, so a member the form does not offer, the library's
-            // card style, keeps its value.
-            const value = { ...(row.value ?? {}) };
+            // From the default, then what is stored, so a part the value left out is
+            // written as the server would read it, and a member the form does not offer,
+            // the library's card style, keeps its value.
+            const value = { ...(row.fallback ?? {}), ...(row.value ?? {}) };
             for (const input of control.querySelectorAll("[data-part]")) {
                 value[input.dataset.part] = input.type === "checkbox" ? input.checked : input.value;
             }
@@ -662,7 +685,12 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     };
 
     // The value a setting takes when it is set with nothing to start from.
-    const firstValue = (field) => (field.control === "Toggle" ? false : typeDefault(field) === undefined ? null : typeDefault(field));
+    const firstValue = (field) => {
+        if (field.control === "Toggle") return false;
+        // A shape starts from its default, so setting it writes a whole one.
+        if (field.control === "Fields") return structuredClone(defaultValue(field) ?? {});
+        return typeDefault(field) === undefined ? null : typeDefault(field);
+    };
 
     // What a level falls through to, said for a person: a choice by its label, a toggle
     // as on or off, a list as its items, and "the app's default" when the level above
@@ -674,7 +702,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         switch (field.control) {
             case "Toggle": return value ? "on" : "off";
             case "Select": return (field.options ?? []).find((o) => (o.value ?? null) === value)?.label ?? String(value ?? "nothing");
-            case "List": return Array.isArray(value) && value.length ? value.join(", ") : "nothing";
+            case "List": return Array.isArray(value) && value.length
+                ? value.map((one) => (field.options ?? []).find((o) => o.value === one)?.label ?? one).join(", ")
+                : "nothing";
             case "Fields": return (field.parts ?? []).map((part) => {
                 const one = value?.[part.key];
                 return part.control === "Toggle"
@@ -715,6 +745,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             invalid: false,
             inert: false,
             el: el("div", "sf-row"),
+            // What a shape falls back to for a part its value leaves out.
+            fallback: field.control === "Fields" ? defaultValue(field) : undefined,
+            // The order a list of known values was stored in, which ticking keeps.
+            listOrder: field.control === "List" && Array.isArray(stored?.value) ? [...stored.value] : [],
             control: field.control === "Composite" ? null : buildControl(field, cultures),
             buttons: [],
             why: el("p", "sf-why"),
@@ -915,8 +949,9 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     });
 
     root.addEventListener("change", (event) => {
-        const control = event.target;
-        if (!control?.hasAttribute?.("data-control")) return;
+        // The control itself, or the shape or list of boxes it is part of.
+        const control = event.target?.closest?.("[data-control]");
+        if (!control) return;
         const row = rows.get(control.closest(".sf-row").dataset.key);
         row.value = readControl(row, cultures);
         if (row.state === "free") row.state = "suggested";

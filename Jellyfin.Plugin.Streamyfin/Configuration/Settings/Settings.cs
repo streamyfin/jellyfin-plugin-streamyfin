@@ -24,7 +24,9 @@ public class LibraryOptions
     [Display(Name = "Image style")]
     public ImageStyle imageStyle { get; set; } = ImageStyle.cover;
 
+    // The app's sheet greys it out under the poster style, whose cards draw no title.
     [Display(Name = "Show titles")]
+    [DependsOn(nameof(imageStyle), Value = "cover")]
     public bool showTitles { get; set; } = true;
 
     [Display(Name = "Show stats")]

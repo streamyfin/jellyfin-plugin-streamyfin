@@ -27,4 +27,10 @@ public sealed class DependsOnAttribute : Attribute
     /// Gets the key of the toggle this setting depends on.
     /// </summary>
     public string Key { get; }
+
+    /// <summary>
+    /// Gets or sets the value the other one has to hold, for a part of a shape that
+    /// depends on a choice rather than on a switch being on. <c>null</c> means on.
+    /// </summary>
+    public string? Value { get; set; }
 }
