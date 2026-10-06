@@ -3,14 +3,24 @@
 // that is what the page reads and getting it wrong draws the wrong control.
 
 import { describe, expect, test } from "bun:test";
+import EXAMPLES from "../../Jellyfin.Plugin.Streamyfin/Pages/home-examples.json";
 import {
+    DEFAULT_ORIENTATION,
+    EXAMPLES_PAGE,
     KINDS,
+    KIND_LABELS,
+    ORIENTATION_LABELS,
     add,
     blank,
     fieldsFor,
+    fromExample,
     inOrder,
+    kindOf,
+    libraryChoices,
     move,
+    moveTo,
     orientations,
+    preview,
     remove,
     renumber,
     summarise,
@@ -40,7 +50,14 @@ const SCHEMA = {
                 enableResumable: { title: "Enable resumable", type: ["boolean", "null"] },
             },
         },
-        Latest: { properties: { groupItems: { title: "Group items", type: ["boolean", "null"] } } },
+        Latest: {
+            properties: {
+                parentId: { title: "Parent id", type: ["null", "string"] },
+                limit: { title: "Page limit", type: ["integer", "null"] },
+                groupItems: { title: "Group items", type: ["boolean", "null"] },
+                includeItemTypes: { title: "Include item types", type: ["array", "null"], items: { $ref: "#/definitions/BaseItemKind" } },
+            },
+        },
         CustomEndpoint: {
             properties: {
                 endpoint: { title: "Endpoint", type: "string" },
@@ -56,12 +73,29 @@ describe("fieldsFor", () => {
 
         expect(fields).toEqual({
             sortBy: "Choices",
-            genres: "List",
             parentId: "Text",
             filters: "Choices",
             includeItemTypes: "Choices",
             limit: "Number",
         });
+    });
+
+    // Home.tsx asks the items query without genres, so offering it read as a filter that
+    // never happens.
+    test("a field the app does not send to Jellyfin, and nothing else reads, is not offered", () => {
+        expect(fieldsFor(SCHEMA, "items").map((field) => field.key)).not.toContain("genres");
+    });
+
+    // Next up and Recently added are asked without a library too, but the plugin leaves
+    // the section out for anyone who cannot open the one named: hiding the field hid that.
+    test("a library the app does not filter by is offered for what it does", () => {
+        const library = (kind) => fieldsFor(SCHEMA, kind).find((field) => field.key === "parentId");
+
+        for (const kind of ["nextUp", "latest"]) {
+            expect(library(kind).description).toContain("do not see the row");
+            expect(library(kind).description).toContain("does not narrow");
+        }
+        expect(library("items").description).toContain("filled from");
     });
 
     test("a list of enums carries what there is to choose", () => {
@@ -77,7 +111,7 @@ describe("fieldsFor", () => {
     });
 
     test("a booleans and an endpoint come out as themselves", () => {
-        expect(fieldsFor(SCHEMA, "latest")[0]).toMatchObject({ key: "groupItems", control: "Toggle" });
+        expect(fieldsFor(SCHEMA, "latest").find((field) => field.key === "groupItems")).toMatchObject({ control: "Toggle" });
         expect(fieldsFor(SCHEMA, "custom")[0]).toMatchObject({ key: "endpoint", control: "Text" });
     });
 
@@ -90,6 +124,35 @@ describe("fieldsFor", () => {
     test("a kind nothing describes has no fields rather than a broken card", () => {
         expect(fieldsFor({}, "items")).toEqual([]);
         expect(fieldsFor(SCHEMA, "nonsense")).toEqual([]);
+    });
+});
+
+// An id is what the app compares and nobody knows one by heart, so with the server's
+// libraries the field is a menu of their names.
+describe("a library", () => {
+    const LIBRARIES = [
+        { value: "f137a2dd21bbc1b99aa5c0f6bf02a805", label: "Movies" },
+        { value: "a656b907eb3a73532e40e44b968d0225", label: "Shows" },
+    ];
+    const library = (kind, libraries) => fieldsFor(SCHEMA, kind, libraries).find((field) => field.key === "parentId");
+
+    test("is picked by name once the server's libraries are known", () => {
+        expect(library("items", LIBRARIES)).toMatchObject({ control: "Library", title: "Library", options: LIBRARIES, empty: "Every library" });
+    });
+
+    test("says what leaving it out means where the app does not narrow the row", () => {
+        expect(library("latest", LIBRARIES).empty).toBe("None, everyone sees the row");
+        expect(library("nextUp", LIBRARIES).empty).toBe("None, everyone sees the row");
+    });
+
+    test("is an id to type without them", () => {
+        expect(library("items").control).toBe("Text");
+    });
+
+    test("comes from Jellyfin's virtual folders, each name standing for its id", () => {
+        expect(libraryChoices([{ Name: "Movies", ItemId: "f1", CollectionType: "movies" }, { Name: "", ItemId: "x" }, null]))
+            .toEqual([{ value: "f1", label: "Movies" }]);
+        expect(libraryChoices(undefined)).toEqual([]);
     });
 });
 
@@ -170,22 +233,43 @@ describe("inOrder", () => {
 });
 
 describe("what a card says", () => {
+    // Named as the kind picker names it, not by the key the configuration stores.
     test("the kind, and what the payload narrows", () => {
         expect(summarise({ kind: "items", items: { limit: 20, includeItemTypes: ["Movie"] } }))
-            .toBe("items · 20 at most · Movie");
+            .toBe("Items you choose · 20 at a time · Movie");
+    });
+
+    // The app asks for items and Next up a page of that many at a time and keeps asking
+    // while the row scrolls. Only Recently added stops there.
+    test("a limit is a page, except on Recently added", () => {
+        expect(summarise({ kind: "nextUp", nextUp: { limit: 20 } })).toBe("Next up · 20 at a time");
+        expect(summarise({ kind: "latest", latest: { limit: 20 } })).toBe("Recently added · 20 at most");
     });
 
     test("an endpoint is the useful half of a custom section", () => {
         expect(summarise({ kind: "custom", custom: { endpoint: "/UserItems/Resume" } }))
-            .toBe("custom · /UserItems/Resume");
+            .toBe("An endpoint · /UserItems/Resume");
     });
 
     test("a section written before the kind existed is read by what it carries", () => {
-        expect(summarise({ latest: { limit: 10 } })).toBe("latest · 10 at most");
+        expect(summarise({ latest: { limit: 10 } })).toBe("Recently added · 10 at most");
     });
 
     test("a section carrying nothing says so rather than pretending", () => {
         expect(summarise({ title: "empty" })).toBe("No kind, and nothing to imply one");
+    });
+});
+
+describe("kindOf", () => {
+    test("a declared kind is the answer, whatever the payloads", () => {
+        expect(kindOf({ kind: "latest", items: {} })).toBe("latest");
+    });
+
+    test("one payload implies its kind, two imply nothing, as on the server", () => {
+        expect(kindOf({ nextUp: {} })).toBe("nextUp");
+        expect(kindOf({ items: {}, latest: {} })).toBeNull();
+        expect(kindOf({})).toBeNull();
+        expect(kindOf(null)).toBeNull();
     });
 });
 
@@ -197,5 +281,105 @@ describe("the kinds", () => {
     test("the orientations come from the schema, with a fallback that matches it", () => {
         expect(orientations(SCHEMA)).toEqual(["vertical", "horizontal"]);
         expect(orientations({})).toEqual(["vertical", "horizontal"]);
+    });
+});
+
+// Dragging a section drops it where it lands, rather than a step at a time.
+describe("moveTo", () => {
+    const three = renumber([{ title: "A" }, { title: "B" }, { title: "C" }]);
+
+    test("puts a section where it was dropped, and renumbers", () => {
+        expect(moveTo(three, 2, 0).map((section) => [section.title, section.order])).toEqual([["C", 0], ["A", 1], ["B", 2]]);
+        expect(moveTo(three, 0, 2).map((section) => section.title)).toEqual(["B", "C", "A"]);
+    });
+
+    test("a drop outside the list, or on itself, changes nothing", () => {
+        expect(moveTo(three, 1, 1).map((section) => section.title)).toEqual(["A", "B", "C"]);
+        expect(moveTo(three, 0, 5).map((section) => section.title)).toEqual(["A", "B", "C"]);
+    });
+});
+
+describe("the preview", () => {
+    test("draws the sections in the app's order, with the shape and the filling of each", () => {
+        const rows = preview([
+            { title: "Second", order: 1, kind: "latest", latest: {} },
+            { title: "First", order: 0, kind: "nextUp", orientation: "horizontal", nextUp: {} },
+        ]);
+
+        expect(rows).toEqual([
+            { title: "First", orientation: "horizontal", filledBy: KIND_LABELS.nextUp },
+            // A section that says nothing is drawn as the app draws it, in posters.
+            { title: "Second", orientation: "vertical", filledBy: KIND_LABELS.latest },
+        ]);
+    });
+
+    test("a kind this page does not know is named as written rather than left blank", () => {
+        expect(preview([{ title: "Later", kind: "watchlist" }])[0].filledBy).toBe("watchlist");
+    });
+
+    test("a section with no title or kind still has a row", () => {
+        expect(preview([{}])).toEqual([{ title: "Untitled", orientation: DEFAULT_ORIENTATION, filledBy: "Nothing yet" }]);
+    });
+
+    // Home.tsx draws `section.orientation || "vertical"`.
+    test("the shape a section that names none gets is the app's", () => {
+        expect(DEFAULT_ORIENTATION).toBe("vertical");
+    });
+});
+
+// The server's tests hold each example to the schema a save is held to. What is checked
+// here is what the page relies on, and what each one asks the app for.
+describe("the examples", () => {
+    test("are the file the page asks the plugin for", () => {
+        expect(EXAMPLES_PAGE).toBe("home-examples.json");
+    });
+
+    // Without it Jellyfin's Next up repeats every episode Continue watching shows above.
+    test("a Next up row leaves out what is already being watched", () => {
+        const nextUps = EXAMPLES.flatMap((example) => example.sections).filter((section) => section.kind === "nextUp");
+
+        expect(nextUps.length).toBeGreaterThan(0);
+        for (const section of nextUps) expect(section.nextUp.enableResumable).toBe(false);
+    });
+
+    // The app's own Continue watching asks for films and episodes, not audiobooks.
+    test("a resume row asks for what the app's own one does", () => {
+        const resumes = EXAMPLES.flatMap((example) => example.sections)
+            .filter((section) => section.custom?.endpoint === "/UserItems/Resume");
+
+        expect(resumes.length).toBeGreaterThan(0);
+        for (const section of resumes) expect(section.custom.query).toEqual({ includeItemTypes: "Movie,Episode" });
+    });
+
+    const KNOWN = {
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        filters: ["IsUnplayed", "IsPlayed", "IsFavorite", "IsResumable"],
+        sortBy: ["DateCreated", "SortName", "PremiereDate", "Random"],
+        sortOrder: ["Ascending", "Descending"],
+    };
+
+    test("each is a home screen of named sections, each filled by one kind", () => {
+        for (const example of EXAMPLES) {
+            expect(example.name).toBeTruthy();
+            expect(example.description).toBeTruthy();
+            expect(example.sections.length).toBeGreaterThan(1);
+            for (const section of example.sections) {
+                expect(section.title).toBeTruthy();
+                expect(KINDS).toContain(section.kind);
+                expect(Object.keys(ORIENTATION_LABELS)).toContain(section.orientation);
+                expect(section[section.kind]).toBeDefined();
+                for (const [key, values] of Object.entries(section[section.kind])) {
+                    if (KNOWN[key]) for (const value of values) expect(KNOWN[key]).toContain(value);
+                }
+            }
+        }
+    });
+
+    test("loading one numbers its sections and leaves the example as it was", () => {
+        const loaded = fromExample(EXAMPLES[0]);
+        loaded[0].title = "Changed";
+
+        expect(loaded.map((section) => section.order)).toEqual(EXAMPLES[0].sections.map((_, index) => index));
+        expect(EXAMPLES[0].sections[0].title).not.toBe("Changed");
     });
 });

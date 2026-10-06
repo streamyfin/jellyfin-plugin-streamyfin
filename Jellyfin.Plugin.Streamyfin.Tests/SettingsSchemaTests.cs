@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
@@ -301,6 +302,43 @@ public class SettingsSchemaTests
 
         var errors = schema.Validate(json);
         Assert.True(errors.Count == 0, string.Join("\n", errors.Select(error => $"{error.Path}: {error.Kind}")));
+    }
+
+    /// <summary>
+    /// Every home screen the Home tab offers to start from passes the schema a save is
+    /// checked against, and reads back as the sections it holds.
+    /// </summary>
+    /// <remarks>
+    /// The examples are a file the page loads. Written next to the page's script, they
+    /// were held to the enums by a list copied into its test and nothing else, so an
+    /// example could load a section the save then refused.
+    /// </remarks>
+    [Fact]
+    public async System.Threading.Tasks.Task EveryHomeExamplePassesTheSchema()
+    {
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
+        using var stream = typeof(SerializationHelper).Assembly
+            .GetManifestResourceStream("Jellyfin.Plugin.Streamyfin.Pages.home-examples.json")!;
+        var examples = JsonNode.Parse(stream)!.AsArray();
+
+        Assert.NotEmpty(examples);
+        foreach (var example in examples)
+        {
+            var sections = example!["sections"]!.DeepClone().AsArray();
+            var document = new JsonObject
+            {
+                ["settings"] = new JsonObject
+                {
+                    ["home"] = new JsonObject { ["locked"] = false, ["value"] = new JsonObject { ["sections"] = sections } },
+                },
+            }.ToJsonString();
+
+            var errors = schema.Validate(document);
+            Assert.True(errors.Count == 0, $"{example["name"]}: {string.Join("\n", errors.Select(error => $"{error.Path}: {error.Kind}"))}");
+
+            var read = new SerializationHelper().DeserializeJson<Config>(document);
+            Assert.Equal(sections.Count, read?.settings?.home?.value?.sections?.Length);
+        }
     }
 
     // YamlDotNet keys a mapping by object; System.Text.Json writes string keys only.

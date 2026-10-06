@@ -168,6 +168,30 @@ public static class Sections
         settings!.home = new Lockable<Home> { locked = home.locked, value = home.value.With(kept) };
     }
 
+    /// <summary>
+    /// Writes a home with no sections as a home with no list.
+    /// </summary>
+    /// <param name="settings">The settings, which may be null.</param>
+    /// <remarks>
+    /// The app takes any list as the layout to draw, an empty one included, and draws a
+    /// home screen with nothing on it; only a missing list sends it back to its own.
+    /// Nobody asking for an empty list meant the first: emptying the Home tab said the
+    /// app would fall back to its own screen, and a caller who can open none of the
+    /// libraries a layout is built on is better served the app's screen than a blank one.
+    ///
+    /// <para>
+    /// The home is replaced rather than edited, for the reason
+    /// <see cref="KeepVisible(Settings?, Func{Guid, bool})"/> gives.
+    /// </para>
+    /// </remarks>
+    public static void EmptyAsNone(Settings? settings)
+    {
+        if (settings?.home is { value.sections.Length: 0 } home)
+        {
+            settings.home = new Lockable<Home> { locked = home.locked, value = home.value.With(null) };
+        }
+    }
+
     private static IEnumerable<Guid> LibrariesNamedBy(Section section)
     {
         string?[] payloads = [section.items?.parentId, section.nextUp?.parentId, section.latest?.parentId];

@@ -211,6 +211,25 @@ public class SettingsValidationTests
     }
 
     /// <summary>
+    /// A home with no sections is stored as no list, which is what emptying the Home tab
+    /// means: the app's own home screen. Stored as an empty list, the app draws a home
+    /// screen with nothing on it.
+    /// </summary>
+    [Fact]
+    public void AnEmptyHomeIsStoredAsNone()
+    {
+        var settings = new Settings
+        {
+            home = new Lockable<Home> { locked = true, value = new Home { sections = [] } }
+        };
+
+        Assert.Null(SettingsValidation.Check(settings));
+
+        Assert.True(settings.home!.locked);
+        Assert.Null(settings.home.value!.sections);
+    }
+
+    /// <summary>
     /// An address that is one is kept, with its spaces taken off.
     /// </summary>
     [Fact]

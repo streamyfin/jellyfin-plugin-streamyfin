@@ -8,6 +8,7 @@
 export default function (view, params) {
     let drawn = false;
     let loading = false;
+    let legendWired = false;
 
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
@@ -23,9 +24,29 @@ export default function (view, params) {
             const discardBtn = find("sf-discard");
             const addBtn = find("sf-add");
             const kindPicker = find("sf-new-kind");
+            const previewBox = find("sf-preview");
+            const moved = find("sf-moved");
+            const examplePicker = find("sf-example");
+            const exampleAbout = find("sf-example-about");
+            const loadExample = find("sf-load-example");
 
             const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
             renderer.applyTheme(find("sf-app"));
+
+            // The boxes' legend and its switch, shared with the other tabs, where shared.js
+            // has them; without them the banner and the switch stay out of sight.
+            if (shared.drawLegend && shared.wireDisplaySwitches) {
+                if (!legendWired) {
+                    shared.drawLegend(find("sf-legend"), { kind: "boxes" });
+                    shared.wireDisplaySwitches(view, undefined, () => {});
+                    legendWired = true;
+                } else {
+                    shared.paintDisplaySwitches(view, () => {});
+                }
+            } else {
+                find("sf-legend-banner").hidden = true;
+                find("sf-legend-toggle").hidden = true;
+            }
 
             // The dashboard keeps this page between tab switches and fires viewshow on
             // each one. Drawn once, and only once it is: a load that failed has to be
@@ -53,6 +74,28 @@ export default function (view, params) {
                 return;
             }
 
+            // The server's libraries, read from Jellyfin itself, so a library is picked by
+            // name. A page that cannot read them still edits, with the id typed.
+            const libraries = await window.ApiClient.ajax({
+                type: "GET",
+                url: window.ApiClient.getUrl("Library/VirtualFolders"),
+                contentType: "application/json",
+            })
+                .then((response) => response.json())
+                .then(home.libraryChoices)
+                .catch((error) => {
+                    console.error(error);
+                    return [];
+                });
+
+            // The examples are a convenience: a page that cannot read them still edits.
+            const examples = await fetch(window.ApiClient.getUrl(`web/configurationpage?name=${home.EXAMPLES_PAGE}`))
+                .then((response) => (response.ok ? response.json() : []))
+                .catch((error) => {
+                    console.error(error);
+                    return [];
+                });
+
             const el = (tag, className, text) => {
                 const node = document.createElement(tag);
                 if (className) node.className = className;
@@ -78,12 +121,41 @@ export default function (view, params) {
                 return count === 1 ? "1 section" : `${count} sections`;
             };
 
+            // The phone on the right: each row as the app draws it, cards shaped as its
+            // orientation says, in the order the list is in.
+            const drawPreview = () => {
+                const rows = home.preview(sections);
+                if (!rows.length) {
+                    previewBox.replaceChildren(el("p", "sf-preview-empty", "Nothing set here: the app draws its own home screen."));
+                    return;
+                }
+                previewBox.replaceChildren(...rows.map((one) => {
+                    const line = el("div", "sf-prow");
+                    line.appendChild(el("div", "sf-prow-title", one.title));
+                    const cards = el("div", "sf-prow-cards");
+                    const shape = one.orientation === "horizontal" ? "is-wide" : "is-portrait";
+                    for (let index = 0; index < (shape === "is-wide" ? 3 : 5); index += 1) {
+                        cards.appendChild(el("span", `sf-pcard ${shape}`));
+                    }
+                    line.appendChild(cards);
+                    line.appendChild(el("div", "sf-prow-what", one.filledBy));
+                    return line;
+                }));
+            };
+
+            // The preview is drawn by redraw() after a change to the list, and by edited()
+            // after a change inside one card, so it is drawn once either way.
             const touched = () => {
                 dirty = true;
                 dot.hidden = false;
                 summary.textContent = `${said()}, not saved`;
                 saveBtn.disabled = false;
                 discardBtn.disabled = false;
+            };
+
+            const edited = () => {
+                touched();
+                drawPreview();
             };
 
             const settled = () => {
@@ -95,10 +167,27 @@ export default function (view, params) {
             };
 
             const payloadOf = (section) => {
-                const kind = section.kind ?? home.KINDS.find((candidate) => section[candidate]);
+                const kind = home.kindOf(section);
                 if (!kind) return { kind: null, payload: {} };
                 section[kind] = section[kind] ?? {};
                 return { kind, payload: section[kind] };
+            };
+
+            // The section being dragged, by index. Set by its handle and nothing else, so a
+            // file, or text dragged into a field, is left to the browser rather than read as
+            // a section. Cleared on the drop as well: redrawing removes the handle, and a
+            // handle that left the page does not always hear its dragend.
+            let dragging = null;
+
+            // A move made with the arrows is said, as a drag's is, and the arrow that made
+            // it keeps the focus once the list is drawn again.
+            const placed = (to, title, arrow) => {
+                moved.textContent = `${title} moved to place ${to + 1} of ${sections.length}.`;
+                if (!arrow) return;
+                const card = editor.querySelectorAll(".sf-card")[to];
+                const again = card?.querySelector(`[data-move="${arrow}"]`);
+                const other = card?.querySelector(`[data-move="${arrow === "up" ? "down" : "up"}"]`);
+                (again && !again.disabled ? again : other)?.focus();
             };
 
             const control = (field, value, onChange) => {
@@ -161,6 +250,27 @@ export default function (view, params) {
                         box.append(head, list);
                         return box;
                     }
+                    // A library by name. One that is no longer on the server is kept, and
+                    // shown as its id, rather than dropped the next time this is saved.
+                    case "Library": {
+                        const select = el("select", "sf-select");
+                        const none = el("option", null, field.empty);
+                        none.value = "";
+                        select.appendChild(none);
+                        for (const option of field.options) {
+                            const node = el("option", null, option.label);
+                            node.value = option.value;
+                            select.appendChild(node);
+                        }
+                        if (value && !field.options.some((option) => option.value === value)) {
+                            const other = el("option", null, `Other (${value})`);
+                            other.value = value;
+                            select.appendChild(other);
+                        }
+                        select.value = value ?? "";
+                        select.addEventListener("change", () => onChange(select.value === "" ? null : select.value));
+                        return select;
+                    }
                     case "Select": {
                         const select = el("select", "sf-select");
                         const blankOption = el("option", null, "Nothing chosen");
@@ -205,32 +315,76 @@ export default function (view, params) {
                 title.setAttribute("aria-label", "Section title");
                 title.addEventListener("change", () => {
                     section.title = title.value;
-                    touched();
+                    // The arrows name the section they move, so they follow its title.
+                    for (const button of [up, down]) button.setAttribute("aria-label", named(button.title));
+                    edited();
                 });
                 header.appendChild(title);
 
                 const pill = el("span", "sf-count", home.summarise(section));
                 header.appendChild(pill);
 
-                const up = el("button", "sf-btn", "↑");
-                up.type = "button";
-                up.title = "Move up";
-                up.disabled = index === 0;
-                up.addEventListener("click", () => {
-                    sections = home.move(sections, index, -1);
+                // Drag by the handle, which is the only thing that drags, so the title and
+                // the fields keep selecting text. The arrows stay for the keyboard.
+                const grip = el("span", "sf-grip", "⋮⋮");
+                grip.title = "Drag to move";
+                grip.draggable = true;
+                grip.setAttribute("aria-hidden", "true");
+                grip.addEventListener("dragstart", (event) => {
+                    dragging = index;
+                    // A type of its own rather than text, which a field would take on a drop.
+                    // Firefox starts no drag without some data set.
+                    event.dataTransfer.setData("application/x-streamyfin-section", String(index));
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setDragImage(box, 24, 24);
+                    // After the browser has taken its picture of the card, or the picture
+                    // that follows the pointer is faded as well.
+                    requestAnimationFrame(() => box.classList.add("is-dragging"));
+                });
+                grip.addEventListener("dragend", () => {
+                    dragging = null;
+                    box.classList.remove("is-dragging");
+                });
+                box.addEventListener("dragover", (event) => {
+                    if (dragging === null) return;
+                    event.preventDefault();
+                    box.classList.add("is-drop-target");
+                });
+                box.addEventListener("dragleave", () => box.classList.remove("is-drop-target"));
+                box.addEventListener("drop", (event) => {
+                    if (dragging === null) return;
+                    event.preventDefault();
+                    box.classList.remove("is-drop-target");
+                    const from = dragging;
+                    dragging = null;
+                    if (from === index) return;
+                    const moving = sections[from]?.title || "The section";
+                    sections = home.moveTo(sections, from, index);
                     touched();
                     redraw();
+                    placed(index, moving);
                 });
+                header.insertBefore(grip, title);
 
-                const down = el("button", "sf-btn", "↓");
-                down.type = "button";
-                down.title = "Move down";
-                down.disabled = index === sections.length - 1;
-                down.addEventListener("click", () => {
-                    sections = home.move(sections, index, 1);
-                    touched();
-                    redraw();
-                });
+                const named = (label) => `${label}: ${section.title || "this section"}`;
+                const arrow = (direction, label, by) => {
+                    const button = el("button", "sf-btn", direction === "up" ? "↑" : "↓");
+                    button.type = "button";
+                    button.title = label;
+                    button.setAttribute("aria-label", named(label));
+                    button.dataset.move = direction;
+                    button.disabled = direction === "up" ? index === 0 : index === sections.length - 1;
+                    button.addEventListener("click", () => {
+                        const moving = section.title || "The section";
+                        sections = home.move(sections, index, by);
+                        touched();
+                        redraw();
+                        placed(index + by, moving, direction);
+                    });
+                    return button;
+                };
+                const up = arrow("up", "Move up", -1);
+                const down = arrow("down", "Move down", 1);
 
                 const drop = el("button", "sf-drop", "×");
                 drop.type = "button";
@@ -250,23 +404,25 @@ export default function (view, params) {
 
                 const orientation = el("select", "sf-select");
                 for (const option of home.orientations(schema)) {
-                    const node = el("option", null, option);
+                    const node = el("option", null, home.ORIENTATION_LABELS[option] ?? option);
                     node.value = option;
                     orientation.appendChild(node);
                 }
-                orientation.value = section.orientation ?? "horizontal";
+                orientation.value = section.orientation ?? home.DEFAULT_ORIENTATION;
                 orientation.addEventListener("change", () => {
                     section.orientation = orientation.value;
-                    touched();
+                    edited();
                 });
-                body.appendChild(row("Orientation", orientation, "How the posters in this row are shaped"));
+                body.appendChild(row("Shape of the cards", orientation, "The row scrolls sideways either way"));
+                // A kind written in YAML that the dashboard does not know has no words to show.
+                if (home.KIND_HELP[kind]) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
 
-                for (const field of home.fieldsFor(schema, kind)) {
+                for (const field of home.fieldsFor(schema, kind, libraries)) {
                     const node = control(field, payload[field.key], (value) => {
                         if (value === null || value === undefined) delete payload[field.key];
                         else payload[field.key] = value;
                         pill.textContent = home.summarise(section);
-                        touched();
+                        edited();
                     });
                     body.appendChild(row(field.title, node, field.description));
                 }
@@ -282,13 +438,36 @@ export default function (view, params) {
                     grid.appendChild(el("p", "sf-status", "No sections yet. The app falls back to its own home screen."));
                 }
                 editor.replaceChildren(grid);
+                drawPreview();
             };
 
             for (const kind of home.KINDS) {
-                const option = el("option", null, kind);
+                const option = el("option", null, home.KIND_LABELS[kind]);
                 option.value = kind;
+                option.title = home.KIND_HELP[kind];
                 kindPicker.appendChild(option);
             }
+
+            for (const [at, example] of examples.entries()) {
+                const option = el("option", null, example.name);
+                option.value = String(at);
+                examplePicker.appendChild(option);
+            }
+            examplePicker.closest(".sf-examples").hidden = examples.length === 0;
+            const sayExample = () => {
+                exampleAbout.textContent = examples[Number(examplePicker.value)]?.description ?? "";
+            };
+            sayExample();
+            examplePicker.addEventListener("change", sayExample);
+
+            loadExample.addEventListener("click", async () => {
+                const example = examples[Number(examplePicker.value)];
+                if (!example) return;
+                if (sections.length && !await shared.confirmed(`Replace the ${said()} with “${example.name}”? Nothing is saved until you save.`)) return;
+                sections = home.fromExample(example);
+                touched();
+                redraw();
+            });
 
             addBtn.addEventListener("click", () => {
                 sections = home.add(sections, kindPicker.value);

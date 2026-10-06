@@ -7,6 +7,7 @@
         <div class="sf-top">
             <h1>Streamyfin</h1>
             <span class="sf-meta" id="sf-meta">Home</span>
+            <button type="button" class="sf-toggle" id="sf-legend-toggle" aria-pressed="true" aria-controls="sf-legend-banner">Legend <span class="sf-pip">ON</span></button>
             <div class="sf-actions">
                 <label class="sf-name" for="sf-new-kind">Add</label>
                 <select class="sf-select" id="sf-new-kind" aria-label="What fills the new section"></select>
@@ -16,14 +17,43 @@
 
         <div class="sf-banner">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
-            <div>The rows of the app's home screen, in the order they appear. A section is filled by
-                one query: the items query, what a viewer is part way through, what arrived most
-                recently, or an endpoint you name. Headers and query parameters for a custom
-                endpoint are still written in the Yaml tab.</div>
+            <div>
+                <p>The rows of the app's home screen, for everyone, in the order they appear. Once
+                    saved, they <b>replace</b> the app's own home screen: its Continue watching, Next
+                    up and library rows are drawn only while nothing is set here.</p>
+                <p>Each section is one row that scrolls sideways, filled by one source: items you
+                    choose, the next episodes, what was added lately, or an address of the server,
+                    such as the plugin's My media and For you rows. Its shape picks the cards:
+                    posters, or wide 16:9 pictures. Drag a section by its handle to move it, or use
+                    its arrows.</p>
+                <p>A group, or one person, can have a home screen of their own that wins over this
+                    one. The dashboard cannot build those yet; the API and a backup file can.
+                    Headers and query parameters for an address are written in the Yaml tab.</p>
+            </div>
+        </div>
+
+        <div class="sf-banner" id="sf-legend-banner" data-sf-legend-banner="Home">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div class="sf-legend" id="sf-legend"></div>
+            <button type="button" class="sf-banner-close" data-sf-legend-close aria-label="Hide the legend">&times;</button>
+        </div>
+
+        <div class="sf-examples">
+            <label class="sf-name" for="sf-example">Start from an example</label>
+            <select class="sf-select" id="sf-example" aria-describedby="sf-example-about"></select>
+            <button type="button" class="sf-btn" id="sf-load-example">Load it</button>
+            <span class="sf-desc" id="sf-example-about"></span>
         </div>
 
         <div class="sf-status" id="sf-status">Loading the home screen…</div>
-        <div id="sf-editor"></div>
+        <div class="sf-home">
+            <div id="sf-editor"></div>
+            <aside class="sf-preview" aria-label="Preview of the home screen">
+                <div class="sf-preview-title">How the app draws it</div>
+                <div class="sf-phone" id="sf-preview"></div>
+            </aside>
+        </div>
+        <div class="sf-sr" id="sf-moved" aria-live="polite"></div>
 
         <div class="sf-dock" id="sf-dock" hidden>
             <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
