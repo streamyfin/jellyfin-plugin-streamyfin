@@ -212,6 +212,23 @@ describe("a section's card", () => {
         expect(cards(view)[0].querySelector(".sf-body select").value).toBe("vertical");
         expect(view.querySelector(".sf-pcard").classList.contains("is-portrait")).toBe(true);
     });
+
+    // A kind written in YAML that the dashboard does not know has no words of its own,
+    // and the help line read "undefined: undefined".
+    test("one of a kind the dashboard does not know has no help line", async () => {
+        serveExamples(async () => new Response("[]"));
+        const view = await open([{ title: "Later", kind: "watchlist" }]);
+
+        expect(cards(view)[0].querySelector(".sf-kind-help")).toBeNull();
+        expect(cards(view)[0].textContent).not.toContain("undefined");
+    });
+
+    test("one of a known kind says what fills it", async () => {
+        serveExamples(async () => new Response("[]"));
+        const view = await open([{ title: "A", kind: "latest", latest: {} }]);
+
+        expect(cards(view)[0].querySelector(".sf-kind-help").textContent).toBe("Recently added: What arrived most recently, newest first.");
+    });
 });
 
 describe("a section's library", () => {

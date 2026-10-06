@@ -414,7 +414,8 @@ export default function (view, params) {
                     edited();
                 });
                 body.appendChild(row("Shape of the cards", orientation, "The row scrolls sideways either way"));
-                if (kind) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
+                // A kind written in YAML that the dashboard does not know has no words to show.
+                if (home.KIND_HELP[kind]) body.appendChild(el("p", "sf-desc sf-kind-help", `${home.KIND_LABELS[kind]}: ${home.KIND_HELP[kind]}`));
 
                 for (const field of home.fieldsFor(schema, kind, libraries)) {
                     const node = control(field, payload[field.key], (value) => {
