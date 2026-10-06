@@ -196,7 +196,13 @@
     border-radius: 0.3em; padding: 0.6em 0.85em; font-size: 0.98rem;
 }
 .sf-page .sf-number:focus, .sf-page .sf-text:focus, .sf-page .sf-select:focus, .sf-page .sf-list:focus { border-color: var(--sf-ac); outline: none; }
-.sf-page .sf-number { width: 8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.sf-page .sf-number { width: 9rem; text-align: right; font-variant-numeric: tabular-nums; }
+/* The browser's up and down arrows sit inside the field, against the right-aligned
+   digits. A gap keeps the two apart, and the colour scheme draws the arrows in the
+   page's theme instead of as a white box on a dark page. */
+.sf-page .sf-number::-webkit-inner-spin-button { margin-left: 0.6em; }
+.sf-page[data-sf-theme="dark"] .sf-number { color-scheme: dark; }
+.sf-page[data-sf-theme="light"] .sf-number { color-scheme: light; }
 .sf-page .sf-text { flex: 1 1 12rem; min-width: 0; }
 .sf-page .sf-select { min-width: 9rem; max-width: 100%; }
 .sf-page .sf-list { flex: 1 1 100%; min-height: 4rem; resize: vertical; font-family: var(--sf-mono); font-size: 0.86rem; }
