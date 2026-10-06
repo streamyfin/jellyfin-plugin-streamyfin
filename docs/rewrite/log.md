@@ -8,6 +8,18 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the dashboard from afar
+
+Moving between the plugin's tabs no longer waits on the network a second time (#222). What a
+tab is drawn from, the settings and notification forms, the events, the cultures and the
+version, the schema, the libraries and the Home tab's examples, is kept five minutes in the
+dashboard's memory, and once a tab has drawn, what the other tabs start with is fetched in the
+background. Only descriptions are kept, never the configuration, which every tab reads again;
+a save of the configuration forgets them, and a failed request is never kept, which the review
+caught for the cultures and the version. The Home tab asks for its three answers at once and
+the Notifications tab for its two. At 120 ms of latency, the Home tab went from 0.8 s to
+0.19 s and the Notifications tab from 0.8 s to 0.29 s.
+
 ## 2026-10-06, the README for 0.70
 
 The README describes the plugin as the rewrite left it (#220): what it is and needs, a table of
