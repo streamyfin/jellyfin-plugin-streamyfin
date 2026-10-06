@@ -174,7 +174,7 @@ The app picks the change up the next time it refreshes its settings, which it do
 
 ## Configuration examples
 
-Everything below goes in the **Yaml Editor**, under the existing `settings:` key. Each setting is a `value` and whether it is `locked`.
+Everything below goes in the **Yaml Editor**. The first two are written from the top of the file: merge their keys into the `settings:` already there rather than adding a second one. The rows after them are sections, to add to the `sections` list of `home`. Each setting is a `value` and whether it is `locked`.
 
 ### Lock the skip buttons
 
@@ -230,7 +230,7 @@ It exists because Jellyfin's own `/UserViews` ignores `startIndex` and `limit`: 
 
 What it does then matters, because the alternative is not a worse recommendation but no recommendation: Jellyfin's own `/Items/Suggestions`, which is the app's "Suggested movies" row, is `OrderBy Random` on 10.11 and on master alike, and 10.11's `/Movies/Recommendations` builds each row with a query that never mentions the film the row is named after.
 
-So the plugin works it out itself: it takes somebody's recently watched films and series, along with whatever they are watching right now, scores everything unwatched that shares a genre or a tag with any of them, and puts forward what several of them agree on. A studio in common counts towards the score once something is in the running. The weights are Jellyfin's own, from the similarity provider Jellyfin 12 ships.
+So the plugin works it out itself: it takes somebody's recently watched films and series, along with the last three they started playing, which Jellyfin does not count as watched until they end, scores what they have not watched that shares a genre or a tag with any of them, and puts forward what several of them agree on. On a library large enough, the newest 5,000 sharing a genre and the newest 5,000 sharing a tag are the ones scored. A studio in common counts towards the score once something is in the running. The weights are Jellyfin's own, from the similarity provider Jellyfin 12 ships.
 
 ```yaml
         - title: For you
