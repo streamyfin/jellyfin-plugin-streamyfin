@@ -45,18 +45,26 @@ down rather than re-derived:
 as `jellyfin-pre`, keeps an `unstable` branch per plugin, and `unstable_plugins.py`
 opens a draft pull request moving each one onto the latest prerelease.
 
-### Jellyfin 13, as of 2026-09-15
+### Jellyfin 13, as of 2026-10-06
 
-It exists, as exactly one package: **`13.0.0-20260914101923`**, published on
-2026-09-14 on GitHub Packages, replacing the `12.0.0-*` weeklies that ran there
-until 2026-09-07. `master` is versioned 13.0.0, still on `net10.0`, and still pins
-EF Core `10.0.11`, the same as 12.0 and 12.1. So a `jf13` target would differ from
-`jf12` by a package version and a `targetAbi` and nothing else, today.
+Four weekly builds so far on GitHub Packages, from **`13.0.0-20260914101923`** to
+**`13.0.0-20261005120212`**, which `nuget-watch.yml` lists in #202. `master` is
+versioned 13.0.0, still on `net10.0`, and still pins EF Core `10.0.11`, the same as
+12.0 to 12.2. So a `jf13` target would differ from `jf12` by a package version and a
+`targetAbi` and nothing else, today.
+
+The `jf12` build was checked against the prerelease of 2026-10-05 on 2026-10-06:
+
+- It compiles against 13's own assemblies with no error and no warning, so nothing it
+  calls is gone or obsolete.
+- It loads on a 13.0.0 nightly and on a throwaway 13.0.0 server upgraded from 12.2,
+  migrations included; the configuration routes answer, a group's locked values reach
+  its members, and every dashboard page draws.
 
 A target is therefore possible and not yet worth it. It would make an authenticated
 feed a requirement for anyone running `dotnet restore`, to chase a package that is
-replaced every week, for a server nobody runs in production. Add it when 13 breaks
-something, which is what `nuget-watch.yml` is for.
+replaced every week, for a server nobody runs in production. Add it when 13.0.0 reaches
+nuget.org, or sooner if 13 breaks something, which is what `nuget-watch.yml` is for.
 
 Nothing is blocked in the meantime: `targetAbi` is a floor, not a target.
 `InstallationManager` keeps a version when `Version.Parse(x.TargetAbi) <= appVer`,
@@ -74,6 +82,36 @@ so the `jf12` build is already what a 13 server installs.
    10.11 and 12 already write into. See the note below for why that works.
 4. Build both. Anything that fails to compile is a real difference, and it goes
    in this folder behind `#if`, not where it was found.
+
+#### Compiling against a prerelease without the feed
+
+The feed refuses anonymous reads, but `jellyfin/jellyfin:unstable` carries the same
+assemblies. Copy `MediaBrowser.*`, `Jellyfin.*` and `Emby.*` out of its `/jellyfin/`
+folder, and build `jf12` with them in place of the 12.0.0 packages' copies, without
+editing the project:
+
+```xml
+<!-- unstable.targets -->
+<Project>
+  <Target Name="UseUnstableAssemblies" AfterTargets="ResolveAssemblyReferences" Condition="'$(UnstableDir)' != ''">
+    <ItemGroup>
+      <_Swapped Include="@(ReferencePath)" Condition="Exists('$(UnstableDir)/%(Filename)%(Extension)')" />
+      <ReferencePath Remove="@(_Swapped)" />
+      <ReferencePath Include="@(_Swapped->'$(UnstableDir)/%(Filename)%(Extension)')" />
+    </ItemGroup>
+  </Target>
+</Project>
+```
+
+```sh
+dotnet build Jellyfin.Plugin.Streamyfin -c Release -p:JellyfinTarget=jf12 \
+  -p:UnstableDir=<folder of the copied assemblies> \
+  -p:CustomAfterMicrosoftCommonTargets=<path>/unstable.targets
+```
+
+Run it on a copy of the tree, `git archive HEAD | tar -x`, so the `obj` folder of the
+real build is not the one written. An error is a difference worth a target; a warning
+is something the next line will remove.
 
 ## One manifest, every line
 
