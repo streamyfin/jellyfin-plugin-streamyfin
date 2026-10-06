@@ -140,7 +140,7 @@ settings:
             query:
               enableImageTypes: Thumb
 
-        - title: Nextup
+        - title: Next Up
           orientation: horizontal
           custom:
             endpoint: /Shows/NextUp

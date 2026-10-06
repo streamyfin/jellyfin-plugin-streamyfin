@@ -139,7 +139,7 @@ public class PluginConfiguration : BasePluginConfiguration
               }
           },
             new() {
-            title = "Nextup",
+            title = "Next Up",
             orientation = SectionOrientation.horizontal,
             nextUp = new()
               {

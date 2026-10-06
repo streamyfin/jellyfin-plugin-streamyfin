@@ -6,9 +6,9 @@ There are currently a few Jellyfin events directly supported by our plugin
 
 Events:
 - Item Added (everyone who can open the library it went into)
-- Session Started (admins)
+- Session started (admins)
 - User Locked Out (admins, and the user who was locked out)
-- Playback Started (admins)
+- Playback started (admins)
 - Scheduled task failed (admins), with the reason the task gave
 - Plugin changed (admins), when one is installed, updated or uninstalled
 - Failed sign in (admins), with the name that was tried and where it came from

@@ -50,7 +50,7 @@ public class NotificationLevelApiTests
             ["sessionStarted", "playbackStarted", "userLockedOut", "itemAdded", "taskFailed", "pluginChanged", "signInFailed"],
             events.Select(one => one.Key));
 
-        Assert.Equal("Session Started", events.First(one => one.Key == "sessionStarted").Title);
+        Assert.Equal("Session started", events.First(one => one.Key == "sessionStarted").Title);
     }
 
     /// <summary>

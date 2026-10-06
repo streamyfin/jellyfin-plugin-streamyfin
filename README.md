@@ -38,7 +38,7 @@ Create dynamic, personalized home screens with customizable sections:
 ### 🔔 **Push Notifications**
 Receive real-time notifications on your mobile device:
 - **Item Added**: New movies, episodes, and seasons (filterable by library)
-- **Session Started**: Track active user sessions (admin only)
+- **Session started**: Track active user sessions (admin only)
 - **Playback Started**: Monitor content playback (admin only)
 - **User Locked Out**: Security alerts for account issues
 - **Scheduled Task Failed**: A task the server runs on its own went wrong, with the reason (admin only)

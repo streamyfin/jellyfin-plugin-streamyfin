@@ -26,7 +26,7 @@ public class NotificationsFormTests
         Assert.Equal(
             new[]
             {
-                "Session Started", "Playback Started", "User locked out", "Item added",
+                "Session started", "Playback started", "User locked out", "Item added",
                 "Scheduled task failed", "Plugin changed", "Failed sign in"
             },
             categories);
@@ -127,7 +127,7 @@ public class NotificationsFormTests
     [Fact]
     public void TheEventsOwnSentenceSitsOnItsSwitch()
     {
-        Assert.Contains("Movies or Episodes", Field("itemAdded.enabled").Description, System.StringComparison.Ordinal);
+        Assert.Contains("movies or episodes", Field("itemAdded.enabled").Description, System.StringComparison.Ordinal);
     }
 
     /// <summary>
