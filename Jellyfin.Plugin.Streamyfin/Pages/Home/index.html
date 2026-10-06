@@ -7,6 +7,7 @@
         <div class="sf-top">
             <h1>Streamyfin</h1>
             <span class="sf-meta" id="sf-meta">Home</span>
+            <button type="button" class="sf-toggle" id="sf-legend-toggle" aria-pressed="true" aria-controls="sf-legend-banner">Legend <span class="sf-pip">ON</span></button>
             <div class="sf-actions">
                 <label class="sf-name" for="sf-new-kind">Add</label>
                 <select class="sf-select" id="sf-new-kind" aria-label="What fills the new section"></select>
@@ -29,6 +30,12 @@
                     one. The dashboard cannot build those yet; the API and a backup file can.
                     Headers and query parameters for an address are written in the Yaml tab.</p>
             </div>
+        </div>
+
+        <div class="sf-banner" id="sf-legend-banner" data-sf-legend-banner>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div class="sf-legend" id="sf-legend"></div>
+            <button type="button" class="sf-banner-close" data-sf-legend-close aria-label="Hide the legend">&times;</button>
         </div>
 
         <div class="sf-examples">

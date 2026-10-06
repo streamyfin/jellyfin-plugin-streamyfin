@@ -113,6 +113,32 @@ const three = [
     { title: "C", kind: "latest", orientation: "horizontal", latest: {} },
 ];
 
+// The boxes on this tab are a section's switches. Their legend is the other tabs', from
+// shared.js where it has one; otherwise the banner and its switch stay out of sight.
+describe("the legend", () => {
+    test("is a banner of its own, opened by the Legend switch", async () => {
+        const host = await mount();
+        const banner = host.querySelector("#sf-legend-banner[data-sf-legend-banner]");
+
+        expect(banner.querySelector("#sf-legend")).not.toBeNull();
+        expect(banner.parentElement.closest(".sf-banner")).toBeNull();
+        expect(host.querySelector(".sf-top #sf-legend-toggle").getAttribute("aria-controls")).toBe("sf-legend-banner");
+    });
+
+    test("says what a box says, or stays out of sight without the shared legend", async () => {
+        serveExamples(async () => new Response("[]"));
+        const view = await open([]);
+        const banner = view.querySelector("#sf-legend-banner");
+
+        if (shared.drawLegend) {
+            expect([...banner.querySelectorAll(".sf-legend-item")].map((item) => item.textContent)).toEqual(["On", "Off"]);
+        } else {
+            expect(banner.hidden).toBe(true);
+            expect(view.querySelector("#sf-legend-toggle").hidden).toBe(true);
+        }
+    });
+});
+
 describe("moving a section", () => {
     test("dragged by its handle, it lands where it is dropped, and the move is said", async () => {
         serveExamples(async () => new Response("[]"));

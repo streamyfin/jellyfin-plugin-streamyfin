@@ -8,6 +8,7 @@
 export default function (view, params) {
     let drawn = false;
     let loading = false;
+    let legendWired = false;
 
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
@@ -31,6 +32,21 @@ export default function (view, params) {
 
             const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
             renderer.applyTheme(find("sf-app"));
+
+            // The boxes' legend and its switch, shared with the other tabs, where shared.js
+            // has them; without them the banner and the switch stay out of sight.
+            if (shared.drawLegend && shared.wireDisplaySwitches) {
+                if (!legendWired) {
+                    shared.drawLegend(find("sf-legend"), { kind: "boxes" });
+                    shared.wireDisplaySwitches(view, undefined, () => {});
+                    legendWired = true;
+                } else {
+                    shared.paintDisplaySwitches(view, () => {});
+                }
+            } else {
+                find("sf-legend-banner").hidden = true;
+                find("sf-legend-toggle").hidden = true;
+            }
 
             // The dashboard keeps this page between tab switches and fires viewshow on
             // each one. Drawn once, and only once it is: a load that failed has to be
