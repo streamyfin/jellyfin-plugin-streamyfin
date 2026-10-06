@@ -8,6 +8,13 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, a build without a warning
+
+The last nine warnings a build of `develop` printed were tests blocking on a task with `Wait`
+or `Result`, one of them added by #216 (#223). They await it now, and both targets build from
+scratch with no warning. The long list in a Security run on `main` comes from the 0.68.1 code
+still there, which the rewrite replaces.
+
 ## 2026-10-06, the dashboard from afar
 
 Moving between the plugin's tabs no longer waits on the network a second time (#222). What a
