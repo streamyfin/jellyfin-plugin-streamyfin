@@ -87,8 +87,12 @@ const CHOICES = {
 };
 
 /** The app's English string for a translation key such as "home.next_up". */
+const englishStrings = new Map();
 function english(appRoot, key) {
-    const strings = JSON.parse(fs.readFileSync(path.join(appRoot, 'translations', 'en.json'), 'utf8'));
+    if (!englishStrings.has(appRoot)) {
+        englishStrings.set(appRoot, JSON.parse(fs.readFileSync(path.join(appRoot, 'translations', 'en.json'), 'utf8')));
+    }
+    const strings = englishStrings.get(appRoot);
     const text = key.split('.').reduce((node, part) => (isPlainObject(node) ? node[part] : undefined), strings);
     if (typeof text !== 'string' || text === '') {
         throw new Unreadable(`translations/en.json has no string for ${key}`);
@@ -849,4 +853,4 @@ if (require.main === module) {
     console.log(`${entries.length} settings written to ${path.relative(process.cwd(), MANIFEST)}`);
 }
 
-module.exports = { buildManifest, readChoices, readSettings, readWireNames, Unreadable };
+module.exports = { buildManifest, readSettings, readWireNames, Unreadable };

@@ -224,6 +224,15 @@ device's own collation, which is no one order. Two tests read it beside the rule
 the plugin offers the app's list value for value and label for label, and offers no list
 the manifest does not record.
 
+The hero carousel's two filters, `hiddenHomeHeroSections` and `hiddenHomeHeroMediaTypes`,
+come the same way from another kind of list: a record in `HomeHeroCarousel.tsx`
+(`SECTION_LABEL_KEYS`, `MEDIA_LABEL_KEYS`) from each value to the translation key of its
+label, which the generator reads with `translated` and labels with the app's English from
+`translations/en.json`. A run stops when that file has no string for a key, or when the
+carousel no longer writes the setting. The plugin's copies are `HomeHeroSections` and
+`HomeHeroMediaTypes`, and the schema the Yaml tab reads names their values, which the
+form shows as boxes under the labels.
+
 Three rules read it. The rest of the tests in the file refuse an excuse that has
 outlived either the setting it names or the reason it was written for, from
 whichever side moved: the app dropping a key, the app catching up, or the plugin
