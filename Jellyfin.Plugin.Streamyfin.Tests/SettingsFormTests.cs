@@ -119,6 +119,7 @@ public class SettingsFormTests
     /// </remarks>
     [Theory]
     [InlineData("subtitleMode", "Default,Smart,OnlyForced,Always,None")]
+    [InlineData("skipIntro", "auto,ask,none")]
     [InlineData("defaultBitrate", ",_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
     public void AChoiceListFollowsTheAppsOrder(string key, string expected)
     {

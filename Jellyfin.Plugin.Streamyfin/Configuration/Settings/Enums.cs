@@ -111,15 +111,16 @@ public enum SortOrder
 }
 
 [JsonConverter(typeof(StringEnumConverter))]
-// Labelled as the app's segment skip page labels them.
+// Labelled and ordered as the app's segment skip page, SEGMENT_SKIP_OPTIONS: Skip, Ask
+// to skip, None. The numbers are what storage keeps.
 public enum SegmentSkipMode
 {
-    [Display(Name = "None")]
-    none = 0,
+    [Display(Name = "Skip")]
+    auto = 2,
     [Display(Name = "Ask to skip")]
     ask = 1,
-    [Display(Name = "Skip")]
-    auto = 2
+    [Display(Name = "None")]
+    none = 0
 }
 
 // Two attributes per member and not one. EnumMember is what Newtonsoft's
