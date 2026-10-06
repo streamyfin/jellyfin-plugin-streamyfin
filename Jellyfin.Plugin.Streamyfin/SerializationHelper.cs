@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -146,6 +147,7 @@ public class SerializationHelper
         var schema = JsonSchemaGenerator.FromType<T>(settings);
         MarkSecrets(schema);
         MarkCategories(schema);
+        MarkChoices(schema);
         return schema.ToJson();
     }
 
@@ -204,6 +206,44 @@ public class SerializationHelper
 
                 property.ExtensionData ??= new Dictionary<string, object?>();
                 property.ExtensionData["x-secret"] = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Says, in the description the Yaml tab shows, the values a setting picked from a
+    /// list of the app's takes, or that a list of libraries takes their ids.
+    /// </summary>
+    /// <remarks>
+    /// The form offers those as a dropdown or as boxes, under the app's labels or the
+    /// libraries' names, so their descriptions name no values. Someone writing YAML still
+    /// needs them, so they go into the schema's copy of the description and nowhere else.
+    /// </remarks>
+    private static void MarkChoices(JsonSchema schema)
+    {
+        foreach (var candidate in SchemasCarryingSettings(schema))
+        {
+            foreach (var descriptor in SettingsSchema.Descriptors)
+            {
+                if (!candidate.Properties.TryGetValue(descriptor.Key, out var property))
+                {
+                    continue;
+                }
+
+                var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>();
+                var values = listed is not null
+                    ? string.Join(", ", listed.Choices.Select(choice => choice.Value).OfType<string>())
+                    : descriptor.Property.GetCustomAttribute<LibrariesAttribute>() is not null ? "library ids" : null;
+                if (values is null)
+                {
+                    continue;
+                }
+
+                // The descriptions end without a full stop, so one goes before the values.
+                var description = property.Description?.TrimEnd().TrimEnd('.');
+                property.Description = string.IsNullOrEmpty(description)
+                    ? $"Values: {values}."
+                    : $"{description}. Values: {values}.";
             }
         }
     }

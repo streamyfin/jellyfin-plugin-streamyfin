@@ -16,7 +16,7 @@
         <!-- Embedded rather than copied to the output directory: the parity test then
              reads it through the assembly and does not depend on which directory
              dotnet test was invoked from. -->
-        <EmbeddedResource Include="AppSettingsManifest.json" />
+        <EmbeddedResource Include="../Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json" LogicalName="AppSettingsManifest.json" />
         <!-- The examples the repository ships, checked against the Yaml editor's schema. -->
         <EmbeddedResource Include="../examples/*" LogicalName="examples/%(Filename)%(Extension)" />
     </ItemGroup>

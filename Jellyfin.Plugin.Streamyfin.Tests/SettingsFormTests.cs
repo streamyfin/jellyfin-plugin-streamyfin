@@ -55,12 +55,89 @@ public class SettingsFormTests
     [InlineData("openSubtitlesApiKey", SettingsControl.Secret)]
     [InlineData("audioTranscodeMode", SettingsControl.Select)]
     [InlineData("defaultBitrate", SettingsControl.Select)]
+    // A string, offered as the app's own list of languages rather than as free text.
+    [InlineData("preferedLanguage", SettingsControl.Select)]
     [InlineData("hiddenLibraries", SettingsControl.List)]
     [InlineData("defaultAudioLanguage", SettingsControl.Language)]
     [InlineData("home", SettingsControl.Composite)]
     public void TheControlFollowsTheValueType(string key, SettingsControl expected)
     {
         Assert.Equal(expected, Field(key).Control);
+    }
+
+    /// <summary>
+    /// The library's display options are drawn as the switches and choices of the app's
+    /// own sheet, and the card style, which the app reads nowhere, is kept but not offered.
+    /// </summary>
+    [Fact]
+    public void TheLibraryOptionsAreDrawnAsTheirParts()
+    {
+        var field = Field("libraryOptions");
+
+        Assert.Equal(SettingsControl.Fields, field.Control);
+        Assert.Equal(
+            new[] { "display:Display", "imageStyle:Image style", "showTitles:Show titles", "showStats:Show stats" },
+            field.Parts!.Select(p => $"{p.Key}:{p.Title}"));
+        Assert.Equal(new[] { "Row", "List" }, field.Parts!.Single(p => p.Key == "display").Options.Select(o => o.Label));
+        // The app greys Show titles out under the poster style, whose cards draw none.
+        Assert.Equal("imageStyle=cover", field.Parts!.Single(p => p.Key == "showTitles").DependsOn);
+    }
+
+    /// <summary>
+    /// The libraries to hide are offered as this server's libraries, by name, and the id
+    /// each one stands for is what is stored.
+    /// </summary>
+    /// <remarks>
+    /// The field asked for ids, which nobody knows by heart: an administrator had to find
+    /// each one in the address bar of a library. The notifications page has always been
+    /// handed the server's libraries; the settings form is handed the same list.
+    /// </remarks>
+    [Fact]
+    public void TheLibrariesToHideAreTheServersLibraries()
+    {
+        var libraries = new[] { new SettingsChoice("f137a2dd21bbc1b99aa5c0f6bf02a805", "Movies"), new SettingsChoice("a656b907eb3a73532e40e44b968d0225", "Shows") };
+
+        var field = SettingsForm.Describe(libraries).Single(f => f.Key == "hiddenLibraries");
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Equal(libraries, field.Options);
+    }
+
+    /// <summary>
+    /// Without the server's libraries, the field is still a list of ids to type.
+    /// </summary>
+    [Fact]
+    public void WithoutTheServersLibrariesTheIdsAreTyped()
+    {
+        var field = SettingsForm.Describe().Single(f => f.Key == "hiddenLibraries");
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Empty(field.Options);
+    }
+
+    /// <summary>
+    /// The home layout, which has fields of its own, keeps the control written for it.
+    /// </summary>
+    [Fact]
+    public void TheHomeLayoutIsNotDrawnAsParts()
+    {
+        Assert.Equal(SettingsControl.Composite, Field("home").Control);
+        Assert.Null(Field("home").Parts);
+    }
+
+    /// <summary>
+    /// A list of values the app knows arrives with them, so the page draws boxes rather
+    /// than asking for the keys.
+    /// </summary>
+    [Theory]
+    [InlineData("hiddenHomeHeroSections", "continueWatching,nextUp,recentlyAdded")]
+    [InlineData("hiddenHomeHeroMediaTypes", "movie,tv")]
+    public void AListOfKnownValuesCarriesThem(string key, string expected)
+    {
+        var field = Field(key);
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Equal(expected, string.Join(",", field.Options.Select(o => o.Value)));
     }
 
     /// <summary>
@@ -136,6 +213,45 @@ public class SettingsFormTests
 
         Assert.Equal("Max", options[0].Label);
         Assert.Null(options[0].Value);
+    }
+
+    /// <summary>
+    /// The app language is offered the way the app's own picker offers it: the device's
+    /// language first, storing nothing, then every language the app has.
+    /// </summary>
+    /// <remarks>
+    /// It was free text, "such as fr or en", which took any code, a typo included, and
+    /// named none of the languages. Which languages those are is held to the app's list by
+    /// <c>SettingsParityTests</c>; this holds what the dropdown makes of it.
+    /// </remarks>
+    [Fact]
+    public void TheAppLanguageOffersTheDevicesOwnFirst()
+    {
+        var options = Field("preferedLanguage").Options;
+
+        Assert.Equal(new SettingsChoice(null, "Device language"), options[0]);
+        Assert.Equal(AppLanguages.Languages, options.Skip(1));
+    }
+
+    /// <summary>
+    /// A list of choices is for a setting stored as text, or as a list of texts.
+    /// </summary>
+    /// <remarks>
+    /// The page reads a choice back as the string its option holds, and a ticked box as
+    /// one string of the list. On a setting stored as anything else it would write a value
+    /// the store refuses.
+    /// </remarks>
+    [Fact]
+    public void AListOfChoicesIsForASettingStoredAsText()
+    {
+        var listed = SettingsSchema.Descriptors
+            .Where(d => d.Property.GetCustomAttribute<ChoicesAttribute>() is not null)
+            .ToArray();
+
+        Assert.NotEmpty(listed);
+        Assert.Empty(listed
+            .Where(d => d.ValueType != typeof(string) && d.ValueType != typeof(string[]))
+            .Select(d => d.Key));
     }
 
     /// <summary>

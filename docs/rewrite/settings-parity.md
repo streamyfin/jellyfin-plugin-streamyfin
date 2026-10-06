@@ -163,7 +163,7 @@ stored one; a stored configuration that holds one still loads, without it.
 
 ## The manifest, and the test that reads it
 
-`Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json` lists what the app
+`Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json` lists what the app
 reads: every key, its type, and its default, with an explicit marker for the keys
 that have none. It is generated from the app's `utils/atoms/settings.ts`,
 committed, and embedded in the test assembly rather than copied to the output
@@ -224,6 +224,25 @@ plugin still declaring them fails the third rule below. That is not the day they
 go: copies of the app from before the block read nothing else. The answer then is an
 entry in `KeptForAppsInTheField`, which dies once the plugin stops declaring the key
 or the app reads it again.
+
+**A setting the app picks from a list of its own.** The app language is a string the
+app's pickers choose from `APP_LANGUAGES` in `i18n.ts`, and the Application tab offers
+the same list rather than free text, so the plugin keeps a copy of it, `AppLanguages`.
+The manifest records the app's list as the setting's `options`, read from `i18n.ts` the
+way a default is, and the run stops if either picker no longer imports the list or no
+longer writes the setting. It is sorted by value, because the app sorts by label in each
+device's own collation, which is no one order. Two tests read it beside the rules below:
+the plugin offers the app's list value for value and label for label, and offers no list
+the manifest does not record.
+
+The hero carousel's two filters, `hiddenHomeHeroSections` and `hiddenHomeHeroMediaTypes`,
+come the same way from another kind of list: a record in `HomeHeroCarousel.tsx`
+(`SECTION_LABEL_KEYS`, `MEDIA_LABEL_KEYS`) from each value to the translation key of its
+label, which the generator reads with `translated` and labels with the app's English from
+`translations/en.json`. A run stops when that file has no string for a key, or when the
+carousel no longer writes the setting. The plugin's copies are `HomeHeroSections` and
+`HomeHeroMediaTypes`, and the schema the Yaml tab reads names their values, which the
+form shows as boxes under the labels.
 
 Three rules read it. The rest of the tests in the file refuse an excuse that has
 outlived either the setting it names or the reason it was written for, from

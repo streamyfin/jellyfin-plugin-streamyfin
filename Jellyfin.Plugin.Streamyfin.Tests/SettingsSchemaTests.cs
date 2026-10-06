@@ -238,6 +238,40 @@ public class SettingsSchemaTests
     }
 
     /// <summary>
+    /// A setting picked from a list of the app's names its values in the schema, where
+    /// the Yaml tab shows them, and not in the form, which offers them under labels.
+    /// </summary>
+    [Fact]
+    public void TheYamlTabIsToldTheValuesOfAList()
+    {
+        var schema = NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>()).Result;
+        var settings = schema.Definitions["Settings"].Properties;
+
+        Assert.Equal(
+            "The groups to keep out of the hero carousel. Values: continueWatching, nextUp, recentlyAdded.",
+            settings["hiddenHomeHeroSections"].Description);
+        Assert.EndsWith(". Values: movie, tv.", settings["hiddenHomeHeroMediaTypes"].Description);
+        Assert.DoesNotContain("Values:", SettingsForm.Describe().Single(f => f.Key == "hiddenHomeHeroSections").Description);
+    }
+
+    /// <summary>
+    /// The libraries to hide are boxes named after the libraries in the form, and ids in
+    /// YAML, so only the Yaml tab is told it takes ids.
+    /// </summary>
+    [Fact]
+    public void OnlyTheYamlTabIsToldTheLibrariesAreIds()
+    {
+        var schema = NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>()).Result;
+
+        Assert.Equal(
+            "The libraries to hide from users. Values: library ids.",
+            schema.Definitions["Settings"].Properties["hiddenLibraries"].Description);
+        Assert.Equal(
+            "The libraries to hide from users",
+            SettingsForm.Describe().Single(f => f.Key == "hiddenLibraries").Description);
+    }
+
+    /// <summary>
     /// Every example the repository ships passes the schema the Yaml editor checks against.
     /// </summary>
     /// <remarks>

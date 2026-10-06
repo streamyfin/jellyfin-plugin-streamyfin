@@ -155,6 +155,7 @@ const typeDefault = (field) => {
         case "Toggle": return false;
         case "Text": case "Secret": return "";
         case "List": return [];
+        case "Fields": return {};
         default: return null;
     }
 };
@@ -252,10 +253,46 @@ const buildControl = (field, cultures) => {
             }
             break;
         case "List":
+            // A list of values the app knows arrives with them, and boxes say what there
+            // is to choose. One it could not enumerate stays a line per entry.
+            if (field.options?.length) {
+                control = el("div", "sf-checks");
+                control.setAttribute("role", "group");
+                break;
+            }
             control = el("textarea", "sf-list");
             control.rows = 3;
             control.placeholder = "One per line";
             break;
+        case "Fields": {
+            // A shape made only of switches and choices, the library's display options:
+            // one control per part, each marked so that a change reaches the row.
+            control = el("div", "sf-fields");
+            control.setAttribute("role", "group");
+            for (const part of field.parts ?? []) {
+                const line = el("label", "sf-part");
+                let input;
+                if (part.control === "Toggle") {
+                    input = el("input", "sf-check");
+                    input.type = "checkbox";
+                    line.append(input, el("span", null, part.title));
+                } else {
+                    input = el("select", "sf-select");
+                    for (const option of part.options ?? []) {
+                        const node = el("option", null, option.label);
+                        node.value = option.value ?? "";
+                        input.appendChild(node);
+                    }
+                    line.append(el("span", null, part.title), input);
+                }
+                input.dataset.part = part.key;
+                // A part that only matters while another holds a value, Show titles under
+                // the cover style, says so and is greyed out otherwise.
+                if (part.dependsOn) line.dataset.depends = part.dependsOn;
+                control.appendChild(line);
+            }
+            break;
+        }
         case "Language": {
             control = el("select", "sf-select");
             const blank = el("option", null, "Choose a language");
@@ -293,6 +330,72 @@ const placeholderOption = (select) => {
     return option;
 };
 
+// The boxes of a list of known values, the chosen ones ticked. A stored value the list
+// does not offer, typed on the Yaml tab or dropped by the app since, stays as a ticked
+// box of its own rather than vanish on the next save.
+const drawChecks = (control, field, chosen) => {
+    const known = new Set(field.options.map((option) => option.value));
+    // Once seen, an Other box stays for the life of the page, so unticking one by
+    // mistake can be undone without discarding every other edit.
+    const others = control.sfOthers ?? (control.sfOthers = []);
+    for (const one of chosen) if (!known.has(one) && !others.includes(one)) others.push(one);
+    const choices = [...field.options, ...others.map((one) => ({ value: one, label: `Other (${one})` }))];
+
+    // The same boxes ticked in place, so the one just toggled keeps the focus.
+    const boxes = [...control.querySelectorAll("input[data-choice]")];
+    if (boxes.length === choices.length && boxes.every((box, at) => box.value === choices[at].value)) {
+        for (const box of boxes) box.checked = chosen.includes(box.value);
+        return;
+    }
+    control.replaceChildren(...choices.map((option) => {
+        const line = el("label", "sf-checkline");
+        const box = el("input", "sf-check");
+        box.type = "checkbox";
+        box.value = option.value;
+        box.checked = chosen.includes(option.value);
+        box.dataset.choice = "";
+        line.append(box, el("span", null, option.label));
+        return line;
+    }));
+};
+
+// A stored value the list does not offer, a language the app has since dropped or one
+// typed on the Yaml tab, is shown as what it is rather than as an empty dropdown, and
+// stays among the choices once another one is picked. Opening the page never loses it.
+const ensureOption = (select, wanted) => {
+    if (wanted !== "" && ![...select.options].some((option) => option.value === wanted)) {
+        const other = el("option", null, `Other (${wanted})`);
+        other.value = wanted;
+        select.appendChild(other);
+    }
+};
+
+const writeParts = (control, value) => {
+    for (const input of control.querySelectorAll("[data-part]")) {
+        const part = value?.[input.dataset.part];
+        if (input.type === "checkbox") {
+            input.checked = part === true;
+            continue;
+        }
+        const wanted = part === undefined || part === null ? input.options[0]?.value ?? "" : String(part);
+        // As for a dropdown of its own, or the next change to another part would store
+        // an empty value.
+        ensureOption(input, wanted);
+        input.value = wanted;
+    }
+    for (const line of control.querySelectorAll("[data-depends]")) {
+        const [key, wanted] = line.dataset.depends.split("=");
+        const inert = control.querySelector(`[data-part="${key}"]`)?.value !== wanted;
+        line.classList.toggle("is-inert", inert);
+        line.title = inert ? `Only matters while ${key} is ${wanted}` : "";
+        // Disabled as well, as in the app's sheet: greyed only, it still took a keypress.
+        // A part is a box or a choice, never a value that could be refused, so this cannot
+        // leave the row stuck with a problem nobody can fix.
+        const own = line.querySelector("[data-part]");
+        if (own) own.disabled = inert;
+    }
+};
+
 const writeControl = (row) => {
     const { field, control, value } = row;
     if (!control) return;
@@ -307,6 +410,17 @@ const writeControl = (row) => {
                 break;
             case "Select":
                 placeholderOption(control).selected = true;
+                break;
+            case "List":
+                if (field.options?.length) {
+                    drawChecks(control, field, []);
+                    break;
+                }
+                control.value = "";
+                control.placeholder = "App default";
+                break;
+            case "Fields":
+                writeParts(control, row.fallback ?? {});
                 break;
             default:
                 control.value = "";
@@ -324,11 +438,22 @@ const writeControl = (row) => {
         case "Number":
             control.value = value === null || value === undefined ? "" : String(value);
             break;
-        case "Select":
-            control.value = value === null || value === undefined ? "" : String(value);
+        case "Select": {
+            const wanted = value === null || value === undefined ? "" : String(value);
+            ensureOption(control, wanted);
+            control.value = wanted;
             break;
-        case "List":
-            control.value = Array.isArray(value) ? value.join("\n") : "";
+        }
+        case "List": {
+            const chosen = Array.isArray(value) ? value : [];
+            if (field.options?.length) drawChecks(control, field, chosen);
+            else control.value = chosen.join("\n");
+            break;
+        }
+        case "Fields":
+            // A part the value leaves out shows the default, which is what the server
+            // fills it with, rather than the first choice and an unticked box.
+            writeParts(control, { ...(row.fallback ?? {}), ...(value ?? {}) });
             break;
         case "Language":
             // The config spells the two fields camelCase, the way YamlDotNet reads them; a
@@ -359,8 +484,25 @@ const readControl = (row, cultures) => {
             // keeps its edges: a token that ends in a space is a token, and the Yaml tab
             // would store it.
             return field?.address ? control.value.trim() : control.value;
-        case "List":
-            return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        case "List": {
+            if (!field.options?.length) return control.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+            const ticked = [...control.querySelectorAll("input[data-choice]:checked")].map((box) => box.value);
+            // In the order the page opened with, then the current one, so unticking a box
+            // and ticking it again is no change.
+            const reference = [...new Set([...(row.listOrder ?? []), ...(Array.isArray(row.value) ? row.value : [])])];
+            const kept = reference.filter((one) => ticked.includes(one));
+            return [...kept, ...ticked.filter((one) => !kept.includes(one))];
+        }
+        case "Fields": {
+            // From the default, then what is stored, so a part the value left out is
+            // written as the server would read it, and a member the form does not offer,
+            // the library's card style, keeps its value.
+            const value = { ...(row.fallback ?? {}), ...(row.value ?? {}) };
+            for (const input of control.querySelectorAll("[data-part]")) {
+                value[input.dataset.part] = input.type === "checkbox" ? input.checked : input.value;
+            }
+            return value;
+        }
         case "Language": {
             const culture = (cultures ?? []).find((c) => c.ThreeLetterISOLanguageName === control.value);
             return culture
@@ -508,6 +650,14 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
     };
 
+    // Offered on a set value that is not the app's own.
+    const refreshReset = (row) => {
+        if (!row.reset) return;
+        const fallback = resetValue(row.field);
+        row.reset.hidden = row.state === "free" || JSON.stringify(row.value) === JSON.stringify(fallback);
+        if (row.resetLine) row.resetLine.hidden = row.reset.hidden;
+    };
+
     const refreshRow = (row) => {
         setPressed(row);
         // Assigning a control's value fires no input event, so a value put back by
@@ -522,6 +672,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         writeControl(row);
         refreshGating(row);
         refreshProblem(row);
+        refreshReset(row);
         for (const dependent of rows.values()) {
             if (dependent.field.dependsOn !== row.field.key) continue;
             refreshGating(dependent);
@@ -539,8 +690,23 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         return field.control === "List" && value === null ? [] : value;
     };
 
+    // What Reset puts back: the default the plugin declares, or else the app's own, which
+    // the server reads from the app's source and sends with the field. A null the app sends
+    // is a default, as the bitrate's no cap is; a field sent without one has none.
+    const resetValue = (field) => {
+        const declared = defaultValue(field);
+        if (declared !== undefined) return declared;
+        if (!Object.hasOwn(field, "appDefault")) return undefined;
+        return field.control === "List" && field.appDefault === null ? [] : field.appDefault;
+    };
+
     // The value a setting takes when it is set with nothing to start from.
-    const firstValue = (field) => (field.control === "Toggle" ? false : typeDefault(field) === undefined ? null : typeDefault(field));
+    const firstValue = (field) => {
+        if (field.control === "Toggle") return false;
+        // A shape starts from its default, so setting it writes a whole one.
+        if (field.control === "Fields") return structuredClone(defaultValue(field) ?? {});
+        return typeDefault(field) === undefined ? null : typeDefault(field);
+    };
 
     // What a level falls through to, said for a person: a choice by its label, a toggle
     // as on or off, a list as its items, and "the app's default" when the level above
@@ -548,14 +714,46 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     const inheritedText = (field) => {
         const entry = defaults?.[field.key];
         if (!entry || typeof entry !== "object") return "the app's default";
-        const value = entry.value ?? null;
+        return valueText(field, entry.value ?? null);
+    };
+
+    // A value said for a person: a choice by its label, a toggle as on or off, a list as
+    // its items.
+    const valueText = (field, value) => {
         switch (field.control) {
             case "Toggle": return value ? "on" : "off";
             case "Select": return (field.options ?? []).find((o) => (o.value ?? null) === value)?.label ?? String(value ?? "nothing");
-            case "List": return Array.isArray(value) && value.length ? value.join(", ") : "nothing";
+            case "List": return Array.isArray(value) && value.length
+                ? value.map((one) => (field.options ?? []).find((o) => o.value === one)?.label ?? one).join(", ")
+                : "nothing";
+            case "Fields": return (field.parts ?? []).map((part) => {
+                const one = value?.[part.key];
+                return part.control === "Toggle"
+                    ? `${part.title} ${one ? "on" : "off"}`
+                    : `${part.title} ${(part.options ?? []).find((o) => o.value === one)?.label ?? one}`;
+            }).join(", ");
             case "Language": return value?.displayName ?? value?.DisplayName ?? "nothing";
             default: return value === null || value === "" ? "nothing" : String(value);
         }
+    };
+
+    // A few words for a narrow card: the value when it is a word or a number, otherwise
+    // only Reset, with the value in the title.
+    const resetLabel = (field, value) => {
+        const said = valueText(field, value);
+        return field.control === "List" || field.control === "Fields" || said.length > 18 ? "Reset" : `Reset to ${said}`;
+    };
+
+    const resetArrow = () => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("aria-hidden", "true");
+        for (const d of ["M3 12a9 9 0 1 0 3-6.7", "M3 4v5h5"]) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", d);
+            svg.appendChild(path);
+        }
+        return svg;
     };
 
     const overridden = () => [...rows.values()].filter((row) => row.state !== "free").map((row) => row.field.key);
@@ -587,6 +785,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             invalid: false,
             inert: false,
             el: el("div", "sf-row"),
+            // What a shape falls back to for a part its value leaves out.
+            fallback: field.control === "Fields" ? defaultValue(field) : undefined,
+            // The order a list of known values was stored in, which ticking keeps.
+            listOrder: field.control === "List" && Array.isArray(stored?.value) ? [...stored.value] : [],
             control: field.control === "Composite" ? null : buildControl(field, cultures),
             buttons: [],
             why: el("p", "sf-why"),
@@ -616,6 +818,20 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             states.appendChild(button);
             row.buttons.push(button);
         }
+        // Back to the app's own value, keeping the state. Only where there is one, and not
+        // on a level, whose defaults are what the level above gives.
+        if (!overridesOnly && field.control !== "Composite" && resetValue(field) !== undefined) {
+            row.reset = el("button", "sf-reset");
+            row.reset.type = "button";
+            row.reset.append(resetArrow(), el("span", null, resetLabel(field, resetValue(field) ?? null)));
+            row.reset.title = `Put back the app's default, ${valueText(field, resetValue(field) ?? null)}`;
+            row.reset.setAttribute("aria-label", `Put back the app's default for ${field.title ?? field.key}`);
+            row.reset.addEventListener("click", () => {
+                row.value = structuredClone(resetValue(field));
+                refreshRow(row);
+                notify();
+            });
+        }
         head.appendChild(states);
         if (overridesOnly) {
             const drop = el("button", "sf-drop", "\u00d7");
@@ -636,10 +852,11 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
 
         if (field.control === "Composite") {
+            // The home layout, the one shape left, has a tab of its own to edit it on.
             const foot = el("div", "sf-foot");
-            const note = el("span", "sf-note", "Edited as YAML for now. ");
-            const link = el("a", null, "Open the Yaml tab");
-            link.href = "#/configurationpage?name=Yaml";
+            const note = el("span", "sf-note", "Edited on the Home tab. ");
+            const link = el("a", null, "Open the Home tab");
+            link.href = "#/configurationpage?name=Home";
             note.appendChild(link);
             foot.appendChild(note);
             row.el.appendChild(foot);
@@ -721,7 +938,13 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
                 foot.appendChild(test);
                 foot.appendChild(said);
             }
+            if (row.reset) foot.appendChild(row.reset);
             row.el.appendChild(foot);
+        } else if (row.reset) {
+            // A switch has its value in the title line, where Reset read as a fourth state.
+            row.resetLine = el("div", "sf-foot sf-foot--reset");
+            row.resetLine.appendChild(row.reset);
+            row.el.appendChild(row.resetLine);
         }
 
         if (overridesOnly && field.control !== "Composite") {
@@ -772,12 +995,30 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     });
 
     root.addEventListener("change", (event) => {
-        const control = event.target;
-        if (!control?.hasAttribute?.("data-control")) return;
+        // The control itself, or the shape or list of boxes it is part of.
+        const control = event.target?.closest?.("[data-control]");
+        if (!control) return;
         const row = rows.get(control.closest(".sf-row").dataset.key);
         row.value = readControl(row, cultures);
         if (row.state === "free") row.state = "suggested";
         refreshRow(row);
+        notify();
+    });
+
+    // A value is read as it is typed, not only when the field is left: Reset and the
+    // unsaved count followed it one click late, often the click on Suggested or Locked.
+    // The control is not written back here, which would move the caret under the typing;
+    // the change on leaving the field still does the full refresh.
+    root.addEventListener("input", (event) => {
+        const control = event.target?.closest?.("[data-control]");
+        if (!control) return;
+        const row = rows.get(control.closest(".sf-row").dataset.key);
+        if (!row) return;
+        row.value = readControl(row, cultures);
+        if (row.state === "free") row.state = "suggested";
+        setPressed(row);
+        refreshProblem(row);
+        refreshReset(row);
         notify();
     });
 

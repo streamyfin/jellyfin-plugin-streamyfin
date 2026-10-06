@@ -1,0 +1,61 @@
+name: App parity
+
+# The plugin declares the app's settings, their defaults and the lists the app picks some
+# of them from, and SettingsParityTests holds it to AppSettingsManifest.json. That file is
+# only as current as the last time someone regenerated it from the app. This regenerates
+# it from the app's develop every week and fails when the app has moved, so a setting the
+# app adds, a default it changes or a language it gains shows up here without anyone
+# remembering to look.
+on:
+  # A schedule only fires from the default branch, which is main here. The run checks
+  # out develop, where the generator and the manifest live, whichever branch started it.
+  schedule:
+    - cron: "10 3 * * 1"
+  workflow_dispatch:
+  # A change to the generator or the manifest is checked against the app at once.
+  pull_request:
+    branches: [develop]
+    paths:
+      - scripts/app-settings-manifest.js
+      - Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json
+      - .github/workflows/app-parity.yml
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    name: The manifest matches the app's develop
+    runs-on: ubuntu-latest
+    steps:
+      # A pull request is checked as GitHub merges it; anything else checks develop.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event_name != 'pull_request' && 'develop' || '' }}
+          persist-credentials: false
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: streamyfin/streamyfin
+          ref: develop
+          path: app
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      # The generator reads a few values from the app's packages, so the app needs its
+      # node_modules. Its install scripts are not run: nothing here builds the app.
+      - name: Install
+        run: |
+          bun install --frozen-lockfile
+          bun install --frozen-lockfile --ignore-scripts --cwd app
+
+      - name: Regenerate the manifest from the app
+        run: bun scripts/app-settings-manifest.js app
+
+      - name: Compare
+        run: |
+          if ! git diff --exit-code -- Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json; then
+            echo "::error title=The app moved::AppSettingsManifest.json no longer matches the app's develop. Regenerate it with scripts/app-settings-manifest.js and follow SettingsParityTests."
+            exit 1
+          fi

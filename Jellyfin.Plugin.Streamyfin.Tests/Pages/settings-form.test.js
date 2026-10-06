@@ -255,7 +255,8 @@ describe("createForm", () => {
         const { mount, form } = mountForm({ home: stored });
 
         expect(control(mount, "home")).toBeNull();
-        expect(row(mount, "home").querySelector("a[href*='name=Yaml']")).not.toBeNull();
+        // It has a tab of its own; the Yaml tab is where it was edited before that tab.
+        expect(row(mount, "home").querySelector("a[href*='name=Home']")).not.toBeNull();
 
         stateButton(mount, "home", "locked").click();
 
@@ -607,6 +608,367 @@ describe("a declared default that is empty", () => {
         stateButton(mount, "defaultBitrate", "suggested").click();
         expect(form.invalid()).toEqual([]);
         expect(form.toSettings().defaultBitrate).toEqual({ value: null, locked: false });
+    });
+});
+
+// The app language: a string the app picks from a list of its own, offered as one. The
+// device's language comes first with no value key at all, the way Jellyfin's JSON writes
+// the null it stands for.
+const LANGUAGE = field("preferedLanguage", "Select", {
+    category: "Home and appearance",
+    group: "App",
+    title: "App language",
+    options: [{ label: "Device language" }, { value: "de", label: "Deutsch" }, { value: "fr", label: "Français" }],
+});
+
+describe("a setting the app picks from a list", () => {
+    const mountLanguage = (stored) => mountForm(stored === undefined ? {} : { preferedLanguage: stored }, { fields: [LANGUAGE], defaults: {} });
+
+    test("offers the device's language first, and stores nothing for it", () => {
+        const { mount, form } = mountLanguage({ value: "fr", locked: true });
+        const select = control(mount, "preferedLanguage");
+
+        expect([...select.options].map((option) => option.textContent)).toEqual(["Device language", "Deutsch", "Français"]);
+        expect(select.value).toBe("fr");
+
+        change(select, (el) => { el.value = ""; });
+
+        expect(form.invalid()).toEqual([]);
+        expect(form.toSettings().preferedLanguage).toEqual({ value: null, locked: true });
+    });
+
+    // A language the app has dropped, or a code typed on the Yaml tab, is still what the
+    // store holds and what the app is sent. An empty dropdown would say nothing is set.
+    test("a stored value the list does not offer is shown as itself, and stays selectable", () => {
+        const { mount, form } = mountLanguage({ value: "xx", locked: true });
+        const select = control(mount, "preferedLanguage");
+
+        expect(select.value).toBe("xx");
+        expect(select.selectedOptions[0].textContent).toBe("Other (xx)");
+        expect(form.invalid()).toEqual([]);
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "xx", locked: true });
+
+        change(select, (el) => { el.value = "de"; });
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "de", locked: true });
+        expect([...select.options].map((option) => option.value)).toContain("xx");
+
+        change(select, (el) => { el.value = "xx"; });
+        expect(form.toSettings().preferedLanguage).toEqual({ value: "xx", locked: true });
+    });
+
+    test("discarding brings back a value the list does not offer", () => {
+        const { mount, form } = mountLanguage({ value: "xx", locked: false });
+        const select = control(mount, "preferedLanguage");
+
+        change(select, (el) => { el.value = "fr"; });
+        form.reset();
+
+        expect(select.value).toBe("xx");
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    // Free means the plugin says nothing, and the app keeps whatever the user chose.
+    test("free, it says the app decides rather than naming a language", () => {
+        const { mount, form } = mountLanguage();
+
+        expect(control(mount, "preferedLanguage").selectedOptions[0].textContent).toBe("App default");
+        expect(form.toSettings()).toEqual({});
+    });
+});
+
+const HERO_KINDS = field("hiddenHomeHeroMediaTypes", "List", {
+    category: "Home and appearance",
+    group: "Hero carousel",
+    title: "Hidden hero media types",
+    options: [{ value: "movie", label: "Movies" }, { value: "tv", label: "TV shows" }],
+});
+
+// The hero carousel's filters asked for typed keys, continueWatching and the like, which
+// an administrator had to copy out of the description.
+describe("a list of values the app knows", () => {
+    const mountHero = (stored) => mountForm(stored === undefined ? {} : { hiddenHomeHeroMediaTypes: stored }, { fields: [HERO_KINDS], defaults: {} });
+    const boxes = (mount) => [...control(mount, "hiddenHomeHeroMediaTypes").querySelectorAll("input")];
+
+    test("is a box per value, the stored ones ticked", () => {
+        const { mount, form } = mountHero({ value: ["tv"], locked: false });
+
+        expect(boxes(mount).map((box) => [box.value, box.checked])).toEqual([["movie", false], ["tv", true]]);
+
+        change(boxes(mount)[0], (box) => { box.checked = true; });
+        // What was stored keeps its place; a box ticked now comes after it.
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["tv", "movie"], locked: false });
+    });
+
+    test("unticking a box and ticking it again changes nothing", () => {
+        const { mount, form } = mountHero({ value: ["tv", "movie"], locked: false });
+
+        change(boxes(mount)[1], (box) => { box.checked = false; });
+        change(boxes(mount)[1], (box) => { box.checked = true; });
+
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    // Redrawn on every change, the toggled box was replaced and the focus fell to the page.
+    test("the box just toggled is the one still there, with the focus", () => {
+        const { mount } = mountHero({ value: [], locked: false });
+        const box = boxes(mount)[0];
+        box.focus();
+
+        change(box, (one) => { one.checked = true; });
+
+        expect(box.isConnected).toBe(true);
+        expect(document.activeElement).toBe(box);
+    });
+
+    test("an Other box unticked by mistake stays, to be ticked again", () => {
+        const { mount, form } = mountHero({ value: ["music"], locked: true });
+        const other = () => boxes(mount).find((box) => box.value === "music");
+
+        change(other(), (box) => { box.checked = false; });
+        expect(other()).toBeDefined();
+        change(other(), (box) => { box.checked = true; });
+
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["music"], locked: true });
+    });
+
+    test("a stored value the app does not offer stays, ticked, under its own name", () => {
+        const { mount, form } = mountHero({ value: ["music"], locked: true });
+        const other = boxes(mount).find((box) => box.value === "music");
+
+        expect(other.checked).toBe(true);
+        expect(other.parentElement.textContent).toBe("Other (music)");
+        expect(form.toSettings().hiddenHomeHeroMediaTypes).toEqual({ value: ["music"], locked: true });
+    });
+
+    test("with nothing set, offers every value unticked", () => {
+        const { mount } = mountHero();
+
+        expect(boxes(mount).map((box) => box.checked)).toEqual([false, false]);
+    });
+});
+
+// Putting a setting back to the app's own value meant knowing it: 30 seconds, off, the
+// app's list. The plugin declares those defaults already, and the form offers them.
+describe("putting a setting back to the app's default", () => {
+    const reset = (mount, key) => row(mount, key).querySelector(".sf-reset");
+
+    test("is offered once a set value differs from the default, and puts it back", () => {
+        const { mount, form } = mountForm({ forwardSkipTime: { value: 15, locked: true } });
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(reset(mount, "forwardSkipTime").title).toBe("Put back the app's default, 30");
+
+        reset(mount, "forwardSkipTime").click();
+
+        expect(form.toSettings().forwardSkipTime).toEqual({ value: 30, locked: true });
+        expect(control(mount, "forwardSkipTime").value).toBe("30");
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(form.dirtyCount()).toBe(1);
+    });
+
+    // Beside the three states it read as a fourth one. It goes with the value it puts back,
+    // and says which in a few words, so a narrow card still holds it.
+    test("sits with the value it puts back, and says which in a few words", () => {
+        const { mount } = mountForm({ forwardSkipTime: { value: 15, locked: true } });
+
+        expect(reset(mount, "forwardSkipTime").closest(".sf-head")).toBeNull();
+        expect(reset(mount, "forwardSkipTime").closest(".sf-foot")).not.toBeNull();
+        expect(reset(mount, "forwardSkipTime").textContent).toBe("Reset to 30");
+    });
+
+    test("on a switch, has a line of its own under the help, shown only with it", () => {
+        const fields = [field("enableHorizontalSwipeSkip", "Toggle", { title: "Horizontal swipe to skip", description: "Swipe to skip", appDefault: true })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, { fields, values: { enableHorizontalSwipeSkip: { value: true, locked: true } }, defaults: {}, cultures: CULTURES });
+        const line = reset(mount, "enableHorizontalSwipeSkip").closest(".sf-foot");
+
+        expect(line).not.toBeNull();
+        expect(line.hidden).toBe(true);
+
+        const box = control(mount, "enableHorizontalSwipeSkip");
+        box.checked = false;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(line.hidden).toBe(false);
+        expect(reset(mount, "enableHorizontalSwipeSkip").textContent).toBe("Reset to on");
+    });
+
+    test("says only Reset when what it puts back would not fit", () => {
+        const fields = [field("hiddenHomeHeroSections", "List", { title: "Hidden hero sections", options: [{ value: "nextUp", label: "Next up" }], appDefault: ["nextUp"] })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, { fields, values: { hiddenHomeHeroSections: { value: [], locked: false } }, defaults: {}, cultures: CULTURES });
+
+        expect(reset(mount, "hiddenHomeHeroSections").textContent).toBe("Reset");
+        expect(reset(mount, "hiddenHomeHeroSections").title).toBe("Put back the app's default, Next up");
+    });
+
+    // A typed value was read when the field was left, so Reset showed on the next click,
+    // often on Suggested or Locked, and looked like it answered the state pressed.
+    test("follows a value as it is typed, before the field is left", () => {
+        const { mount, form } = mountForm({ forwardSkipTime: { value: 30, locked: true } });
+        const input = control(mount, "forwardSkipTime");
+
+        input.value = "45";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(form.dirtyCount()).toBe(1);
+
+        input.value = "30";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    test("a free setting typed into is set at once", () => {
+        const { mount } = mountForm({});
+        const input = control(mount, "forwardSkipTime");
+
+        input.value = "45";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(row(mount, "forwardSkipTime").classList.contains("is-suggested")).toBe(true);
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+    });
+
+    test("is not offered for a free setting, or one already at the default", () => {
+        const { mount } = mountForm({ forwardSkipTime: { value: 30, locked: false } });
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(reset(mount, "enableDoubleTapToSeek").hidden).toBe(true);
+    });
+
+    // 33 settings of 86 had no Reset: the plugin declares no default for them, so as not
+    // to push one to every user. The app has its own, which the server sends with the field.
+    test("puts back the app's own value where the plugin declares none", () => {
+        const fields = [field("enableHorizontalSwipeSkip", "Toggle", { title: "Horizontal swipe to skip", appDefault: true })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields, values: { enableHorizontalSwipeSkip: { value: false, locked: true } }, defaults: {}, cultures: CULTURES });
+
+        expect(reset(mount, "enableHorizontalSwipeSkip").hidden).toBe(false);
+        expect(reset(mount, "enableHorizontalSwipeSkip").title).toBe("Put back the app's default, on");
+
+        reset(mount, "enableHorizontalSwipeSkip").click();
+
+        expect(form.toSettings().enableHorizontalSwipeSkip).toEqual({ value: true, locked: true });
+        expect(reset(mount, "enableHorizontalSwipeSkip").hidden).toBe(true);
+    });
+
+    // A null is a real default: the bitrate's is no cap.
+    test("takes a null the app sends as the default it is", () => {
+        const fields = [field("defaultBitrate", "Select", { title: "Bitrate", options: [{ value: null, label: "Max" }, { value: "_8MB", label: "8 Mb/s" }], appDefault: null })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields, values: { defaultBitrate: { value: "_8MB", locked: false } }, defaults: {}, cultures: CULTURES });
+
+        reset(mount, "defaultBitrate").click();
+
+        expect(form.toSettings().defaultBitrate).toEqual({ value: null, locked: false });
+    });
+
+    // The mpv buffers default to one number on a phone and another on Android TV, so the
+    // plugin declares none, the app has none to send, and there is nothing to put back.
+    test("is not offered where the plugin declares no default", () => {
+        const { mount } = mountForm({ jellyseerrServerUrl: { value: "https://seerr.test", locked: false } });
+
+        expect(reset(mount, "jellyseerrServerUrl")).toBeNull();
+    });
+
+    // On the Targeting tab the defaults are what the level above gives, not the app's.
+    test("is not offered on a level, which has its own way back", () => {
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        createForm(mount, {
+            fields: FIELDS,
+            values: { forwardSkipTime: { value: 15, locked: true } },
+            defaults: DEFAULTS,
+            cultures: CULTURES,
+            mode: "overrides",
+        });
+
+        expect(reset(mount, "forwardSkipTime")).toBeNull();
+    });
+});
+
+const LIBRARY = field("libraryOptions", "Fields", {
+    category: "Advanced",
+    group: null,
+    title: "Library options",
+    parts: [
+        field("display", "Select", { title: "Display", options: [{ value: "row", label: "Row" }, { value: "list", label: "List" }] }),
+        field("imageStyle", "Select", { title: "Image style", options: [{ value: "poster", label: "Poster" }, { value: "cover", label: "Cover" }] }),
+        field("showTitles", "Toggle", { title: "Show titles", dependsOn: "imageStyle=cover" }),
+        field("showStats", "Toggle", { title: "Show stats" }),
+    ],
+});
+const STORED_LIBRARY = { display: "list", cardStyle: "detailed", imageStyle: "cover", showTitles: true, showStats: true };
+
+// The library's display options were "Edited as YAML for now", with a link to the Yaml tab.
+describe("a setting made of switches and choices", () => {
+    const mountLibrary = (stored) => mountForm({ libraryOptions: stored }, { fields: [LIBRARY], defaults: { libraryOptions: { value: STORED_LIBRARY, locked: false } } });
+    const part = (mount, key) => row(mount, "libraryOptions").querySelector(`[data-part="${key}"]`);
+
+    test("shows each part as the app's sheet does", () => {
+        const { mount } = mountLibrary({ value: { ...STORED_LIBRARY, display: "row", showStats: false }, locked: true });
+
+        expect(part(mount, "display").value).toBe("row");
+        expect(part(mount, "imageStyle").value).toBe("cover");
+        expect(part(mount, "showTitles").checked).toBe(true);
+        expect(part(mount, "showStats").checked).toBe(false);
+        expect(row(mount, "libraryOptions").textContent).not.toContain("Yaml");
+    });
+
+    // A value typed on the Yaml tab, or one the app has since dropped, would have left the
+    // dropdown empty, and the next change to another part would have stored that empty.
+    test("a stored choice the part does not offer is kept, under its own name", () => {
+        const { mount, form } = mountLibrary({ value: { ...STORED_LIBRARY, display: "grid" }, locked: true });
+
+        expect(part(mount, "display").value).toBe("grid");
+        expect(part(mount, "display").selectedOptions[0].textContent).toBe("Other (grid)");
+
+        change(part(mount, "showStats"), (box) => { box.checked = false; });
+        expect(form.toSettings().libraryOptions.value.display).toBe("grid");
+    });
+
+    // A value with parts missing, or none, came out as the first choice and unticked
+    // boxes, and the first edit of any part wrote all of those back to every device.
+    test("a part the value leaves out shows, and is written as, the default", () => {
+        const { mount, form } = mountLibrary({ value: { imageStyle: "poster" }, locked: true });
+
+        expect(part(mount, "display").value).toBe("list");
+        expect(part(mount, "showTitles").checked).toBe(true);
+
+        change(part(mount, "showStats"), (box) => { box.checked = false; });
+        expect(form.toSettings().libraryOptions.value).toEqual({ ...STORED_LIBRARY, imageStyle: "poster", showStats: false });
+    });
+
+    // The app's own sheet disables Show titles under the poster style, where its cards
+    // draw no title. Greyed only, the box could still be ticked from the keyboard.
+    test("show titles is greyed out and disabled while the style is poster", () => {
+        const { mount } = mountLibrary({ value: { ...STORED_LIBRARY, imageStyle: "poster" }, locked: true });
+        const line = () => part(mount, "showTitles").closest("[data-depends]");
+
+        expect(line().classList.contains("is-inert")).toBe(true);
+        expect(part(mount, "showTitles").disabled).toBe(true);
+        change(part(mount, "imageStyle"), (select) => { select.value = "cover"; });
+        expect(line().classList.contains("is-inert")).toBe(false);
+        expect(part(mount, "showTitles").disabled).toBe(false);
+    });
+
+    test("writes every part back, and keeps the one it does not offer", () => {
+        const { mount, form } = mountLibrary({ value: STORED_LIBRARY, locked: false });
+
+        change(part(mount, "imageStyle"), (select) => { select.value = "poster"; });
+        change(part(mount, "showTitles"), (box) => { box.checked = false; });
+
+        expect(form.toSettings().libraryOptions).toEqual({
+            value: { display: "list", cardStyle: "detailed", imageStyle: "poster", showTitles: false, showStats: true },
+            locked: false,
+        });
     });
 });
 

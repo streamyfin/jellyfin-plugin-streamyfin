@@ -53,7 +53,9 @@ public enum OrientationLock {
 [JsonConverter(typeof(StringEnumConverter))]
 public enum DisplayType
 {
+    [Display(Name = "Row")]
     row,
+    [Display(Name = "List")]
     list
 };
 
@@ -67,7 +69,9 @@ public enum CardStyle
 [JsonConverter(typeof(StringEnumConverter))]
 public enum ImageStyle
 {
+    [Display(Name = "Poster")]
     poster,
+    [Display(Name = "Cover")]
     cover
 };
 

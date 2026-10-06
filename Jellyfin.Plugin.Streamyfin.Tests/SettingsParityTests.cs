@@ -109,7 +109,9 @@ public class SettingsParityTests
     /// <c>WireNames</c> are the names other than its own that the app reads the setting
     /// under: the flat key it had before a rename, and the field of a block, such as
     /// <c>seerr.serverUrl</c>. The script finds them by running the app's own
-    /// <c>readIntegrationBlocks</c>.
+    /// <c>readIntegrationBlocks</c>. <c>Options</c> are the values the app offers for a
+    /// setting it picks from a list of its own, such as <c>APP_LANGUAGES</c> for the app
+    /// language.
     /// </remarks>
     private sealed record ManifestEntry(
         string Key,
@@ -119,7 +121,14 @@ public class SettingsParityTests
         string? NoDefaultReason,
         JsonElement WireDefault,
         string? WireNote,
-        IReadOnlyList<string>? WireNames = null);
+        IReadOnlyList<string>? WireNames = null,
+        IReadOnlyList<ManifestChoice>? Options = null);
+
+    /// <summary>
+    /// One value the app offers for a setting it picks from a list, under the label its
+    /// own picker shows.
+    /// </summary>
+    private sealed record ManifestChoice(string Value, string Label);
 
     /// <summary>
     /// What the excuses are checked against.
@@ -745,6 +754,127 @@ public class SettingsParityTests
 
         // A field the block has but holds nothing in reads as nothing.
         Assert.Equal((true, null), DeclaredAt(new Settings { seerr = new SeerrSettings() }, "seerr.serverUrl"));
+    }
+
+    /// <summary>
+    /// A setting the app picks from a list of its own is offered from the same list here:
+    /// the same values, under the names the app's picker gives them.
+    /// </summary>
+    /// <remarks>
+    /// The dropdown for the app language holds a copy of the app's list, and a copy drifts.
+    /// A language the app adds could not be picked, and one it drops would still be offered
+    /// and then ignored by every device. The manifest records the app's list, so the copy
+    /// fails here instead.
+    /// </remarks>
+    [Fact]
+    public void ASettingTheAppPicksFromAListOffersTheAppsList()
+    {
+        var drift = Manifest()
+            .Where(entry => entry.Options is not null)
+            .SelectMany(entry => OfferedFor(entry) is { } offered
+                ? ListDrift(entry.Key, entry.Options!, offered)
+                : [$"{entry.Key}: the app offers {entry.Options!.Count} values, and the plugin takes free text"])
+            .ToArray();
+
+        Assert.True(
+            drift.Length == 0,
+            "Offered differently from the app:\n  " + string.Join("\n  ", drift));
+    }
+
+    /// <summary>
+    /// Every list the plugin offers is one the app offers, so no dropdown holds values the
+    /// plugin made up.
+    /// </summary>
+    [Fact]
+    public void EveryListThePluginOffersIsTheApps()
+    {
+        var listed = Manifest()
+            .Where(entry => entry.Options is not null)
+            .SelectMany(NamesOf)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var invented = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.GetCustomAttribute<ChoicesAttribute>() is not null)
+            .Select(property => property.Name)
+            .Where(name => !listed.Contains(name))
+            .ToArray();
+
+        Assert.True(
+            invented.Length == 0,
+            "Offered from a list the manifest does not record from the app:\n  " + string.Join("\n  ", invented));
+    }
+
+    /// <summary>
+    /// A list that drifted says which value moved and which way, whatever the order.
+    /// </summary>
+    /// <remarks>
+    /// On made-up lists, since on the real ones every case is, by construction, absent. The
+    /// choice that stores nothing is the device's own language, which the app offers by
+    /// storing nothing too, so it is no value to compare.
+    /// </remarks>
+    [Fact]
+    public void ADriftingListSaysWhichValueMoved()
+    {
+        var app = new[] { new ManifestChoice("de", "Deutsch"), new ManifestChoice("fr", "Français") };
+
+        Assert.Equal(
+            new[]
+            {
+                "preferedLanguage: the app offers de (Deutsch), the plugin does not",
+                "preferedLanguage: the plugin offers en (English), the app does not",
+                "preferedLanguage: the app names fr Français, the plugin Francais",
+                "preferedLanguage: the plugin offers en twice",
+            },
+            ListDrift(
+                "preferedLanguage",
+                app,
+                [AppLanguages.DeviceLanguage, new("fr", "Francais"), new("en", "English"), new("en", "English")]));
+
+        Assert.Empty(ListDrift(
+            "preferedLanguage",
+            app,
+            [new("fr", "Français"), AppLanguages.DeviceLanguage, new("de", "Deutsch")]));
+    }
+
+    /// <summary>
+    /// The list the plugin offers for a setting, under any name it declares the setting
+    /// under, or <c>null</c> when it takes free text.
+    /// </summary>
+    private static IReadOnlyList<SettingsChoice>? OfferedFor(ManifestEntry entry) =>
+        NamesOf(entry)
+            .Select(name => typeof(Settings).GetProperty(name, BindingFlags.Public | BindingFlags.Instance))
+            .Select(property => property?.GetCustomAttribute<ChoicesAttribute>())
+            .FirstOrDefault(listed => listed is not null)
+            ?.Choices;
+
+    /// <summary>
+    /// How the values one setting offers here differ from the app's: a value on one side
+    /// only, a value named differently, a value offered twice.
+    /// </summary>
+    private static string[] ListDrift(string key, IEnumerable<ManifestChoice> app, IEnumerable<SettingsChoice> offered)
+    {
+        var theirs = app.ToDictionary(choice => choice.Value, choice => choice.Label, StringComparer.Ordinal);
+        var ours = new Dictionary<string, string>(StringComparer.Ordinal);
+        var twice = new List<string>();
+
+        foreach (var choice in offered.Where(choice => choice.Value is not null))
+        {
+            if (!ours.TryAdd(choice.Value!, choice.Label))
+            {
+                twice.Add($"{key}: the plugin offers {choice.Value} twice");
+            }
+        }
+
+        return theirs.Keys.Except(ours.Keys).Order(StringComparer.Ordinal)
+            .Select(value => $"{key}: the app offers {value} ({theirs[value]}), the plugin does not")
+            .Concat(ours.Keys.Except(theirs.Keys).Order(StringComparer.Ordinal)
+                .Select(value => $"{key}: the plugin offers {value} ({ours[value]}), the app does not"))
+            .Concat(ours.Keys.Intersect(theirs.Keys).Order(StringComparer.Ordinal)
+                .Where(value => !string.Equals(ours[value], theirs[value], StringComparison.Ordinal))
+                .Select(value => $"{key}: the app names {value} {theirs[value]}, the plugin {ours[value]}"))
+            .Concat(twice)
+            .ToArray();
     }
 
     /// <summary>

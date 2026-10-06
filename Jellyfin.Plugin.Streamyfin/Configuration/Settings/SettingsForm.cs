@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -46,7 +48,10 @@ public enum SettingsControl
     Language,
 
     /// <summary>A shape with fields of its own, edited by a control written for it.</summary>
-    Composite
+    Composite,
+
+    /// <summary>A shape made only of switches and choices, drawn as those.</summary>
+    Fields
 }
 
 /// <summary>
@@ -76,6 +81,11 @@ public sealed record SettingsChoice(
 /// <param name="Integer">Whether a <see cref="SettingsControl.Number"/> takes whole numbers only.</param>
 /// <param name="Probe">The service the server can try this address against, when there is one.</param>
 /// <param name="Address">Whether the value has to be a whole http or https address.</param>
+/// <param name="Parts">The switches and choices a <see cref="SettingsControl.Fields"/> shape is drawn as, or <c>null</c>.</param>
+/// <param name="AppDefault">
+/// The app's own value for the setting, which Reset puts back where the plugin declares no
+/// default of its own. Left out when the app has none; a null here is a real value.
+/// </param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -91,7 +101,9 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("dependsOn")] string? DependsOn,
     [property: JsonPropertyName("integer")] bool Integer,
     [property: JsonPropertyName("probe")] string? Probe,
-    [property: JsonPropertyName("address")] bool Address);
+    [property: JsonPropertyName("address")] bool Address,
+    [property: JsonPropertyName("parts")] IReadOnlyList<SettingsFormField>? Parts = null,
+    [property: JsonPropertyName("appDefault"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? AppDefault = null);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.
@@ -107,15 +119,24 @@ public static class SettingsForm
     /// <summary>
     /// Every setting, in the order they are declared.
     /// </summary>
+    /// <param name="libraries">
+    /// The server's libraries, offered by a setting that holds library ids. Without them
+    /// such a setting is a list of ids to type.
+    /// </param>
     /// <returns>The fields the form draws.</returns>
-    public static IReadOnlyList<SettingsFormField> Describe() =>
-        SettingsSchema.Descriptors.Select(Describe).ToList();
+    public static IReadOnlyList<SettingsFormField> Describe(IReadOnlyList<SettingsChoice>? libraries = null) =>
+        SettingsSchema.Descriptors.Select(descriptor => Describe(descriptor, libraries)).ToList();
 
-    private static SettingsFormField Describe(SettingDescriptor descriptor)
+    private static SettingsFormField Describe(SettingDescriptor descriptor, IReadOnlyList<SettingsChoice>? libraries)
     {
         var type = descriptor.ValueType;
         var enumType = EnumTypeOf(type);
-        var control = ControlFor(descriptor, type, enumType);
+        var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>()?.Choices
+            ?? (descriptor.Property.GetCustomAttribute<LibrariesAttribute>() is null ? null : libraries ?? _noOptions);
+        // A list of values the app knows becomes boxes to tick, a single one a dropdown.
+        var control = listed is null
+            ? ControlFor(descriptor, type, enumType)
+            : type.IsArray ? SettingsControl.List : SettingsControl.Select;
         var bounds = descriptor.Bounds;
         var step = descriptor.Property.GetCustomAttribute<StepAttribute>();
 
@@ -130,11 +151,34 @@ public static class SettingsForm
             Minimum: bounds?.Minimum,
             Maximum: bounds?.Maximum,
             Step: step?.Value,
-            Options: enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type)),
+            Options: listed ?? (enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type))),
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
             Integer: control == SettingsControl.Number && IsWhole(type),
             Probe: descriptor.Probe?.Kind.ToString(),
-            Address: descriptor.IsWebAddress);
+            Address: descriptor.IsWebAddress,
+            Parts: control == SettingsControl.Fields ? PartsOf(Nullable.GetUnderlyingType(type) ?? type) : null,
+            AppDefault: FormValue(AppDefaults.For(descriptor.Key), enumType));
+    }
+
+    // The app keeps a few choices as the numbers of its own enums, where the form names
+    // them: a number becomes the name the form offers for it. One that no member carries
+    // is nothing the form could show, so there is no default to put back.
+    private static JsonElement? FormValue(JsonElement? appDefault, Type? enumType)
+    {
+        if (appDefault is not { ValueKind: JsonValueKind.Number } number || enumType is null)
+        {
+            return appDefault;
+        }
+
+        foreach (var member in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (Convert.ToInt64(member.GetValue(null), CultureInfo.InvariantCulture) == number.GetInt64())
+            {
+                return JsonSerializer.SerializeToElement(member.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? member.Name);
+            }
+        }
+
+        return null;
     }
 
     private static SettingsControl ControlFor(SettingDescriptor descriptor, Type type, Type? enumType)
@@ -175,11 +219,50 @@ public static class SettingsForm
             return SettingsControl.List;
         }
 
-        // A shape with fields of its own: the home layout, a device profile, a library's
-        // display options. Each gets a control written for it rather than a generic one
-        // that would describe none of them well.
+        // A shape made only of switches and choices, a library's display options, is
+        // drawn as those. One with fields of its own, the home layout, gets a control
+        // written for it rather than a generic one that would describe it badly.
+        if (underlying.IsClass && Offered(underlying).Any() && Offered(underlying).All(IsSimplePart))
+        {
+            return SettingsControl.Fields;
+        }
+
         return underlying.IsClass ? SettingsControl.Composite : SettingsControl.Unknown;
     }
+
+    // The members of a shape the form offers. One marked [Browsable(false)] keeps its
+    // value, read and written back untouched, but is not offered.
+    private static IEnumerable<PropertyInfo> Offered(Type type) =>
+        type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p.GetCustomAttribute<System.ComponentModel.BrowsableAttribute>()?.Browsable != false);
+
+    private static bool IsSimplePart(PropertyInfo property) =>
+        property.PropertyType == typeof(bool) || property.PropertyType.IsEnum;
+
+    // One switch or one dropdown per member, labelled by its Display name.
+    private static List<SettingsFormField> PartsOf(Type type) =>
+        Offered(type)
+            .Select(property => new SettingsFormField(
+                Key: property.Name,
+                Category: null,
+                Group: null,
+                Title: property.GetCustomAttribute<DisplayAttribute>()?.Name ?? Humanize(property.Name),
+                Description: null,
+                Control: property.PropertyType == typeof(bool) ? SettingsControl.Toggle : SettingsControl.Select,
+                Lockable: false,
+                Minimum: null,
+                Maximum: null,
+                Step: null,
+                Options: property.PropertyType.IsEnum ? Choices(property.PropertyType, false) : _noOptions,
+                // "imageStyle=cover": a part that matters only while another holds a value.
+                DependsOn: property.GetCustomAttribute<DependsOnAttribute>() is { } depends
+                    ? depends.Value is null ? depends.Key : $"{depends.Key}={depends.Value}"
+                    : null,
+                Integer: false,
+                Probe: null,
+                Address: false))
+            .ToList();
 
     // Whole numbers only. The form steps by one and refuses a fraction, which the
     // server would otherwise refuse with a message that points at no field.

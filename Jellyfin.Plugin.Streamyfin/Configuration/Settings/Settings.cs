@@ -9,12 +9,26 @@ using System.Collections.ObjectModel;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
+// Labelled as the app's library options sheet, LibraryOptionsSheet.tsx, labels them.
 public class LibraryOptions
 {
+    [Display(Name = "Display")]
     public DisplayType display { get; set; } = DisplayType.list;
+
+    // In the app's type and default, but read by nothing it draws, so the form keeps the
+    // value and does not offer it.
+    [System.ComponentModel.Browsable(false)]
     public CardStyle cardStyle { get; set; } = CardStyle.detailed;
+
+    [Display(Name = "Image style")]
     public ImageStyle imageStyle { get; set; } = ImageStyle.cover;
+
+    // The app's sheet greys it out under the poster style, whose cards draw no title.
+    [Display(Name = "Show titles")]
+    [DependsOn(nameof(imageStyle), Value = "cover")]
     public bool showTitles { get; set; } = true;
+
+    [Display(Name = "Show stats")]
     public bool showStats { get; set; } = true;
 };
 
@@ -259,13 +273,15 @@ public class Settings
     // enum would validate the members, and would also make an administrator's YAML
     // fail to load the day the app adds a section name the plugin does not know yet.
     [NotNull]
-    [Display(Name = "Hidden hero sections", Description = "Content groups to keep out of the hero carousel: continueWatching, nextUp, recentlyAdded")]
+    [Display(Name = "Hidden hero sections", Description = "The groups to keep out of the hero carousel")]
     [SettingScope("Home and appearance", Group = "Hero carousel")]
+    [Choices(typeof(HomeHeroSections))]
     public Lockable<string[]>? hiddenHomeHeroSections { get; set; } // = [];
 
     [NotNull]
-    [Display(Name = "Hidden hero media types", Description = "Media kinds to keep out of the hero carousel: movie, tv")]
+    [Display(Name = "Hidden hero media types", Description = "The kinds of media to keep out of the hero carousel")]
     [SettingScope("Home and appearance", Group = "Hero carousel")]
+    [Choices(typeof(HomeHeroMediaTypes))]
     public Lockable<string[]>? hiddenHomeHeroMediaTypes { get; set; } // = [];
 
     [NotNull]
@@ -455,8 +471,9 @@ public class Settings
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
-    [Display(Name = "Hidden libraries", Description = "The library IDs to hide from users")]
+    [Display(Name = "Hidden libraries", Description = "The libraries to hide from users")]
     [SettingScope("Home and appearance", Group = "App")]
+    [Libraries]
     public Lockable<string[]>? hiddenLibraries { get; set; } // = [];
 
     [NotNull]
@@ -643,8 +660,9 @@ public class Settings
     // the user picks one, so shipping a value would impose a language on everyone who
     // never chose.
     [NotNull]
-    [Display(Name = "App language", Description = "Language code the app uses, such as fr or en")]
+    [Display(Name = "App language", Description = "The language the app's text is shown in. Device language follows the language each device is set to")]
     [SettingScope("Home and appearance", Group = "App")]
+    [Choices(typeof(AppLanguages))]
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]
@@ -710,7 +728,7 @@ public class Settings
     
     // Misc.
     [NotNull]
-    [Display(Name = "Library options", Description = "Customize how you want Streamyfin's library tab to look")]
+    [Display(Name = "Library options", Description = "How the app's library tab shows its items")]
     [SettingScope("Advanced")]
     public Lockable<LibraryOptions>? libraryOptions { get; set; }
 

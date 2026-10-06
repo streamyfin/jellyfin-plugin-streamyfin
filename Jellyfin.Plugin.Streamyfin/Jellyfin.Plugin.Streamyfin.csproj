@@ -41,6 +41,8 @@
   <ItemGroup>
       <None Remove="Pages\**\*" />
       <EmbeddedResource Include="Pages\**\*" />
+      <!-- The app's settings and their defaults, read from its source, for the form's Reset. -->
+      <EmbeddedResource Include="AppSettingsManifest.json" />
 
   </ItemGroup>
 

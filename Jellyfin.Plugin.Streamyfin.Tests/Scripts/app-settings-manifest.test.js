@@ -308,6 +308,110 @@ describe("the names the app also reads a setting under", () => {
     });
 });
 
+describe("the values the app offers for a setting it picks from a list", () => {
+    // The shape of the app's own i18n.ts: the list sorted by label, which is an order that
+    // depends on the language of the machine running it.
+    const i18n = (languages) => `
+import i18n from "i18next";
+import en from "./translations/en.json";
+const _APP_LANGUAGES = ${languages}.sort((a, b) => a.label.localeCompare(b.label));
+export const APP_LANGUAGES = _APP_LANGUAGES;
+`;
+    const LANGUAGES = '[{ label: "Français", value: "fr" }, { label: "English", value: "en" }, { label: "Deutsch", value: "de" }]';
+    const PHONE = 'import { APP_LANGUAGES } from "@/i18n";\n'
+        + "export const Picker = () => APP_LANGUAGES.map((lang) => updateSettings({ preferedLanguage: lang.value }));\n";
+    const TV = 'import { APP_LANGUAGES } from "@/i18n";\nconst pick = (value) => updateSettings({ preferedLanguage: value });\n';
+
+    const app = ({ languages = LANGUAGES, phone = PHONE, tv = TV } = {}) => checkout(
+        settings(
+            "  preferedLanguage?: string;\n  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;",
+            "  preferedLanguage: undefined,\n  autoLoginSeerr: true,"),
+        {
+            "i18n.ts": i18n(languages),
+            "components/settings/AppLanguageSelector.tsx": phone,
+            "app/(auth)/(tabs)/(home)/settings.tv.tsx": tv,
+        });
+
+    test("are read from the list the app's pickers use, labelled as the app labels them, sorted by value", () => {
+        const manifest = buildManifest(app());
+
+        expect(manifest.find((entry) => entry.key === "preferedLanguage").options).toEqual([
+            { value: "de", label: "Deutsch" },
+            { value: "en", label: "English" },
+            { value: "fr", label: "Français" },
+        ]);
+        expect(manifest.filter((entry) => "options" in entry).map((entry) => entry.key)).toEqual(["preferedLanguage"]);
+    });
+
+    test("a picker that no longer imports the list stops the run", () => {
+        const root = app({ phone: 'import { LANGUAGES } from "@/i18n";\nupdateSettings({ preferedLanguage: value });\n' });
+
+        expect(() => buildManifest(root)).toThrow(/AppLanguageSelector\.tsx no longer imports APP_LANGUAGES/);
+    });
+
+    test("a picker that no longer writes the setting stops the run", () => {
+        const root = app({ tv: 'import { APP_LANGUAGES } from "@/i18n";\nupdateSettings({ uiLanguage: value });\n' });
+
+        expect(() => buildManifest(root)).toThrow(/settings\.tv\.tsx no longer writes preferedLanguage/);
+    });
+
+    test("a list that is not label and value pairs stops the run", () => {
+        expect(() => buildManifest(app({ languages: '[{ label: "English" }]' })))
+            .toThrow(/APP_LANGUAGES in i18n\.ts\[0\] is not a \{ label, value \} pair/);
+    });
+
+    test("a value offered twice stops the run", () => {
+        const twice = '[{ label: "English", value: "en" }, { label: "Anglais", value: "en" }]';
+
+        expect(() => buildManifest(app({ languages: twice }))).toThrow(/offers en twice/);
+    });
+
+    // The plugin still declares it, and SettingsParityTests fails on that, by name.
+    test("an app without the setting has no list to read for it", () => {
+        const root = checkout(settings("  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;", "  autoLoginSeerr: true,"));
+
+        expect(buildManifest(root).some((entry) => "options" in entry)).toBe(false);
+    });
+});
+
+describe("the values the app offers from a record of translation keys", () => {
+    // The hero carousel's filter, as the app writes it: each value mapped to the key its
+    // label is translated under, and the English read from translations/en.json.
+    const HERO = `
+const MEDIA_LABEL_KEYS: Record<HomeHeroMediaType, string> = {
+  movie: "common.movies",
+  tv: "home.hero.tv_shows",
+};
+const toggle = (next) => updateSettings({ hiddenHomeHeroMediaTypes: next });
+`;
+    const EN = JSON.stringify({ common: { movies: "Movies" }, home: { hero: { tv_shows: "TV shows" } } });
+
+    const app = ({ hero = HERO, en = EN } = {}) => checkout(
+        settings(
+            '  hiddenHomeHeroMediaTypes?: ("movie" | "tv")[];\n  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;',
+            "  hiddenHomeHeroMediaTypes: [],\n  autoLoginSeerr: true,"),
+        { "components/home/HomeHeroCarousel.tsx": hero, "translations/en.json": en });
+
+    test("are labelled with the app's English, sorted by value", () => {
+        expect(buildManifest(app()).find((entry) => entry.key === "hiddenHomeHeroMediaTypes").options).toEqual([
+            { value: "movie", label: "Movies" },
+            { value: "tv", label: "TV shows" },
+        ]);
+    });
+
+    test("a translation key with no English stops the run", () => {
+        const en = JSON.stringify({ common: { movies: "Movies" } });
+
+        expect(() => buildManifest(app({ en }))).toThrow(/en\.json has no string for home\.hero\.tv_shows/);
+    });
+
+    test("a carousel that no longer writes the setting stops the run", () => {
+        const hero = HERO.replace("hiddenHomeHeroMediaTypes", "hiddenHeroKinds");
+
+        expect(() => buildManifest(app({ hero }))).toThrow(/HomeHeroCarousel\.tsx no longer writes hiddenHomeHeroMediaTypes/);
+    });
+});
+
 test("the entries come out sorted by key", () => {
     const root = checkout(settings(
         "  zeta: number;\n  alpha: number;\n  seerrServerUrl?: string;\n  autoLoginSeerr: boolean;",
