@@ -8,6 +8,25 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the dashboard's wording, and the Yaml schema
+
+The texts the admin pages show were proofread while taking the 0.70 screenshots (#214): two
+descriptions were not English, Jellyfin was lower case in places, and the last Title Case names
+now follow the sentence case of the others. The default home configuration titles the next up
+row "Next Up", as Jellyfin does; only a fresh install gets it, since every running server stored
+its sections at its first start.
+
+The Yaml editor flagged `enabled`, `recentEventThreshold` and `enabledLibraries` under
+`itemAdded` on every configuration, because the schema described the event as `allOf` two
+closed objects. The schema now flattens each settings type into one object. Flattening also
+reached `SerializableDictionary`, which derives from `Dictionary`, and closed a custom
+section's `query` and `headers`; the review caught it before the merge, and the dictionary
+stays out of the flattening. A test now validates every shipped example against the schema the
+editor uses. Besides that regression it found older mistakes in the examples: notification
+keys in a casing the plugin no longer writes, `autoRotate`, which the app renamed and the
+plugin no longer declares, numbers where the schema names an enum value, and booleans in a
+query map whose values are strings.
+
 ## 2026-10-05, the notifications translated on Crowdin
 
 The notifications' sentences are translated on Crowdin now (#212), in the app's Streamyfin
