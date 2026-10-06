@@ -255,7 +255,8 @@ describe("createForm", () => {
         const { mount, form } = mountForm({ home: stored });
 
         expect(control(mount, "home")).toBeNull();
-        expect(row(mount, "home").querySelector("a[href*='name=Yaml']")).not.toBeNull();
+        // It has a tab of its own; the Yaml tab is where it was edited before that tab.
+        expect(row(mount, "home").querySelector("a[href*='name=Home']")).not.toBeNull();
 
         stateButton(mount, "home", "locked").click();
 

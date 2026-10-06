@@ -767,10 +767,11 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
 
         if (field.control === "Composite") {
+            // The home layout, the one shape left, has a tab of its own to edit it on.
             const foot = el("div", "sf-foot");
-            const note = el("span", "sf-note", "Edited as YAML for now. ");
-            const link = el("a", null, "Open the Yaml tab");
-            link.href = "#/configurationpage?name=Yaml";
+            const note = el("span", "sf-note", "Edited on the Home tab. ");
+            const link = el("a", null, "Open the Home tab");
+            link.href = "#/configurationpage?name=Home";
             note.appendChild(link);
             foot.appendChild(note);
             row.el.appendChild(foot);
