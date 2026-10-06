@@ -204,7 +204,8 @@ export const preview = (sections) => inOrder(sections).map((section) => {
     return {
         title: section?.title || "Untitled",
         orientation: section?.orientation === "horizontal" ? "horizontal" : DEFAULT_ORIENTATION,
-        filledBy: kind ? KIND_LABELS[kind] : "Nothing yet",
+        // A kind this page does not know is named as it is written, as summarise() does.
+        filledBy: kind ? (KIND_LABELS[kind] ?? kind) : "Nothing yet",
     };
 });
 

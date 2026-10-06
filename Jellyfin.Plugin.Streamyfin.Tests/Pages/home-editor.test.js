@@ -283,6 +283,10 @@ describe("the preview", () => {
         ]);
     });
 
+    test("a kind this page does not know is named as written rather than left blank", () => {
+        expect(preview([{ title: "Later", kind: "watchlist" }])[0].filledBy).toBe("watchlist");
+    });
+
     test("a section with no title or kind still has a row", () => {
         expect(preview([{}])).toEqual([{ title: "Untitled", orientation: DEFAULT_ORIENTATION, filledBy: "Nothing yet" }]);
     });
