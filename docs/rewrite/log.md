@@ -8,6 +8,22 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the drawer's mark, and Jellyfin 13
+
+The plugin's row in the dashboard drawer shows its mark the way the icons beside it are drawn
+(#219): one colour, on Material's 24 px grid, the play triangle as a 2 px line and the wave
+filled below it. It is a mask filled with the row's own colour, so it follows the theme, hover
+and selection. It still comes through File Transformation; without it the row keeps the
+Material glyph. A maintainer picked it among four marks drawn from the base logo, each tried in
+the drawer of a real server.
+
+Jellyfin 13 was checked against its newest prerelease (#218): the `jf12` build compiles against
+13's own assemblies with no error and no warning, and runs on a 13.0.0 nightly and on a
+throwaway server upgraded from 12.2. `master` still targets `net10.0` and pins EF Core 10.0.11,
+so a `jf13` target would differ by a package version and a `targetAbi` only, and waits for
+13.0.0 on nuget.org. `Compat/README.md` now says how to compile against a prerelease without
+the feed's token. #202, which the NuGet watch opened for those prereleases, is closed.
+
 ## 2026-10-06, the dashboard's wording, and the Yaml schema
 
 The texts the admin pages show were proofread while taking the 0.70 screenshots (#214): two
