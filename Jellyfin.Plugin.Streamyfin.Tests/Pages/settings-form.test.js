@@ -908,15 +908,17 @@ describe("a setting made of switches and choices", () => {
         expect(form.toSettings().libraryOptions.value).toEqual({ ...STORED_LIBRARY, imageStyle: "poster", showStats: false });
     });
 
-    // The app's own sheet greys Show titles out under the poster style, where its cards
-    // draw no title.
-    test("show titles is greyed out while the style is poster", () => {
+    // The app's own sheet disables Show titles under the poster style, where its cards
+    // draw no title. Greyed only, the box could still be ticked from the keyboard.
+    test("show titles is greyed out and disabled while the style is poster", () => {
         const { mount } = mountLibrary({ value: { ...STORED_LIBRARY, imageStyle: "poster" }, locked: true });
         const line = () => part(mount, "showTitles").closest("[data-depends]");
 
         expect(line().classList.contains("is-inert")).toBe(true);
+        expect(part(mount, "showTitles").disabled).toBe(true);
         change(part(mount, "imageStyle"), (select) => { select.value = "cover"; });
         expect(line().classList.contains("is-inert")).toBe(false);
+        expect(part(mount, "showTitles").disabled).toBe(false);
     });
 
     test("writes every part back, and keeps the one it does not offer", () => {

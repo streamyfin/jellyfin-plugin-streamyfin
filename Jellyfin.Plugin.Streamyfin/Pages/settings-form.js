@@ -388,6 +388,11 @@ const writeParts = (control, value) => {
         const inert = control.querySelector(`[data-part="${key}"]`)?.value !== wanted;
         line.classList.toggle("is-inert", inert);
         line.title = inert ? `Only matters while ${key} is ${wanted}` : "";
+        // Disabled as well, as in the app's sheet: greyed only, it still took a keypress.
+        // A part is a box or a choice, never a value that could be refused, so this cannot
+        // leave the row stuck with a problem nobody can fix.
+        const own = line.querySelector("[data-part]");
+        if (own) own.disabled = inert;
     }
 };
 
