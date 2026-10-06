@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Xunit;
@@ -36,7 +37,7 @@ public class NotificationTests(ITestOutputHelper output)
     /// Assert we can send a single notification and receive a proper ExpoNotificationResponse
     /// </summary>
     [Fact]
-    public void SingleExpoPushNotificationTest()
+    public async Task SingleExpoPushNotificationTest()
     {
         var request = new ExpoNotificationRequest
         {
@@ -46,18 +47,17 @@ public class NotificationTests(ITestOutputHelper output)
             Body = "All platforms should see this body",
         };
 
-        var task = _notificationHelper.Send(request);
-        task.Wait();
+        var response = await _notificationHelper.Send(request);
 
-        Assert.NotNull(task.Result);
-        output.WriteLine(_serializationHelper.ToJson(task.Result));
+        Assert.NotNull(response);
+        output.WriteLine(_serializationHelper.ToJson(response));
     }
     
     /// <summary>
     /// Assert we can send a batch of notifications and receive a proper ExpoNotificationResponse
     /// </summary>
     [Fact]
-    public void BatchExpoPushNotificationTest()
+    public async Task BatchExpoPushNotificationTest()
     {
         var notifications = new List<ExpoNotificationRequest>();
 
@@ -74,15 +74,14 @@ public class NotificationTests(ITestOutputHelper output)
             );
         }
 
-        var task = _notificationHelper.Send(notifications.ToArray());
-        task.Wait();
+        var response = await _notificationHelper.Send(notifications.ToArray());
 
-        Assert.NotNull(task.Result);
+        Assert.NotNull(response);
         Assert.Equal(
             expected: 5,
-            actual: task.Result.Data.Count
+            actual: response.Data.Count
         );
 
-        output.WriteLine(_serializationHelper.ToJson(task.Result));
+        output.WriteLine(_serializationHelper.ToJson(response));
     }
 }
