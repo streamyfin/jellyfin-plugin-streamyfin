@@ -8,6 +8,18 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the README for 0.70
+
+The README describes the plugin as the rewrite left it (#220): what it is and needs, a table of
+its features, a screenshot of every tab taken on a throwaway Jellyfin 12.2, the install paths,
+the way back to 0.68.1.0, a quick start tab by tab, configuration examples and the
+integrations. The release notes of the 0.70.0 preview are drafted in
+`docs/rewrite/release-notes-0.70.0.md`, their images linked from `develop`, so the text can be
+pasted into the release as it is.
+
+The weekly check that the manifest still matches the app's settings also runs from `main` now
+(#221), where a schedule has to live; its first run there found the manifest current.
+
 ## 2026-10-06, the Home tab, and editors where values were typed
 
 The Home tab says what it does (#217): a home screen saved there replaces the app's own, every
