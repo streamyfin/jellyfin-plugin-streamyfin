@@ -17,7 +17,7 @@ on:
     branches: [develop]
     paths:
       - scripts/app-settings-manifest.js
-      - Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json
+      - Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json
       - .github/workflows/app-parity.yml
 
 permissions:
@@ -55,7 +55,7 @@ jobs:
 
       - name: Compare
         run: |
-          if ! git diff --exit-code -- Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json; then
+          if ! git diff --exit-code -- Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json; then
             echo "::error title=The app moved::AppSettingsManifest.json no longer matches the app's develop. Regenerate it with scripts/app-settings-manifest.js and follow SettingsParityTests."
             exit 1
           fi

@@ -803,8 +803,37 @@ describe("putting a setting back to the app's default", () => {
         expect(reset(mount, "enableDoubleTapToSeek").hidden).toBe(true);
     });
 
+    // 33 settings of 86 had no Reset: the plugin declares no default for them, so as not
+    // to push one to every user. The app has its own, which the server sends with the field.
+    test("puts back the app's own value where the plugin declares none", () => {
+        const fields = [field("enableHorizontalSwipeSkip", "Toggle", { title: "Horizontal swipe to skip", appDefault: true })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields, values: { enableHorizontalSwipeSkip: { value: false, locked: true } }, defaults: {}, cultures: CULTURES });
+
+        expect(reset(mount, "enableHorizontalSwipeSkip").hidden).toBe(false);
+        expect(reset(mount, "enableHorizontalSwipeSkip").title).toBe("Put back the app's default, on");
+
+        reset(mount, "enableHorizontalSwipeSkip").click();
+
+        expect(form.toSettings().enableHorizontalSwipeSkip).toEqual({ value: true, locked: true });
+        expect(reset(mount, "enableHorizontalSwipeSkip").hidden).toBe(true);
+    });
+
+    // A null is a real default: the bitrate's is no cap.
+    test("takes a null the app sends as the default it is", () => {
+        const fields = [field("defaultBitrate", "Select", { title: "Bitrate", options: [{ value: null, label: "Max" }, { value: "_8MB", label: "8 Mb/s" }], appDefault: null })];
+        const mount = document.createElement("div");
+        document.body.appendChild(mount);
+        const form = createForm(mount, { fields, values: { defaultBitrate: { value: "_8MB", locked: false } }, defaults: {}, cultures: CULTURES });
+
+        reset(mount, "defaultBitrate").click();
+
+        expect(form.toSettings().defaultBitrate).toEqual({ value: null, locked: false });
+    });
+
     // The mpv buffers default to one number on a phone and another on Android TV, so the
-    // plugin declares none, and there is nothing to put back.
+    // plugin declares none, the app has none to send, and there is nothing to put back.
     test("is not offered where the plugin declares no default", () => {
         const { mount } = mountForm({ jellyseerrServerUrl: { value: "https://seerr.test", locked: false } });
 

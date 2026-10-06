@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -80,6 +82,10 @@ public sealed record SettingsChoice(
 /// <param name="Probe">The service the server can try this address against, when there is one.</param>
 /// <param name="Address">Whether the value has to be a whole http or https address.</param>
 /// <param name="Parts">The switches and choices a <see cref="SettingsControl.Fields"/> shape is drawn as, or <c>null</c>.</param>
+/// <param name="AppDefault">
+/// The app's own value for the setting, which Reset puts back where the plugin declares no
+/// default of its own. Left out when the app has none; a null here is a real value.
+/// </param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -96,7 +102,8 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("integer")] bool Integer,
     [property: JsonPropertyName("probe")] string? Probe,
     [property: JsonPropertyName("address")] bool Address,
-    [property: JsonPropertyName("parts")] IReadOnlyList<SettingsFormField>? Parts = null);
+    [property: JsonPropertyName("parts")] IReadOnlyList<SettingsFormField>? Parts = null,
+    [property: JsonPropertyName("appDefault"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? AppDefault = null);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.
@@ -149,7 +156,29 @@ public static class SettingsForm
             Integer: control == SettingsControl.Number && IsWhole(type),
             Probe: descriptor.Probe?.Kind.ToString(),
             Address: descriptor.IsWebAddress,
-            Parts: control == SettingsControl.Fields ? PartsOf(Nullable.GetUnderlyingType(type) ?? type) : null);
+            Parts: control == SettingsControl.Fields ? PartsOf(Nullable.GetUnderlyingType(type) ?? type) : null,
+            AppDefault: FormValue(AppDefaults.For(descriptor.Key), enumType));
+    }
+
+    // The app keeps a few choices as the numbers of its own enums, where the form names
+    // them: a number becomes the name the form offers for it. One that no member carries
+    // is nothing the form could show, so there is no default to put back.
+    private static JsonElement? FormValue(JsonElement? appDefault, Type? enumType)
+    {
+        if (appDefault is not { ValueKind: JsonValueKind.Number } number || enumType is null)
+        {
+            return appDefault;
+        }
+
+        foreach (var member in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (Convert.ToInt64(member.GetValue(null), CultureInfo.InvariantCulture) == number.GetInt64())
+            {
+                return JsonSerializer.SerializeToElement(member.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? member.Name);
+            }
+        }
+
+        return null;
     }
 
     private static SettingsControl ControlFor(SettingDescriptor descriptor, Type type, Type? enumType)

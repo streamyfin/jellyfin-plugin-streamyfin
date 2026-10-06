@@ -645,10 +645,10 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         }
     };
 
-    // Offered on a set value that is not the app's own, where the plugin declares one.
+    // Offered on a set value that is not the app's own.
     const refreshReset = (row) => {
         if (!row.reset) return;
-        const fallback = defaultValue(row.field);
+        const fallback = resetValue(row.field);
         row.reset.hidden = row.state === "free" || JSON.stringify(row.value) === JSON.stringify(fallback);
     };
 
@@ -684,6 +684,16 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         return field.control === "List" && value === null ? [] : value;
     };
 
+    // What Reset puts back: the default the plugin declares, or else the app's own, which
+    // the server reads from the app's source and sends with the field. A null the app sends
+    // is a default, as the bitrate's no cap is; a field sent without one has none.
+    const resetValue = (field) => {
+        const declared = defaultValue(field);
+        if (declared !== undefined) return declared;
+        if (!Object.hasOwn(field, "appDefault")) return undefined;
+        return field.control === "List" && field.appDefault === null ? [] : field.appDefault;
+    };
+
     // The value a setting takes when it is set with nothing to start from.
     const firstValue = (field) => {
         if (field.control === "Toggle") return false;
@@ -698,7 +708,12 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
     const inheritedText = (field) => {
         const entry = defaults?.[field.key];
         if (!entry || typeof entry !== "object") return "the app's default";
-        const value = entry.value ?? null;
+        return valueText(field, entry.value ?? null);
+    };
+
+    // A value said for a person: a choice by its label, a toggle as on or off, a list as
+    // its items.
+    const valueText = (field, value) => {
         switch (field.control) {
             case "Toggle": return value ? "on" : "off";
             case "Select": return (field.options ?? []).find((o) => (o.value ?? null) === value)?.label ?? String(value ?? "nothing");
@@ -778,15 +793,15 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             states.appendChild(button);
             row.buttons.push(button);
         }
-        // Back to the app's own value, keeping the state. Only where the plugin declares
-        // that value, and not on a level, whose defaults are what the level above gives.
-        if (!overridesOnly && field.control !== "Composite" && defaultValue(field) !== undefined) {
+        // Back to the app's own value, keeping the state. Only where there is one, and not
+        // on a level, whose defaults are what the level above gives.
+        if (!overridesOnly && field.control !== "Composite" && resetValue(field) !== undefined) {
             row.reset = el("button", "sf-reset", "Reset");
             row.reset.type = "button";
-            row.reset.title = `Put back the app's default, ${inheritedText(field)}`;
+            row.reset.title = `Put back the app's default, ${valueText(field, resetValue(field) ?? null)}`;
             row.reset.setAttribute("aria-label", `Put back the app's default for ${field.title ?? field.key}`);
             row.reset.addEventListener("click", () => {
-                row.value = structuredClone(defaultValue(field));
+                row.value = structuredClone(resetValue(field));
                 refreshRow(row);
                 notify();
             });

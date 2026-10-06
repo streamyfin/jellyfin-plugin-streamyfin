@@ -152,7 +152,7 @@ array property.
 
 ## The manifest, and the test that reads it
 
-`Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json` lists what the app
+`Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json` lists what the app
 reads: every key, its type, and its default, with an explicit marker for the keys
 that have none. It is generated from the app's `utils/atoms/settings.ts`,
 committed, and embedded in the test assembly rather than copied to the output

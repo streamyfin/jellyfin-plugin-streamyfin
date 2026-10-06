@@ -1,4 +1,4 @@
-// Writes Jellyfin.Plugin.Streamyfin.Tests/AppSettingsManifest.json from a checkout of
+// Writes Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json from a checkout of
 // the app: every setting it reads, its type, its default, the other names it reads that
 // setting under, and the values it offers for a setting it picks from a list of its own.
 // SettingsParityTests holds the plugin to that file, and docs/rewrite/settings-parity.md
@@ -17,7 +17,7 @@ const ts = require('typescript');
 
 const SETTINGS = path.join('utils', 'atoms', 'settings.ts');
 const OVERRIDES = path.join('utils', 'atoms', 'settingsOverrides.ts');
-const MANIFEST = path.join(__dirname, '..', 'Jellyfin.Plugin.Streamyfin.Tests', 'AppSettingsManifest.json');
+const MANIFEST = path.join(__dirname, '..', 'Jellyfin.Plugin.Streamyfin', 'AppSettingsManifest.json');
 
 // Values settings.ts takes from a module of the app that cannot be read as plain data.
 // Each is checked against its sources on every run, so an app change stops the run
