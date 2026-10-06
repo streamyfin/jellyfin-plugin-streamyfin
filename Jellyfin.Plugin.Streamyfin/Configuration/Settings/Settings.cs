@@ -248,11 +248,6 @@ public class Settings
     public Lockable<Home>? home { get; set; }
 
     [NotNull]
-    [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
-    [SettingScope("Home and appearance", Group = "Home screen")]
-    public Lockable<bool>? showHomeTitles { get; set; } // = true;
-
-    [NotNull]
     [Display(Name = "Show the home backdrop", Description = "Apple TV and Android TV only. Show a backdrop image behind the home screen")]
     [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
@@ -624,11 +619,6 @@ public class Settings
     public Lockable<bool>? useKefinTweaks { get; set; }
 
     [NotNull]
-    [Display(Name = "Popular lists", Description = "Show popular lists from the Popular Lists plugin")]
-    [SettingScope("Plugins", Group = "KefinTweaks")]
-    public Lockable<bool>? usePopularPlugin { get; set; } // = true;
-
-    [NotNull]
     [Display(Name = "Awards from Wikidata", Description = "Show awards fetched from Wikidata on a title's page")]
     [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<bool>? wikidataAwardsEnabled { get; set; } // = true;
@@ -653,11 +643,6 @@ public class Settings
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]
-    [Display(Name = "Media list collections", Description = "Collection ids to offer as media lists in the app")]
-    [SettingScope("Plugins", Group = "KefinTweaks")]
-    public Lockable<string[]>? mediaListCollectionIds { get; set; } // = [];
-
-    [NotNull]
     [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
     [SettingScope("Home and appearance", Group = "App")]
     public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
@@ -667,7 +652,7 @@ public class Settings
     [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
 
-    // The five mpv settings and deviceProfile describe what a device can do rather than
+    // The five mpv settings describe what a device can do rather than
     // what a user prefers. An administrator running a homogeneous fleet has a real
     // reason to fix them; one who locks a value chosen for a phone also applies it to a
     // TV box with less memory to spare.
@@ -699,11 +684,6 @@ public class Settings
     [Display(Name = "mpv video output driver", Description = "gpu-next or gpu. gpu is the fallback for devices where gpu-next misbehaves")]
     [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<MpvVoDriver>? mpvVoDriver { get; set; } // = gpu-next;
-
-    [NotNull]
-    [Display(Name = "Device profile", Description = "Which playback profile the app reports: Expo, Native or Old")]
-    [SettingScope("Advanced")]
-    public Lockable<DeviceProfile>? deviceProfile { get; set; } // = Expo;
 
     [NotNull]
     [Display(Name = "Crash reporting", Description = "Whether the app sends crash reports. Turning it off for everyone is a reasonable policy; turning it on takes a consent decision away from the user")]
@@ -744,39 +724,26 @@ public class Settings
     [SettingScope("Security")]
     public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
 
-    // Which player runs is decided by getActiveVideoPlayer() in the app, from this
-    // setting and the two below, in an order that depends on the platform. The three
-    // descriptions say which of them actually decides where, because an administrator
-    // setting the wrong one of the three sees nothing happen and has no way to tell.
+    // The app has two axes now: the engine, MPV everywhere and ExoPlayer on Android TV, and
+    // the controls, native or the previous ones. Its videoPlayer key picks among both for
+    // every platform at once, so a value set for one platform moved the others: ExoPlayer,
+    // which Android TV needs for HDR, sent every iPhone back to the previous controls. The
+    // plugin no longer declares it, and keeps the two switches that each name one platform.
     [NotNull]
     [Display(
         Name = "Native player on Apple TV",
-        Description = "Apple TV only, and only on tvOS 26 or newer. On by default, so this is the opt out: "
-                      + "while it is on, Apple TV uses the native player whatever Video player says. Turn it "
-                      + "off to hand Apple TV back to Video player.")]
+        Description = "Apple TV on tvOS 26 or newer. On by default: Apple TV plays with the native controls. "
+                      + "Turn it off for the previous player.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
 
     [NotNull]
     [Display(
         Name = "Native player on Android TV",
-        Description = "Android TV only. Off by default, so this is the opt in. Video player set to ExoPlayer "
-                      + "still wins over it.")]
+        Description = "Android TV only. Off by default: turn it on for the native controls. Playback keeps "
+                      + "the engine each device is set to, MPV or ExoPlayer.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
-
-    // No default on purpose. The app resolves this at runtime through
-    // getActiveVideoPlayer() so an existing install keeps the player it has been
-    // using. A default here would choose for every device that never has.
-    [NotNull]
-    [Display(
-        Name = "Video player",
-        Description = "Which player the app uses, on the platforms where this setting decides. MPV runs "
-                      + "everywhere. ExoPlayer is Android TV only, and wins there. Native applies to phones "
-                      + "and tablets only: on a TV it is not chosen here but by the two Native player "
-                      + "settings above.")]
-    [SettingScope("Playback controls", Group = "Video player")]
-    public Lockable<VideoPlayer>? videoPlayer { get; set; }
 
 }
 

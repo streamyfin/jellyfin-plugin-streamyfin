@@ -13,14 +13,6 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration;
 
 
 [JsonConverter(typeof(StringEnumConverter))]
-public enum DeviceProfile
-{
-    Expo,
-    Native,
-    Old
-};
-
-[JsonConverter(typeof(StringEnumConverter))]
 public enum SearchEngine
 {
     Marlin,
@@ -239,16 +231,6 @@ public enum SubtitleAlignY
     [EnumMember(Value = "bottom")]
     [JsonStringEnumMemberName("bottom")]
     Bottom
-};
-
-/// <summary>
-/// Which video player the app uses. Compared as a number by the app.
-/// </summary>
-public enum VideoPlayer
-{
-    MPV = 0,
-    ExoPlayer = 1,
-    Native = 2
 };
 
 /// <summary>

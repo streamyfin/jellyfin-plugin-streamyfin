@@ -48,12 +48,12 @@ public class SettingsFormTests
     /// each page that renders a setting.
     /// </summary>
     [Theory]
-    [InlineData("showHomeTitles", SettingsControl.Toggle)]
+    [InlineData("showHomeBackdrop", SettingsControl.Toggle)]
     [InlineData("forwardSkipTime", SettingsControl.Number)]
     [InlineData("jellyseerrServerUrl", SettingsControl.Text)]
     [InlineData("jellyseerrApiKey", SettingsControl.Secret)]
     [InlineData("openSubtitlesApiKey", SettingsControl.Secret)]
-    [InlineData("videoPlayer", SettingsControl.Select)]
+    [InlineData("audioTranscodeMode", SettingsControl.Select)]
     [InlineData("defaultBitrate", SettingsControl.Select)]
     [InlineData("hiddenLibraries", SettingsControl.List)]
     [InlineData("defaultAudioLanguage", SettingsControl.Language)]
@@ -69,7 +69,7 @@ public class SettingsFormTests
     [Fact]
     public void ASelectCarriesItsChoices()
     {
-        var options = Field("videoPlayer").Options;
+        var options = Field("audioTranscodeMode").Options;
 
         Assert.NotEmpty(options);
         Assert.Empty(options.Where(o => string.IsNullOrWhiteSpace(o.Value)));
@@ -283,7 +283,7 @@ public class SettingsFormTests
     [Fact]
     public void TheControlTravelsByName()
     {
-        var json = System.Text.Json.JsonSerializer.Serialize(Field("showHomeTitles"));
+        var json = System.Text.Json.JsonSerializer.Serialize(Field("showHomeBackdrop"));
 
         Assert.Contains("\"control\":\"Toggle\"", json);
         Assert.Contains("\"dependsOn\":null", json);

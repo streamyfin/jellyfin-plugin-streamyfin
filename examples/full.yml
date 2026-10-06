@@ -256,10 +256,6 @@ settings:
     locked: false
     value: false  # Enable the KefinTweaks watchlist integration
 
-  usePopularPlugin:
-    locked: false
-    value: true  # Popular Lists plugin
-  
   wikidataAwardsEnabled:
     locked: false
     value: true
@@ -278,10 +274,6 @@ settings:
     locked: false
     value: en
   
-  mediaListCollectionIds:
-    locked: false
-    value: []  # Collection ids
-  
   showDownloadLiveActivity:
     locked: false
     value: true
@@ -291,7 +283,7 @@ settings:
     value: false  # Only some Chromecast models decode HEVC
 
   # ==================== Device-bound and consent ====================
-  # The five mpv settings and deviceProfile describe what a device can do rather
+  # The five mpv settings describe what a device can do rather
   # than what a user prefers. Locking a value chosen for a phone also applies it
   # to a TV box with less memory to spare.
   mpvCacheEnabled:
@@ -316,10 +308,6 @@ settings:
   mpvVoDriver:
     locked: false
     value: gpu-next  # gpu-next or gpu
-  
-  deviceProfile:
-    locked: false
-    value: Expo  # Expo, Native or Old
   
   # Turning crash reporting off for everyone is a policy. Turning it on takes a
   # consent decision away from the user.
@@ -357,13 +345,6 @@ settings:
     locked: false
     value: false
   
-  # No default is shipped for this one. The app picks a player at runtime so an
-  # existing install keeps what it has been using. Set it only to decide for
-  # everyone, including devices that never chose.
-  videoPlayer:
-    locked: false
-    value: MPV  # MPV, ExoPlayer (Android TV only) or Native
-
   # ==================== Playback & Audio ====================
   autoPlayNextEpisode:
     locked: false
@@ -390,10 +371,6 @@ settings:
     value: 500  # Maximum disk space (MB) for audio look-ahead caching
 
   # ==================== Home Screen Composition ====================
-  showHomeTitles:
-    locked: false
-    value: true  # Show the title under each card
-  
   showHomeBackdrop:
     locked: false
     value: true
