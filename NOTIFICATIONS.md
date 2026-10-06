@@ -5,10 +5,10 @@ Our plugin can consume any event and forward them to your Streamyfin users
 There are currently a few Jellyfin events directly supported by our plugin
 
 Events:
-- Item Added (everyone who can open the library it went into)
-- Session Started (admins)
-- User Locked Out (admins, and the user who was locked out)
-- Playback Started (admins)
+- Item added (everyone who can open the library it went into)
+- Session started (admins)
+- User locked out (admins, and the user who was locked out)
+- Playback started (admins)
 - Scheduled task failed (admins), with the reason the task gave
 - Plugin changed (admins), when one is installed, updated or uninstalled
 - Failed sign in (admins), with the name that was tried and where it came from

@@ -214,4 +214,67 @@ public class SettingsSchemaTests
         Assert.NotNull(config.settings);
         Assert.Null(config.settings!.defaultBitrate!.value);
     }
+
+    /// <summary>
+    /// An event with settings of its own still takes the ones every event has.
+    /// </summary>
+    /// <remarks>
+    /// The Yaml editor validates against this schema. A derived type described as
+    /// allOf the base type and its own properties, with additionalProperties false on
+    /// the latter, refuses the base type's properties, so the editor marked
+    /// <c>itemAdded.enabled</c> as an error on every configuration.
+    /// </remarks>
+    [Fact]
+    public async System.Threading.Tasks.Task AnEventWithSettingsOfItsOwnStillTakesTheCommonOnes()
+    {
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
+
+        var errors = schema.Validate(
+            """
+            {"notifications": {"itemAdded": {"enabled": true, "recentEventThreshold": 5, "enabledLibraries": []}}}
+            """);
+
+        Assert.Empty(errors);
+    }
+
+    /// <summary>
+    /// Every example the repository ships passes the schema the Yaml editor checks against.
+    /// </summary>
+    /// <remarks>
+    /// The editor marks whatever the schema refuses, so a flagged example tells an
+    /// administrator that a valid file is wrong. Flattening every derived type once also
+    /// closed the string maps a custom section's query and headers are, and only a real
+    /// file showed it.
+    /// </remarks>
+    [Theory]
+    [InlineData("episodeimages.yml")]
+    [InlineData("full.yml")]
+    [InlineData("watchlist")]
+    public async System.Threading.Tasks.Task AShippedExamplePassesTheSchema(string name)
+    {
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
+        using var stream = typeof(SettingsSchemaTests).Assembly.GetManifestResourceStream($"examples/{name}")!;
+        using var reader = new System.IO.StreamReader(stream);
+
+        // Typed the way the editor reads YAML: an unquoted true or 2.5 is not a string,
+        // whatever the culture the tests run under.
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        var document = new YamlDotNet.Serialization.DeserializerBuilder()
+            .WithAttemptingUnquotedStringTypeDeserialization()
+            .Build()
+            .Deserialize<object>(reader);
+        var json = JsonSerializer.Serialize(Plain(document));
+
+        var errors = schema.Validate(json);
+        Assert.True(errors.Count == 0, string.Join("\n", errors.Select(error => $"{error.Path}: {error.Kind}")));
+    }
+
+    // YamlDotNet keys a mapping by object; System.Text.Json writes string keys only.
+    private static object? Plain(object? node) => node switch
+    {
+        System.Collections.Generic.IDictionary<object, object?> map =>
+            map.ToDictionary(entry => entry.Key.ToString()!, entry => Plain(entry.Value)),
+        System.Collections.Generic.IList<object?> list => list.Select(Plain).ToList(),
+        _ => node,
+    };
 }

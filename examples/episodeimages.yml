@@ -45,10 +45,6 @@ settings:
     value: 80  # Subtitle size percentage (0-120)
 
   # ==================== Video Orientation ====================
-  autoRotate:
-    locked: false
-    value: true  # Allow auto-rotation during playback
-  
   defaultVideoOrientation:
     locked: false
     value: Default  # Options: Default, PortraitUp, LandscapeLeft, LandscapeRight
@@ -140,13 +136,13 @@ settings:
             query:
               enableImageTypes: Thumb
 
-        - title: Nextup
+        - title: Next Up
           orientation: horizontal
           custom:
             endpoint: /Shows/NextUp
             query:
               enableImageTypes: Primary
-              enableResumable: false
+              enableResumable: "false"
 
         # Recently Added Section
         - title: Recently Added
@@ -223,15 +219,15 @@ settings:
 # ==================== Notifications Configuration ====================
 # Configure push notification settings
 notifications:
-  SessionStarted:
-    Enabled: true  # Notify when users start sessions (admin only)
+  sessionStarted:
+    enabled: true  # Notify when users start sessions (admin only)
   
-  PlaybackStarted:
-    Enabled: true  # Notify when playback starts (admin only)
+  playbackStarted:
+    enabled: true  # Notify when playback starts (admin only)
   
-  UserLockedOut:
-    Enabled: true  # Notify on account lockouts
+  userLockedOut:
+    enabled: true  # Notify on account lockouts
   
-  ItemAdded:
-    Enabled: true  # Notify when new content is added
+  itemAdded:
+    enabled: true  # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam

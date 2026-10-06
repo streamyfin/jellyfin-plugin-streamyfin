@@ -11,18 +11,18 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 /// </summary>
 public class NotificationConfiguration
 {
-    [Display(Name = "Enabled", Description = "if true, the notifications for this event are enabled.")]
+    [Display(Name = "Enabled", Description = "Send the notifications for this event.")]
     [JsonPropertyName(name: "enabled")]
     public bool Enabled { get; set; }
 
-    [Display(Name = "Recent event threshold", Description = "How long we want to wait until allowing a duplicate event from being processed in seconds")]
+    [Display(Name = "Recent event threshold", Description = "How long to wait, in seconds, before the same event can notify again.")]
     [JsonPropertyName(name: "recentEventThreshold")]
     public double? RecentEventThreshold { get; set; }
 }
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
-    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from. Leave it out to notify for every library.")]
+    [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
 }
@@ -34,25 +34,25 @@ public class Notifications
     public List<WordingOverride>? Wording { get; set; }
 
     [NotNull]
-    [Display(Name = "Session Started", Description = "Admins get notified when a jellyfin user is online.")]
+    [Display(Name = "Session started", Description = "Admins get notified when a Jellyfin user comes online.")]
     [AboutSomebodyElse]
     [JsonPropertyName(name: "sessionStarted")]
     public NotificationConfiguration? SessionStarted { get; set; }
 
     [NotNull]
-    [Display(Name = "Playback Started", Description = "Admins get notified when a jellyfin user is starts playback.")]
+    [Display(Name = "Playback started", Description = "Admins get notified when a Jellyfin user starts playing something.")]
     [AboutSomebodyElse]
     [JsonPropertyName(name: "playbackStarted")]
     public NotificationConfiguration? PlaybackStarted { get; set; }
 
     [NotNull]
-    [Display(Name = "User locked out", Description = "Admins and locked out user get notified jellyfin locks their account")]
+    [Display(Name = "User locked out", Description = "Admins, and the user themselves, get notified when Jellyfin locks an account.")]
     [AboutSomebodyElse]
     [JsonPropertyName(name: "userLockedOut")]
     public NotificationConfiguration? UserLockedOut { get; set; }
 
     [NotNull]
-    [Display(Name = "Item added", Description = "Get notified when jellyfin adds new Movies or Episodes")]
+    [Display(Name = "Item added", Description = "Get notified when Jellyfin adds new movies or episodes.")]
     [JsonPropertyName(name: "itemAdded")]
     public ItemAddedNotificationConfiguration? ItemAdded { get; set; }
 

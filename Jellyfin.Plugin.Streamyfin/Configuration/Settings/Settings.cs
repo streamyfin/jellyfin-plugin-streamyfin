@@ -110,7 +110,7 @@ public class Section
   public Items? items { get; set; }
   
   [NotNull]
-  [Display(Name = "Next up", Description = "Customize the Tv Shows Next Up API query")]
+  [Display(Name = "Next up", Description = "Customize the TV shows Next Up API query")]
   public NextUp? nextUp { get; set; }
 
   [NotNull]
@@ -243,7 +243,7 @@ public class SuggestionsArgs
 public class Settings
 {
     [NotNull]
-    [Display(Name = "Home view", Description = "Customize the appearance of the apps home page")]
+    [Display(Name = "Home view", Description = "Customize the appearance of the app's home page")]
     [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<Home>? home { get; set; }
 
@@ -333,7 +333,7 @@ public class Settings
     
     // Audio
     [NotNull]
-    [Display(Name = "Remember audio selection", Description = "Allows you to set the audio language from the previous played item")]
+    [Display(Name = "Remember audio selection", Description = "Reuse the audio language of the previously played item")]
     [SettingScope("Audio and subtitles", Group = "Audio")]
     public Lockable<bool>? rememberAudioSelections { get; set; } // = true;
 
@@ -370,12 +370,12 @@ public class Settings
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<LanguagePreference>? defaultSubtitleLanguage { get; set; }
     [NotNull]
-    [Display(Name = "Subtitle playback mode", Description = "Setting to determine when subtitles will automatically play during video playback")]
+    [Display(Name = "Subtitle playback mode", Description = "When subtitles turn on by themselves during video playback")]
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<SubtitlePlaybackMode>? subtitleMode { get; set; }
 
     [NotNull]
-    [Display(Name = "Remember subtitle selection", Description = "Allows you to set the subtitle language from the previous played item")]
+    [Display(Name = "Remember subtitle selection", Description = "Reuse the subtitle language of the previously played item")]
     [SettingScope("Audio and subtitles", Group = "Subtitles")]
     public Lockable<bool>? rememberSubtitleSelections { get; set; } // = true;
 
@@ -445,7 +445,7 @@ public class Settings
     public Lockable<OrientationLock>? defaultVideoOrientation { get; set; }
     
     [NotNull]
-    [Display(Name = "Safe Area in video controls", Description = "Enable or disable the safe area for video controls")]
+    [Display(Name = "Safe area in video controls", Description = "Enable or disable the safe area for video controls")]
     [SettingScope("Playback controls", Group = "Gestures")]
     public Lockable<bool>? safeAreaInControlsEnabled { get; set; } // = true;
     
@@ -455,7 +455,7 @@ public class Settings
     public Lockable<bool>? showCustomMenuLinks { get; set; } // = false;
     
     [NotNull]
-    [Display(Name = "Hidden libraries", Description = "Enter all library Ids you want hidden from users")]
+    [Display(Name = "Hidden libraries", Description = "The library IDs to hide from users")]
     [SettingScope("Home and appearance", Group = "App")]
     public Lockable<string[]>? hiddenLibraries { get; set; } // = [];
 
@@ -565,7 +565,7 @@ public class Settings
     // reads that name, so it stays the one the plugin writes. [AlsoKnownAs] is what lets
     // an administrator type the current name, which is issue #95.
     [NotNull]
-    [Display(Name = "Seerr server URL", Description = "Enter the url for your Seerr server, the project formerly called Jellyseerr. **Jellyfin authentication is required**")]
+    [Display(Name = "Seerr server URL", Description = "Enter the URL for your Seerr server, the project formerly called Jellyseerr. **Jellyfin authentication is required**")]
     [SettingScope("Plugins", Group = "Seerr")]
     [AlsoKnownAs("seerrServerUrl")]
     [Probe(IntegrationKind.Seerr)]
@@ -592,23 +592,23 @@ public class Settings
 
     // Streamystats
     [NotNull]
-    [Display(Name = "Streamystats Server URL", Description = "Enter the URL for your Streamystats server. Setting it does not change the search engine on its own: the setting above decides")]
+    [Display(Name = "Streamystats server URL", Description = "Enter the URL for your Streamystats server. Setting it does not change the search engine on its own: the setting above decides")]
     [SettingScope("Plugins", Group = "Streamystats")]
     [Probe(IntegrationKind.Streamystats)]
     public Lockable<string>? streamyStatsServerUrl { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Movie Recommendations", Description = "Allow Streamystats to provide movie recommendations using your watch history")]
+    [Display(Name = "Streamystats movie recommendations", Description = "Allow Streamystats to provide movie recommendations using your watch history")]
     [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsMovieRecommendations { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Series Recommendations", Description = "Allow Streamystats to provide series recommendations using your watch history")]
+    [Display(Name = "Streamystats series recommendations", Description = "Allow Streamystats to provide series recommendations using your watch history")]
     [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsSeriesRecommendations { get; set; }
     
     [NotNull]
-    [Display(Name = "Streamystats Promoted Watchlists", Description = "Allow Streamystats to promote watchlists using your watch history")]
+    [Display(Name = "Streamystats promoted watchlists", Description = "Allow Streamystats to promote watchlists using your watch history")]
     [SettingScope("Plugins", Group = "Streamystats")]
     public Lockable<bool>? streamyStatsPromotedWatchlists { get; set; }
 
@@ -780,6 +780,10 @@ public class Settings
 
 }
 
+// Kept out of the schema's inheritance flattening. Flattened, a Dictionary subclass
+// becomes a closed object with no properties instead of a map of values, and the Yaml
+// editor refused every key of a custom section's query and headers.
+[JsonSchemaFlatten(false)]
 [XmlRoot("dictionary")]
 public class SerializableDictionary<TKey, TValue>
        : Dictionary<TKey, TValue>, IXmlSerializable
