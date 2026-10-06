@@ -959,6 +959,23 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
         notify();
     });
 
+    // A value is read as it is typed, not only when the field is left: Reset and the
+    // unsaved count followed it one click late, often the click on Suggested or Locked.
+    // The control is not written back here, which would move the caret under the typing;
+    // the change on leaving the field still does the full refresh.
+    root.addEventListener("input", (event) => {
+        const control = event.target?.closest?.("[data-control]");
+        if (!control) return;
+        const row = rows.get(control.closest(".sf-row").dataset.key);
+        if (!row) return;
+        row.value = readControl(row, cultures);
+        if (row.state === "free") row.state = "suggested";
+        setPressed(row);
+        refreshProblem(row);
+        refreshReset(row);
+        notify();
+    });
+
     const matchesFilter = (row) => stateFilter === null
         || (stateFilter === "set" && row.state !== "free")
         || (stateFilter === "locked" && row.state === "locked");

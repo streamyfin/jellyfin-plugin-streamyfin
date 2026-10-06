@@ -766,6 +766,36 @@ describe("putting a setting back to the app's default", () => {
         expect(form.dirtyCount()).toBe(1);
     });
 
+    // A typed value was read when the field was left, so Reset showed on the next click,
+    // often on Suggested or Locked, and looked like it answered the state pressed.
+    test("follows a value as it is typed, before the field is left", () => {
+        const { mount, form } = mountForm({ forwardSkipTime: { value: 30, locked: true } });
+        const input = control(mount, "forwardSkipTime");
+
+        input.value = "45";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+        expect(form.dirtyCount()).toBe(1);
+
+        input.value = "30";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(true);
+        expect(form.dirtyCount()).toBe(0);
+    });
+
+    test("a free setting typed into is set at once", () => {
+        const { mount } = mountForm({});
+        const input = control(mount, "forwardSkipTime");
+
+        input.value = "45";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(row(mount, "forwardSkipTime").classList.contains("is-suggested")).toBe(true);
+        expect(reset(mount, "forwardSkipTime").hidden).toBe(false);
+    });
+
     test("is not offered for a free setting, or one already at the default", () => {
         const { mount } = mountForm({ forwardSkipTime: { value: 30, locked: false } });
 
