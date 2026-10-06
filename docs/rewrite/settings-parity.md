@@ -39,7 +39,9 @@ all pick it up with no further change.
 
 **50 of the 52 are decided as declarable.** Two are not. One of the 50,
 `downloadQuality`, needs a matching app change before it can land, for the reason
-given under the type rules below.
+given under the type rules below. These are the first study's numbers, on the 52
+settings the app had then; the manifest records 95 now, and the keys taken out since are
+under "Six keys left again" below.
 
 `playbackSpeedPerMedia` and `playbackSpeedPerShow` stay out. They are not
 settings. They are `Record<string, number>` maps the player writes by itself,
@@ -47,12 +49,12 @@ keyed by item and by series id, so there is nothing an administrator could
 usefully put in them. Declaring them would also put a field nobody can fill into
 the generated admin forms of P3.
 
-Six of the 50 were weighed rather than waved through, and are declared with the
-caveat written next to them in `examples/full.yml`:
+Seven were weighed rather than waved through, and are declared with the caveat written
+next to them in `examples/full.yml`:
 
 - **The five mpv keys** (`mpvCacheEnabled`, `mpvCacheSeconds`, `mpvDemuxerMaxBytes`,
-  `mpvDemuxerMaxBackBytes`, `mpvVoDriver`) and **`deviceProfile`** describe what a
-  device can do, not what a user prefers. An administrator running a homogeneous
+  `mpvDemuxerMaxBackBytes`, `mpvVoDriver`) describe what a device can do, not what a
+  user prefers. An administrator running a homogeneous
   fleet has a real reason to fix them; one who locks a value chosen for a phone
   also applies it to a Shield. Declared, with the warning stated.
 - **`sentryEnabled`** lets an administrator turn crash reporting off for everyone,
@@ -111,20 +113,18 @@ There is no single value to declare. Putting either number in `DefaultConfig()`
 would push it to every device and flatten the distinction the app makes on
 purpose, so Android TV would inherit a phone's memory budget. The property is
 declared, so an administrator can still set and lock it deliberately, and the
-plugin proposes nothing. `videoPlayer`, `preferedLanguage` and
-`openSubtitlesApiKey` take the same treatment for the simpler reason that the app
-has no default for them either.
+plugin proposes nothing. `preferedLanguage` and `openSubtitlesApiKey` take the same
+treatment for the simpler reason that the app has no default for them either.
 
 **The type is the app's type, and it has to survive the round trip.** Most of the
 50 are booleans, numbers and strings, and land on `Lockable<bool>`,
 `Lockable<int>` and `Lockable<string>` unchanged. Two shapes need care:
 
 - **Enumerations.** `audioTranscodeMode`, `mpvCacheEnabled`, `mpvVoDriver`,
-  `tvTypographyScale`, `deviceProfile`, `subtitleAlignX` and `subtitleAlignY`
-  each need a C# enum whose member names are the strings the app compares
-  against. `inactivityTimeout` and `videoPlayer` are enums too, but the app
-  compares them as numbers, so they join `OrientationLock` and `Bitrate` in the
-  number converters `SerializationHelper` registers. `SubtitlePlaybackMode` keeps
+  `tvTypographyScale`, `subtitleAlignX` and `subtitleAlignY` each need a C# enum
+  whose member names are the strings the app compares against. `inactivityTimeout`
+  is an enum too, but the app compares it as a number, so it joins `OrientationLock`
+  and `Bitrate` in the number converters `SerializationHelper` registers. `SubtitlePlaybackMode` keeps
   one for storage only: the regenerated manifest showed the app compares the SDK's
   strings for it (below), so what the app receives carries the member name, while
   what the plugin stores keeps the number every earlier build reads.
@@ -146,9 +146,20 @@ has no default for them either.
   so the plugin declares its own small type carrying those two rather than
   borrowing Jellyfin's.
 
-Three keys are plain arrays, `hiddenHomeHeroSections`, `hiddenHomeHeroMediaTypes`
-and `mediaListCollectionIds`, and follow `Home.sections`, which is already an
-array property.
+Two keys are plain arrays, `hiddenHomeHeroSections` and `hiddenHomeHeroMediaTypes`,
+and follow `Home.sections`, which is already an array property.
+
+**Six keys left again.** `deviceProfile`, `mediaListCollectionIds`, `usePopularPlugin`
+and `showHomeTitles` were declared from the app's `Settings` type, but the app reads none
+of them: nothing has read `deviceProfile` since the app built its device profile from the
+active player, the other three lost their last reader with the large carousel, or never
+had one. `videoPlayer` picks the engine and the controls for every platform at once, so a
+value an administrator set for Android TV, ExoPlayer for HDR, also moved every iPhone
+off the native controls. `autoPlayEpisodeCount` is no setting: it is the counter the player
+keeps against the maximum, and a locked value would stop auto play for good or never. The
+six are in `NotDeclared` with the reasons, and the two native player switches, which each
+name one platform, stay. None of the six was in 0.68.1, so only an unstable build ever
+stored one; a stored configuration that holds one still loads, without it.
 
 ## The manifest, and the test that reads it
 

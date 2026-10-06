@@ -8,8 +8,6 @@
 // through json-editor, whose property picker never actually added a setting, so an
 // override could be read and changed but never created. That is what this replaces.
 
-const TERSE_KEY = "streamyfin.admin.descriptions";
-
 const url = (path) => window.ApiClient.getUrl(`streamyfin/v1/${path}`);
 
 const readJson = (path) =>
@@ -23,22 +21,6 @@ const send = (type, path, body) =>
         data: body === undefined ? undefined : JSON.stringify(body),
         contentType: "application/json"
     });
-
-const readTerse = () => {
-    try {
-        return window.localStorage.getItem(TERSE_KEY) === "off";
-    } catch {
-        return false;
-    }
-};
-
-const writeTerse = (terse) => {
-    try {
-        window.localStorage.setItem(TERSE_KEY, terse ? "off" : "on");
-    } catch {
-        // A dashboard that blocks storage just forgets the choice.
-    }
-};
 
 // Deleting a group takes everyone's membership of it with it, so it asks first. Older
 // dashboards reject a cancelled confirmation rather than resolving false, and a rejection
@@ -367,24 +349,6 @@ export default function (view) {
             form.reveal(found.key);
         });
 
-    // The same switch as the Application tab, sharing its remembered choice: an
-    // administrator who turned the help text off did so for the settings, not for a tab.
-    const wireTerse = () => {
-        const toggle = el("sf-terse");
-        const show = (on) => {
-            toggle.setAttribute("aria-pressed", String(on));
-            toggle.querySelector(".sf-pip").textContent = on ? "ON" : "OFF";
-            form.setTerse(!on);
-        };
-
-        show(!readTerse());
-        listen("sf-terse", "click", () => {
-            const on = toggle.getAttribute("aria-pressed") !== "true";
-            writeTerse(!on);
-            show(on);
-        });
-    };
-
     const draw = (values) => {
         form?.destroy();
         form = renderer.createForm(el("sf-editor"), {
@@ -392,7 +356,8 @@ export default function (view) {
             values,
             defaults: inheritedFor(),
             cultures: level.cultures ?? [],
-            terse: readTerse(),
+            terse: !shared.showsDescriptions(),
+            keys: shared.showsKeys(),
             mode: "overrides",
             // A level overriding an address gets the same refusal the Application tab
             // gets, so it gets the same way to check one. A per group address is the
@@ -401,7 +366,6 @@ export default function (view) {
         });
         form.onChange(updateDock);
         el("sf-find").value = "";
-        el("sf-terse").setAttribute("aria-pressed", String(!readTerse()));
         updateDock();
     };
 
@@ -505,6 +469,7 @@ export default function (view) {
 
     const load = async (loaded) => {
         setStatus("Loading the groups…");
+        shared.drawLegend(el("sf-legend"), { kind: "level" });
 
         const [form_, allGroups, allEvents, cultures] = await Promise.all([
             readJson("settings/form"),
@@ -550,7 +515,10 @@ export default function (view) {
             if (key) form.set(key, "suggested");
         });
         listen("sf-find", "input", (event) => form.search(event.target.value));
-        wireTerse();
+        shared.wireDisplaySwitches(view, showing.signal, ({ descriptions, keys }) => {
+            form?.setTerse(!descriptions);
+            form?.setKeys(keys);
+        });
         wireFindProblem();
         listen("sf-member-find", "input", (event) => filterMembers(event.target.value));
         listen("sf-save", "click", commit(save));

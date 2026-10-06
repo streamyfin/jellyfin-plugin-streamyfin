@@ -55,6 +55,207 @@ export const wireFindProblem = (button, form, signal, goTo) => {
         signal ? { signal } : undefined);
 };
 
+// The Descriptions and Keys switches in the top row of every tab that lists settings.
+// One choice for the whole dashboard, kept in the browser: help text switched off on one
+// tab is off on the others, since it was turned off for the settings and not for a tab.
+const DESCRIPTIONS_KEY = "streamyfin.admin.descriptions";
+const KEYS_KEY = "streamyfin.admin.keys";
+const LEGEND_KEY = "streamyfin.admin.legend";
+
+const recall = (key) => {
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const keep = (key, value) => {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // A dashboard that blocks storage just forgets the choice.
+    }
+};
+
+export const showsDescriptions = () => recall(DESCRIPTIONS_KEY) !== "off";
+// The YAML keys are for the hands that live in the Yaml tab; everyone else sees names.
+export const showsKeys = () => recall(KEYS_KEY) === "on";
+
+// Each tab's legend is shown until it is closed on that tab, which leaves the others as
+// they were: an administrator who knows the boxes on one tab may not know the states on
+// another. The banner names its tab.
+const legendKey = (view) => `${LEGEND_KEY}.${view?.querySelector?.("[data-sf-legend-banner]")?.dataset.sfLegendBanner ?? ""}`;
+export const showsLegend = (view) => recall(legendKey(view)) !== "off";
+
+const DISPLAY_SWITCHES = [
+    ["sf-terse", () => showsDescriptions(), (view, on) => keep(DESCRIPTIONS_KEY, on ? "on" : "off")],
+    ["sf-keys", () => showsKeys(), (view, on) => keep(KEYS_KEY, on ? "on" : "off")],
+    ["sf-legend-toggle", (view) => showsLegend(view), (view, on) => keep(legendKey(view), on ? "on" : "off")],
+];
+
+const paintSwitch = (toggle, on) => {
+    toggle.setAttribute("aria-pressed", String(on));
+    const pip = toggle.querySelector(".sf-pip");
+    if (pip) pip.textContent = on ? "ON" : "OFF";
+};
+
+// A card a page draws outside its form follows the switches by carrying this attribute:
+// the Targeting tab's events card kept its help text with Descriptions off.
+// The legend's banner shows with its tab's Legend switch.
+const applyToFollowers = (view, choice) => {
+    for (const node of view.querySelectorAll("[data-sf-follows-display]")) {
+        node.classList.toggle("is-terse", !choice.descriptions);
+        node.classList.toggle("is-keyless", !choice.keys);
+    }
+    for (const banner of view.querySelectorAll("[data-sf-legend-banner]")) {
+        banner.hidden = !choice.legend;
+    }
+};
+
+// Both choices as the view's switches show them, or as remembered for one it lacks.
+const shown = (view) => {
+    const pressed = (id, read) => {
+        const toggle = view.querySelector(`#${id}`);
+        return toggle ? toggle.getAttribute("aria-pressed") === "true" : read();
+    };
+    return {
+        descriptions: pressed("sf-terse", showsDescriptions),
+        keys: pressed("sf-keys", showsKeys),
+        legend: pressed("sf-legend-toggle", () => showsLegend(view)),
+    };
+};
+
+// Shows the remembered choices on whichever switches the view has, and hands them to
+// apply as { descriptions, keys }. For a view shown again, after another tab changed them.
+export const paintDisplaySwitches = (view, apply) => {
+    for (const [id, read] of DISPLAY_SWITCHES) {
+        const toggle = view.querySelector(`#${id}`);
+        if (toggle) paintSwitch(toggle, read(view));
+    }
+    const choice = { descriptions: showsDescriptions(), keys: showsKeys(), legend: showsLegend(view) };
+    applyToFollowers(view, choice);
+    apply(choice);
+};
+
+// Wires the switches for one showing of the view, the listeners dropped with signal. A
+// click applies what was clicked: storage only remembers it, and a dashboard that
+// refuses to store would otherwise show a switch saying one thing and a page another.
+export const wireDisplaySwitches = (view, signal, apply) => {
+    for (const [id, , write] of DISPLAY_SWITCHES) {
+        const toggle = view.querySelector(`#${id}`);
+        if (!toggle) continue;
+        toggle.addEventListener("click", () => {
+            const on = toggle.getAttribute("aria-pressed") !== "true";
+            write(view, on);
+            paintSwitch(toggle, on);
+            // Both as the switches show them now, not as they were when this was wired: a
+            // view wired once is repainted when another tab changes the other switch.
+            const choice = shown(view);
+            applyToFollowers(view, choice);
+            apply(choice);
+        }, { signal });
+    }
+    // The banner's own cross is its tab's Legend switch turned off.
+    for (const close of view.querySelectorAll("[data-sf-legend-close]")) {
+        close.addEventListener("click", () => {
+            keep(legendKey(view), "off");
+            const toggle = view.querySelector("#sf-legend-toggle");
+            if (toggle) paintSwitch(toggle, false);
+            const choice = { ...shown(view), legend: false };
+            applyToFollowers(view, choice);
+            apply(choice);
+        }, { signal });
+    }
+    paintDisplaySwitches(view, apply);
+};
+
+// What the states and the boxes mean, in the shapes the rows draw them in, as a banner
+// at the top of every tab that has either: a setting's three states and three boxes on
+// the Application tab, a level's on the Targeting tab, and the two boxes alone where
+// nothing is free or locked. Its cross and the Legend switch close it on every tab.
+const BOXES = [
+    ["box", "on", "On", null],
+    ["box", "off", "Off", null],
+];
+const LEGENDS = {
+    settings: {
+        states: ["How a setting reaches users", [
+            ["edge", "free", "Free", "each user decides"],
+            ["edge", "suggested", "Suggested", "your value, set once as each user's starting point"],
+            ["edge", "locked", "Locked", "your value, and users cannot change it"],
+        ]],
+        boxes: ["What a box says", [...BOXES, ["box", "unset", "Not set", "the app uses its own default"]]],
+        note: "Only what you set here travels. Everything else stays the app's own default.",
+    },
+    // A level has no Free and no unset box: a setting is overridden there or falls through.
+    level: {
+        states: ["How this level reaches its users", [
+            ["edge", "suggested", "Suggested", "this level's value, set once as each user's starting point"],
+            ["edge", "locked", "Locked", "this level's value, and users cannot change it"],
+            ["edge", "free", "Not listed", "the level above decides"],
+        ]],
+        boxes: ["What a box says", BOXES],
+        note: null,
+    },
+    boxes: {
+        states: null,
+        boxes: ["What a box says", BOXES],
+        note: null,
+    },
+};
+
+const legendMark = (shape, state) => {
+    if (shape === "box") {
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.className = "sf-check";
+        box.disabled = true;
+        box.tabIndex = -1;
+        box.checked = state === "on";
+        box.indeterminate = state === "unset";
+        box.setAttribute("aria-hidden", "true");
+        return box;
+    }
+    const edge = document.createElement("i");
+    edge.className = `sf-edge is-${state}`;
+    return edge;
+};
+
+export const drawLegend = (mount, { kind = "settings" } = {}) => {
+    if (!mount) return;
+    const legend = LEGENDS[kind] ?? LEGENDS.settings;
+    mount.replaceChildren();
+    mount.classList.toggle("is-single", !legend.states);
+    mount.setAttribute("aria-label", legend.states ? "What the boxes and states mean" : "What the boxes mean");
+    for (const [heading, items] of [legend.states, legend.boxes].filter(Boolean)) {
+        const column = document.createElement("div");
+        column.className = "sf-legend-col";
+        const title = document.createElement("p");
+        title.className = "sf-legend-h";
+        title.textContent = heading;
+        column.appendChild(title);
+        for (const [shape, state, name, text] of items) {
+            const item = document.createElement("div");
+            item.className = "sf-legend-item";
+            const words = document.createElement("span");
+            const bold = document.createElement("b");
+            bold.textContent = name;
+            words.appendChild(bold);
+            if (text) words.appendChild(document.createTextNode(` ${text}`));
+            item.append(legendMark(shape, state), words);
+            column.appendChild(item);
+        }
+        mount.appendChild(column);
+    }
+    if (legend.note) {
+        const note = document.createElement("p");
+        note.className = "sf-legend-note";
+        note.textContent = legend.note;
+        mount.appendChild(note);
+    }
+};
+
 export const probeIntegration = (kind, address) =>
     window.ApiClient.ajax({
         type: "POST",

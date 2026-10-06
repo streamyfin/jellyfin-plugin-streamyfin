@@ -9,7 +9,6 @@ using System.Collections.ObjectModel;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
-
 // Labelled as the app's library options sheet, LibraryOptionsSheet.tsx, labels them.
 public class LibraryOptions
 {
@@ -61,7 +60,6 @@ public class Lockable<T>
   public bool locked { get; set; } = false;
   public required T value { get; set; }
 }
-
 
 public class Home
 {
@@ -262,11 +260,6 @@ public class Settings
     public Lockable<Home>? home { get; set; }
 
     [NotNull]
-    [Display(Name = "Show titles on the home screen", Description = "Show the title under each card on the home screen")]
-    [SettingScope("Home and appearance", Group = "Home screen")]
-    public Lockable<bool>? showHomeTitles { get; set; } // = true;
-
-    [NotNull]
     [Display(Name = "Show the home backdrop", Description = "Apple TV and Android TV only. Show a backdrop image behind the home screen")]
     [SettingScope("Home and appearance", Group = "Home screen")]
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
@@ -367,11 +360,13 @@ public class Settings
     [Display(Name = "Audio look-ahead count", Description = "How many upcoming tracks to pre-cache")]
     [SettingScope("Music")]
     [DependsOn("audioLookaheadEnabled")]
+    [Bounds(1, 5)]
     public Lockable<int>? audioLookaheadCount { get; set; } // = 1;
 
     [NotNull]
     [Display(Name = "Audio max cache size (MB)", Description = "Maximum disk space used for audio look-ahead caching")]
     [SettingScope("Music")]
+    [Bounds(100, 2048)]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
     // No default for either. The app leaves both null and follows what the server or the
     // media offers until the user picks one, so a value here would choose for everyone.
@@ -407,10 +402,10 @@ public class Settings
     public Lockable<bool>? subtitlesOnMuteAllowRestart { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Subtitle scale size", Description = "Adjust the subtitle size during video playback")]
+    [Display(Name = "Subtitle scale size", Description = "The subtitle size during video playback, as a percentage: 100 is the app's own size")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
-    [Bounds(0, 120)]
-    [Step(5)]
+    [Bounds(10, 300)]
+    [Step(10)]
     public Lockable<int>? subtitleSize { get; set; } // = 80;
 
     [NotNull]
@@ -432,16 +427,21 @@ public class Settings
     [Display(Name = "Subtitle background opacity", Description = "How opaque the subtitle background is, from 0 to 100")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
     [DependsOn("subtitleBackground")]
+    [Bounds(0, 100)]
+    [Step(5)]
     public Lockable<int>? subtitleBackgroundOpacity { get; set; } // = 60;
 
     [NotNull]
     [Display(Name = "Subtitle background padding", Description = "Space between the subtitle text and the edge of its background")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Bounds(0, 30)]
     public Lockable<int>? subtitleBackgroundPadding { get; set; } // = 8;
 
     [NotNull]
     [Display(Name = "Subtitle vertical margin", Description = "Distance between the subtitles and the edge of the video")]
     [SettingScope("Audio and subtitles", Group = "Subtitle appearance")]
+    [Bounds(-100, 100)]
+    [Step(5)]
     public Lockable<int>? subtitleMarginY { get; set; } // = 25;
 
     [NotNull]
@@ -487,8 +487,9 @@ public class Settings
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
 
     [NotNull]
-    [Display(Name = "Max auto play episode count")]
+    [Display(Name = "Max auto play episode count", Description = "How many episodes play one after another on their own, up to 7. 0 or -1 turns auto play off")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
+    [Bounds(-1, 7)]
     public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3
 
     [NotNull]
@@ -499,6 +500,8 @@ public class Settings
     [NotNull]
     [Display(Name = "Default playback speed", Description = "The default video playback speed multiplier")]
     [SettingScope("Playback controls", Group = "Quality")]
+    [Bounds(0.25, 3)]
+    [Step(0.25)]
     public Lockable<double>? defaultPlaybackSpeed { get; set; } // = 1.0
 
     // Swipe controls
@@ -542,6 +545,8 @@ public class Settings
     [Display(Name = "Hold to speed rate", Description = "Playback speed multiplier while the screen is held")]
     [SettingScope("Playback controls", Group = "Gestures")]
     [DependsOn("enableHoldToSpeed")]
+    [Bounds(0.25, 3)]
+    [Step(0.25)]
     public Lockable<double>? holdToSpeedRate { get; set; } // = 2.0;
 
     [NotNull]
@@ -553,11 +558,6 @@ public class Settings
     [Display(Name = "Ask before resuming", Description = "Ask whether to resume or start over instead of resuming straight away")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
     public Lockable<bool>? showResumeDialog { get; set; } // = false;
-
-    [NotNull]
-    [Display(Name = "Auto play episode count", Description = "How many episodes have played automatically so far. 0 starts the count over")]
-    [SettingScope("Advanced")]
-    public Lockable<int>? autoPlayEpisodeCount { get; set; } // = 0;
 
     [NotNull]
     [Display(Name = "Play the default audio track", Description = "Play the track the server marks as default rather than the last one chosen")]
@@ -641,11 +641,6 @@ public class Settings
     public Lockable<bool>? useKefinTweaks { get; set; }
 
     [NotNull]
-    [Display(Name = "Popular lists", Description = "Show popular lists from the Popular Lists plugin")]
-    [SettingScope("Plugins", Group = "KefinTweaks")]
-    public Lockable<bool>? usePopularPlugin { get; set; } // = true;
-
-    [NotNull]
     [Display(Name = "Awards from Wikidata", Description = "Show awards fetched from Wikidata on a title's page")]
     [SettingScope("Plugins", Group = "KefinTweaks")]
     public Lockable<bool>? wikidataAwardsEnabled { get; set; } // = true;
@@ -671,11 +666,6 @@ public class Settings
     public Lockable<string>? preferedLanguage { get; set; }
 
     [NotNull]
-    [Display(Name = "Media list collections", Description = "Collection ids to offer as media lists in the app")]
-    [SettingScope("Plugins", Group = "KefinTweaks")]
-    public Lockable<string[]>? mediaListCollectionIds { get; set; } // = [];
-
-    [NotNull]
     [Display(Name = "Download live activity", Description = "Show download progress on the lock screen")]
     [SettingScope("Home and appearance", Group = "App")]
     public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
@@ -685,7 +675,7 @@ public class Settings
     [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
 
-    // The five mpv settings and deviceProfile describe what a device can do rather than
+    // The five mpv settings describe what a device can do rather than
     // what a user prefers. An administrator running a homogeneous fleet has a real
     // reason to fix them; one who locks a value chosen for a phone also applies it to a
     // TV box with less memory to spare.
@@ -697,6 +687,8 @@ public class Settings
     [NotNull]
     [Display(Name = "mpv cache seconds", Description = "How many seconds mpv caches ahead")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(5, 120)]
+    [Step(5)]
     public Lockable<int>? mpvCacheSeconds { get; set; } // = 10;
 
     // No default on purpose: the app's own default is not one number. It is 150 MB on a
@@ -705,23 +697,22 @@ public class Settings
     [NotNull]
     [Display(Name = "mpv demuxer buffer (MB)", Description = "Read-ahead buffer size. The app defaults to 150 MB on a phone and 75 MB on Android TV, so one number here applies to both")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(50, 500)]
+    [Step(25)]
     public Lockable<int>? mpvDemuxerMaxBytes { get; set; }
 
     // No default, same reason: 50 MB on a phone, 30 MB on Android TV.
     [NotNull]
     [Display(Name = "mpv back buffer (MB)", Description = "How much already-played data mpv keeps. The app defaults to 50 MB on a phone and 30 MB on Android TV")]
     [SettingScope("Playback controls", Group = "mpv")]
+    [Bounds(25, 200)]
+    [Step(25)]
     public Lockable<int>? mpvDemuxerMaxBackBytes { get; set; }
 
     [NotNull]
     [Display(Name = "mpv video output driver", Description = "gpu-next or gpu. gpu is the fallback for devices where gpu-next misbehaves")]
     [SettingScope("Playback controls", Group = "mpv")]
     public Lockable<MpvVoDriver>? mpvVoDriver { get; set; } // = gpu-next;
-
-    [NotNull]
-    [Display(Name = "Device profile", Description = "Which playback profile the app reports: Expo, Native or Old")]
-    [SettingScope("Advanced")]
-    public Lockable<DeviceProfile>? deviceProfile { get; set; } // = Expo;
 
     [NotNull]
     [Display(Name = "Crash reporting", Description = "Whether the app sends crash reports. Turning it off for everyone is a reasonable policy; turning it on takes a consent decision away from the user")]
@@ -758,43 +749,30 @@ public class Settings
     public Lockable<bool>? hideRemoteSessionButton { get; set; } // = false;
 
     [NotNull]
-    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity, in milliseconds. 0 never signs out")]
+    [Display(Name = "Inactivity timeout", Description = "Sign out of the TV app after this long with no activity")]
     [SettingScope("Security")]
     public Lockable<InactivityTimeout>? inactivityTimeout { get; set; } // = Disabled;
 
-    // Which player runs is decided by getActiveVideoPlayer() in the app, from this
-    // setting and the two below, in an order that depends on the platform. The three
-    // descriptions say which of them actually decides where, because an administrator
-    // setting the wrong one of the three sees nothing happen and has no way to tell.
+    // The app has two axes now: the engine, MPV everywhere and ExoPlayer on Android TV, and
+    // the controls, native or the previous ones. Its videoPlayer key picks among both for
+    // every platform at once, so a value set for one platform moved the others: ExoPlayer,
+    // which Android TV needs for HDR, sent every iPhone back to the previous controls. The
+    // plugin no longer declares it, and keeps the two switches that each name one platform.
     [NotNull]
     [Display(
         Name = "Native player on Apple TV",
-        Description = "Apple TV only, and only on tvOS 26 or newer. On by default, so this is the opt out: "
-                      + "while it is on, Apple TV uses the native player whatever Video player says. Turn it "
-                      + "off to hand Apple TV back to Video player.")]
+        Description = "Apple TV on tvOS 26 or newer. On by default: Apple TV plays with the native controls. "
+                      + "Turn it off for the previous player.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerTV { get; set; } // = true;
 
     [NotNull]
     [Display(
         Name = "Native player on Android TV",
-        Description = "Android TV only. Off by default, so this is the opt in. Video player set to ExoPlayer "
-                      + "still wins over it.")]
+        Description = "Android TV only. Off by default: turn it on for the native controls. Playback keeps "
+                      + "the engine each device is set to, MPV or ExoPlayer.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
-
-    // No default on purpose. The app resolves this at runtime through
-    // getActiveVideoPlayer() so an existing install keeps the player it has been
-    // using. A default here would choose for every device that never has.
-    [NotNull]
-    [Display(
-        Name = "Video player",
-        Description = "Which player the app uses, on the platforms where this setting decides. MPV runs "
-                      + "everywhere. ExoPlayer is Android TV only, and wins there. Native applies to phones "
-                      + "and tablets only: on a TV it is not chosen here but by the two Native player "
-                      + "settings above.")]
-    [SettingScope("Playback controls", Group = "Video player")]
-    public Lockable<VideoPlayer>? videoPlayer { get; set; }
 
 }
 

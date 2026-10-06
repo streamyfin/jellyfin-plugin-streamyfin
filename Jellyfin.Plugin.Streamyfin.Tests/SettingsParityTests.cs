@@ -41,6 +41,28 @@ public class SettingsParityTests
             + "there is nothing an administrator could put in it.",
         ["playbackSpeedPerShow"] =
             "Not a setting. A map the player writes by itself, keyed by series id.",
+        ["autoPlayEpisodeCount"] =
+            "Not a setting. A counter the player keeps by itself, of the episodes it has "
+            + "played in a row against maxAutoPlayEpisodeCount; a locked value would stop "
+            + "auto play for good or never.",
+        ["videoPlayer"] =
+            "Picks the engine and the controls for every platform at once: ExoPlayer, which "
+            + "Android TV needs for HDR, also moves every iPhone off the native controls. A "
+            + "value set for one platform changes the others, so each device keeps its own, "
+            + "and the plugin declares the two switches that each name one platform, "
+            + "nativeVideoPlayerTV and nativeVideoPlayerAndroidTV.",
+        ["deviceProfile"] =
+            "Read nowhere. The app builds the device profile from the active player since "
+            + "ac9bcbcb (2024-10-15), so a value set here did nothing on any platform.",
+        ["mediaListCollectionIds"] =
+            "Read nowhere. Its last reader, the large carousel, was unmounted in cc2e6341 "
+            + "(2025-09-29, #1098) and deleted in a36a0643 (2026-08-18, #1984).",
+        ["usePopularPlugin"] =
+            "Read nowhere. Only the large carousel read it, unmounted in cc2e6341 "
+            + "(2025-09-29, #1098) and deleted in a36a0643 (2026-08-18, #1984).",
+        ["showHomeTitles"] =
+            "Read nowhere. It entered the app's Settings type in e173d51d (2024-09-04), and "
+            + "no screen has read it since.",
     };
 
     /// <summary>
@@ -886,7 +908,6 @@ public class SettingsParityTests
     [InlineData(SubtitleAlignX.Center, "\"center\"")]
     [InlineData(SubtitleAlignY.Bottom, "\"bottom\"")]
     [InlineData(SubtitleAlignY.Top, "\"top\"")]
-    [InlineData(DeviceProfile.Expo, "\"Expo\"")]
     // The app compares the SDK's strings for this one. It was written as a number until
     // the regenerated manifest showed it, and a locked mode did nothing.
     [InlineData(SubtitlePlaybackMode.Default, "\"Default\"")]
@@ -905,7 +926,7 @@ public class SettingsParityTests
     }
 
     /// <summary>
-    /// The two enums the app compares as numbers are written as numbers.
+    /// The inactivity timeout, which the app compares as a number, is written as one.
     /// </summary>
     /// <remarks>
     /// Same reason <c>OrientationLock</c> and <c>Bitrate</c> already have a number converter
@@ -913,9 +934,6 @@ public class SettingsParityTests
     /// number matches nothing.
     /// </remarks>
     [Theory]
-    [InlineData(VideoPlayer.MPV, "0")]
-    [InlineData(VideoPlayer.ExoPlayer, "1")]
-    [InlineData(VideoPlayer.Native, "2")]
     [InlineData(InactivityTimeout.Disabled, "0")]
     [InlineData(InactivityTimeout.OneMinute, "60000")]
     [InlineData(InactivityTimeout.FiveMinutes, "300000")]
