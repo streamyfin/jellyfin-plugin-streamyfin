@@ -243,9 +243,9 @@ public class SettingsSchemaTests
     /// the Yaml tab shows them, and not in the form, which offers them under labels.
     /// </summary>
     [Fact]
-    public void TheYamlTabIsToldTheValuesOfAList()
+    public async System.Threading.Tasks.Task TheYamlTabIsToldTheValuesOfAList()
     {
-        var schema = NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>()).Result;
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
         var settings = schema.Definitions["Settings"].Properties;
 
         Assert.Equal(
@@ -260,9 +260,9 @@ public class SettingsSchemaTests
     /// YAML, so only the Yaml tab is told it takes ids.
     /// </summary>
     [Fact]
-    public void OnlyTheYamlTabIsToldTheLibrariesAreIds()
+    public async System.Threading.Tasks.Task OnlyTheYamlTabIsToldTheLibrariesAreIds()
     {
-        var schema = NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>()).Result;
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
 
         Assert.Equal(
             "The libraries to hide from users. Values: library ids.",
