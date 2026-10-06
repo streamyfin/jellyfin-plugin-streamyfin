@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -147,6 +148,7 @@ public class SerializationHelper
         var schema = JsonSchemaGenerator.FromType<T>(settings);
         MarkSecrets(schema);
         MarkCategories(schema);
+        MarkChoices(schema);
         return schema.ToJson();
     }
 
@@ -205,6 +207,33 @@ public class SerializationHelper
 
                 property.ExtensionData ??= new Dictionary<string, object?>();
                 property.ExtensionData["x-secret"] = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Says, in the description the Yaml tab shows, the values a setting picked from a
+    /// list of the app's takes.
+    /// </summary>
+    /// <remarks>
+    /// The form offers those as a dropdown or as boxes, under the app's labels, so their
+    /// descriptions name no values. Someone writing YAML still needs them, so they go into
+    /// the schema's copy of the description and nowhere else.
+    /// </remarks>
+    private static void MarkChoices(JsonSchema schema)
+    {
+        foreach (var candidate in SchemasCarryingSettings(schema))
+        {
+            foreach (var descriptor in SettingsSchema.Descriptors)
+            {
+                var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>();
+                if (listed is null || !candidate.Properties.TryGetValue(descriptor.Key, out var property))
+                {
+                    continue;
+                }
+
+                var values = string.Join(", ", listed.Choices.Select(choice => choice.Value).OfType<string>());
+                property.Description = $"{property.Description} Values: {values}.".TrimStart();
             }
         }
     }

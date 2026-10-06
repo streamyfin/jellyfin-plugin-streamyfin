@@ -238,6 +238,21 @@ public class SettingsSchemaTests
     }
 
     /// <summary>
+    /// A setting picked from a list of the app's names its values in the schema, where
+    /// the Yaml tab shows them, and not in the form, which offers them under labels.
+    /// </summary>
+    [Fact]
+    public void TheYamlTabIsToldTheValuesOfAList()
+    {
+        var schema = NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>()).Result;
+        var settings = schema.Definitions["Settings"].Properties;
+
+        Assert.EndsWith("Values: continueWatching, nextUp, recentlyAdded.", settings["hiddenHomeHeroSections"].Description);
+        Assert.EndsWith("Values: movie, tv.", settings["hiddenHomeHeroMediaTypes"].Description);
+        Assert.DoesNotContain("Values:", SettingsForm.Describe().Single(f => f.Key == "hiddenHomeHeroSections").Description);
+    }
+
+    /// <summary>
     /// Every example the repository ships passes the schema the Yaml editor checks against.
     /// </summary>
     /// <remarks>
