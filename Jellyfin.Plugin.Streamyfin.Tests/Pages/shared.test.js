@@ -13,7 +13,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 window.ApiClient = { getUrl: (path) => `http://server/${path}` };
 window.Streamyfin = { shared: true };
 
-const { confirmed } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
+const { confirmed, paintDisplaySwitches, wireDisplaySwitches } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
 
 afterEach(() => {
     delete window.Dashboard;
@@ -77,5 +77,68 @@ describe("confirmed", () => {
         ]);
 
         expect(answer).toBe("still waiting");
+    });
+});
+
+// The Descriptions and Keys switches were on the Application tab only, Descriptions alone
+// on Targeting, and neither on Notifications, so an administrator could hide the keys
+// on one tab and find them everywhere else.
+describe("the display switches", () => {
+    const view = (...ids) => {
+        const root = document.createElement("div");
+        for (const id of ids) {
+            const button = document.createElement("button");
+            button.id = id;
+            button.innerHTML = '<span class="sf-pip"></span>';
+            root.appendChild(button);
+        }
+        return root;
+    };
+
+    afterEach(() => window.localStorage.clear());
+
+    test("show the remembered choice and hand it over at once", () => {
+        window.localStorage.setItem("streamyfin.admin.descriptions", "off");
+        const root = view("sf-terse", "sf-keys");
+        const applied = [];
+
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+
+        expect(applied).toEqual([{ descriptions: false, keys: false }]);
+        expect(root.querySelector("#sf-terse").getAttribute("aria-pressed")).toBe("false");
+        expect(root.querySelector("#sf-terse .sf-pip").textContent).toBe("OFF");
+    });
+
+    test("a click flips one switch, remembers it, and hands both over", () => {
+        const root = view("sf-terse", "sf-keys");
+        const applied = [];
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+
+        root.querySelector("#sf-keys").click();
+
+        expect(applied.at(-1)).toEqual({ descriptions: true, keys: true });
+        expect(window.localStorage.getItem("streamyfin.admin.keys")).toBe("on");
+        expect(root.querySelector("#sf-keys .sf-pip").textContent).toBe("ON");
+    });
+
+    test("one tab's choice is the next tab's", () => {
+        const first = view("sf-terse");
+        wireDisplaySwitches(first, undefined, () => {});
+        first.querySelector("#sf-terse").click();
+
+        const applied = [];
+        paintDisplaySwitches(view("sf-terse", "sf-keys"), (choice) => applied.push(choice));
+
+        expect(applied).toEqual([{ descriptions: false, keys: false }]);
+    });
+
+    test("a view without one of the switches is still wired", () => {
+        const root = view("sf-terse");
+        const applied = [];
+
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+        root.querySelector("#sf-terse").click();
+
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
     });
 });

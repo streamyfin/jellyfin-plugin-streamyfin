@@ -23,3 +23,15 @@ describe("a number field", () => {
         expect(rule('.sf-page[data-sf-theme="light"] .sf-number')?.style.getPropertyValue("color-scheme")).toBe("light");
     });
 });
+
+describe("the help text switched off", () => {
+    // Problems are written with the help text's class, so hiding every description hid
+    // what was wrong with a value, and the save stayed refused for no visible reason.
+    test("leaves what is wrong with a value, and an empty list's line, in view", () => {
+        expect(rule(".sf-page .is-terse .sf-desc:not(.sf-problem):not(.sf-empty)")?.style.getPropertyValue("display")).toBe("none");
+    });
+
+    test("hides the keys on any tab that asks, not only on the settings form", () => {
+        expect(rule(".sf-page .is-keyless .sf-key")?.style.getPropertyValue("display")).toBe("none");
+    });
+});

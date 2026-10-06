@@ -55,6 +55,68 @@ export const wireFindProblem = (button, form, signal, goTo) => {
         signal ? { signal } : undefined);
 };
 
+// The Descriptions and Keys switches in the top row of every tab that lists settings.
+// One choice for the whole dashboard, kept in the browser: help text switched off on one
+// tab is off on the others, since it was turned off for the settings and not for a tab.
+const DESCRIPTIONS_KEY = "streamyfin.admin.descriptions";
+const KEYS_KEY = "streamyfin.admin.keys";
+
+const recall = (key) => {
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const keep = (key, value) => {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // A dashboard that blocks storage just forgets the choice.
+    }
+};
+
+export const showsDescriptions = () => recall(DESCRIPTIONS_KEY) !== "off";
+// The YAML keys are for the hands that live in the Yaml tab; everyone else sees names.
+export const showsKeys = () => recall(KEYS_KEY) === "on";
+
+const DISPLAY_SWITCHES = [
+    ["sf-terse", showsDescriptions, (on) => keep(DESCRIPTIONS_KEY, on ? "on" : "off")],
+    ["sf-keys", showsKeys, (on) => keep(KEYS_KEY, on ? "on" : "off")],
+];
+
+const paintSwitch = (toggle, on) => {
+    toggle.setAttribute("aria-pressed", String(on));
+    const pip = toggle.querySelector(".sf-pip");
+    if (pip) pip.textContent = on ? "ON" : "OFF";
+};
+
+// Shows the remembered choices on whichever switches the view has, and hands them to
+// apply as { descriptions, keys }. For a view shown again, after another tab changed them.
+export const paintDisplaySwitches = (view, apply) => {
+    for (const [id, read] of DISPLAY_SWITCHES) {
+        const toggle = view.querySelector(`#${id}`);
+        if (toggle) paintSwitch(toggle, read());
+    }
+    apply({ descriptions: showsDescriptions(), keys: showsKeys() });
+};
+
+// Wires the switches for one showing of the view, the listeners dropped with signal.
+export const wireDisplaySwitches = (view, signal, apply) => {
+    for (const [id, read, write] of DISPLAY_SWITCHES) {
+        const toggle = view.querySelector(`#${id}`);
+        if (!toggle) continue;
+        toggle.addEventListener("click", () => {
+            const on = toggle.getAttribute("aria-pressed") !== "true";
+            write(on);
+            paintSwitch(toggle, on);
+            apply({ descriptions: showsDescriptions(), keys: showsKeys() });
+        }, { signal });
+    }
+    paintDisplaySwitches(view, apply);
+};
+
 export const probeIntegration = (kind, address) =>
     window.ApiClient.ajax({
         type: "POST",

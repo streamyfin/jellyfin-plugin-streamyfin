@@ -183,7 +183,7 @@ const wordingCard = async (sentences, edited) => {
         });
 
         if (list.length === 0) {
-            rows.appendChild(el("p", "sf-desc", "Nothing here: every notification is written the way the plugin writes it."));
+            rows.appendChild(el("p", "sf-desc sf-empty", "Nothing here: every notification is written the way the plugin writes it."));
         }
     };
 
@@ -262,12 +262,20 @@ export default function (view, params) {
     // removed and throw on the way past.
     let drawn = null;
 
+    // The Descriptions and Keys switches, shared with the other tabs that list settings.
+    const applyDisplay = ({ descriptions, keys }) => {
+        const editor = view.querySelector("#sf-editor");
+        editor.classList.toggle("is-terse", !descriptions);
+        editor.classList.toggle("is-keyless", !keys);
+    };
+
     view.addEventListener("viewshow", () => {
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (shared) => {
             shared.setPage("Notifications");
 
             if (drawn) {
                 drawn(shared.getConfig()?.notifications);
+                shared.paintDisplaySwitches(view, applyDisplay);
                 return;
             }
 
@@ -285,6 +293,8 @@ export default function (view, params) {
             renderer.applyTheme(find("sf-app"));
 
             find("notification-endpoint").innerText = shared.NOTIFICATION_URL;
+            // Drawn once, so wired once: no showing to tie the listeners to.
+            shared.wireDisplaySwitches(view, undefined, applyDisplay);
 
             let edits = 0;
             const edited = () => {
