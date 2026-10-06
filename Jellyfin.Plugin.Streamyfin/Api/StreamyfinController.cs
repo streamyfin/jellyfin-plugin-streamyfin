@@ -167,7 +167,8 @@ public class StreamyfinController : ControllerBase
       return new ConfigSaveResponse { Error = true, Message = Because(e) };
     }
 
-    var problem = SettingsValidation.Check(p.settings) ?? NotificationsValidation.Check(p.notifications);
+    var problem = SettingsValidation.Check(p.settings, StreamyfinPlugin.Instance!.Settings.Current.settings)
+      ?? NotificationsValidation.Check(p.notifications);
     if (problem is not null)
     {
       return new ConfigSaveResponse { Error = true, Message = problem };
@@ -371,9 +372,9 @@ public class StreamyfinController : ControllerBase
 
     // Everything it carries is checked before anything is written, so a file with one
     // bad level does not leave the server half restored.
-    foreach (var settings in Levels(backup))
+    foreach (var (settings, before) in LevelsBeside(backup))
     {
-      if (SettingsValidation.Check(settings) is { } problem)
+      if (SettingsValidation.Check(settings, before) is { } problem)
       {
         return BadRequest(new RestoreReport { Problem = problem });
       }
@@ -454,6 +455,28 @@ public class StreamyfinController : ControllerBase
     new[] { backup.Config?.settings }
       .Concat(backup.Groups.Select(group => group.Settings))
       .Concat(backup.Users.Select(user => user.Settings));
+
+  // Each level of a backup beside what the same level holds on this server now, so a
+  // value it already stores is not refused by bounds that arrived after it was stored.
+  // Restoring the server's own backup is the case that has to work.
+  private IEnumerable<(Configuration.Settings.Settings? Settings, Configuration.Settings.Settings? Before)> LevelsBeside(ConfigurationBackup backup)
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    yield return (backup.Config?.settings, StreamyfinPlugin.Instance!.Settings.Current.settings);
+
+    foreach (var group in backup.Groups)
+    {
+      var stored = database.GetSettingsGroup(group.Id);
+      yield return (group.Settings, stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"group {stored.Id}"));
+    }
+
+    foreach (var user in backup.Users)
+    {
+      var stored = database.GetUserSettingsOverride(user.UserId);
+      yield return (user.Settings, stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {user.UserId}"));
+    }
+  }
 
   /// <summary>
   /// Asks one integration whether it is there, at an address that has not been saved yet.
@@ -1104,7 +1127,10 @@ public class StreamyfinController : ControllerBase
       return BadRequest("A group needs a name");
     }
 
-    var problem = SettingsValidation.Check(request.Settings)
+    var existing = StreamyfinPlugin.Instance!.Database.GetSettingsGroup(id);
+    var problem = SettingsValidation.Check(
+        request.Settings,
+        existing is null ? null : Resolution.ReadLevel(existing.SettingsJson, $"group {id}"))
       ?? NotificationsValidation.CheckTargeting(request.Notifications);
 
     if (problem is not null)
@@ -1239,7 +1265,10 @@ public class StreamyfinController : ControllerBase
       return NoContent();
     }
 
-    var problem = SettingsValidation.Check(request.Settings)
+    var storedLevel = database.GetUserSettingsOverride(userId);
+    var problem = SettingsValidation.Check(
+        request.Settings,
+        storedLevel is null ? null : Resolution.ReadLevel(storedLevel.SettingsJson, $"user {userId}"))
       ?? NotificationsValidation.CheckTargeting(request.Notifications);
 
     if (problem is not null)

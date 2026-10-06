@@ -93,6 +93,41 @@ public class SettingsValidationTests
     }
 
     /// <summary>
+    /// A value the level already holds is not refused by bounds that arrived after it.
+    /// </summary>
+    /// <remarks>
+    /// 0.68.1's example said auto play took 1 to 10 and the app honours a 10. Held to the
+    /// app's own 7, a server storing 10 could no longer save any tab, since every tab
+    /// sends the whole configuration, nor restore its own backup.
+    /// </remarks>
+    [Fact]
+    public void AStoredValueOutsideBoundsThatArrivedLaterIsLeftAlone()
+    {
+        var before = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = false } };
+        var settings = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = true } };
+
+        Assert.Empty(SettingsValidation.Problems(settings, before));
+    }
+
+    /// <summary>
+    /// A value that changed is held to the bounds, whatever the level held before.
+    /// </summary>
+    [Theory]
+    [InlineData(3)]
+    [InlineData(null)]
+    public void AChangedValueOutsideBoundsIsRefused(int? stored)
+    {
+        var before = stored is null
+            ? null
+            : new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = stored.Value, locked = false } };
+        var settings = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = false } };
+
+        Assert.Equal(
+            ["Max auto play episode count accepts -1 to 7, and this is 10."],
+            SettingsValidation.Problems(settings, before));
+    }
+
+    /// <summary>
     /// A subtitle size below 10 is refused, since the app would read it as a scale.
     /// </summary>
     /// <remarks>
