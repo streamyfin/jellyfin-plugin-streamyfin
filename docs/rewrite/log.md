@@ -8,6 +8,32 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-06, the Home tab, and editors where values were typed
+
+The Home tab says what it does (#217): a home screen saved there replaces the app's own, every
+section is one row scrolling sideways, filled by one source, and the kinds have plain names, each
+with a line saying what fills the row. A section starts from one of three examples the plugin
+ships, which a server test holds to the schema; nothing is saved before Save. Sections are
+dragged by a handle onto another card, or moved by their arrows, which keep the focus, and both
+moves are read out. Beside the list, a preview draws the rows in order, with posters or wide
+cards as each row says. A section's library is picked by name from the server's libraries; on
+next up and recently added it only decides who sees the row. An empty list of sections is now
+stored and served as no list, so a group whose home is empty leaves its members the app's own
+home screen rather than a blank one. With it, P5 is complete.
+
+The Application tab stopped asking for typed values where the app offers a choice (#216). The
+app language is a menu, the device's own language first, then the app's 34. The hero carousel's
+filters are boxes, the library options are fields, with the titles greyed out under the poster
+style as the app's sheet does, and the libraries to hide are boxes named after the server's
+libraries. Every setting the app has a default for, 77 of the 86, gets a Reset at the end of its
+line that says the value it puts back and follows what is typed. Where the plugin declares no
+default, so as not to push one to every user, the value comes from the app's own source:
+`AppSettingsManifest.json` moved from the tests into the plugin, which reads it at run time. The
+Yaml tab's descriptions name the values a list takes, and that the libraries to hide are ids.
+`app-parity.yml` regenerates the manifest from the app's `develop` every week and fails when the
+app has moved; its schedule only fires from `main`, which gets the file in a pull request of its
+own.
+
 ## 2026-10-06, the Application tab matched to the app
 
 The Application tab offers what the app reads, the way the app offers it (#215). Four settings
