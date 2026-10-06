@@ -162,19 +162,27 @@ describe("the display switches", () => {
 // The banner that explains the three states can be closed for good, and nothing said what
 // a box with a dash meant.
 describe("the legend", () => {
-    test("names the three boxes and the three states", () => {
+    const items = (mount) => [...mount.querySelectorAll(".sf-legend-item")].map((item) => item.textContent);
+    const headings = (mount) => [...mount.querySelectorAll(".sf-legend-h")].map((heading) => heading.textContent);
+
+    test("names the three states and the three boxes, each in the shape the rows use", () => {
         const mount = document.createElement("div");
 
         drawLegend(mount);
 
-        const items = [...mount.children];
-        expect(items.map((item) => item.textContent)).toEqual([
+        expect(headings(mount)).toEqual(["How a setting reaches users", "What a box says"]);
+        expect(items(mount)).toEqual([
+            "Free each user decides",
+            "Suggested your value, set once as each user's starting point",
+            "Locked your value, and users cannot change it",
             "On",
             "Off",
-            "Not set: the app uses its own default",
-            "Free: each user decides",
-            "Suggested: your value, set once as each user's starting point",
-            "Locked: your value, and users cannot change it",
+            "Not set the app uses its own default",
+        ]);
+        expect([...mount.querySelectorAll(".sf-edge")].map((edge) => edge.className)).toEqual([
+            "sf-edge is-free",
+            "sf-edge is-suggested",
+            "sf-edge is-locked",
         ]);
         const boxes = mount.querySelectorAll("input.sf-check");
         expect([...boxes].map((box) => [box.checked, box.indeterminate, box.disabled])).toEqual([
@@ -182,6 +190,7 @@ describe("the legend", () => {
             [false, false, true],
             [false, true, true],
         ]);
+        expect(mount.querySelector(".sf-legend-note").textContent).toContain("Only what you set here travels");
     });
 
     // On a level there is no Free and nothing unset: a setting is listed there or the
@@ -191,10 +200,10 @@ describe("the legend", () => {
 
         drawLegend(mount, { level: true });
 
-        const said = [...mount.children].map((item) => item.textContent);
-        expect(said).toContain("Not listed: the level above decides");
-        expect(said.some((text) => text.startsWith("Free"))).toBe(false);
+        expect(items(mount)).toContain("Not listed the level above decides");
+        expect(items(mount).some((text) => text.startsWith("Free"))).toBe(false);
         expect(mount.querySelectorAll("input.sf-check")).toHaveLength(2);
+        expect(mount.querySelector(".sf-legend-note")).toBeNull();
     });
 
     test("is drawn once however often the page is shown", () => {
@@ -203,6 +212,6 @@ describe("the legend", () => {
         drawLegend(mount);
         drawLegend(mount);
 
-        expect(mount.children.length).toBe(6);
+        expect(mount.querySelectorAll(".sf-legend-item")).toHaveLength(6);
     });
 });

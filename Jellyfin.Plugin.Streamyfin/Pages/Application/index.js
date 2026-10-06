@@ -258,13 +258,24 @@ export default function (view) {
         });
     };
 
+    // The banner is the legend. Closed with its cross or the Legend switch, and opened
+    // again with the switch, which a closed banner had no way back from.
     const wireBanner = () => {
         const banner = el("sf-banner");
-        banner.hidden = recalled(BANNER_KEY) === "off";
-        listen("sf-banner-close", "click", () => {
-            banner.hidden = true;
-            remember(BANNER_KEY, "off");
-        });
+        const toggle = el("sf-legend-toggle");
+        const show = (on) => {
+            banner.hidden = !on;
+            toggle?.setAttribute("aria-pressed", String(on));
+            const pip = toggle?.querySelector(".sf-pip");
+            if (pip) pip.textContent = on ? "ON" : "OFF";
+        };
+        show(recalled(BANNER_KEY) !== "off");
+        const choose = (on) => {
+            show(on);
+            remember(BANNER_KEY, on ? "on" : "off");
+        };
+        listen("sf-banner-close", "click", () => choose(false));
+        listen("sf-legend-toggle", "click", () => choose(banner.hidden));
     };
 
     const wireDock = (shared) => {

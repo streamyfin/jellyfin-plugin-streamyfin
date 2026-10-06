@@ -121,49 +121,85 @@ export const wireDisplaySwitches = (view, signal, apply) => {
     paintDisplaySwitches(view, apply);
 };
 
-// What the boxes and the three states mean, drawn under every list of settings. The
-// banner says it once and can be closed; this stays, in the boxes' own shapes.
-const LEGEND = [
-    ["box", "on", "On"],
-    ["box", "off", "Off"],
-    ["box", "unset", "Not set: the app uses its own default"],
-    ["edge", "free", "Free: each user decides"],
-    ["edge", "suggested", "Suggested: your value, set once as each user's starting point"],
-    ["edge", "locked", "Locked: your value, and users cannot change it"],
-];
+// What the states and the boxes mean, in the shapes the rows draw them in. On the
+// Application tab it is the banner at the top, which can be closed and opened again with
+// the Legend switch; on a level it ends the overrides. It was a loose line under the last
+// card, which read as something left over.
+const LEGEND = {
+    states: ["How a setting reaches users", [
+        ["edge", "free", "Free", "each user decides"],
+        ["edge", "suggested", "Suggested", "your value, set once as each user's starting point"],
+        ["edge", "locked", "Locked", "your value, and users cannot change it"],
+    ]],
+    boxes: ["What a box says", [
+        ["box", "on", "On", null],
+        ["box", "off", "Off", null],
+        ["box", "unset", "Not set", "the app uses its own default"],
+    ]],
+    note: "Only what you set here travels. Everything else stays the app's own default.",
+};
 
 // A level has no Free and no unset box: a setting is overridden there or falls through.
-const LEVEL_LEGEND = [
-    ["box", "on", "On"],
-    ["box", "off", "Off"],
-    ["edge", "suggested", "Suggested: this level's value, set once as each user's starting point"],
-    ["edge", "locked", "Locked: this level's value, and users cannot change it"],
-    ["edge", "free", "Not listed: the level above decides"],
-];
+const LEVEL_LEGEND = {
+    states: ["How this level reaches its users", [
+        ["edge", "suggested", "Suggested", "this level's value, set once as each user's starting point"],
+        ["edge", "locked", "Locked", "this level's value, and users cannot change it"],
+        ["edge", "free", "Not listed", "the level above decides"],
+    ]],
+    boxes: ["What a box says", [
+        ["box", "on", "On", null],
+        ["box", "off", "Off", null],
+    ]],
+    note: null,
+};
+
+const legendMark = (shape, state) => {
+    if (shape === "box") {
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.className = "sf-check";
+        box.disabled = true;
+        box.tabIndex = -1;
+        box.checked = state === "on";
+        box.indeterminate = state === "unset";
+        box.setAttribute("aria-hidden", "true");
+        return box;
+    }
+    const edge = document.createElement("i");
+    edge.className = `sf-edge is-${state}`;
+    return edge;
+};
 
 export const drawLegend = (mount, { level = false } = {}) => {
     if (!mount) return;
+    const legend = level ? LEVEL_LEGEND : LEGEND;
     mount.replaceChildren();
     mount.setAttribute("aria-label", "What the boxes and states mean");
-    for (const [shape, state, text] of level ? LEVEL_LEGEND : LEGEND) {
-        const item = document.createElement("span");
-        if (shape === "box") {
-            const box = document.createElement("input");
-            box.type = "checkbox";
-            box.className = "sf-check";
-            box.disabled = true;
-            box.tabIndex = -1;
-            box.checked = state === "on";
-            box.indeterminate = state === "unset";
-            box.setAttribute("aria-hidden", "true");
-            item.appendChild(box);
-        } else {
-            const edge = document.createElement("i");
-            edge.className = `sf-edge is-${state}`;
-            item.appendChild(edge);
+    for (const [heading, items] of [legend.states, legend.boxes]) {
+        const column = document.createElement("div");
+        column.className = "sf-legend-col";
+        const title = document.createElement("p");
+        title.className = "sf-legend-h";
+        title.textContent = heading;
+        column.appendChild(title);
+        for (const [shape, state, name, text] of items) {
+            const item = document.createElement("div");
+            item.className = "sf-legend-item";
+            const words = document.createElement("span");
+            const bold = document.createElement("b");
+            bold.textContent = name;
+            words.appendChild(bold);
+            if (text) words.appendChild(document.createTextNode(` ${text}`));
+            item.append(legendMark(shape, state), words);
+            column.appendChild(item);
         }
-        item.appendChild(document.createTextNode(text));
-        mount.appendChild(item);
+        mount.appendChild(column);
+    }
+    if (legend.note) {
+        const note = document.createElement("p");
+        note.className = "sf-legend-note";
+        note.textContent = legend.note;
+        mount.appendChild(note);
     }
 };
 
