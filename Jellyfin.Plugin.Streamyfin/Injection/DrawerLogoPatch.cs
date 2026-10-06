@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Jellyfin.Plugin.Streamyfin.Injection;
 
 /// <summary>
-/// Puts the plugin's own logo on its row in the dashboard drawer.
+/// Puts the plugin's mark on its row in the dashboard drawer, in the drawer's own colour.
 /// </summary>
 /// <remarks>
 /// The drawer renders the icon as <c>&lt;Icon&gt;{MenuIcon}&lt;/Icon&gt;</c>, MUI's icon
@@ -65,16 +65,27 @@ public static class DrawerLogoPatch
 
     private const string Marker = "streamyfin-drawer-logo";
 
+    /// <summary>
+    /// The logo drawn the way the drawer's Material icons are: one colour, on their 24 px
+    /// grid, its outline at their 2 px. The play triangle as a line, the wave filled below
+    /// it.
+    /// </summary>
+    /// <remarks>
+    /// The logo in colour, which this used to show, was the only coloured thing in a list of
+    /// white glyphs. The mark is a mask filled with the row's own colour, so it is white on
+    /// the dark theme, dark on the light one, and follows the row when it is hovered or
+    /// selected, as the glyphs beside it do.
+    /// </remarks>
+    internal const string Mark =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\">"
+        + "<defs><clipPath id=\"in\"><path d=\"M8.83 4.04L18.63 9.36A3 3 0 0 1 18.63 14.64L8.83 19.96A3 3 0 0 1 4.4 17.33L4.4 6.67A3 3 0 0 1 8.83 4.04Z\"/></clipPath></defs>"
+        + "<path d=\"M8.83 4.04L18.63 9.36A3 3 0 0 1 18.63 14.64L8.83 19.96A3 3 0 0 1 4.4 17.33L4.4 6.67A3 3 0 0 1 8.83 4.04Z\" fill=\"none\" stroke=\"#000\" stroke-width=\"2\" stroke-linejoin=\"round\"/>"
+        + "<path d=\"M4.4 10.67C6.8 9.67 8.8 10.07 10.8 11.97S14.95 15.16 17.95 15.01L21.95 23.01L0.4 23.01L0.4 10.67Z\" clip-path=\"url(#in)\"/>"
+        + "</svg>";
+
     private static string Style(string landingPage)
     {
-        var version = typeof(StreamyfinPlugin).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
-        var id = StreamyfinPlugin.PluginId.ToString("N", CultureInfo.InvariantCulture);
-
-        // Jellyfin already serves the logo, from imagePath in the plugin's meta.json.
-        // The version is part of the route: the id alone answers 405.
-        var image = string.Create(
-            CultureInfo.InvariantCulture,
-            $"/Plugins/{id}/{version}/Image");
+        var mark = "data:image/svg+xml," + Uri.EscapeDataString(Mark);
 
         // Scoped to the drawer's plugin list, which jellyfin-web labels
         // plugins-subheader, so the rule cannot reach a link anywhere else in the app.
@@ -89,7 +100,9 @@ public static class DrawerLogoPatch
                 font-size: 0;
                 width: 1.5rem;
                 height: 1.5rem;
-                background: center / contain no-repeat url("{{image}}");
+                background-color: currentColor;
+                -webkit-mask: url("{{mark}}") center / contain no-repeat;
+                mask: url("{{mark}}") center / contain no-repeat;
             }
             </style>
 

@@ -46,17 +46,36 @@ public class DrawerLogoPatchTests
     }
 
     /// <summary>
-    /// The rule points at the image Jellyfin already serves for the plugin, by id and by
-    /// version. The id alone answers 405, so the version is not optional.
+    /// The mark is a mask filled with the row's colour, as the Material glyphs beside it
+    /// are drawn, rather than the logo in colour, the one coloured thing in the list.
     /// </summary>
     [Fact]
-    public void TheRulePointsAtThePluginsOwnImage()
+    public void TheMarkTakesTheRowsColour()
     {
         var patched = DrawerLogoPatch.Inject(Document, LandingPage);
 
-        var version = typeof(StreamyfinPlugin).Assembly.GetName().Version!.ToString();
+        Assert.Contains("background-color: currentColor;", patched, System.StringComparison.Ordinal);
+        Assert.Contains("mask: url(\"data:image/svg+xml,", patched, System.StringComparison.Ordinal);
+        Assert.Contains("-webkit-mask: url(\"data:image/svg+xml,", patched, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("/Image", patched, System.StringComparison.Ordinal);
+    }
 
-        Assert.Contains($"/Plugins/1e9e5d386e6746158719e98a5c34f004/{version}/Image", patched, System.StringComparison.Ordinal);
+    /// <summary>
+    /// What the rule carries is the mark, whole, on Material's 24 px grid: escaped so it
+    /// survives a CSS string, and readable once unescaped.
+    /// </summary>
+    [Fact]
+    public void TheMarkTravelsWholeInTheRule()
+    {
+        var patched = DrawerLogoPatch.Inject(Document, LandingPage);
+        var start = patched.IndexOf("data:image/svg+xml,", System.StringComparison.Ordinal) + "data:image/svg+xml,".Length;
+        var end = patched.IndexOf('"', start);
+
+        var svg = System.Xml.Linq.XDocument.Parse(System.Uri.UnescapeDataString(patched[start..end]));
+
+        Assert.Equal(DrawerLogoPatch.Mark, System.Uri.UnescapeDataString(patched[start..end]));
+        Assert.Equal("0 0 24 24", svg.Root!.Attribute("viewBox")!.Value);
+        Assert.DoesNotContain("\"", patched[start..end], System.StringComparison.Ordinal);
     }
 
     /// <summary>
