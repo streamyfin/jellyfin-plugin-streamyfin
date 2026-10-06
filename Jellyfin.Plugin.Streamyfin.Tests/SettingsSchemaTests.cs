@@ -214,4 +214,26 @@ public class SettingsSchemaTests
         Assert.NotNull(config.settings);
         Assert.Null(config.settings!.defaultBitrate!.value);
     }
+
+    /// <summary>
+    /// An event with settings of its own still takes the ones every event has.
+    /// </summary>
+    /// <remarks>
+    /// The Yaml editor validates against this schema. A derived type described as
+    /// allOf the base type and its own properties, with additionalProperties false on
+    /// the latter, refuses the base type's properties, so the editor marked
+    /// <c>itemAdded.enabled</c> as an error on every configuration.
+    /// </remarks>
+    [Fact]
+    public async System.Threading.Tasks.Task AnEventWithSettingsOfItsOwnStillTakesTheCommonOnes()
+    {
+        var schema = await NJsonSchema.JsonSchema.FromJsonAsync(SerializationHelper.GetJsonSchema<Config>());
+
+        var errors = schema.Validate(
+            """
+            {"notifications": {"itemAdded": {"enabled": true, "recentEventThreshold": 5, "enabledLibraries": []}}}
+            """);
+
+        Assert.Empty(errors);
+    }
 }

@@ -132,7 +132,11 @@ public class SerializationHelper
     {
         var settings = new SystemTextJsonSchemaGeneratorSettings
         {
-            TypeMappers = HTMLFormTypeMappers()
+            TypeMappers = HTMLFormTypeMappers(),
+            // A derived type as allOf its base and its own properties, each closed with
+            // additionalProperties false, refuses the other's properties, so the Yaml
+            // editor flagged itemAdded.enabled. One object per type does not.
+            FlattenInheritanceHierarchy = true
         };
 #if DEBUG
         settings.SerializerOptions.WriteIndented = true;
