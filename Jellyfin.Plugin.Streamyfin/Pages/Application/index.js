@@ -45,22 +45,19 @@ const iconFor = (category) => {
     return svg;
 };
 
+// These reject when the request fails rather than answering with a fallback, so the
+// answers kept between tabs never hold a failure; the page's fallbacks go on after them.
 const readVersion = async () => {
-    try {
-        const plugins = await window.ApiClient.getInstalledPlugins();
-        return plugins.find((plugin) => plugin.Id?.replace(/-/g, "") === PLUGIN_ID.replace(/-/g, ""))?.Version ?? null;
-    } catch {
-        return null;
-    }
+    const plugins = await window.ApiClient.getInstalledPlugins();
+    return plugins.find((plugin) => plugin.Id?.replace(/-/g, "") === PLUGIN_ID.replace(/-/g, ""))?.Version ?? null;
 };
 
-const readCultures = async () => {
-    try {
-        return await window.ApiClient.getCultures();
-    } catch {
-        return [];
-    }
-};
+const readCultures = () => window.ApiClient.getCultures();
+
+// Kept between tabs. A page whose request failed draws without them, and the next visit
+// asks again.
+export const keptCultures = (shared) => shared.remembered("cultures", readCultures).catch(() => []);
+export const keptVersion = (shared) => shared.remembered("version", readVersion).catch(() => null);
 
 export default function (view) {
     let form = null;
@@ -259,8 +256,8 @@ export default function (view) {
 
         const [fields, cultures, version] = await Promise.all([
             shared.readKept("streamyfin/v1/settings/form"),
-            shared.remembered("cultures", readCultures),
-            shared.remembered("version", readVersion),
+            keptCultures(shared),
+            keptVersion(shared),
         ]);
         // shared.js logs and swallows a failed fetch of either. Drawing without the config
         // would show every setting as free and let a save post a configuration missing
