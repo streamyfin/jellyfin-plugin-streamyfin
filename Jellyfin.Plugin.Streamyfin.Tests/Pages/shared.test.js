@@ -13,7 +13,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 window.ApiClient = { getUrl: (path) => `http://server/${path}` };
 window.Streamyfin = { shared: true };
 
-const { confirmed, paintDisplaySwitches, wireDisplaySwitches } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
+const { confirmed, drawLegend, paintDisplaySwitches, wireDisplaySwitches } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
 
 afterEach(() => {
     delete window.Dashboard;
@@ -140,5 +140,40 @@ describe("the display switches", () => {
         root.querySelector("#sf-terse").click();
 
         expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
+    });
+});
+
+// The banner that explains the three states can be closed for good, and nothing said what
+// a box with a dash meant.
+describe("the legend", () => {
+    test("names the three boxes and the three states", () => {
+        const mount = document.createElement("div");
+
+        drawLegend(mount);
+
+        const items = [...mount.children];
+        expect(items.map((item) => item.textContent)).toEqual([
+            "On",
+            "Off",
+            "Not set: the app uses its own default",
+            "Free: each user decides",
+            "Suggested: your value, set once as each user's starting point",
+            "Locked: your value, and users cannot change it",
+        ]);
+        const boxes = mount.querySelectorAll("input.sf-check");
+        expect([...boxes].map((box) => [box.checked, box.indeterminate, box.disabled])).toEqual([
+            [true, false, true],
+            [false, false, true],
+            [false, true, true],
+        ]);
+    });
+
+    test("is drawn once however often the page is shown", () => {
+        const mount = document.createElement("div");
+
+        drawLegend(mount);
+        drawLegend(mount);
+
+        expect(mount.children.length).toBe(6);
     });
 });

@@ -117,6 +117,43 @@ export const wireDisplaySwitches = (view, signal, apply) => {
     paintDisplaySwitches(view, apply);
 };
 
+// What the boxes and the three states mean, drawn under every list of settings. The
+// banner says it once and can be closed; this stays, in the boxes' own shapes.
+const LEGEND = [
+    ["box", "on", "On"],
+    ["box", "off", "Off"],
+    ["box", "unset", "Not set: the app uses its own default"],
+    ["edge", "free", "Free: each user decides"],
+    ["edge", "suggested", "Suggested: your value, set once as each user's starting point"],
+    ["edge", "locked", "Locked: your value, and users cannot change it"],
+];
+
+export const drawLegend = (mount) => {
+    if (!mount) return;
+    mount.replaceChildren();
+    mount.setAttribute("aria-label", "What the boxes and states mean");
+    for (const [shape, state, text] of LEGEND) {
+        const item = document.createElement("span");
+        if (shape === "box") {
+            const box = document.createElement("input");
+            box.type = "checkbox";
+            box.className = "sf-check";
+            box.disabled = true;
+            box.tabIndex = -1;
+            box.checked = state === "on";
+            box.indeterminate = state === "unset";
+            box.setAttribute("aria-hidden", "true");
+            item.appendChild(box);
+        } else {
+            const edge = document.createElement("i");
+            edge.className = `sf-edge is-${state}`;
+            item.appendChild(edge);
+        }
+        item.appendChild(document.createTextNode(text));
+        mount.appendChild(item);
+    }
+};
+
 export const probeIntegration = (kind, address) =>
     window.ApiClient.ajax({
         type: "POST",

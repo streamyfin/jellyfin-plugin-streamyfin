@@ -423,3 +423,15 @@
 .sf-page .sf-wording .sf-wording-drop { flex: none; }
 .sf-page .sf-card--wording .sf-adder { display: flex; gap: 0.6rem; padding: 0.4rem 0 0.8rem; }
 .sf-page .sf-card--wording .sf-adder .sf-select { flex: 1 1 auto; min-width: 0; }
+
+/* What the boxes and the three states mean, under the list. At the foot of a page it
+   keeps clear of the save dock, which floats over the bottom. */
+.sf-page .sf-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 1rem 0 0; font-size: 0.86rem; color: var(--sf-ink-3); }
+.sf-page > .sf-legend { margin-bottom: 5rem; }
+.sf-page .sf-legend > span { display: inline-flex; align-items: center; gap: 0.5rem; }
+.sf-page .sf-legend .sf-check { width: 1.05rem; height: 1.05rem; cursor: default; }
+.sf-page .sf-legend .sf-check:checked::after { left: 0.27rem; top: 0.05rem; width: 0.3rem; height: 0.58rem; border-width: 0 2px 2px 0; }
+.sf-page .sf-legend .sf-check:indeterminate::after { left: 0.2rem; right: 0.2rem; height: 2px; }
+.sf-page .sf-legend .sf-edge { display: inline-block; width: 4px; height: 1.1rem; border-radius: 2px; border: 1px solid var(--sf-line); }
+.sf-page .sf-legend .sf-edge.is-suggested { background: var(--sf-ac); border-color: var(--sf-ac); }
+.sf-page .sf-legend .sf-edge.is-locked { background: var(--sf-pin); border-color: var(--sf-pin); }

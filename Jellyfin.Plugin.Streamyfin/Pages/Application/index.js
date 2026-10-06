@@ -323,6 +323,7 @@ export default function (view) {
         el("sf-meta").textContent = [version, `${fields.length} settings`].filter(Boolean).join(" · ");
 
         buildNavigation();
+        shared.drawLegend(el("sf-legend"));
         shared.wireDisplaySwitches(view, showing.signal, ({ descriptions, keys }) => {
             form?.setTerse(!descriptions);
             form?.setKeys(keys);
