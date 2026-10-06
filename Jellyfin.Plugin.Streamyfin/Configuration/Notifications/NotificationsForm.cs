@@ -75,9 +75,9 @@ public static class NotificationsForm
                     Group: null,
                     Title: fieldDisplay?.GetName() ?? field.Name,
                     // The switch that turns an event on says what the event is. The
-                    // property's own sentence, "if true, the notifications for this
-                    // event are enabled", says only what a checkbox is for, and the
-                    // card is already named after the event.
+                    // property's own sentence, "Send the notifications for this event.",
+                    // reads the same on every card, and the card is already named after
+                    // the event.
                     Description: JsonNameOf(field) == "enabled"
                         ? display?.GetDescription() ?? described
                         : described,

@@ -22,7 +22,7 @@ public class NotificationConfiguration
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
-    [Display(Name = "Enabled libraries", Description = "Enter all library Ids you want to receive notifications from. Leave it out to notify for every library.")]
+    [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
 }
