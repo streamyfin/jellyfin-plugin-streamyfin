@@ -347,7 +347,7 @@ settings:
   
   inactivityTimeout:
     locked: false
-    value: 0  # Milliseconds. 0 never signs out
+    value: Disabled  # Disabled, OneMinute, FiveMinutes, FifteenMinutes, ThirtyMinutes, OneHour, FourHours or TwentyFourHours
   
   nativeVideoPlayerTV:
     locked: false
@@ -362,7 +362,7 @@ settings:
   # everyone, including devices that never chose.
   videoPlayer:
     locked: false
-    value: 0  # 0 mpv, 1 ExoPlayer (Android TV only), 2 native
+    value: MPV  # MPV, ExoPlayer (Android TV only) or Native
 
   # ==================== Playback & Audio ====================
   autoPlayNextEpisode:

@@ -780,6 +780,10 @@ public class Settings
 
 }
 
+// Kept out of the schema's inheritance flattening. Flattened, a Dictionary subclass
+// becomes a closed object with no properties instead of a map of values, and the Yaml
+// editor refused every key of a custom section's query and headers.
+[JsonSchemaFlatten(false)]
 [XmlRoot("dictionary")]
 public class SerializableDictionary<TKey, TValue>
        : Dictionary<TKey, TValue>, IXmlSerializable
