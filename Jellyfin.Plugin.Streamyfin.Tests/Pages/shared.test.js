@@ -148,6 +148,39 @@ describe("the display switches", () => {
         expect(applied.at(-1)).toEqual({ descriptions: false, keys: false });
     });
 
+    // Notifications wires its switches once and repaints them on each showing. A click
+    // after another tab had changed the other switch applied that switch's old value.
+    test("a click after another tab's change applies both switches as shown", () => {
+        const root = view("sf-terse", "sf-keys");
+        const applied = [];
+        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+
+        window.localStorage.setItem("streamyfin.admin.descriptions", "off");
+        paintDisplaySwitches(root, () => {});
+        root.querySelector("#sf-keys").click();
+
+        expect(applied.at(-1)).toEqual({ descriptions: false, keys: true });
+    });
+
+    // The Targeting tab's events card is outside the form, and kept its help text with
+    // Descriptions off.
+    test("a card that follows the switches hides its help and its keys with them", () => {
+        const root = view("sf-terse", "sf-keys");
+        const card = document.createElement("section");
+        card.setAttribute("data-sf-follows-display", "");
+        root.appendChild(card);
+        wireDisplaySwitches(root, undefined, () => {});
+
+        expect(card.classList.contains("is-terse")).toBe(false);
+        expect(card.classList.contains("is-keyless")).toBe(true);
+
+        root.querySelector("#sf-terse").click();
+        root.querySelector("#sf-keys").click();
+
+        expect(card.classList.contains("is-terse")).toBe(true);
+        expect(card.classList.contains("is-keyless")).toBe(false);
+    });
+
     test("a view without one of the switches is still wired", () => {
         const root = view("sf-terse");
         const applied = [];

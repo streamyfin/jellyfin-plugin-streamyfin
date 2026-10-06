@@ -92,6 +92,24 @@ const paintSwitch = (toggle, on) => {
     if (pip) pip.textContent = on ? "ON" : "OFF";
 };
 
+// A card a page draws outside its form follows the switches by carrying this attribute:
+// the Targeting tab's events card kept its help text with Descriptions off.
+const applyToFollowers = (view, choice) => {
+    for (const node of view.querySelectorAll("[data-sf-follows-display]")) {
+        node.classList.toggle("is-terse", !choice.descriptions);
+        node.classList.toggle("is-keyless", !choice.keys);
+    }
+};
+
+// Both choices as the view's switches show them, or as remembered for one it lacks.
+const shown = (view) => {
+    const pressed = (id, read) => {
+        const toggle = view.querySelector(`#${id}`);
+        return toggle ? toggle.getAttribute("aria-pressed") === "true" : read();
+    };
+    return { descriptions: pressed("sf-terse", showsDescriptions), keys: pressed("sf-keys", showsKeys) };
+};
+
 // Shows the remembered choices on whichever switches the view has, and hands them to
 // apply as { descriptions, keys }. For a view shown again, after another tab changed them.
 export const paintDisplaySwitches = (view, apply) => {
@@ -99,23 +117,27 @@ export const paintDisplaySwitches = (view, apply) => {
         const toggle = view.querySelector(`#${id}`);
         if (toggle) paintSwitch(toggle, read());
     }
-    apply({ descriptions: showsDescriptions(), keys: showsKeys() });
+    const choice = { descriptions: showsDescriptions(), keys: showsKeys() };
+    applyToFollowers(view, choice);
+    apply(choice);
 };
 
 // Wires the switches for one showing of the view, the listeners dropped with signal. A
 // click applies what was clicked: storage only remembers it, and a dashboard that
 // refuses to store would otherwise show a switch saying one thing and a page another.
 export const wireDisplaySwitches = (view, signal, apply) => {
-    const choice = { descriptions: showsDescriptions(), keys: showsKeys() };
-    for (const [id, read, write] of DISPLAY_SWITCHES) {
+    for (const [id, , write] of DISPLAY_SWITCHES) {
         const toggle = view.querySelector(`#${id}`);
         if (!toggle) continue;
         toggle.addEventListener("click", () => {
             const on = toggle.getAttribute("aria-pressed") !== "true";
             write(on);
             paintSwitch(toggle, on);
-            choice[id === "sf-keys" ? "keys" : "descriptions"] = on;
-            apply({ ...choice });
+            // Both as the switches show them now, not as they were when this was wired: a
+            // view wired once is repainted when another tab changes the other switch.
+            const choice = shown(view);
+            applyToFollowers(view, choice);
+            apply(choice);
         }, { signal });
     }
     paintDisplaySwitches(view, apply);

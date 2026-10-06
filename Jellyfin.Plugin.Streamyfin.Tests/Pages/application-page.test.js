@@ -28,3 +28,13 @@ describe("the legend", () => {
         expect(toggle.textContent).toContain("Legend");
     });
 });
+
+describe("the Targeting tab", () => {
+    // Outside the form, so the switches reach it by the attribute rather than through the form.
+    test("has its events card follow the Descriptions and Keys switches", async () => {
+        const host = document.createElement("div");
+        host.innerHTML = await read("Targeting/index.html");
+
+        expect(host.querySelector("#sf-events-card").hasAttribute("data-sf-follows-display")).toBe(true);
+    });
+});
