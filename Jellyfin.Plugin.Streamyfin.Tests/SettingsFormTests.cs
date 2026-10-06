@@ -84,6 +84,38 @@ public class SettingsFormTests
     }
 
     /// <summary>
+    /// The libraries to hide are offered as this server's libraries, by name, and the id
+    /// each one stands for is what is stored.
+    /// </summary>
+    /// <remarks>
+    /// The field asked for ids, which nobody knows by heart: an administrator had to find
+    /// each one in the address bar of a library. The notifications page has always been
+    /// handed the server's libraries; the settings form is handed the same list.
+    /// </remarks>
+    [Fact]
+    public void TheLibrariesToHideAreTheServersLibraries()
+    {
+        var libraries = new[] { new SettingsChoice("f137a2dd21bbc1b99aa5c0f6bf02a805", "Movies"), new SettingsChoice("a656b907eb3a73532e40e44b968d0225", "Shows") };
+
+        var field = SettingsForm.Describe(libraries).Single(f => f.Key == "hiddenLibraries");
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Equal(libraries, field.Options);
+    }
+
+    /// <summary>
+    /// Without the server's libraries, the field is still a list of ids to type.
+    /// </summary>
+    [Fact]
+    public void WithoutTheServersLibrariesTheIdsAreTyped()
+    {
+        var field = SettingsForm.Describe().Single(f => f.Key == "hiddenLibraries");
+
+        Assert.Equal(SettingsControl.List, field.Control);
+        Assert.Empty(field.Options);
+    }
+
+    /// <summary>
     /// The home layout, which has fields of its own, keeps the control written for it.
     /// </summary>
     [Fact]

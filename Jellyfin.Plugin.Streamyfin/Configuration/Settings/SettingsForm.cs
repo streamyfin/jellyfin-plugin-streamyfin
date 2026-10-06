@@ -112,15 +112,20 @@ public static class SettingsForm
     /// <summary>
     /// Every setting, in the order they are declared.
     /// </summary>
+    /// <param name="libraries">
+    /// The server's libraries, offered by a setting that holds library ids. Without them
+    /// such a setting is a list of ids to type.
+    /// </param>
     /// <returns>The fields the form draws.</returns>
-    public static IReadOnlyList<SettingsFormField> Describe() =>
-        SettingsSchema.Descriptors.Select(Describe).ToList();
+    public static IReadOnlyList<SettingsFormField> Describe(IReadOnlyList<SettingsChoice>? libraries = null) =>
+        SettingsSchema.Descriptors.Select(descriptor => Describe(descriptor, libraries)).ToList();
 
-    private static SettingsFormField Describe(SettingDescriptor descriptor)
+    private static SettingsFormField Describe(SettingDescriptor descriptor, IReadOnlyList<SettingsChoice>? libraries)
     {
         var type = descriptor.ValueType;
         var enumType = EnumTypeOf(type);
-        var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>();
+        var listed = descriptor.Property.GetCustomAttribute<ChoicesAttribute>()?.Choices
+            ?? (descriptor.Property.GetCustomAttribute<LibrariesAttribute>() is null ? null : libraries ?? _noOptions);
         // A list of values the app knows becomes boxes to tick, a single one a dropdown.
         var control = listed is null
             ? ControlFor(descriptor, type, enumType)
@@ -139,7 +144,7 @@ public static class SettingsForm
             Minimum: bounds?.Minimum,
             Maximum: bounds?.Maximum,
             Step: step?.Value,
-            Options: listed?.Choices ?? (enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type))),
+            Options: listed ?? (enumType is null ? _noOptions : Choices(enumType, AcceptsNull(type))),
             DependsOn: descriptor.Property.GetCustomAttribute<DependsOnAttribute>()?.Key,
             Integer: control == SettingsControl.Number && IsWhole(type),
             Probe: descriptor.Probe?.Kind.ToString(),

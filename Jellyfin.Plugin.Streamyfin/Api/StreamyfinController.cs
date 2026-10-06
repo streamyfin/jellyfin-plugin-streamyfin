@@ -227,7 +227,7 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult<IReadOnlyList<SettingsFormField>> GetSettingsForm() =>
-    new JsonResult(SettingsForm.Describe());
+    new JsonResult(SettingsForm.Describe(Libraries()));
 
   /// <summary>
   /// The notification events, as the admin page needs them.
@@ -247,14 +247,14 @@ public class StreamyfinController : ControllerBase
   [HttpGet("v1/notifications/form")]
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
-  public ActionResult<IReadOnlyList<SettingsFormField>> GetNotificationsForm()
-  {
-    var libraries = _libraryManager.GetVirtualFolders()
+  public ActionResult<IReadOnlyList<SettingsFormField>> GetNotificationsForm() =>
+    new JsonResult(NotificationsForm.Describe(Libraries()));
+
+  // The server's libraries, by id and name, for the fields that hold library ids.
+  private List<SettingsChoice> Libraries() =>
+    _libraryManager.GetVirtualFolders()
       .Select(folder => new SettingsChoice(folder.ItemId, folder.Name))
       .ToList();
-
-    return new JsonResult(NotificationsForm.Describe(libraries));
-  }
 
   /// <summary>
   /// The events, for a page that says who gets them rather than how they read.
