@@ -17,7 +17,8 @@ describe("the legend", () => {
     for (const page of ["Application", "Targeting", "Notifications"]) {
         test(`is a banner of its own on the ${page} tab, opened by the Legend switch`, async () => {
             const host = await mount(page);
-            const banner = host.querySelector("#sf-legend-banner[data-sf-legend-banner]");
+            // Named after its tab, which remembers whether it was closed.
+            const banner = host.querySelector(`#sf-legend-banner[data-sf-legend-banner="${page}"]`);
 
             expect(banner.querySelector("#sf-legend")).not.toBeNull();
             expect(banner.closest(".sf-card")).toBeNull();

@@ -181,44 +181,51 @@ describe("the display switches", () => {
         expect(card.classList.contains("is-keyless")).toBe(false);
     });
 
-    // One choice for every tab: closed on one, it stays closed on the others.
-    test("the Legend switch shows and hides the legend's banner", () => {
-        const root = view("sf-terse", "sf-keys", "sf-legend-toggle");
+    // A tab of its own, with the banner naming it.
+    const tab = (name, ...ids) => {
+        const root = view(...ids);
         const banner = document.createElement("div");
-        banner.setAttribute("data-sf-legend-banner", "");
-        root.appendChild(banner);
-        wireDisplaySwitches(root, undefined, () => {});
-
-        expect(banner.hidden).toBe(false);
-        root.querySelector("#sf-legend-toggle").click();
-        expect(banner.hidden).toBe(true);
-        expect(window.localStorage.getItem("streamyfin.admin.legend")).toBe("off");
-
-        const next = view("sf-legend-toggle");
-        const other = document.createElement("div");
-        other.setAttribute("data-sf-legend-banner", "");
-        next.appendChild(other);
-        paintDisplaySwitches(next, () => {});
-        expect(other.hidden).toBe(true);
-        expect(next.querySelector("#sf-legend-toggle .sf-pip").textContent).toBe("OFF");
-    });
-
-    test("the banner's cross is the Legend switch turned off", () => {
-        const root = view("sf-terse", "sf-legend-toggle");
-        const banner = document.createElement("div");
-        banner.setAttribute("data-sf-legend-banner", "");
+        banner.setAttribute("data-sf-legend-banner", name);
         const cross = document.createElement("button");
         cross.setAttribute("data-sf-legend-close", "");
         banner.appendChild(cross);
         root.appendChild(banner);
+        return { root, banner, cross };
+    };
+
+    test("the Legend switch shows and hides its own tab's banner", () => {
+        const application = tab("Application", "sf-terse", "sf-legend-toggle");
+        wireDisplaySwitches(application.root, undefined, () => {});
+
+        expect(application.banner.hidden).toBe(false);
+        application.root.querySelector("#sf-legend-toggle").click();
+        expect(application.banner.hidden).toBe(true);
+        expect(window.localStorage.getItem("streamyfin.admin.legend.Application")).toBe("off");
+
+        application.root.querySelector("#sf-legend-toggle").click();
+        expect(application.banner.hidden).toBe(false);
+    });
+
+    // Closed on one tab, the legend stays on the others, and stays closed on that one.
+    test("the cross closes the banner on its own tab only, and that tab remembers it", () => {
+        const application = tab("Application", "sf-terse", "sf-legend-toggle");
         const applied = [];
-        wireDisplaySwitches(root, undefined, (choice) => applied.push(choice));
+        wireDisplaySwitches(application.root, undefined, (choice) => applied.push(choice));
 
-        cross.click();
+        application.cross.click();
 
-        expect(banner.hidden).toBe(true);
-        expect(root.querySelector("#sf-legend-toggle").getAttribute("aria-pressed")).toBe("false");
+        expect(application.banner.hidden).toBe(true);
+        expect(application.root.querySelector("#sf-legend-toggle").getAttribute("aria-pressed")).toBe("false");
         expect(applied.at(-1)).toMatchObject({ descriptions: true, legend: false });
+
+        const targeting = tab("Targeting", "sf-legend-toggle");
+        paintDisplaySwitches(targeting.root, () => {});
+        expect(targeting.banner.hidden).toBe(false);
+        expect(targeting.root.querySelector("#sf-legend-toggle .sf-pip").textContent).toBe("ON");
+
+        const again = tab("Application", "sf-legend-toggle");
+        paintDisplaySwitches(again.root, () => {});
+        expect(again.banner.hidden).toBe(true);
     });
 
     test("a view without one of the switches is still wired", () => {

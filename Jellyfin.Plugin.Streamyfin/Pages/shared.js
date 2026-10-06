@@ -81,13 +81,17 @@ const keep = (key, value) => {
 export const showsDescriptions = () => recall(DESCRIPTIONS_KEY) !== "off";
 // The YAML keys are for the hands that live in the Yaml tab; everyone else sees names.
 export const showsKeys = () => recall(KEYS_KEY) === "on";
-// The legend is shown until it is closed, on one tab for all of them.
-export const showsLegend = () => recall(LEGEND_KEY) !== "off";
+
+// Each tab's legend is shown until it is closed on that tab, which leaves the others as
+// they were: an administrator who knows the boxes on one tab may not know the states on
+// another. The banner names its tab.
+const legendKey = (view) => `${LEGEND_KEY}.${view?.querySelector?.("[data-sf-legend-banner]")?.dataset.sfLegendBanner ?? ""}`;
+export const showsLegend = (view) => recall(legendKey(view)) !== "off";
 
 const DISPLAY_SWITCHES = [
-    ["sf-terse", showsDescriptions, (on) => keep(DESCRIPTIONS_KEY, on ? "on" : "off")],
-    ["sf-keys", showsKeys, (on) => keep(KEYS_KEY, on ? "on" : "off")],
-    ["sf-legend-toggle", showsLegend, (on) => keep(LEGEND_KEY, on ? "on" : "off")],
+    ["sf-terse", () => showsDescriptions(), (view, on) => keep(DESCRIPTIONS_KEY, on ? "on" : "off")],
+    ["sf-keys", () => showsKeys(), (view, on) => keep(KEYS_KEY, on ? "on" : "off")],
+    ["sf-legend-toggle", (view) => showsLegend(view), (view, on) => keep(legendKey(view), on ? "on" : "off")],
 ];
 
 const paintSwitch = (toggle, on) => {
@@ -98,7 +102,7 @@ const paintSwitch = (toggle, on) => {
 
 // A card a page draws outside its form follows the switches by carrying this attribute:
 // the Targeting tab's events card kept its help text with Descriptions off.
-// The legend's banner, on every tab that has one, shows with the Legend switch.
+// The legend's banner shows with its tab's Legend switch.
 const applyToFollowers = (view, choice) => {
     for (const node of view.querySelectorAll("[data-sf-follows-display]")) {
         node.classList.toggle("is-terse", !choice.descriptions);
@@ -118,7 +122,7 @@ const shown = (view) => {
     return {
         descriptions: pressed("sf-terse", showsDescriptions),
         keys: pressed("sf-keys", showsKeys),
-        legend: pressed("sf-legend-toggle", showsLegend),
+        legend: pressed("sf-legend-toggle", () => showsLegend(view)),
     };
 };
 
@@ -127,9 +131,9 @@ const shown = (view) => {
 export const paintDisplaySwitches = (view, apply) => {
     for (const [id, read] of DISPLAY_SWITCHES) {
         const toggle = view.querySelector(`#${id}`);
-        if (toggle) paintSwitch(toggle, read());
+        if (toggle) paintSwitch(toggle, read(view));
     }
-    const choice = { descriptions: showsDescriptions(), keys: showsKeys(), legend: showsLegend() };
+    const choice = { descriptions: showsDescriptions(), keys: showsKeys(), legend: showsLegend(view) };
     applyToFollowers(view, choice);
     apply(choice);
 };
@@ -143,7 +147,7 @@ export const wireDisplaySwitches = (view, signal, apply) => {
         if (!toggle) continue;
         toggle.addEventListener("click", () => {
             const on = toggle.getAttribute("aria-pressed") !== "true";
-            write(on);
+            write(view, on);
             paintSwitch(toggle, on);
             // Both as the switches show them now, not as they were when this was wired: a
             // view wired once is repainted when another tab changes the other switch.
@@ -152,10 +156,10 @@ export const wireDisplaySwitches = (view, signal, apply) => {
             apply(choice);
         }, { signal });
     }
-    // The banner's own cross is the Legend switch turned off.
+    // The banner's own cross is its tab's Legend switch turned off.
     for (const close of view.querySelectorAll("[data-sf-legend-close]")) {
         close.addEventListener("click", () => {
-            keep(LEGEND_KEY, "off");
+            keep(legendKey(view), "off");
             const toggle = view.querySelector("#sf-legend-toggle");
             if (toggle) paintSwitch(toggle, false);
             const choice = { ...shown(view), legend: false };
