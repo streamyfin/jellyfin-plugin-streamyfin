@@ -317,13 +317,17 @@ export default function (view, params) {
                 saveBtn.disabled = true;
             };
 
+            // Asked now, read once the form is drawn: the two do not wait on each other.
+            const sentencesRequest = window.ApiClient.ajax({
+                type: "GET",
+                url: window.ApiClient.getUrl("streamyfin/v1/notifications/sentences"),
+                contentType: "application/json",
+            }).then((response) => response.json());
+            sentencesRequest.catch(() => {});
+
             let fields;
             try {
-                fields = await window.ApiClient.ajax({
-                    type: "GET",
-                    url: window.ApiClient.getUrl("streamyfin/v1/notifications/form"),
-                    contentType: "application/json",
-                }).then((response) => response.json());
+                fields = await shared.readKept("streamyfin/v1/notifications/form");
             } catch (error) {
                 console.error(error);
                 status.textContent = renderer.askingFailed(error);
@@ -414,11 +418,7 @@ export default function (view, params) {
             // Drawn from the server's list so a sentence added to an event appears here
             // without being written down twice. Issue #34.
             try {
-                const sentences = await window.ApiClient.ajax({
-                    type: "GET",
-                    url: window.ApiClient.getUrl("streamyfin/v1/notifications/sentences"),
-                    contentType: "application/json",
-                }).then((response) => response.json());
+                const sentences = await sentencesRequest;
 
                 grid.appendChild(await wordingCard(sentences, edited));
             } catch (error) {
@@ -429,6 +429,7 @@ export default function (view, params) {
             status.remove();
             editor.appendChild(grid);
             dock.hidden = false;
+            shared.warmKept();
 
             shared.keyedEventListener(saveBtn, "click", (event) => {
                 event.preventDefault();
