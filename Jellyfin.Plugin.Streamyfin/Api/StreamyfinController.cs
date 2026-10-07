@@ -324,7 +324,8 @@ public class StreamyfinController : ControllerBase
         .Select(stored => new UserBackup
         {
           UserId = stored.UserId,
-          Settings = Resolution.ReadLevel(stored.SettingsJson, $"user {stored.UserId}")
+          Settings = Resolution.ReadLevel(stored.SettingsJson, $"user {stored.UserId}"),
+          Notifications = Said(stored.NotificationsJson)
         })],
       NotificationPreferences = [.. database.AllNotificationPreferences()
         .Select(stored => new PreferencesBackup { UserId = stored.Key, Preferences = stored.Value })]
@@ -389,6 +390,11 @@ public class StreamyfinController : ControllerBase
       }
     }
 
+    if (backup.NotificationsProblem() is { } notificationsProblem)
+    {
+      return BadRequest(new RestoreReport { Problem = notificationsProblem });
+    }
+
     if (backup.PreferencesProblem() is { } choicesProblem)
     {
       return BadRequest(new RestoreReport { Problem = choicesProblem });
@@ -396,40 +402,8 @@ public class StreamyfinController : ControllerBase
 
     var database = StreamyfinPlugin.Instance!.Database;
     var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
-    var report = new RestoreReport();
-
-    var groups = new List<(SettingsGroup Group, IReadOnlyList<Guid> Members)>();
-
-    foreach (var group in backup.Groups)
-    {
-      var members = (group.UserIds ?? []).Where(known.Contains).ToList();
-      report.UnknownMembers += (group.UserIds?.Count ?? 0) - members.Count;
-
-      groups.Add((
-        new SettingsGroup
-        {
-          Id = group.Id,
-          Name = group.Name,
-          Priority = group.Priority,
-          SettingsJson = _serializationHelperService.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings())
-        },
-        members));
-    }
-
-    var overrides = new List<(Guid UserId, string SettingsJson)>();
-
-    foreach (var user in backup.Users)
-    {
-      if (!known.Contains(user.UserId))
-      {
-        report.UnknownUsers++;
-        continue;
-      }
-
-      overrides.Add((
-        user.UserId,
-        _serializationHelperService.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings())));
-    }
+    var rows = backup.ToRows(_serializationHelperService, known);
+    var report = new RestoreReport { UnknownMembers = rows.UnknownMembers, UnknownUsers = rows.UnknownUsers };
 
     // The configuration first, then one transaction for the levels: a failure partway
     // through the levels leaves a server with neither what it had nor what the file
@@ -440,10 +414,10 @@ public class StreamyfinController : ControllerBase
       report.Configuration = true;
     }
 
-    database.ReplaceTargeting(groups, overrides);
+    database.ReplaceTargeting(rows.Groups, rows.Users);
 
-    report.Groups = groups.Count;
-    report.Users = overrides.Count;
+    report.Groups = rows.Groups.Count;
+    report.Users = rows.Users.Count;
 
     // An older backup has nothing to say about anyone's own choices, so they stay.
     if (backup.NotificationPreferences is { } choices)

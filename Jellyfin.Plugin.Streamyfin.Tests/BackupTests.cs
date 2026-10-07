@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Api;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
@@ -288,5 +289,112 @@ public class BackupTests
             """{"groups":[{"name":"Kids"},{"name":"kids"}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""");
 
         Assert.Null(read!.TargetingProblem());
+    }
+
+    /// <summary>
+    /// What a group or a user says about the events is part of what an administrator set,
+    /// so a backup carries it at both levels.
+    /// </summary>
+    [Fact]
+    public void ABackupCarriesWhatEachLevelSaysAboutTheEvents()
+    {
+        var backup = new ConfigurationBackup
+        {
+            Groups =
+            [
+                new SettingsGroupDto
+                {
+                    Name = "Night shift",
+                    Notifications = new() { ["taskFailed"] = new NotificationTargeting { Enabled = true } }
+                }
+            ],
+            Users =
+            [
+                new UserBackup
+                {
+                    UserId = Guid.NewGuid(),
+                    Notifications = new() { ["taskFailed"] = new NotificationTargeting { Enabled = false } }
+                }
+            ]
+        };
+
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        Assert.True(Assert.Single(read!.Groups).Notifications?["taskFailed"].Enabled);
+        Assert.False(Assert.Single(read.Users).Notifications?["taskFailed"].Enabled);
+    }
+
+    /// <summary>
+    /// The rows a restore writes keep what each level says about the events next to its
+    /// settings, and leave out the members and users this server does not have. The events
+    /// were left out, so a restore took every group's and every user's notifications away.
+    /// </summary>
+    [Fact]
+    public void TheRowsARestoreWritesKeepWhatEachLevelSaysAboutTheEvents()
+    {
+        var known = Guid.NewGuid();
+        var backup = new ConfigurationBackup
+        {
+            Groups =
+            [
+                new SettingsGroupDto
+                {
+                    Name = "Night shift",
+                    UserIds = [known, Guid.NewGuid()],
+                    Notifications = new() { ["taskFailed"] = new NotificationTargeting { Enabled = true } }
+                }
+            ],
+            Users =
+            [
+                new UserBackup
+                {
+                    UserId = known,
+                    Notifications = new() { ["taskFailed"] = new NotificationTargeting { Enabled = false } }
+                },
+                new UserBackup { UserId = Guid.NewGuid() }
+            ]
+        };
+
+        var rows = backup.ToRows(_serialization, new HashSet<Guid> { known });
+
+        var (group, members) = Assert.Single(rows.Groups);
+        Assert.Equal("""{"taskFailed":{"enabled":true}}""", group.NotificationsJson);
+        Assert.Equal(known, Assert.Single(members));
+        var user = Assert.Single(rows.Users);
+        Assert.Equal(known, user.UserId);
+        Assert.Equal("""{"taskFailed":{"enabled":false}}""", user.NotificationsJson);
+        Assert.Equal(1, rows.UnknownMembers);
+        Assert.Equal(1, rows.UnknownUsers);
+    }
+
+    /// <summary>
+    /// An event this server does not have is refused in a file the way it is on the pages,
+    /// and the sentence says which level names it.
+    /// </summary>
+    /// <param name="file">The backup.</param>
+    /// <param name="level">What the sentence has to name.</param>
+    [Theory]
+    [InlineData("""{"groups":[{"name":"Night shift","notifications":{"taskFaild":{"enabled":true}}}],"users":[]}""", "Night shift")]
+    [InlineData("""{"groups":[],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","notifications":{"taskFaild":{"enabled":true}}}]}""", "4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11")]
+    public void AnEventThisServerDoesNotHaveIsNotRestored(string file, string level)
+    {
+        var problem = _serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem();
+
+        Assert.NotNull(problem);
+        Assert.Contains(level, problem, StringComparison.Ordinal);
+        Assert.Contains("taskFaild", problem, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A file whose levels name events this server has, or say nothing about the events, as
+    /// every backup taken before they could does, has nothing to refuse.
+    /// </summary>
+    /// <param name="file">The backup.</param>
+    [Theory]
+    [InlineData("""{"groups":[{"name":"Night shift","notifications":{"taskFailed":{"enabled":true}}}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","notifications":{"taskFailed":{"enabled":false}}}]}""")]
+    [InlineData("""{"groups":[{"name":"Kids"}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""")]
+    public void WhatALevelSaysAboutKnownEventsIsRestored(string file)
+    {
+        Assert.Null(_serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem());
     }
 }

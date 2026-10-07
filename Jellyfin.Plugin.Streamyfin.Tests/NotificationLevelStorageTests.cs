@@ -77,6 +77,29 @@ public class NotificationLevelStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Putting a backup back keeps what each group and each user says about the events.
+    /// </summary>
+    [Fact]
+    public void ReplacingTheTargetingKeepsWhatEachLevelSaysAboutTheEvents()
+    {
+        var userId = Guid.NewGuid();
+        var group = new SettingsGroup
+        {
+            Name = "Night shift",
+            Priority = 1,
+            SettingsJson = "{}",
+            NotificationsJson = TaskFailedOn
+        };
+
+        _db.ReplaceTargeting(
+            [(group, new List<Guid> { userId })],
+            [new UserSettingsOverride { UserId = userId, SettingsJson = "{}", NotificationsJson = TaskFailedOff }]);
+
+        Assert.Equal(TaskFailedOn, _db.GetSettingsGroup(group.Id)!.NotificationsJson);
+        Assert.Equal(TaskFailedOff, _db.GetUserSettingsOverride(userId)!.NotificationsJson);
+    }
+
+    /// <summary>
     /// What the levels say, gathered per user the way a send asks for it: the groups they
     /// are in first, in priority order, then their own.
     /// </summary>
