@@ -101,6 +101,19 @@ public class PersonalRuleTests
     }
 
     /// <summary>
+    /// Asking whether somebody follows a show costs library queries, so it is only asked when
+    /// the episode would not reach them otherwise.
+    /// </summary>
+    [Fact]
+    public void SomebodyWhoKeepsNewItemsIsNotAskedAboutFollowing()
+    {
+        var asked = false;
+
+        Assert.True(PersonalRule.Keeps(new NotificationPreferences(), AnEpisode, Now, _ => asked = true));
+        Assert.False(asked);
+    }
+
+    /// <summary>
     /// A show is followed the way the person said: as a favorite, as started, or both.
     /// </summary>
     [Theory]

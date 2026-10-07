@@ -38,27 +38,20 @@ public static class PersonalRule
             return false;
         }
 
-        if (subject.SeriesId is { } series)
-        {
-            if (mine.MutedShows.Contains(series))
-            {
-                return false;
-            }
-
-            // A followed show notifies even with new items off or its library unticked: that
-            // is the point of following it.
-            if (follows(series))
-            {
-                return true;
-            }
-        }
-
-        if (!mine.Keeps(subject.EventKey))
+        if (subject.SeriesId is { } series && mine.MutedShows.Contains(series))
         {
             return false;
         }
 
-        return subject.LibraryId is not { } library || !mine.MutedLibraries.Contains(library);
+        if (mine.Keeps(subject.EventKey)
+            && (subject.LibraryId is not { } library || !mine.MutedLibraries.Contains(library)))
+        {
+            return true;
+        }
+
+        // A followed show notifies even with new items off or its library unticked: that is
+        // the point of following it. Asked last, since asking costs library queries.
+        return subject.SeriesId is { } followed && follows(followed);
     }
 
     /// <summary>
