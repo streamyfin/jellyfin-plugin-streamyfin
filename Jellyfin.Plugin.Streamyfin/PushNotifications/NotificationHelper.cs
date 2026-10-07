@@ -282,6 +282,33 @@ public class NotificationHelper
     }
 
     /// <summary>
+    /// The devices whose owner kept a notification relayed for an event.
+    /// </summary>
+    /// <param name="devices">The devices the notification is aimed at.</param>
+    /// <param name="eventKey">The event, or <c>null</c> for a notification nobody can turn off.</param>
+    /// <param name="preferences">Everyone's choices.</param>
+    /// <param name="nowUtc">The moment it is sent.</param>
+    /// <returns>The devices to send to.</returns>
+    internal static List<DeviceToken> KeptBy(
+        IEnumerable<DeviceToken> devices,
+        string? eventKey,
+        IReadOnlyDictionary<Guid, NotificationPreferences> preferences,
+        DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        if (eventKey is null)
+        {
+            return [.. devices];
+        }
+
+        var subject = new NotificationSubject(eventKey);
+        return [.. devices.Where(device =>
+            PersonalRule.Keeps(preferences.GetValueOrDefault(device.UserId), subject, nowUtc, _ => false))];
+    }
+
+    /// <summary>
     /// Whether a person keeps a message their levels sent them.
     /// </summary>
     /// <param name="mine">What they chose, or nothing.</param>

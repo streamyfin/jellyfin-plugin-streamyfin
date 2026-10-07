@@ -667,6 +667,10 @@ public class StreamyfinController : ControllerBase
     }
 
     List<DeviceToken>? allTokens = null;
+    // Read once for every notification below: what each person kept of what is relayed.
+    var preferences = db?.AllNotificationPreferences() ?? [];
+    var now = DateTime.UtcNow;
+
     var validNotifications = notifications
       .FindAll(n =>
       {
@@ -683,11 +687,10 @@ public class StreamyfinController : ControllerBase
         return string.IsNullOrEmpty(title) && !body.IsNullOrNonWord();
         // every other scenario is invalid
       })
-      .Select(notification =>
+      .SelectMany(notification =>
       {
         List<DeviceToken> tokens = [];
-        var expoNotification = notification.ToExpoNotification();
-        
+
         // Get tokens for target user
         if (notification.UserId != null || !string.IsNullOrWhiteSpace(notification.Username))
         {
@@ -726,9 +729,24 @@ public class StreamyfinController : ControllerBase
           tokens.AddRange(_userManager.GetAdminDeviceTokens());
         }
 
-        expoNotification.To = tokens.Select(t => t.Token).Distinct().ToList();
+        // A notification relayed for an event, Seerr's, skips who turned that event off. One
+        // message per kind of device, so a channel only goes to a device that created it.
+        var kept = NotificationHelper.KeptBy(tokens, notification.EventKey, preferences, now);
+        var subject = notification.EventKey is { } key ? new NotificationSubject(key) : null;
 
-        return expoNotification;
+        return kept
+          .GroupBy(device => (Channels: device.Capabilities?.HasChannels == true, Categories: device.Capabilities?.HasCategories == true))
+          .Select(group =>
+          {
+            var message = notification.ToExpoNotification();
+            message.To = [.. group.Select(device => device.Token).Distinct()];
+            if (subject is not null)
+            {
+              MessageMarks.Apply(subject, message, new Audience(null, null, group.Key.Channels, group.Key.Categories));
+            }
+
+            return message;
+          });
       })
       .Where(n => n.To.Count > 0)
       .ToArray();

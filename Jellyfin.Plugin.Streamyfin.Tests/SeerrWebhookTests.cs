@@ -185,4 +185,25 @@ public class SeerrWebhookTests
         var notification = _mapper.Map(payload);
         Assert.Equal("alice", notification?.Username);
     }
+
+    [Theory]
+    [InlineData("MEDIA_PENDING", "seerrPending")]
+    [InlineData("MEDIA_AUTO_APPROVED", "seerrPending")]
+    [InlineData("MEDIA_FAILED", "seerrPending")]
+    [InlineData("MEDIA_APPROVED", "seerrRequests")]
+    [InlineData("MEDIA_DECLINED", "seerrRequests")]
+    [InlineData("MEDIA_AVAILABLE", "seerrRequests")]
+    public void EachSeerrNotificationNamesTheEventAPersonCanTurnOff(string type, string eventKey)
+    {
+        var notification = _mapper.Map(Payload(type, requester: "alice"));
+
+        Assert.Equal(eventKey, notification!.EventKey);
+    }
+
+    // Review focus 5: a test from Seerr's settings always arrives.
+    [Fact]
+    public void ASeerrTestCannotBeTurnedOff()
+    {
+        Assert.Null(_mapper.Map(Payload("TEST_NOTIFICATION", requester: null))!.EventKey);
+    }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
@@ -55,5 +57,38 @@ public class PersonalSendTests
 
         Assert.True(NotificationHelper.KeepsFor(null, new NotificationSubject(NotificationEvents.ItemAdded, SeriesId: Show), Now, Alice, watching));
         Assert.Equal(0, watching.StartedAsked);
+    }
+
+    [Fact]
+    public void ARequestNotificationSkipsWhoTurnedRequestsOff()
+    {
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+        var mine = new NotificationPreferences();
+        mine.Events[NotificationEvents.SeerrRequests] = false;
+        var preferences = new Dictionary<Guid, NotificationPreferences> { [alice] = mine };
+
+        var kept = NotificationHelper.KeptBy(
+            [new Db.DeviceToken { UserId = alice, Token = "a" }, new Db.DeviceToken { UserId = bob, Token = "b" }],
+            NotificationEvents.SeerrRequests,
+            preferences,
+            Now);
+
+        Assert.Equal(["b"], kept.Select(device => device.Token));
+    }
+
+    [Fact]
+    public void ANotificationAboutNothingInParticularGoesToEveryDevice()
+    {
+        var mine = new NotificationPreferences { Pause = new NotificationPause() };
+        var alice = Guid.NewGuid();
+
+        var kept = NotificationHelper.KeptBy(
+            [new Db.DeviceToken { UserId = alice, Token = "a" }],
+            eventKey: null,
+            new Dictionary<Guid, NotificationPreferences> { [alice] = mine },
+            Now);
+
+        Assert.Single(kept);
     }
 }
