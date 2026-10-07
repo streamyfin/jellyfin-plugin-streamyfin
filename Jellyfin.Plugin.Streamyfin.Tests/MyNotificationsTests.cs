@@ -73,13 +73,57 @@ public class MyNotificationsTests
     [Fact]
     public void AnUpdateThatSaysLittleKeepsTheDefaults()
     {
-        var applied = MyNotifications.Apply(new MyNotificationsUpdate());
+        var mine = new NotificationPreferences
+        {
+            MutedLibraries = [Guid.NewGuid()],
+            Follow = new FollowChoice { Favorites = false, Started = false }
+        };
+        mine.Events["itemAdded"] = false;
+
+        MyNotifications.Apply(new MyNotificationsUpdate(), mine);
 
         Assert.Null(MyNotifications.Problem(new MyNotificationsUpdate()));
-        Assert.Null(applied.Pause);
-        Assert.Empty(applied.Events);
-        Assert.True(applied.Follow.Favorites);
-        Assert.True(applied.Follow.Started);
+        Assert.Empty(mine.Events);
+        Assert.Empty(mine.MutedLibraries);
+        Assert.True(mine.Follow.Favorites);
+        Assert.True(mine.Follow.Started);
+    }
+
+    /// <summary>
+    /// An update leaves the pause and the muted shows as they are: they have routes of their
+    /// own, and a screen opened before a notification's button was pressed would otherwise
+    /// take back what the button did with its next switch.
+    /// </summary>
+    [Fact]
+    public void AnUpdateLeavesThePauseAndTheMutedShowsAlone()
+    {
+        var show = Guid.NewGuid();
+        var mine = new NotificationPreferences
+        {
+            Pause = new NotificationPause { Until = DateTime.UtcNow.AddHours(8) },
+            MutedShows = [show]
+        };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine);
+
+        Assert.NotNull(mine.Pause);
+        Assert.Equal([show], mine.MutedShows);
+        Assert.False(mine.Keeps("itemAdded"));
+    }
+
+    /// <summary>
+    /// An update from an app that still sends the pause and the muted shows is read, and they
+    /// are left out.
+    /// </summary>
+    [Fact]
+    public void AnUpdateFromAnOlderAppIsStillRead()
+    {
+        var update = System.Text.Json.JsonSerializer.Deserialize<MyNotificationsUpdate>(
+            """{"pause":null,"events":{"itemAdded":false},"mutedLibraries":[],"follow":{"favorites":true,"started":false},"mutedShows":[]}""");
+
+        Assert.NotNull(update);
+        Assert.False(update!.Events!["itemAdded"]);
+        Assert.False(update.Follow!.Started);
     }
 
     /// <summary>
@@ -151,16 +195,14 @@ public class MyNotificationsTests
     }
 
     /// <summary>
-    /// An update with more shows or libraries than the most is refused: every send reads
-    /// everyone's choices, so no list in them grows without end.
+    /// An update with more libraries than the most is refused: every send reads everyone's
+    /// choices, so no list in them grows without end.
     /// </summary>
     [Fact]
     public void AnUpdateWithMoreThanTheMostIsRefused()
     {
-        var shows = new MyNotificationsUpdate { MutedShows = [.. Enumerable.Range(0, MyNotifications.MostMutedShows + 1).Select(_ => Guid.NewGuid())] };
         var libraries = new MyNotificationsUpdate { MutedLibraries = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())] };
 
-        Assert.NotNull(MyNotifications.Problem(shows));
         Assert.NotNull(MyNotifications.Problem(libraries));
     }
 

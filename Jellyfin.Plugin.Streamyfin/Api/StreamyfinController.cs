@@ -918,7 +918,8 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Replaces what the caller keeps.
+  /// Replaces the events, libraries and followed shows the caller keeps. The pause and the muted
+  /// shows have routes of their own and stay as they are.
   /// </summary>
   /// <param name="update">Their choices. What it leaves out goes back to its default.</param>
   /// <returns>Their choices as stored.</returns>
@@ -939,8 +940,11 @@ public class StreamyfinController : ControllerBase
       return BadRequest(problem);
     }
 
-    var mine = MyNotifications.Apply(update);
-    StreamyfinPlugin.Instance!.Database.SaveNotificationPreferences(user.Id, mine);
+    var (mine, _) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(user.Id, stored =>
+    {
+      MyNotifications.Apply(update, stored);
+      return null;
+    });
     return DescribeFor(user, mine);
   }
 

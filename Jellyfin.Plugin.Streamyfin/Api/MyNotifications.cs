@@ -76,13 +76,13 @@ public sealed class MyShowDto
     public string Name { get; set; } = string.Empty;
 }
 
-/// <summary>What the app sends to replace a person's choices.</summary>
+/// <summary>
+/// What the app sends to replace a person's choices from its screen. The pause and the muted
+/// shows have routes of their own and are not part of it, so an app that still sends them has
+/// them left out.
+/// </summary>
 public sealed class MyNotificationsUpdate
 {
-    /// <summary>Gets or sets the pause, or <c>null</c> for none.</summary>
-    [JsonPropertyName("pause")]
-    public NotificationPause? Pause { get; set; }
-
     /// <summary>Gets or sets the events turned on or off.</summary>
     [JsonPropertyName("events")]
     public Dictionary<string, bool>? Events { get; set; }
@@ -94,10 +94,6 @@ public sealed class MyNotificationsUpdate
     /// <summary>Gets or sets which shows count as followed.</summary>
     [JsonPropertyName("follow")]
     public FollowChoice? Follow { get; set; }
-
-    /// <summary>Gets or sets the shows turned off.</summary>
-    [JsonPropertyName("mutedShows")]
-    public List<Guid>? MutedShows { get; set; }
 }
 
 /// <summary>A pause asked from a notification's button or the app.</summary>
@@ -200,7 +196,7 @@ public static class MyNotifications
             return $"There is no notification called {unknown}.";
         }
 
-        return ListsProblem(update.MutedShows?.Count ?? 0, update.MutedLibraries?.Count ?? 0);
+        return ListsProblem(0, update.MutedLibraries?.Count ?? 0);
     }
 
     /// <summary>What makes lists this long too long to keep, if anything.</summary>
@@ -234,21 +230,21 @@ public static class MyNotifications
         return null;
     }
 
-    /// <summary>The stored form of an update, with the defaults for what it leaves out.</summary>
+    /// <summary>
+    /// Writes an update into a person's choices, with the defaults for what it leaves out. The
+    /// pause and the muted shows stay as they are: their own routes change them, and a screen
+    /// opened before a notification's button was pressed would otherwise take it back.
+    /// </summary>
     /// <param name="update">The update.</param>
-    /// <returns>What to store.</returns>
-    public static NotificationPreferences Apply(MyNotificationsUpdate update)
+    /// <param name="mine">Their choices, changed in place.</param>
+    public static void Apply(MyNotificationsUpdate update, NotificationPreferences mine)
     {
         ArgumentNullException.ThrowIfNull(update);
+        ArgumentNullException.ThrowIfNull(mine);
 
-        return new NotificationPreferences
-        {
-            Pause = update.Pause,
-            Events = update.Events is null ? new(StringComparer.Ordinal) : new(update.Events, StringComparer.Ordinal),
-            MutedLibraries = update.MutedLibraries ?? [],
-            Follow = update.Follow ?? new(),
-            MutedShows = update.MutedShows ?? []
-        };
+        mine.Events = update.Events is null ? new(StringComparer.Ordinal) : new(update.Events, StringComparer.Ordinal);
+        mine.MutedLibraries = update.MutedLibraries ?? [];
+        mine.Follow = update.Follow ?? new();
     }
 
     /// <summary>The pause a number of hours asks for.</summary>
