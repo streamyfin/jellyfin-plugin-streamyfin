@@ -62,19 +62,40 @@ public class ItemAddedService : BaseEvent, IHostedService
     /// </summary>
     /// <param name="folders">The server's libraries.</param>
     /// <param name="path">Where the item is.</param>
-    /// <returns>The library id, or <c>null</c> when no library holds that path.</returns>
-    internal static Guid? LibraryIdOf(IEnumerable<VirtualFolderInfo> folders, string? path)
+    /// <returns>The library, or <c>null</c> when no library holds that path.</returns>
+    /// <remarks>
+    /// A library holds a path when one of its folders is a whole leading part of it, so
+    /// <c>/media/movies</c> does not hold <c>/media/movies-old</c>. When the folders of two
+    /// libraries hold it, the nearer one does. Compared without regard to case, as Jellyfin
+    /// compares library paths.
+    /// </remarks>
+    internal static VirtualFolderInfo? FolderOf(IEnumerable<VirtualFolderInfo> folders, string? path)
     {
         if (string.IsNullOrEmpty(path))
         {
             return null;
         }
 
-        var folder = folders.FirstOrDefault(candidate =>
-            candidate.Locations.Any(location => path.Contains(location, StringComparison.Ordinal)));
+        return folders
+            .SelectMany(folder => (folder.Locations ?? []).Select(location => (Folder: folder, Location: location.TrimEnd('/', '\\'))))
+            .Where(candidate => candidate.Location.Length > 0 && Holds(candidate.Location, path))
+            .OrderByDescending(candidate => candidate.Location.Length)
+            .Select(candidate => candidate.Folder)
+            .FirstOrDefault();
 
-        return Guid.TryParse(folder?.ItemId, out var id) ? id : null;
+        static bool Holds(string location, string path) =>
+            path.StartsWith(location, StringComparison.OrdinalIgnoreCase)
+            && (path.Length == location.Length || path[location.Length] is '/' or '\\');
     }
+
+    /// <summary>
+    /// The id of the library an item went into, found by its path.
+    /// </summary>
+    /// <param name="folders">The server's libraries.</param>
+    /// <param name="path">Where the item is.</param>
+    /// <returns>The library id, or <c>null</c> when no library holds that path.</returns>
+    internal static Guid? LibraryIdOf(IEnumerable<VirtualFolderInfo> folders, string? path) =>
+        Guid.TryParse(FolderOf(folders, path)?.ItemId, out var id) ? id : null;
 
     // Written once per language among the devices it goes to, so it builds rather than
     // hands back what it built before.
@@ -163,8 +184,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         // off, so nothing here may assume the block exists. An absent list means every
         // library, which is what IsLibraryEnabled already answers.
         var enabledLibraries = Config?.notifications?.ItemAdded?.EnabledLibraries;
-        var virtualFolder = _libraryManager.GetVirtualFolders()
-            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
+        var virtualFolder = FolderOf(_libraryManager.GetVirtualFolders(), item.Path);
 
         if (virtualFolder != null && !IsLibraryEnabled(enabledLibraries, virtualFolder.ItemId))
         {

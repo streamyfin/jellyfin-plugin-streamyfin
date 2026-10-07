@@ -81,4 +81,46 @@ public class ItemAddedLibraryFilterTests
         Assert.Null(ItemAddedService.LibraryIdOf(folders, "/elsewhere/file.mkv"));
         Assert.Null(ItemAddedService.LibraryIdOf(folders, null));
     }
+
+    // A library whose folder's name begins like another's is not taken for that other one.
+    [Fact]
+    public void ALibraryIsNotTakenForAnotherWhoseNameItStartsWith()
+    {
+        var movies = Guid.NewGuid();
+        var old = Guid.NewGuid();
+        VirtualFolderInfo[] folders =
+        [
+            new() { ItemId = movies.ToString("N"), Locations = ["/media/movies"] },
+            new() { ItemId = old.ToString("N"), Locations = ["/media/movies-old"] }
+        ];
+
+        Assert.Equal(old, ItemAddedService.LibraryIdOf(folders, "/media/movies-old/Dune (1984)/Dune.mkv"));
+        Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, "/media/movies/Dune (2021)/Dune.mkv"));
+    }
+
+    // Inside the folders of two libraries, an item belongs to the nearer one.
+    [Fact]
+    public void TheNearestLibraryFolderWins()
+    {
+        var all = Guid.NewGuid();
+        var kids = Guid.NewGuid();
+        VirtualFolderInfo[] folders =
+        [
+            new() { ItemId = all.ToString("N"), Locations = ["/media"] },
+            new() { ItemId = kids.ToString("N"), Locations = ["/media/kids/"] }
+        ];
+
+        Assert.Equal(kids, ItemAddedService.LibraryIdOf(folders, "/media/kids/Bluey/Bluey S01E01.mkv"));
+        Assert.Equal(all, ItemAddedService.LibraryIdOf(folders, "/media/films/Up (2009)/Up.mkv"));
+    }
+
+    // Jellyfin compares library paths without regard to case, and Windows paths use backslashes.
+    [Fact]
+    public void AWindowsPathMatchesWhateverItsCase()
+    {
+        var movies = Guid.NewGuid();
+        VirtualFolderInfo[] folders = [new() { ItemId = movies.ToString("N"), Locations = [@"D:\Media\Movies"] }];
+
+        Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, @"d:\media\movies\Up (2009)\Up.mkv"));
+    }
 }
