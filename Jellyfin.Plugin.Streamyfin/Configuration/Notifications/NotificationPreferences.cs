@@ -141,7 +141,7 @@ public sealed class FollowChoice
     public bool Favorites { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether a show with at least one episode watched counts.
+    /// Gets or sets whether a show with at least one episode watched or begun counts.
     /// </summary>
     [JsonPropertyName("started")]
     public bool Started { get; set; } = true;

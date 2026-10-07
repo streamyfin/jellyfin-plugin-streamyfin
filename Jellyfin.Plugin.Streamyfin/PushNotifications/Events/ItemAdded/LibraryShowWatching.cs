@@ -21,17 +21,25 @@ internal sealed class LibraryShowWatching(ILibraryManager libraries, IUserDataMa
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Played rather than started: Jellyfin marks an episode played when it ends, which is the
-    /// rule the For you row already follows.
+    /// Watched or begun: Jellyfin marks an episode played only near its end, and an episode
+    /// left halfway already makes the show one they follow. Two questions, since one query
+    /// asking for both would ask for an episode that is both.
     /// </remarks>
     public bool HasStarted(User user, Guid seriesId) =>
-        libraries.GetItemList(new InternalItemsQuery(user)
+        AnyEpisode(user, seriesId, query => query.IsPlayed = true)
+        || AnyEpisode(user, seriesId, query => query.IsResumable = true);
+
+    private bool AnyEpisode(User user, Guid seriesId, Action<InternalItemsQuery> which)
+    {
+        var query = new InternalItemsQuery(user)
         {
             IncludeItemTypes = [BaseItemKind.Episode],
             AncestorIds = [seriesId],
-            IsPlayed = true,
             Recursive = true,
             Limit = 1,
             DtoOptions = new DtoOptions(false)
-        }).Count > 0;
+        };
+        which(query);
+        return libraries.GetItemList(query).Count > 0;
+    }
 }

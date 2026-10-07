@@ -66,7 +66,7 @@ public static class PersonalRule
     /// </summary>
     /// <param name="choice">Which shows count.</param>
     /// <param name="isFavorite">Whether they marked the show as favorite.</param>
-    /// <param name="hasStarted">Whether they watched an episode of it, asked last.</param>
+    /// <param name="hasStarted">Whether they watched or began an episode of it, asked last.</param>
     /// <returns>True when the show is followed.</returns>
     public static bool Follows(FollowChoice choice, bool isFavorite, Func<bool> hasStarted)
     {

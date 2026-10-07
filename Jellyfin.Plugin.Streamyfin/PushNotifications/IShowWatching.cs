@@ -14,9 +14,9 @@ public interface IShowWatching
     /// <returns>True for a favorite.</returns>
     bool IsFavorite(User user, Guid seriesId);
 
-    /// <summary>Whether they watched at least one episode of it to the end.</summary>
+    /// <summary>Whether they watched or began at least one episode of it.</summary>
     /// <param name="user">The person.</param>
     /// <param name="seriesId">The show.</param>
-    /// <returns>True once an episode is played.</returns>
+    /// <returns>True once an episode is played or in progress.</returns>
     bool HasStarted(User user, Guid seriesId);
 }
