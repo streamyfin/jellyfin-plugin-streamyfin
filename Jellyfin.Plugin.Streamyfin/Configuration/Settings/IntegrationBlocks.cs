@@ -41,9 +41,9 @@ public class SeerrSettings
 /// makes an app that reads a flat key find a nested one.
 /// </para>
 /// <para>
-/// So both are served for now. An administrator may write either and the plugin answers
-/// with both. The app reads the block first since streamyfin#2104, and the flat keys come
-/// out once every copy of the app in the field does.
+/// The app reads the block since streamyfin#2104, published in 0.55.0, so the flat keys are
+/// no longer served to it. They remain what is stored, what the dashboard edits and what
+/// validation reads, and an administrator may still write either shape.
 /// </para>
 /// </remarks>
 public static class IntegrationBlocks
@@ -54,6 +54,12 @@ public static class IntegrationBlocks
         ("seerr.apiKey", "jellyseerrApiKey", block => block.apiKey, settings => settings.jellyseerrApiKey),
         ("seerr.autoLogin", "autoLoginJellyseerr", block => block.autoLogin, settings => settings.autoLoginJellyseerr)
     ];
+
+    /// <summary>
+    /// The flat keys Seerr was served under before the block, which the app no longer
+    /// receives. They stay the stored truth, and an administrator may still write them.
+    /// </summary>
+    public static readonly IReadOnlyList<string> FlatSeerrKeys = [.. _seerr.Select(seerr => seerr.Flat)];
 
     /// <summary>
     /// Copies what a block says onto the keys everything else reads.

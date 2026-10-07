@@ -112,6 +112,26 @@ public class SerializationHelper
     {
         var options = GetJsonSerializerOptions();
         options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<SubtitlePlaybackMode>>().Single());
+
+        // Seerr reaches the app as its block only (P6.1). The flat keys stay in storage and in
+        // the YAML, where an administrator may still write them, and Project builds the block
+        // from them on the way out.
+        options.TypeInfoResolver = options.TypeInfoResolver!.WithAddedModifier(type =>
+        {
+            if (type.Type != typeof(Configuration.Settings.Settings))
+            {
+                return;
+            }
+
+            foreach (var property in type.Properties)
+            {
+                if (IntegrationBlocks.FlatSeerrKeys.Contains(property.Name))
+                {
+                    property.ShouldSerialize = static (_, _) => false;
+                }
+            }
+        });
+
         return options;
     }
 
