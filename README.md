@@ -42,6 +42,7 @@
 | Libraries picked by name, as the server has them, rather than typed as ids | Application, Home | |
 | A "My media" row and a "For you" row built by the plugin | Home | |
 | Push notifications for new media, sessions and playback | Notifications | |
+| A notification when a title someone waits for arrives, asked for from the app's Seerr pages | Notifications | Streamyfin app support |
 | Admin alerts: a failed scheduled task, a plugin installed, updated or removed, a refused sign in, a locked account | Notifications | |
 | Notifications in each device's language, translated into 29 languages | Notifications | Streamyfin app support, see [Languages](NOTIFICATIONS.md#languages) |
 | Any notification from a script or another service, through one endpoint | Notifications | |
