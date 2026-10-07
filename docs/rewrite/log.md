@@ -8,6 +8,21 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-07, Seerr reaches the app as its block only
+
+The app no longer receives Seerr under the three flat keys `jellyseerrServerUrl`,
+`jellyseerrApiKey` and `autoLoginJellyseerr`, only as the `seerr` block, on both routes it
+reads its settings from (#227). That completes P6.1. The flat keys stay what is stored, what
+the Yaml Editor shows and edits, and what validation and the targeting levels read, so an
+administrator may still write either shape. An administrator's app gets the block too: their
+configuration was served as stored, which holds Seerr only as the flat keys, so CodeRabbit's
+review had the JSON they receive written from a copy that carries the block.
+
+The block has been served beside the flat keys since #198, and the app reads it since
+streamyfin#2104, first published in 0.55.0. The removal waited as a draft until the oldest app
+in service would read it. On 2026-10-07 the maintainers took 0.55.0 as that oldest app, so an
+app older than 0.55.0 loses Seerr with this release.
+
 ## 2026-10-07, a switch no longer takes back a notification's button
 
 A review of the app's screen, streamyfin#2216, found that its switches sent every choice back,
