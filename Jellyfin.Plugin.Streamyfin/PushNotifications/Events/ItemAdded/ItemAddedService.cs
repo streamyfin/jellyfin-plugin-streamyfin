@@ -65,9 +65,9 @@ public class ItemAddedService : BaseEvent, IHostedService
     /// <returns>The library, or <c>null</c> when no library holds that path.</returns>
     /// <remarks>
     /// A library holds a path when one of its folders is a whole leading part of it, so
-    /// <c>/media/movies</c> does not hold <c>/media/movies-old</c>. When the folders of two
-    /// libraries hold it, the nearer one does. Compared without regard to case, as Jellyfin
-    /// compares library paths.
+    /// <c>/media/movies</c> does not hold <c>/media/movies-old</c>. A folder written exactly
+    /// as the path comes first, then one that differs only by case, which Windows paths may;
+    /// among those, the nearer one wins.
     /// </remarks>
     internal static VirtualFolderInfo? FolderOf(IEnumerable<VirtualFolderInfo> folders, string? path)
     {
@@ -78,13 +78,14 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         return folders
             .SelectMany(folder => (folder.Locations ?? []).Select(location => (Folder: folder, Location: location.TrimEnd('/', '\\'))))
-            .Where(candidate => candidate.Location.Length > 0 && Holds(candidate.Location, path))
-            .OrderByDescending(candidate => candidate.Location.Length)
+            .Where(candidate => candidate.Location.Length > 0 && Holds(candidate.Location, path, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(candidate => Holds(candidate.Location, path, StringComparison.Ordinal))
+            .ThenByDescending(candidate => candidate.Location.Length)
             .Select(candidate => candidate.Folder)
             .FirstOrDefault();
 
-        static bool Holds(string location, string path) =>
-            path.StartsWith(location, StringComparison.OrdinalIgnoreCase)
+        static bool Holds(string location, string path, StringComparison comparison) =>
+            path.StartsWith(location, comparison)
             && (path.Length == location.Length || path[location.Length] is '/' or '\\');
     }
 

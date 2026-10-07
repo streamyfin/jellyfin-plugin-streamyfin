@@ -123,4 +123,21 @@ public class ItemAddedLibraryFilterTests
 
         Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, @"d:\media\movies\Up (2009)\Up.mkv"));
     }
+
+    // Two libraries can hold folders that differ only by case on a filesystem that tells
+    // them apart; the folder written exactly as the item's path wins.
+    [Fact]
+    public void AFolderWrittenExactlyWinsOverOneThatDiffersByCase()
+    {
+        var upper = Guid.NewGuid();
+        var lower = Guid.NewGuid();
+        VirtualFolderInfo[] folders =
+        [
+            new() { ItemId = upper.ToString("N"), Locations = ["/media/Movies"] },
+            new() { ItemId = lower.ToString("N"), Locations = ["/media/movies"] }
+        ];
+
+        Assert.Equal(lower, ItemAddedService.LibraryIdOf(folders, "/media/movies/Up (2009)/Up.mkv"));
+        Assert.Equal(upper, ItemAddedService.LibraryIdOf(folders, "/media/Movies/Up (2009)/Up.mkv"));
+    }
 }
