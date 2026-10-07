@@ -8,6 +8,20 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-07, a switch no longer takes back a notification's button
+
+A review of the app's screen, streamyfin#2216, found that its switches sent every choice back,
+the pause and the muted shows as the screen last saw them: pausing from a notification's
+button, then moving a switch on a screen opened before, took the pause back without a word, and
+the same went for a show turned off from its notification (#229). The person's update now
+replaces the events, the libraries and the followed shows only, read and changed in one step,
+and the pause and the muted shows keep their own routes. Neither route was in a release, so no
+client broke, and an app that still sends them has them left out.
+
+The same review made the app act on a notification's show id only when it is an id, since
+anyone holding a device's push token can send a notification, and end on what the server kept
+when a change fails. Both are in streamyfin#2216.
+
 ## 2026-10-07, each person chooses their notifications
 
 P4.5 landed (#226). A person now narrows, for themselves, what their levels send them: a pause
