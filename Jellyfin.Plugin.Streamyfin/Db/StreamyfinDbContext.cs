@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Jellyfin.Plugin.Streamyfin.Db;
@@ -30,6 +31,7 @@ public class StreamyfinDbContext : DbContext
         UserSettingsOverrides = Set<UserSettingsOverride>();
         GlobalConfigurations = Set<GlobalConfiguration>();
         ExpoReceipts = Set<ExpoReceipt>();
+        NotificationPreferences = Set<NotificationPreferencesRow>();
     }
 
     /// <summary>
@@ -47,6 +49,7 @@ public class StreamyfinDbContext : DbContext
         UserSettingsOverrides = Set<UserSettingsOverride>();
         GlobalConfigurations = Set<GlobalConfiguration>();
         ExpoReceipts = Set<ExpoReceipt>();
+        NotificationPreferences = Set<NotificationPreferencesRow>();
     }
 
     /// <summary>
@@ -84,6 +87,11 @@ public class StreamyfinDbContext : DbContext
     /// </summary>
     public DbSet<ExpoReceipt> ExpoReceipts { get; set; }
 
+    /// <summary>
+    /// Gets or sets what each person keeps of their notifications.
+    /// </summary>
+    public DbSet<NotificationPreferencesRow> NotificationPreferences { get; set; }
+
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -103,6 +111,13 @@ public class StreamyfinDbContext : DbContext
             entity.Property(t => t.Token).IsRequired();
             entity.Property(t => t.Timestamp).IsRequired();
             entity.HasIndex(t => t.UserId);
+
+            // One TEXT column: the registration writes it with the rest of the row in one
+            // statement, and nothing ever queries inside it.
+            entity.Property(t => t.Capabilities)
+                .HasConversion(
+                    capabilities => DeviceCapabilities.Write(capabilities),
+                    stored => DeviceCapabilities.Read(stored));
         });
 
         modelBuilder.Entity<ImportMarker>(entity =>
@@ -151,6 +166,13 @@ public class StreamyfinDbContext : DbContext
             // Every read of this table is "what is old enough to ask about" and "what is
             // too old to keep", so both ends of the window go through this column.
             entity.HasIndex(r => r.CreatedAt);
+        });
+
+        modelBuilder.Entity<NotificationPreferencesRow>(entity =>
+        {
+            entity.ToTable("NotificationPreferences");
+            entity.HasKey(p => p.UserId);
+            entity.Property(p => p.PreferencesJson).IsRequired();
         });
 
         base.OnModelCreating(modelBuilder);

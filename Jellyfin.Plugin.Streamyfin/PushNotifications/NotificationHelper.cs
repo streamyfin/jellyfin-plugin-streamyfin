@@ -155,26 +155,43 @@ public class NotificationHelper
 
         return devices
             .GroupBy(
-                device => (Language: DeviceLanguage.Stored(device.Language), Server: DeviceServer.Stored(device.ServerUrl)),
+                device => (
+                    Language: DeviceLanguage.Stored(device.Language),
+                    Server: DeviceServer.Stored(device.ServerUrl),
+                    Channels: device.Capabilities?.HasChannels == true,
+                    Categories: device.Capabilities?.HasCategories == true),
                 new AudienceComparer())
             .Select(together => (
-                new Audience(DeviceLanguage.CultureOf(together.Key.Language), together.Key.Server),
+                new Audience(
+                    DeviceLanguage.CultureOf(together.Key.Language),
+                    together.Key.Server,
+                    together.Key.Channels,
+                    together.Key.Categories),
                 together.Select(device => device.Token).Distinct(StringComparer.Ordinal).ToList()))
             .ToList();
     }
 
-    // Two devices are written for together when they asked for the same language and reach
-    // the server at the same address, both compared as they are stored.
-    private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server)>
+    // Two devices are written for together when they asked for the same language, reach the
+    // server at the same address, both compared as they are stored, and show the same things:
+    // a channel only goes to a device that created it.
+    private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server, bool Channels, bool Categories)>
     {
-        public bool Equals((string? Language, string? Server) left, (string? Language, string? Server) right) =>
+        /// <inheritdoc />
+        public bool Equals(
+            (string? Language, string? Server, bool Channels, bool Categories) left,
+            (string? Language, string? Server, bool Channels, bool Categories) right) =>
             string.Equals(left.Language, right.Language, StringComparison.Ordinal)
-            && string.Equals(left.Server, right.Server, StringComparison.Ordinal);
+            && string.Equals(left.Server, right.Server, StringComparison.Ordinal)
+            && left.Channels == right.Channels
+            && left.Categories == right.Categories;
 
-        public int GetHashCode((string? Language, string? Server) key) =>
+        /// <inheritdoc />
+        public int GetHashCode((string? Language, string? Server, bool Channels, bool Categories) key) =>
             HashCode.Combine(
                 key.Language is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Language),
-                key.Server is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Server));
+                key.Server is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Server),
+                key.Channels,
+                key.Categories);
     }
 
     /// <summary>
@@ -209,13 +226,20 @@ public class NotificationHelper
     /// announced to people who may open it, whatever a level says.
     /// </param>
     /// <param name="write">Writes the messages for one audience, called once per audience.</param>
+    /// <param name="subject">
+    /// What the event is about, for what each person kept and for the channel, thread and
+    /// buttons of its messages; the event alone when nothing more is known.
+    /// </param>
+    /// <param name="watching">How to ask whether somebody follows a show, for new episodes.</param>
     /// <returns>Expo's response, or null when nobody is to be told.</returns>
     public async Task<ExpoNotificationResponse?> SendForEvent(
         string eventKey,
         NotificationConfiguration? server,
         Func<User, bool> byDefault,
         Func<User, bool>? andAlso,
-        Func<Audience, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write,
+        NotificationSubject? subject = null,
+        IShowWatching? watching = null)
     {
         ArgumentNullException.ThrowIfNull(byDefault);
         ArgumentNullException.ThrowIfNull(write);
@@ -229,6 +253,9 @@ public class NotificationHelper
         var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
         var targets = NotificationTargets.From(StreamyfinPlugin.Instance?.Database);
         var serverEnabled = server is { Enabled: true };
+        var preferences = StreamyfinPlugin.Instance?.Database.AllNotificationPreferences() ?? [];
+        var about = subject ?? new NotificationSubject(eventKey);
+        var now = DateTime.UtcNow;
 
         var recipients = DevicesWho(devices, userId =>
         {
@@ -242,7 +269,9 @@ public class NotificationHelper
             return user is not null
                 && !user.IsDisabled()
                 && targets.Reaches(eventKey, userId, serverEnabled, byDefault(user))
-                && (andAlso?.Invoke(user) ?? true);
+                && (andAlso?.Invoke(user) ?? true)
+                // Last, and only ever narrowing: what the person kept of what they were sent.
+                && KeepsFor(preferences.GetValueOrDefault(userId), about, now, user, watching);
         });
 
         if (recipients.Count == 0)
@@ -251,8 +280,58 @@ public class NotificationHelper
             return null;
         }
 
-        return await SendToDevices(recipients, write).ConfigureAwait(false);
+        return await SendToDevices(recipients, write, about).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// The devices whose owner kept a notification relayed for an event.
+    /// </summary>
+    /// <param name="devices">The devices the notification is aimed at.</param>
+    /// <param name="eventKey">The event, or <c>null</c> for a notification nobody can turn off.</param>
+    /// <param name="preferences">Everyone's choices.</param>
+    /// <param name="nowUtc">The moment it is sent.</param>
+    /// <returns>The devices to send to.</returns>
+    internal static List<DeviceToken> KeptBy(
+        IEnumerable<DeviceToken> devices,
+        string? eventKey,
+        IReadOnlyDictionary<Guid, NotificationPreferences> preferences,
+        DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        if (eventKey is null)
+        {
+            return [.. devices];
+        }
+
+        var subject = new NotificationSubject(eventKey);
+        return [.. devices.Where(device =>
+            PersonalRule.Keeps(preferences.GetValueOrDefault(device.UserId), subject, nowUtc, _ => false))];
+    }
+
+    /// <summary>
+    /// Whether a person keeps a message their levels sent them.
+    /// </summary>
+    /// <param name="mine">What they chose, or nothing.</param>
+    /// <param name="subject">What the message is about.</param>
+    /// <param name="nowUtc">The moment it is sent.</param>
+    /// <param name="user">The person.</param>
+    /// <param name="watching">How to ask about a show, or nothing for an event about none.</param>
+    /// <returns>True when it goes to their devices.</returns>
+    internal static bool KeepsFor(
+        NotificationPreferences? mine,
+        NotificationSubject subject,
+        DateTime nowUtc,
+        User user,
+        IShowWatching? watching) =>
+        PersonalRule.Keeps(mine, subject, nowUtc, series =>
+            mine is not null
+            && watching is not null
+            && PersonalRule.Follows(
+                mine.Follow,
+                watching.IsFavorite(user, series),
+                () => watching.HasStarted(user, series)));
 
     /// <summary>
     /// Sends to these devices, each in the language it asked for.
@@ -262,10 +341,15 @@ public class NotificationHelper
     /// Writes the messages for one audience. Called once per audience among the devices, so
     /// it has to build its messages each time rather than hand back the same objects.
     /// </param>
+    /// <param name="subject">
+    /// What the messages are about, to mark them with their channel, thread and buttons;
+    /// nothing for a message about nothing in particular.
+    /// </param>
     /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToDevices(
         IEnumerable<DeviceToken> devices,
-        Func<Audience, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write,
+        NotificationSubject? subject = null)
     {
         ArgumentNullException.ThrowIfNull(devices);
         ArgumentNullException.ThrowIfNull(write);
@@ -285,6 +369,11 @@ public class NotificationHelper
             foreach (var message in write(audience))
             {
                 message.To = tokens;
+                if (subject is not null)
+                {
+                    MessageMarks.Apply(subject, message, audience);
+                }
+
                 messages.Add(message);
             }
         }

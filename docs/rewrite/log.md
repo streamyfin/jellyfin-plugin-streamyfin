@@ -8,6 +8,45 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-07, a switch no longer takes back a notification's button
+
+A review of the app's screen, streamyfin#2216, found that its switches sent every choice back,
+the pause and the muted shows as the screen last saw them: pausing from a notification's
+button, then moving a switch on a screen opened before, took the pause back without a word, and
+the same went for a show turned off from its notification (#229). The person's update now
+replaces the events, the libraries and the followed shows only, read and changed in one step,
+and the pause and the muted shows keep their own routes. Neither route was in a release, so no
+client broke, and an app that still sends them has them left out.
+
+The same review made the app act on a notification's show id only when it is an id, since
+anyone holding a device's push token can send a notification, and end on what the server kept
+when a change fails. Both are in streamyfin#2216.
+
+## 2026-10-07, each person chooses their notifications
+
+P4.5 landed (#226). A person now narrows, for themselves, what their levels send them: a pause
+of 1 hour to a week or until lifted, each event on or off, the libraries whose new items they
+skip, the shows they turned off, and which shows count as followed, favorites and started ones
+by default, whose new episodes arrive even with new items or their library off. The choices
+live in a table of their own, apart from the user level an administrator writes, behind six
+routes on the caller's own account and never an API key's. Messages now carry their family as
+the Android channel, a category for their buttons and an iOS thread, and a channel or buttons
+only go to a device that said at registration it shows them. New items are matched to their
+library by whole folder, which also fixed the server's own library filter. The Targeting tab
+shows what a person chose, and the backup carries it.
+
+The review before merging found what the person's routes did with two changes at once, two
+buttons tapped in a row or two devices of one account: each read the choices before the other
+stored them, so one change was lost, and a first change failed on the row the other was adding.
+A change is now read, made and stored while the write lock is held. A restore refuses a file
+with one person twice, or with longer lists than a person can keep, and whether somebody
+follows a show is asked last, since asking costs library queries on every new episode. The same
+review showed that a file with one user or one group twice already stopped a restore with a
+500, after the configuration was saved; that predates P4.5 and is #228.
+
+The app's screen is streamyfin#2216, a draft until streamyfin#2076 lands and a plugin release
+carries these routes.
+
 ## 2026-10-06, a build without a warning
 
 The last nine warnings a build of `develop` printed were tests blocking on a task with `Wait`

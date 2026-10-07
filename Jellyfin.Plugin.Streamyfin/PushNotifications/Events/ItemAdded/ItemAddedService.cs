@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -13,6 +14,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -22,16 +24,19 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 public class ItemAddedService : BaseEvent, IHostedService
 {
     private readonly ILibraryManager _libraryManager;
+    private readonly IShowWatching _watching;
     private readonly ConcurrentDictionary<Guid, EpisodeTimer> _seasonItems;
 
     public ItemAddedService(ILibraryManager libraryManager,
         ILoggerFactory loggerFactory,
         LocalizationHelper localization,
         IServerApplicationHost applicationHost,
-        NotificationHelper notificationHelper
+        NotificationHelper notificationHelper,
+        IUserDataManager userData
     ) : base(loggerFactory, localization, applicationHost, notificationHelper)
     {
         _libraryManager = libraryManager;
+        _watching = new LibraryShowWatching(libraryManager, userData);
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
     }
 
@@ -51,6 +56,47 @@ public class ItemAddedService : BaseEvent, IHostedService
         return libraryItemId is not null
                && enabledLibraries.Contains(libraryItemId, StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// The library an item went into, found by its path.
+    /// </summary>
+    /// <param name="folders">The server's libraries.</param>
+    /// <param name="path">Where the item is.</param>
+    /// <returns>The library, or <c>null</c> when no library holds that path.</returns>
+    /// <remarks>
+    /// A library holds a path when one of its folders is a whole leading part of it, so
+    /// <c>/media/movies</c> does not hold <c>/media/movies-old</c>. A folder written exactly
+    /// as the path comes first, then one that differs only by case, which Windows paths may;
+    /// among those, the nearer one wins.
+    /// </remarks>
+    internal static VirtualFolderInfo? FolderOf(IEnumerable<VirtualFolderInfo> folders, string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return null;
+        }
+
+        return folders
+            .SelectMany(folder => (folder.Locations ?? []).Select(location => (Folder: folder, Location: location.TrimEnd('/', '\\'))))
+            .Where(candidate => candidate.Location.Length > 0 && Holds(candidate.Location, path, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(candidate => Holds(candidate.Location, path, StringComparison.Ordinal))
+            .ThenByDescending(candidate => candidate.Location.Length)
+            .Select(candidate => candidate.Folder)
+            .FirstOrDefault();
+
+        static bool Holds(string location, string path, StringComparison comparison) =>
+            path.StartsWith(location, comparison)
+            && (path.Length == location.Length || path[location.Length] is '/' or '\\');
+    }
+
+    /// <summary>
+    /// The id of the library an item went into, found by its path.
+    /// </summary>
+    /// <param name="folders">The server's libraries.</param>
+    /// <param name="path">Where the item is.</param>
+    /// <returns>The library id, or <c>null</c> when no library holds that path.</returns>
+    internal static Guid? LibraryIdOf(IEnumerable<VirtualFolderInfo> folders, string? path) =>
+        Guid.TryParse(FolderOf(folders, path)?.ItemId, out var id) ? id : null;
 
     // Written once per language among the devices it goes to, so it builds rather than
     // hands back what it built before.
@@ -139,8 +185,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         // off, so nothing here may assume the block exists. An absent list means every
         // library, which is what IsLibraryEnabled already answers.
         var enabledLibraries = Config?.notifications?.ItemAdded?.EnabledLibraries;
-        var virtualFolder = _libraryManager.GetVirtualFolders()
-            .Find(folder => folder.Locations.Any(location => item?.Path?.Contains(location, StringComparison.Ordinal) == true));
+        var virtualFolder = FolderOf(_libraryManager.GetVirtualFolders(), item.Path);
 
         if (virtualFolder != null && !IsLibraryEnabled(enabledLibraries, virtualFolder.ItemId))
         {
@@ -153,6 +198,9 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         _logger.LogInformation("Item added is {0} - {1}",  item.GetType().Name, item.Name.Escape());
 
+        // Which library it went into, for the people who turned that library off.
+        Guid? library = Guid.TryParse(virtualFolder?.ItemId, out var found) ? found : null;
+
         switch (item)
         {
             case Movie movie:
@@ -164,7 +212,8 @@ public class ItemAddedService : BaseEvent, IHostedService
                         // Not negotiable, whatever a level says: a title only goes to
                         // somebody who may open it (#69).
                         andAlso: NotificationHelper.CanOpenEvery([item]),
-                        write: audience => MovieMessage(item, audience)),
+                        write: audience => MovieMessage(item, audience),
+                        subject: new NotificationSubject("itemAdded", library)),
                     "item added");
                 break;
             case Episode episode:
@@ -241,6 +290,10 @@ public class ItemAddedService : BaseEvent, IHostedService
             return;
         }
 
+        // The library for those who turned it off, the show for those who follow or muted it.
+        var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), episode.Path);
+        var subject = new NotificationSubject("itemAdded", library, refreshedSeason.Series.Id);
+
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(
             _notificationHelper.SendForEvent(
@@ -248,7 +301,9 @@ public class ItemAddedService : BaseEvent, IHostedService
                 Config?.notifications?.ItemAdded,
                 byDefault: _ => true,
                 andAlso: NotificationHelper.CanOpenEvery(named),
-                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
+                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)],
+                subject: subject,
+                watching: _watching),
             "episodes added");
     }
 

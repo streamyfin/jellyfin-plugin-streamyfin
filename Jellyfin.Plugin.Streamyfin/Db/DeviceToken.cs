@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Newtonsoft.Json;
 
 namespace Jellyfin.Plugin.Streamyfin.Db;
@@ -53,6 +54,16 @@ public class DeviceToken
     /// </remarks>
     [JsonProperty(PropertyName = "serverUrl")]
     public string? ServerUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets what the device can show, or <c>null</c> when it did not say.
+    /// </summary>
+    /// <remarks>
+    /// Sent by the app with its registration. A device that says nothing gets messages
+    /// without a channel or buttons, which is what every device got before this.
+    /// </remarks>
+    [JsonProperty(PropertyName = "capabilities")]
+    public DeviceCapabilities? Capabilities { get; set; }
 
     /// <summary>
     /// Gets or sets when the token was last registered, as a Windows file time.

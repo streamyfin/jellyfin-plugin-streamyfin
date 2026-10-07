@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -49,6 +51,44 @@ public class ConfigurationBackup
     /// </summary>
     [JsonPropertyName("users")]
     public List<UserBackup> Users { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets what each person chose for their own notifications, or <c>null</c> in a
+    /// backup taken before they could, which a restore then leaves as they are.
+    /// </summary>
+    [JsonPropertyName("notificationPreferences")]
+    public List<PreferencesBackup>? NotificationPreferences { get; set; }
+
+    /// <summary>
+    /// What makes the choices in this file impossible to restore, found before anything is
+    /// written. A choice that leaves out what the person chose is as empty as a missing one:
+    /// the restore would otherwise take that person's choices away. A restore keeps one entry
+    /// per person, and holds each to the same most as the app.
+    /// </summary>
+    /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
+    public string? PreferencesProblem()
+    {
+        if (NotificationPreferences is not { } choices)
+        {
+            return null;
+        }
+
+        if (choices.Any(choice => choice?.Preferences is null))
+        {
+            return "One of the notification choices in this file is empty.";
+        }
+
+        if (choices.GroupBy(choice => choice!.UserId).Any(same => same.Count() > 1))
+        {
+            return "This file has the notification choices of one person twice.";
+        }
+
+        return choices
+            .Select(choice => MyNotifications.ListsProblem(
+                choice!.Preferences!.MutedShows?.Count ?? 0,
+                choice.Preferences.MutedLibraries?.Count ?? 0))
+            .FirstOrDefault(problem => problem is not null);
+    }
 }
 
 /// <summary>
@@ -67,6 +107,24 @@ public class UserBackup
     /// </summary>
     [JsonPropertyName("settings")]
     public Configuration.Settings.Settings? Settings { get; set; }
+}
+
+/// <summary>
+/// One person's notification choices in a backup.
+/// </summary>
+public class PreferencesBackup
+{
+    /// <summary>
+    /// Gets or sets the Jellyfin user.
+    /// </summary>
+    [JsonPropertyName("userId")]
+    public Guid UserId { get; set; }
+
+    /// <summary>
+    /// Gets or sets their choices.
+    /// </summary>
+    [JsonPropertyName("preferences")]
+    public NotificationPreferences? Preferences { get; set; }
 }
 
 /// <summary>
@@ -109,6 +167,12 @@ public class RestoreReport
     /// </summary>
     [JsonPropertyName("unknownUsers")]
     public int UnknownUsers { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many people had their own notification choices put back.
+    /// </summary>
+    [JsonPropertyName("preferences")]
+    public int Preferences { get; set; }
 
     /// <summary>
     /// Gets or sets what stopped the restore, when something did.
