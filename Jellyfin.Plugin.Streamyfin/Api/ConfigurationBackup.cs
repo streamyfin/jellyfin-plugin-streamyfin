@@ -60,6 +60,54 @@ public class ConfigurationBackup
     public List<PreferencesBackup>? NotificationPreferences { get; set; }
 
     /// <summary>
+    /// What makes the groups and the user settings in this file impossible to restore, found
+    /// before anything is written. The server holds one group per id and per name, and one
+    /// entry per user, so a file that repeats one would stop the restore partway through.
+    /// </summary>
+    /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
+    public string? TargetingProblem()
+    {
+        if (Groups.Any(group => group is null))
+        {
+            return "One of the groups in this file is empty.";
+        }
+
+        if (Users.Any(user => user is null))
+        {
+            return "One of the user settings in this file is empty.";
+        }
+
+        if (Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
+        {
+            return "Every group in a backup needs a name, and one of these has none.";
+        }
+
+        // A group without an id is given a new one, so only an id the file repeats clashes.
+        if (Groups
+            .Where(group => group.Id != Guid.Empty)
+            .GroupBy(group => group.Id)
+            .FirstOrDefault(same => same.Count() > 1) is { } sameId)
+        {
+            return $"This file has two groups with the id {sameId.Key}.";
+        }
+
+        // Compared the way the database compares them, where "Kids" and "kids" are two names.
+        if (Groups
+            .GroupBy(group => group.Name, StringComparer.Ordinal)
+            .FirstOrDefault(same => same.Count() > 1) is { } sameName)
+        {
+            return $"This file has two groups named \"{sameName.Key}\".";
+        }
+
+        if (Users.GroupBy(user => user.UserId).FirstOrDefault(same => same.Count() > 1) is { } sameUser)
+        {
+            return $"This file has the settings of user {sameUser.Key} twice.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// What makes the choices in this file impossible to restore, found before anything is
     /// written. A choice that leaves out what the person chose is as empty as a missing one:
     /// the restore would otherwise take that person's choices away. A restore keeps one entry

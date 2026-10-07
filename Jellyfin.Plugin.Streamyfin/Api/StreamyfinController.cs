@@ -373,6 +373,12 @@ public class StreamyfinController : ControllerBase
       return BadRequest(new RestoreReport { Problem = "That file is not a backup this plugin can read." });
     }
 
+    // First, since reading the levels below needs every entry to be there.
+    if (backup.TargetingProblem() is { } targetingProblem)
+    {
+      return BadRequest(new RestoreReport { Problem = targetingProblem });
+    }
+
     // Everything it carries is checked before anything is written, so a file with one
     // bad level does not leave the server half restored.
     foreach (var (settings, before) in LevelsBeside(backup))
@@ -381,12 +387,6 @@ public class StreamyfinController : ControllerBase
       {
         return BadRequest(new RestoreReport { Problem = problem });
       }
-    }
-
-    // Checked before anything is written, and before anything is deleted.
-    if (backup.Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
-    {
-      return BadRequest(new RestoreReport { Problem = "Every group in a backup needs a name, and one of these has none." });
     }
 
     if (backup.PreferencesProblem() is { } choicesProblem)

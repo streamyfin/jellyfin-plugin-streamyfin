@@ -149,17 +149,6 @@ public class BackupTests
     }
 
     /// <summary>
-    /// A group with no name is refused, the way one written through the API is.
-    /// </summary>
-    [Fact]
-    public void AGroupWithNoNameIsNotSomethingToRestore()
-    {
-        var nameless = new SettingsGroupDto { Name = "   ", Priority = 1 };
-
-        Assert.True(string.IsNullOrWhiteSpace(nameless.Name));
-    }
-
-    /// <summary>
     /// The report says what happened, including what this server had never heard of.
     /// </summary>
     [Fact]
@@ -266,5 +255,38 @@ public class BackupTests
         };
 
         Assert.Equal(refused, backup.PreferencesProblem() is not null);
+    }
+
+    /// <summary>
+    /// A file the restore could only apply halfway is refused before anything is written. It
+    /// writes groups back by id and by name, which are unique, and user settings by user, so
+    /// a repeat or an empty entry stopped it with an error after the configuration was saved
+    /// (#228). A group with no name is refused the way one written through the API is.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"groups":[{"id":"6f0c1c55-8e2b-4c44-9d65-0a1f2c3d4e5f","name":"Kids"},{"id":"6f0c1c55-8e2b-4c44-9d65-0a1f2c3d4e5f","name":"Teens"}],"users":[]}""")]
+    [InlineData("""{"groups":[{"name":"Kids"},{"name":"Kids"}],"users":[]}""")]
+    [InlineData("""{"groups":[],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"},{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""")]
+    [InlineData("""{"groups":[null],"users":[]}""")]
+    [InlineData("""{"groups":[],"users":[null]}""")]
+    [InlineData("""{"groups":[{"name":" "}],"users":[]}""")]
+    public void AFileTheRestoreCouldOnlyApplyHalfwayIsRefused(string file)
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(file);
+
+        Assert.NotNull(read!.TargetingProblem());
+    }
+
+    /// <summary>
+    /// Groups without an id each get a new one, and names that differ only by case are two
+    /// groups the server can hold, so neither is refused.
+    /// </summary>
+    [Fact]
+    public void GroupsWithoutAnIdOrNamedApartByCaseAreRestored()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            """{"groups":[{"name":"Kids"},{"name":"kids"}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""");
+
+        Assert.Null(read!.TargetingProblem());
     }
 }
