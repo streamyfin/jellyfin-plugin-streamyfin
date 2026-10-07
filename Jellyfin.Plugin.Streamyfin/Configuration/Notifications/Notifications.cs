@@ -57,6 +57,11 @@ public class Notifications
     public ItemAddedNotificationConfiguration? ItemAdded { get; set; }
 
     [NotNull]
+    [Display(Name = "Awaited title", Description = "People get notified when a title they asked to be told about arrives, even with new items or its library turned off, unless they paused their notifications.")]
+    [JsonPropertyName(name: "awaitedTitle")]
+    public NotificationConfiguration? AwaitedTitle { get; set; }
+
+    [NotNull]
     [Display(Name = "Scheduled task failed", Description = "Admins get notified when one of the server's scheduled tasks fails, with the reason it gave.")]
     [JsonPropertyName(name: "taskFailed")]
     public NotificationConfiguration? TaskFailed { get; set; }

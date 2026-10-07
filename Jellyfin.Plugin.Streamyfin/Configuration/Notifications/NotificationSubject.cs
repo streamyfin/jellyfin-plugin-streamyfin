@@ -29,7 +29,7 @@ public static class NotificationFamilies
     public static string Of(string eventKey) => eventKey switch
     {
         NotificationEvents.ItemAdded => NewContent,
-        NotificationEvents.SeerrRequests => Requests,
+        NotificationEvents.SeerrRequests or NotificationEvents.AwaitedTitle => Requests,
         NotificationEvents.UserLockedOut => Account,
         _ => ServerAlerts
     };
@@ -60,6 +60,12 @@ public static class NotificationEvents
     public const string SeerrPending = "seerrPending";
 
     /// <summary>
+    /// A title the person asked to be told about arrived (#225). On unless an administrator
+    /// turns it off: the person asks for each title themselves.
+    /// </summary>
+    public const string AwaitedTitle = "awaitedTitle";
+
+    /// <summary>
     /// The events about the server, which only administrators get.
     /// </summary>
     public static readonly IReadOnlyList<string> ForAdministrators =
@@ -69,7 +75,7 @@ public static class NotificationEvents
     /// Every event, in the order the app shows them.
     /// </summary>
     public static readonly IReadOnlyList<string> All =
-        [ItemAdded, SeerrRequests, UserLockedOut, .. ForAdministrators];
+        [ItemAdded, SeerrRequests, AwaitedTitle, UserLockedOut, .. ForAdministrators];
 }
 
 /// <summary>

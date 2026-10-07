@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Microsoft.Extensions.Logging;
@@ -99,6 +100,42 @@ public sealed class GlobalConfigurationStore
             _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
             _cached = config;
         }
+    }
+
+    /// <summary>
+    /// Turns the awaited titles on, once, on a server whose configuration never mentions
+    /// them (#225).
+    /// </summary>
+    /// <remarks>
+    /// An event the configuration does not mention reads as off, which is right for the alerts
+    /// about the server itself. A person asks for these one title at a time, so they are on
+    /// unless an administrator turns them off, and writing that down makes the pages say so.
+    /// The marker keeps an administrator's later "off" from being turned back on.
+    /// </remarks>
+    public void SwitchOnAwaitedTitles()
+    {
+        if (_database.HasMarker(ImportMarker.AwaitedTitlesOn))
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            var config = _cached ??= Read();
+            config.notifications ??= new Notifications.Notifications();
+
+            if (config.notifications.AwaitedTitle is null)
+            {
+                config.notifications.AwaitedTitle = new NotificationConfiguration { Enabled = true };
+                _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
+                _cached = config;
+                _logger?.LogInformation("Turned on the awaited titles notification, which this server had never mentioned");
+            }
+        }
+
+        // After the configuration: a failure in between runs this again rather than leaving
+        // the event off.
+        _database.Mark(ImportMarker.AwaitedTitlesOn);
     }
 
     /// <summary>

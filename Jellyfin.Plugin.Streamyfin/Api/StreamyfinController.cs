@@ -824,6 +824,8 @@ public class StreamyfinController : ControllerBase
     [
       (NotificationEvents.ItemAdded, Reaches(NotificationEvents.ItemAdded, notifications?.ItemAdded, byDefault: true)),
       (NotificationEvents.SeerrRequests, seerr),
+      // Asked for from the app's Seerr pages, so offered where Seerr is set up.
+      (NotificationEvents.AwaitedTitle, seerr && Reaches(NotificationEvents.AwaitedTitle, notifications?.AwaitedTitle, byDefault: true)),
       // Everyone hears about their own account being locked out.
       (NotificationEvents.UserLockedOut, Reaches(NotificationEvents.UserLockedOut, notifications?.UserLockedOut, byDefault: true)),
       (NotificationEvents.SeerrPending, seerr && administrator),

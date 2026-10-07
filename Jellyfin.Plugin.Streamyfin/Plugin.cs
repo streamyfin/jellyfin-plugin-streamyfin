@@ -39,6 +39,7 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         // Reading base.Configuration here is what makes Jellyfin parse the old XML, so
         // this is the last point at which its contents are available to carry over.
         Settings.Import(Configuration?.Config, applicationPaths.PluginConfigurationsPath);
+        Settings.SwitchOnAwaitedTitles();
     }
 
     /// <summary>

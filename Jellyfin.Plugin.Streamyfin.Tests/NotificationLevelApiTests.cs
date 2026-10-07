@@ -47,7 +47,7 @@ public class NotificationLevelApiTests
         var events = NotificationsForm.Events();
 
         Assert.Equal(
-            ["sessionStarted", "playbackStarted", "userLockedOut", "itemAdded", "taskFailed", "pluginChanged", "signInFailed"],
+            ["sessionStarted", "playbackStarted", "userLockedOut", "itemAdded", "awaitedTitle", "taskFailed", "pluginChanged", "signInFailed"],
             events.Select(one => one.Key));
 
         Assert.Equal("Session started", events.First(one => one.Key == "sessionStarted").Title);

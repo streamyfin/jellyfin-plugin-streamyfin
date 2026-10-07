@@ -54,7 +54,18 @@ public class NotificationSubjectTests
     [Fact]
     public void EveryEventAPersonCanTurnOffIsListedOnce()
     {
-        Assert.Equal(9, NotificationEvents.All.Count);
+        Assert.Equal(10, NotificationEvents.All.Count);
         Assert.Equal(NotificationEvents.All.Count, new System.Collections.Generic.HashSet<string>(NotificationEvents.All).Count);
+    }
+
+    /// <summary>
+    /// A title somebody asked to be told about arrives as one of their requests, on that
+    /// channel and in that thread (#225).
+    /// </summary>
+    [Fact]
+    public void AnAwaitedTitleArrivesAsOneOfYourRequests()
+    {
+        Assert.Equal(NotificationFamilies.Requests, NotificationFamilies.Of(NotificationEvents.AwaitedTitle));
+        Assert.Contains(NotificationEvents.AwaitedTitle, NotificationEvents.All);
     }
 }

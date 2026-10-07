@@ -492,6 +492,38 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Whether a one time step has already run on this server.
+    /// </summary>
+    /// <param name="name">The step, one of the <see cref="ImportMarker"/> names.</param>
+    /// <returns><c>true</c> once it has run.</returns>
+    public bool HasMarker(string name)
+    {
+        using var context = CreateContext();
+        return context.ImportMarkers.Any(m => m.Name == name);
+    }
+
+    /// <summary>
+    /// Records that a one time step ran, so a later start skips it.
+    /// </summary>
+    /// <param name="name">The step, one of the <see cref="ImportMarker"/> names.</param>
+    public void Mark(string name)
+    {
+        using var context = CreateContext();
+        if (context.ImportMarkers.Any(m => m.Name == name))
+        {
+            return;
+        }
+
+        context.ImportMarkers.Add(new ImportMarker
+        {
+            Name = name,
+            ImportedAt = DateTimeOffset.UtcNow,
+            RowsImported = 0
+        });
+        context.SaveChanges();
+    }
+
+    /// <summary>
     /// Gets every settings group.
     /// </summary>
     /// <returns>The groups, in layer order.</returns>

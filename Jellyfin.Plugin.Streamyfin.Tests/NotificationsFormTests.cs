@@ -27,7 +27,7 @@ public class NotificationsFormTests
             new[]
             {
                 "Session started", "Playback started", "User locked out", "Item added",
-                "Scheduled task failed", "Plugin changed", "Failed sign in"
+                "Awaited title", "Scheduled task failed", "Plugin changed", "Failed sign in"
             },
             categories);
     }
@@ -150,4 +150,21 @@ public class NotificationsFormTests
 
     private static SettingsFormField Field(string key) =>
         NotificationsForm.Describe().Single(field => field.Key == key);
+
+    /// <summary>
+    /// The awaited titles are an event the server declares, so the pages list it, and it
+    /// names nobody but the person told (#225).
+    /// </summary>
+    [Fact]
+    public void TheAwaitedTitlesAreAnEventTheServerDeclares() =>
+        Assert.Contains(
+            NotificationsForm.Events(),
+            declared => declared.Key == NotificationEvents.AwaitedTitle && !declared.AboutSomebodyElse);
+
+    /// <summary>
+    /// A new server has them on.
+    /// </summary>
+    [Fact]
+    public void ANewServerHasTheAwaitedTitlesOn() =>
+        Assert.True(Configuration.PluginConfiguration.DefaultConfig().notifications?.AwaitedTitle?.Enabled);
 }

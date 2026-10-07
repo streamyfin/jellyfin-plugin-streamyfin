@@ -213,6 +213,57 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <inheritdoc/>
+    /// <summary>
+    /// A server that never said anything about the awaited titles has them turned on, once,
+    /// and the pages then show them on (#225).
+    /// </summary>
+    [Fact]
+    public void TheAwaitedTitlesAreSwitchedOnOnAServerThatNeverMentionedThem()
+    {
+        _store.Save(new Config { notifications = new Configuration.Notifications.Notifications() });
+
+        _store.SwitchOnAwaitedTitles();
+
+        Assert.True(new GlobalConfigurationStore(_db, _serialization).Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
+    /// <summary>
+    /// Turned off by an administrator afterwards, they stay off across restarts.
+    /// </summary>
+    [Fact]
+    public void AnAdministratorWhoTurnsThemOffAfterwardsKeepsThemOff()
+    {
+        _store.Save(new Config { notifications = new Configuration.Notifications.Notifications() });
+        _store.SwitchOnAwaitedTitles();
+
+        var config = _store.Current;
+        config.notifications!.AwaitedTitle = new Configuration.Notifications.NotificationConfiguration { Enabled = false };
+        _store.Save(config);
+
+        new GlobalConfigurationStore(_db, _serialization).SwitchOnAwaitedTitles();
+
+        Assert.False(new GlobalConfigurationStore(_db, _serialization).Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
+    /// <summary>
+    /// A server that already says something about them is left as it is.
+    /// </summary>
+    [Fact]
+    public void AServerThatAlreadySaysSomethingAboutThemIsLeftAsItIs()
+    {
+        _store.Save(new Config
+        {
+            notifications = new Configuration.Notifications.Notifications
+            {
+                AwaitedTitle = new Configuration.Notifications.NotificationConfiguration { Enabled = false }
+            }
+        });
+
+        _store.SwitchOnAwaitedTitles();
+
+        Assert.False(_store.Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
     public void Dispose()
     {
         TestDirectory.Delete(_directory);
