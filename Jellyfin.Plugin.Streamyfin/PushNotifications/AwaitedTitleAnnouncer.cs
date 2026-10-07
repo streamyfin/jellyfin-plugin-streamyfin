@@ -122,12 +122,44 @@ public class AwaitedTitleAnnouncer
             return decide(row, title);
         });
 
-        foreach (var arrival in told.GroupBy(row => row.ArrivedItemId!.Value))
-        {
-            await Announce(database, titles[arrival.Key], [.. arrival]).ConfigureAwait(false);
-        }
+        await AnnounceEach(
+            told.GroupBy(row => row.ArrivedItemId!.Value),
+            arrival => Announce(database, titles[arrival.Key], [.. arrival]),
+            (arrival, e) => _logger.LogError(e, "Could not announce {Title} after a pause", titles[arrival.Key].Name.Escape()))
+            .ConfigureAwait(false);
 
         return told.Count;
+    }
+
+    /// <summary>
+    /// Announces each arrival in turn, the next one even when one fails.
+    /// </summary>
+    /// <typeparam name="T">An arrival.</typeparam>
+    /// <param name="arrivals">The arrivals, settled already.</param>
+    /// <param name="announce">Sends one.</param>
+    /// <param name="failed">Hears of one that could not be sent.</param>
+    /// <returns>A task.</returns>
+    /// <remarks>
+    /// The rows are settled before anything is sent, so a failure that stopped the loop lost
+    /// every arrival after it for good.
+    /// </remarks>
+    internal static async Task AnnounceEach<T>(IEnumerable<T> arrivals, Func<T, Task> announce, Action<T, Exception> failed)
+    {
+        ArgumentNullException.ThrowIfNull(arrivals);
+        ArgumentNullException.ThrowIfNull(announce);
+        ArgumentNullException.ThrowIfNull(failed);
+
+        foreach (var arrival in arrivals)
+        {
+            try
+            {
+                await announce(arrival).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                failed(arrival, e);
+            }
+        }
     }
 
     /// <summary>

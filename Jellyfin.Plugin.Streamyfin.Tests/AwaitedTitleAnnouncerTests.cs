@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using MediaBrowser.Controller.Entities.Movies;
@@ -111,5 +112,34 @@ public class AwaitedTitleAnnouncerTests
         Assert.Equal(2, messages.Count);
         Assert.True(messages.Single(m => m.Named.Title == "The Matrix").People.SetEquals([alice, carol]));
         Assert.True(messages.Single(m => m.Named.Title != "The Matrix").People.SetEquals([bob]));
+    }
+
+    /// <summary>
+    /// The rows a pause held are settled before anything is sent, so an arrival that fails to
+    /// send must not stop the ones after it.
+    /// </summary>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task OneArrivalFailingDoesNotStopTheNext()
+    {
+        var announced = new List<string>();
+        var failed = new List<string>();
+
+        await AwaitedTitleAnnouncer.AnnounceEach(
+            ["first", "broken", "last"],
+            arrival =>
+            {
+                if (arrival == "broken")
+                {
+                    throw new InvalidOperationException("Expo is down");
+                }
+
+                announced.Add(arrival);
+                return Task.CompletedTask;
+            },
+            (arrival, _) => failed.Add(arrival));
+
+        Assert.Equal(["first", "last"], announced);
+        Assert.Equal(["broken"], failed);
     }
 }
