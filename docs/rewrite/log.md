@@ -8,6 +8,25 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-07, a restore checks the whole file and keeps the notifications
+
+A backup file with the same user twice, two groups with the same id or name, or an empty entry
+passed every check a restore made before writing (#228). The configuration was saved, then
+writing the levels failed on a unique key, so the route answered 500 and left the server with
+the file's configuration next to its old groups. Those files are now refused before anything is
+written, with a sentence that names the repeat (#230). Names are compared the way the database
+compares them, so "Kids" and "kids" stay two groups.
+
+Fixing it showed the restore dropping what each group and each user says about the
+notification events, which arrived with #191: the file carried the groups' but not the users',
+and the restore wrote neither back. A server restored from its own backup lost every
+notification aimed at a group or a person. The file now carries both and the restore writes
+both back, after checking them the way the pages do, for the users this server has (#231).
+Building the rows a restore writes moved into `ConfigurationBackup.ToRows`, so it is tested
+without a server.
+
+The two went in as one stack on GitHub, #231 on top of #230, merged together.
+
 ## 2026-10-07, Seerr reaches the app as its block only
 
 The app no longer receives Seerr under the three flat keys `jellyseerrServerUrl`,
