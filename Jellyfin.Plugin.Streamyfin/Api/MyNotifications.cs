@@ -114,6 +114,15 @@ public static class MyNotifications
     /// <summary>The longest pause a person can ask for with a duration: a week.</summary>
     public const int LongestPauseHours = 168;
 
+    /// <summary>
+    /// The most shows a person can turn off. Every send reads everyone's choices, so no list
+    /// in them grows without end.
+    /// </summary>
+    public const int MostMutedShows = 1000;
+
+    /// <summary>The most libraries a person can turn off, for the same reason.</summary>
+    public const int MostMutedLibraries = 200;
+
     /// <summary>Describes a person's choices for the app.</summary>
     /// <param name="mine">What they chose, or nothing.</param>
     /// <param name="reaching">The events that can reach them.</param>
@@ -186,7 +195,41 @@ public static class MyNotifications
         ArgumentNullException.ThrowIfNull(update);
 
         var unknown = update.Events?.Keys.FirstOrDefault(key => !NotificationEvents.All.Contains(key));
-        return unknown is null ? null : $"There is no notification called {unknown}.";
+        if (unknown is not null)
+        {
+            return $"There is no notification called {unknown}.";
+        }
+
+        if (update.MutedShows?.Count > MostMutedShows)
+        {
+            return $"At most {MostMutedShows} shows can be turned off.";
+        }
+
+        return update.MutedLibraries?.Count > MostMutedLibraries
+            ? $"At most {MostMutedLibraries} libraries can be turned off."
+            : null;
+    }
+
+    /// <summary>Turns a show off, once.</summary>
+    /// <param name="mine">The person's choices, changed in place.</param>
+    /// <param name="seriesId">The show.</param>
+    /// <returns>A sentence for the app when they already turned off the most, or <c>null</c>.</returns>
+    public static string? Mute(NotificationPreferences mine, Guid seriesId)
+    {
+        ArgumentNullException.ThrowIfNull(mine);
+
+        if (mine.MutedShows.Contains(seriesId))
+        {
+            return null;
+        }
+
+        if (mine.MutedShows.Count >= MostMutedShows)
+        {
+            return $"At most {MostMutedShows} shows can be turned off.";
+        }
+
+        mine.MutedShows.Add(seriesId);
+        return null;
     }
 
     /// <summary>The stored form of an update, with the defaults for what it leaves out.</summary>

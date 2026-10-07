@@ -19,6 +19,7 @@ using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Library;
@@ -974,12 +975,14 @@ public class StreamyfinController : ControllerBase
   /// <summary>
   /// Turns a show off for the caller.
   /// </summary>
-  /// <param name="seriesId">The show.</param>
+  /// <param name="seriesId">The show, which they must be able to open.</param>
   /// <returns>Their choices as stored.</returns>
   [HttpPost("v1/notifications/mine/shows/{seriesId}/mute")]
   [Authorize]
   [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
   [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
   public ActionResult<MyNotificationsDto> MuteShow([FromRoute, Required] Guid seriesId)
   {
     if (Person() is not { } user)
@@ -987,13 +990,22 @@ public class StreamyfinController : ControllerBase
       return Forbid();
     }
 
-    return Change(user, mine =>
+    // Only a show they can open: an id of anything else would only grow the row every
+    // send reads.
+    if (_libraryManager.GetItemById<BaseItem>(seriesId, user) is not Series)
     {
-      if (!mine.MutedShows.Contains(seriesId))
-      {
-        mine.MutedShows.Add(seriesId);
-      }
-    });
+      return NotFound($"There is no show {seriesId:N} on this account.");
+    }
+
+    var database = StreamyfinPlugin.Instance!.Database;
+    var mine = database.GetNotificationPreferences(user.Id) ?? new NotificationPreferences();
+    if (MyNotifications.Mute(mine, seriesId) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    database.SaveNotificationPreferences(user.Id, mine);
+    return DescribeFor(user, mine);
   }
 
   /// <summary>

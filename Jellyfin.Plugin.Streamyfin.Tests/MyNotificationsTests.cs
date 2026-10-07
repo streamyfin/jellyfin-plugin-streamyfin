@@ -123,4 +123,35 @@ public class MyNotificationsTests
 
         Assert.Equal([Movies, Music], MyNotifications.LibrariesFor(folders, null, _ => true).Select(library => library.Id));
     }
+
+    // Every send reads everyone's choices, so no list in them grows without end.
+    [Fact]
+    public void AnUpdateWithMoreThanTheMostIsRefused()
+    {
+        var shows = new MyNotificationsUpdate { MutedShows = [.. Enumerable.Range(0, MyNotifications.MostMutedShows + 1).Select(_ => Guid.NewGuid())] };
+        var libraries = new MyNotificationsUpdate { MutedLibraries = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())] };
+
+        Assert.NotNull(MyNotifications.Problem(shows));
+        Assert.NotNull(MyNotifications.Problem(libraries));
+    }
+
+    [Fact]
+    public void AShowIsTurnedOffOnce()
+    {
+        var mine = new NotificationPreferences();
+        var show = Guid.NewGuid();
+
+        Assert.Null(MyNotifications.Mute(mine, show));
+        Assert.Null(MyNotifications.Mute(mine, show));
+        Assert.Single(mine.MutedShows);
+    }
+
+    [Fact]
+    public void TurningOffOneShowPastTheMostIsRefused()
+    {
+        var mine = new NotificationPreferences { MutedShows = [.. Enumerable.Range(0, MyNotifications.MostMutedShows).Select(_ => Guid.NewGuid())] };
+
+        Assert.NotNull(MyNotifications.Mute(mine, Guid.NewGuid()));
+        Assert.Equal(MyNotifications.MostMutedShows, mine.MutedShows.Count);
+    }
 }
