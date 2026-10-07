@@ -329,7 +329,8 @@ public class StreamyfinController : ControllerBase
           Notifications = Said(stored.NotificationsJson)
         })],
       NotificationPreferences = [.. database.AllNotificationPreferences()
-        .Select(stored => new PreferencesBackup { UserId = stored.Key, Preferences = stored.Value })]
+        .Select(stored => new PreferencesBackup { UserId = stored.Key, Preferences = stored.Value })],
+      Awaited = [.. database.AllAwaitedTitles().Select(AwaitedTitleBackup.From)]
     }));
   }
 
@@ -403,6 +404,11 @@ public class StreamyfinController : ControllerBase
       return BadRequest(new RestoreReport { Problem = choicesProblem });
     }
 
+    if (backup.AwaitedProblem() is { } awaitedProblem)
+    {
+      return BadRequest(new RestoreReport { Problem = awaitedProblem });
+    }
+
     var database = StreamyfinPlugin.Instance!.Database;
     var rows = backup.ToRows(_serializationHelperService, known);
     var report = new RestoreReport { UnknownMembers = rows.UnknownMembers, UnknownUsers = rows.UnknownUsers };
@@ -433,9 +439,18 @@ public class StreamyfinController : ControllerBase
       report.Preferences = kept.Count;
     }
 
+    // An older backup has nothing to say about what anyone waits for, so that stays too.
+    if (backup.Awaited is { } awaited)
+    {
+      var kept = awaited.Where(title => known.Contains(title.UserId)).Select(title => title.ToRow()).ToList();
+
+      database.ReplaceAwaitedTitles(kept);
+      report.Awaited = kept.Count;
+    }
+
     _logger.LogInformation(
       "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
-      + "{Users} user override(s), {Preferences} person's own choice(s), {UnknownMembers} member(s) and "
+      + "{Users} user override(s), {Preferences} person's own choice(s), {Awaited} awaited title(s), {UnknownMembers} member(s) and "
       + "{UnknownUsers} user(s) this server does not have",
       backup.Plugin,
       backup.TakenAt,
@@ -443,6 +458,7 @@ public class StreamyfinController : ControllerBase
       report.Groups,
       report.Users,
       report.Preferences,
+      report.Awaited,
       report.UnknownMembers,
       report.UnknownUsers);
 
