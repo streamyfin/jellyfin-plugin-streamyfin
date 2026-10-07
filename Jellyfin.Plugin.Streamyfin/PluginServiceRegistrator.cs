@@ -29,6 +29,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<LocalizationHelper>();
         serviceCollection.AddSingleton<SerializationHelper>();
         serviceCollection.AddSingleton<NotificationHelper>();
+        serviceCollection.AddSingleton<AwaitedTitleAnnouncer>();
         serviceCollection.AddSingleton<SeerrNotificationMapper>();
 
         // The client that talks to Expo. Thirty seconds rather than the hundred an
@@ -82,6 +83,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         // Service
         serviceCollection.AddHostedService<ItemAddedService>();
+        serviceCollection.AddHostedService<AwaitedTitlesService>();
 
         // A scheduled task that fails is not published through the event manager, on either
         // Jellyfin line, so this one listens to the task manager itself.
