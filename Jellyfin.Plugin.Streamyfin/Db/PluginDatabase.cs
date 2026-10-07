@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -140,14 +141,16 @@ public class PluginDatabase
         // insert let the second one fail on the device id with a 500 while the first
         // was still saving. An existing row is updated in place, never removed and
         // re-added, so a device is never left without a token between two writes.
+        var capabilities = DeviceCapabilities.Write(token.Capabilities);
         context.Database.ExecuteSqlInterpolated($"""
-            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Language, ServerUrl, Timestamp)
-            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {token.Language}, {token.ServerUrl}, {timestamp})
+            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Language, ServerUrl, Capabilities, Timestamp)
+            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {token.Language}, {token.ServerUrl}, {capabilities}, {timestamp})
             ON CONFLICT(DeviceId) DO UPDATE SET
                 Token = excluded.Token,
                 UserId = excluded.UserId,
                 Language = excluded.Language,
                 ServerUrl = excluded.ServerUrl,
+                Capabilities = excluded.Capabilities,
                 Timestamp = excluded.Timestamp
             """);
 

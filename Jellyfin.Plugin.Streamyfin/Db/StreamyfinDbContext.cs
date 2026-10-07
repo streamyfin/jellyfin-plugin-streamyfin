@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Jellyfin.Plugin.Streamyfin.Db;
@@ -110,6 +111,13 @@ public class StreamyfinDbContext : DbContext
             entity.Property(t => t.Token).IsRequired();
             entity.Property(t => t.Timestamp).IsRequired();
             entity.HasIndex(t => t.UserId);
+
+            // One TEXT column: the registration writes it with the rest of the row in one
+            // statement, and nothing ever queries inside it.
+            entity.Property(t => t.Capabilities)
+                .HasConversion(
+                    capabilities => DeviceCapabilities.Write(capabilities),
+                    stored => DeviceCapabilities.Read(stored));
         });
 
         modelBuilder.Entity<ImportMarker>(entity =>

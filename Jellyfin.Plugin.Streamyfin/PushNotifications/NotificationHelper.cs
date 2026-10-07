@@ -155,26 +155,41 @@ public class NotificationHelper
 
         return devices
             .GroupBy(
-                device => (Language: DeviceLanguage.Stored(device.Language), Server: DeviceServer.Stored(device.ServerUrl)),
+                device => (
+                    Language: DeviceLanguage.Stored(device.Language),
+                    Server: DeviceServer.Stored(device.ServerUrl),
+                    Channels: device.Capabilities?.HasChannels == true,
+                    Categories: device.Capabilities?.HasCategories == true),
                 new AudienceComparer())
             .Select(together => (
-                new Audience(DeviceLanguage.CultureOf(together.Key.Language), together.Key.Server),
+                new Audience(
+                    DeviceLanguage.CultureOf(together.Key.Language),
+                    together.Key.Server,
+                    together.Key.Channels,
+                    together.Key.Categories),
                 together.Select(device => device.Token).Distinct(StringComparer.Ordinal).ToList()))
             .ToList();
     }
 
-    // Two devices are written for together when they asked for the same language and reach
-    // the server at the same address, both compared as they are stored.
-    private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server)>
+    // Two devices are written for together when they asked for the same language, reach the
+    // server at the same address, both compared as they are stored, and show the same things:
+    // a channel only goes to a device that created it.
+    private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server, bool Channels, bool Categories)>
     {
-        public bool Equals((string? Language, string? Server) left, (string? Language, string? Server) right) =>
+        public bool Equals(
+            (string? Language, string? Server, bool Channels, bool Categories) left,
+            (string? Language, string? Server, bool Channels, bool Categories) right) =>
             string.Equals(left.Language, right.Language, StringComparison.Ordinal)
-            && string.Equals(left.Server, right.Server, StringComparison.Ordinal);
+            && string.Equals(left.Server, right.Server, StringComparison.Ordinal)
+            && left.Channels == right.Channels
+            && left.Categories == right.Categories;
 
-        public int GetHashCode((string? Language, string? Server) key) =>
+        public int GetHashCode((string? Language, string? Server, bool Channels, bool Categories) key) =>
             HashCode.Combine(
                 key.Language is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Language),
-                key.Server is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Server));
+                key.Server is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Server),
+                key.Channels,
+                key.Categories);
     }
 
     /// <summary>
