@@ -48,6 +48,17 @@ public class Notification
     public bool IsAdmin { get; set; }
 
     /// <summary>
+    /// Gets or sets the event a person can turn this off by, or <c>null</c> when nobody can.
+    /// </summary>
+    /// <remarks>
+    /// Set by the plugin for what it relays from Seerr, never read from a request: an
+    /// administrator posting a notification of their own reaches everyone they aim it at.
+    /// </remarks>
+    [System.Text.Json.Serialization.JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
+    public string? EventKey { get; set; }
+
+    /// <summary>
     /// The address of an image to show beside the text, such as a poster.
     /// </summary>
     /// <remarks>

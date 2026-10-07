@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -139,14 +141,16 @@ public class PluginDatabase
         // insert let the second one fail on the device id with a 500 while the first
         // was still saving. An existing row is updated in place, never removed and
         // re-added, so a device is never left without a token between two writes.
+        var capabilities = DeviceCapabilities.Write(token.Capabilities);
         context.Database.ExecuteSqlInterpolated($"""
-            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Language, ServerUrl, Timestamp)
-            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {token.Language}, {token.ServerUrl}, {timestamp})
+            INSERT INTO DeviceTokens (DeviceId, Token, UserId, Language, ServerUrl, Capabilities, Timestamp)
+            VALUES ({token.DeviceId}, {token.Token}, {token.UserId}, {token.Language}, {token.ServerUrl}, {capabilities}, {timestamp})
             ON CONFLICT(DeviceId) DO UPDATE SET
                 Token = excluded.Token,
                 UserId = excluded.UserId,
                 Language = excluded.Language,
                 ServerUrl = excluded.ServerUrl,
+                Capabilities = excluded.Capabilities,
                 Timestamp = excluded.Timestamp
             """);
 
@@ -805,6 +809,146 @@ public class PluginDatabase
 
         context.UserSettingsOverrides.Remove(existing);
         context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Gets what one person keeps of their notifications.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <returns>Their choices, or <c>null</c> when they made none or the row cannot be read.</returns>
+    public NotificationPreferences? GetNotificationPreferences(Guid userId)
+    {
+        using var context = CreateContext();
+        var row = context.NotificationPreferences.AsNoTracking().FirstOrDefault(p => p.UserId == userId);
+        return NotificationPreferences.Read(row?.PreferencesJson);
+    }
+
+    /// <summary>
+    /// Gets everyone's choices at once, for a send that asks about every account.
+    /// </summary>
+    /// <returns>The choices of everyone who made some and whose row can be read.</returns>
+    public Dictionary<Guid, NotificationPreferences> AllNotificationPreferences()
+    {
+        using var context = CreateContext();
+
+        var all = new Dictionary<Guid, NotificationPreferences>();
+        foreach (var row in context.NotificationPreferences.AsNoTracking())
+        {
+            if (NotificationPreferences.Read(row.PreferencesJson) is { } read)
+            {
+                all[row.UserId] = read;
+            }
+        }
+
+        return all;
+    }
+
+    /// <summary>
+    /// Saves one person's choices, replacing what they had.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="preferences">Their choices.</param>
+    public void SaveNotificationPreferences(Guid userId, NotificationPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        using var context = CreateContext();
+
+        // Under the write lock, like a change: a lookup and an insert outside it failed on
+        // the row a change was writing for somebody who had none.
+        using var transaction = context.Database.BeginTransaction();
+        Store(context, context.NotificationPreferences.FirstOrDefault(p => p.UserId == userId), userId, preferences);
+        transaction.Commit();
+    }
+
+    /// <summary>
+    /// Changes one person's choices in one step: they are read, changed and stored while the
+    /// write lock is held, so two changes at once, two buttons tapped in a row or two devices
+    /// of one account, both land.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="change">
+    /// Changes the choices in place, or says why it cannot, in which case nothing is stored.
+    /// </param>
+    /// <returns>The choices, and why the change was refused, if it was.</returns>
+    public (NotificationPreferences Preferences, string? Problem) ChangeNotificationPreferences(
+        Guid userId,
+        Func<NotificationPreferences, string?> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        var existing = context.NotificationPreferences.FirstOrDefault(p => p.UserId == userId);
+        var mine = NotificationPreferences.Read(existing?.PreferencesJson) ?? new NotificationPreferences();
+        if (change(mine) is { } problem)
+        {
+            return (mine, problem);
+        }
+
+        Store(context, existing, userId, mine);
+        transaction.Commit();
+        return (mine, null);
+    }
+
+    /// <summary>
+    /// Writes one person's row, adding it when they had none. Called with the write lock held,
+    /// so nobody adds the same row in between.
+    /// </summary>
+    /// <param name="context">The context the lock is held on.</param>
+    /// <param name="existing">Their row as read under the lock, or <c>null</c>.</param>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="preferences">Their choices.</param>
+    private static void Store(
+        StreamyfinDbContext context,
+        NotificationPreferencesRow? existing,
+        Guid userId,
+        NotificationPreferences preferences)
+    {
+        var json = NotificationPreferences.Write(preferences);
+        if (existing is null)
+        {
+            context.NotificationPreferences.Add(new NotificationPreferencesRow
+            {
+                UserId = userId,
+                PreferencesJson = json,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existing.PreferencesJson = json;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Replaces everyone's choices with the ones given, in one transaction, for a restore.
+    /// </summary>
+    /// <param name="preferences">The choices to keep, per user.</param>
+    public void ReplaceNotificationPreferences(IReadOnlyCollection<(Guid UserId, NotificationPreferences Preferences)> preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        context.NotificationPreferences.ExecuteDelete();
+        foreach (var (userId, mine) in preferences)
+        {
+            context.NotificationPreferences.Add(new NotificationPreferencesRow
+            {
+                UserId = userId,
+                PreferencesJson = NotificationPreferences.Write(mine),
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
     }
 
     /// <summary>

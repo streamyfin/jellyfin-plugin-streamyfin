@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Microsoft.Extensions.Logging;
@@ -64,10 +65,10 @@ public class SeerrNotificationMapper
 
         var notification = type switch
         {
-            "TEST_NOTIFICATION" or "TEST" => ForAdmins("SeerrTestTitle", "SeerrTestBody", requester, media),
-            "MEDIA_PENDING" => ForAdmins("SeerrRequestPendingTitle", "SeerrRequestPendingBody", requester, media),
-            "MEDIA_AUTO_APPROVED" => ForAdmins("SeerrRequestAutoApprovedTitle", "SeerrRequestAutoApprovedBody", requester, media),
-            "MEDIA_FAILED" => ForAdmins("SeerrRequestFailedTitle", "SeerrRequestFailedBody", requester, media),
+            "TEST_NOTIFICATION" or "TEST" => ForAdmins("SeerrTestTitle", "SeerrTestBody", requester, media, eventKey: null),
+            "MEDIA_PENDING" => ForAdmins("SeerrRequestPendingTitle", "SeerrRequestPendingBody", requester, media, NotificationEvents.SeerrPending),
+            "MEDIA_AUTO_APPROVED" => ForAdmins("SeerrRequestAutoApprovedTitle", "SeerrRequestAutoApprovedBody", requester, media, NotificationEvents.SeerrPending),
+            "MEDIA_FAILED" => ForAdmins("SeerrRequestFailedTitle", "SeerrRequestFailedBody", requester, media, NotificationEvents.SeerrPending),
             "MEDIA_APPROVED" => ForRequester("SeerrRequestApprovedTitle", "SeerrRequestApprovedBody", requester, media),
             "MEDIA_DECLINED" => ForRequester("SeerrRequestDeclinedTitle", "SeerrRequestDeclinedBody", requester, media),
             "MEDIA_AVAILABLE" => ForRequester("SeerrRequestAvailableTitle", "SeerrRequestAvailableBody", requester, media),
@@ -82,9 +83,14 @@ public class SeerrNotificationMapper
         return notification;
     }
 
-    private Notification ForAdmins(string titleKey, string bodyKey, string? requester, string media) => new()
+    /// <summary>
+    /// A notification for administrators, under the event a person turns these off by; none for
+    /// Seerr's own test, which always arrives.
+    /// </summary>
+    private Notification ForAdmins(string titleKey, string bodyKey, string? requester, string media, string? eventKey) => new()
     {
         IsAdmin = true,
+        EventKey = eventKey,
         Title = _localization.GetString(titleKey),
         Body = _localization.GetFormatted(bodyKey, args: [Requester(requester), media])
     };
@@ -105,12 +111,13 @@ public class SeerrNotificationMapper
             _logger.LogWarning(
                 "Seerr named no requester, so this went to administrators rather than to the whole server");
 
-            return ForAdmins(titleKey, bodyKey, requester, media);
+            return ForAdmins(titleKey, bodyKey, requester, media, NotificationEvents.SeerrPending);
         }
 
         return new Notification
         {
             Username = requester,
+            EventKey = NotificationEvents.SeerrRequests,
             Title = _localization.GetString(titleKey),
             Body = _localization.GetFormatted(bodyKey, args: [requester, media])
         };

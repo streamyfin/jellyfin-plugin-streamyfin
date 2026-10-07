@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Api;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
 using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
@@ -170,5 +171,100 @@ public class BackupTests
 
         Assert.True(read!.Configuration);
         Assert.Equal(4, read.UnknownUsers);
+    }
+
+    /// <summary>
+    /// A person's notification choices go out in the backup file and come back from it.
+    /// </summary>
+    [Fact]
+    public void APersonsChoicesTravelInTheBackup()
+    {
+        var user = Guid.NewGuid();
+        var mine = new NotificationPreferences { Pause = new NotificationPause() };
+        var backup = new ConfigurationBackup { NotificationPreferences = [new PreferencesBackup { UserId = user, Preferences = mine }] };
+
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        Assert.True(read!.NotificationPreferences!.Single().Preferences!.IsPaused(DateTime.UtcNow));
+        Assert.Equal(user, read.NotificationPreferences!.Single().UserId);
+    }
+
+    /// <summary>
+    /// A backup taken before this existed says nothing about choices, which must stay as they
+    /// are.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupSaysNothingAboutChoices()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>("""{"plugin":"0.70.0.0","groups":[],"users":[]}""");
+
+        Assert.Null(read!.NotificationPreferences);
+    }
+
+    /// <summary>
+    /// A file with an empty choice in it, or one that leaves out what the person chose, is
+    /// refused before anything is written: the restore would stop halfway through, or take
+    /// that person's choices away.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("""{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}""")]
+    [InlineData("""{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","preferences":null}""")]
+    public void AFileWithAnEmptyChoiceIsRefusedBeforeAnythingIsWritten(string choice)
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            $$"""{"plugin":"0.70.0.0","groups":[],"users":[],"notificationPreferences":[{{choice}}]}""");
+
+        Assert.NotNull(read!.PreferencesProblem());
+        Assert.Null(new ConfigurationBackup().PreferencesProblem());
+    }
+
+    /// <summary>
+    /// A file with the same person twice is refused before anything is written: a restore can
+    /// keep only one of the two, and stopped with an error on the second.
+    /// </summary>
+    [Fact]
+    public void AFileWithOnePersonTwiceIsRefused()
+    {
+        var person = Guid.NewGuid();
+        var backup = new ConfigurationBackup
+        {
+            NotificationPreferences =
+            [
+                new PreferencesBackup { UserId = person, Preferences = new NotificationPreferences() },
+                new PreferencesBackup { UserId = person, Preferences = new NotificationPreferences { Pause = new NotificationPause() } }
+            ]
+        };
+
+        Assert.NotNull(backup.PreferencesProblem());
+    }
+
+    /// <summary>
+    /// A file is held to the same most as the app: every send reads everyone's choices, so a
+    /// restore brings in no list longer than a person could have made.
+    /// </summary>
+    [Theory]
+    [InlineData(MyNotifications.MostMutedShows, MyNotifications.MostMutedLibraries, false)]
+    [InlineData(MyNotifications.MostMutedShows + 1, 0, true)]
+    [InlineData(0, MyNotifications.MostMutedLibraries + 1, true)]
+    public void AFileWithMoreThanTheMostIsRefused(int shows, int libraries, bool refused)
+    {
+        var backup = new ConfigurationBackup
+        {
+            NotificationPreferences =
+            [
+                new PreferencesBackup
+                {
+                    UserId = Guid.NewGuid(),
+                    Preferences = new NotificationPreferences
+                    {
+                        MutedShows = [.. Enumerable.Range(0, shows).Select(_ => Guid.NewGuid())],
+                        MutedLibraries = [.. Enumerable.Range(0, libraries).Select(_ => Guid.NewGuid())]
+                    }
+                }
+            ]
+        };
+
+        Assert.Equal(refused, backup.PreferencesProblem() is not null);
     }
 }

@@ -127,6 +127,13 @@ public class ExpoNotificationRequest
     public string? CategoryId { get; set; }
 
     /// <summary>
+    /// iOS only: notifications that share it are stacked into one group. Android groups an
+    /// app's notifications by itself, and Expo's service has no field for it.
+    /// </summary>
+    [JsonProperty(PropertyName = "threadId", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public string? ThreadId { get; set; }
+
+    /// <summary>
     /// Specifies whether this notification can be intercepted by the client app. Defaults to false.
     /// https://developer.apple.com/documentation/usernotifications/modifying_content_in_newly_delivered_notifications?language=objc
     /// </summary>

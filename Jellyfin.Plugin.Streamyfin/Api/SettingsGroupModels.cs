@@ -85,6 +85,13 @@ public class UserSettingsOverrideDto
     /// </remarks>
     [JsonPropertyName("notifications")]
     public Dictionary<string, NotificationTargeting>? Notifications { get; set; }
+
+    /// <summary>
+    /// Gets or sets what the person chose for their own notifications, for the page to show.
+    /// Read only: a save of the level ignores it.
+    /// </summary>
+    [JsonPropertyName("ownChoices")]
+    public MyNotificationsDto? OwnChoices { get; set; }
 }
 
 /// <summary>
