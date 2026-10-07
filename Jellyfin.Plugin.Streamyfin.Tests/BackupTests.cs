@@ -194,4 +194,15 @@ public class BackupTests
 
         Assert.Null(read!.NotificationPreferences);
     }
+
+    // Found before anything is written, or the restore would stop halfway through.
+    [Fact]
+    public void AFileWithAnEmptyChoiceIsRefusedBeforeAnythingIsWritten()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            """{"plugin":"0.70.0.0","groups":[],"users":[],"notificationPreferences":[null]}""");
+
+        Assert.NotNull(read!.PreferencesProblem());
+        Assert.Null(new ConfigurationBackup().PreferencesProblem());
+    }
 }

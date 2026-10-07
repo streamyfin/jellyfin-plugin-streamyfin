@@ -389,6 +389,11 @@ public class StreamyfinController : ControllerBase
       return BadRequest(new RestoreReport { Problem = "Every group in a backup needs a name, and one of these has none." });
     }
 
+    if (backup.PreferencesProblem() is { } choicesProblem)
+    {
+      return BadRequest(new RestoreReport { Problem = choicesProblem });
+    }
+
     var database = StreamyfinPlugin.Instance!.Database;
     var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
     var report = new RestoreReport();

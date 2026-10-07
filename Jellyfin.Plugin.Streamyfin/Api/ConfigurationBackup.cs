@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -57,6 +58,16 @@ public class ConfigurationBackup
     /// </summary>
     [JsonPropertyName("notificationPreferences")]
     public List<PreferencesBackup>? NotificationPreferences { get; set; }
+
+    /// <summary>
+    /// What makes the choices in this file impossible to restore, found before anything is
+    /// written.
+    /// </summary>
+    /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
+    public string? PreferencesProblem() =>
+        NotificationPreferences?.Any(choice => choice is null) == true
+            ? "One of the notification choices in this file is empty."
+            : null;
 }
 
 /// <summary>
