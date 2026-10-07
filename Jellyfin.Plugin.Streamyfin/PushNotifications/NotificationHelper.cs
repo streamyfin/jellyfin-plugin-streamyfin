@@ -277,10 +277,15 @@ public class NotificationHelper
     /// Writes the messages for one audience. Called once per audience among the devices, so
     /// it has to build its messages each time rather than hand back the same objects.
     /// </param>
+    /// <param name="subject">
+    /// What the messages are about, to mark them with their channel, thread and buttons;
+    /// nothing for a message about nothing in particular.
+    /// </param>
     /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToDevices(
         IEnumerable<DeviceToken> devices,
-        Func<Audience, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write,
+        NotificationSubject? subject = null)
     {
         ArgumentNullException.ThrowIfNull(devices);
         ArgumentNullException.ThrowIfNull(write);
@@ -300,6 +305,11 @@ public class NotificationHelper
             foreach (var message in write(audience))
             {
                 message.To = tokens;
+                if (subject is not null)
+                {
+                    MessageMarks.Apply(subject, message, audience);
+                }
+
                 messages.Add(message);
             }
         }
