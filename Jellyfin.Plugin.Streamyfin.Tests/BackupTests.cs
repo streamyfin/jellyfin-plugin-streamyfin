@@ -378,7 +378,7 @@ public class BackupTests
     [InlineData("""{"groups":[],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","notifications":{"taskFaild":{"enabled":true}}}]}""", "4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11")]
     public void AnEventThisServerDoesNotHaveIsNotRestored(string file, string level)
     {
-        var problem = _serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem();
+        var problem = _serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem(Known);
 
         Assert.NotNull(problem);
         Assert.Contains(level, problem, StringComparison.Ordinal);
@@ -395,6 +395,23 @@ public class BackupTests
     [InlineData("""{"groups":[{"name":"Kids"}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""")]
     public void WhatALevelSaysAboutKnownEventsIsRestored(string file)
     {
-        Assert.Null(_serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem());
+        Assert.Null(_serialization.DeserializeJson<ConfigurationBackup>(file)!.NotificationsProblem(Known));
     }
+
+    /// <summary>
+    /// A user this server does not have is left out of a restore, so what they say about the
+    /// events is not checked either: a file from another server is not refused over a user it
+    /// would not write.
+    /// </summary>
+    [Fact]
+    public void AUserThisServerDoesNotHaveIsNotChecked()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            """{"groups":[],"users":[{"userId":"9a3e1f2b-7c4d-4e5f-8a6b-1c2d3e4f5a6b","notifications":{"taskFaild":{"enabled":true}}}]}""");
+
+        Assert.Null(read!.NotificationsProblem(Known));
+    }
+
+    // The user the files above name, as the server they are restored on knows them.
+    private static readonly HashSet<Guid> Known = [Guid.Parse("4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11")];
 }

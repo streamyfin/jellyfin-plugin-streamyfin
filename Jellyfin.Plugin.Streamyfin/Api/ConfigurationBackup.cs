@@ -112,9 +112,15 @@ public class ConfigurationBackup
     /// What makes what a group or a user in this file says about the events impossible to
     /// restore, checked the way the pages' routes check it.
     /// </summary>
+    /// <param name="known">
+    /// The users this server has. A restore leaves anyone else out, so what they say is not
+    /// checked: a file from another server is not refused over a user it would not write.
+    /// </param>
     /// <returns>A sentence for the page that names the level, or <c>null</c>.</returns>
-    public string? NotificationsProblem()
+    public string? NotificationsProblem(IReadOnlySet<Guid> known)
     {
+        ArgumentNullException.ThrowIfNull(known);
+
         foreach (var group in Groups)
         {
             if (NotificationsValidation.CheckTargeting(group.Notifications) is { } problem)
@@ -123,7 +129,7 @@ public class ConfigurationBackup
             }
         }
 
-        foreach (var user in Users)
+        foreach (var user in Users.Where(user => known.Contains(user.UserId)))
         {
             if (NotificationsValidation.CheckTargeting(user.Notifications) is { } problem)
             {

@@ -390,7 +390,9 @@ public class StreamyfinController : ControllerBase
       }
     }
 
-    if (backup.NotificationsProblem() is { } notificationsProblem)
+    var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
+
+    if (backup.NotificationsProblem(known) is { } notificationsProblem)
     {
       return BadRequest(new RestoreReport { Problem = notificationsProblem });
     }
@@ -401,7 +403,6 @@ public class StreamyfinController : ControllerBase
     }
 
     var database = StreamyfinPlugin.Instance!.Database;
-    var known = _userManager.GetUsers().Select(user => user.Id).ToHashSet();
     var rows = backup.ToRows(_serializationHelperService, known);
     var report = new RestoreReport { UnknownMembers = rows.UnknownMembers, UnknownUsers = rows.UnknownUsers };
 
