@@ -32,6 +32,7 @@ public class StreamyfinDbContext : DbContext
         GlobalConfigurations = Set<GlobalConfiguration>();
         ExpoReceipts = Set<ExpoReceipt>();
         NotificationPreferences = Set<NotificationPreferencesRow>();
+        AwaitedTitles = Set<AwaitedTitle>();
     }
 
     /// <summary>
@@ -50,6 +51,7 @@ public class StreamyfinDbContext : DbContext
         GlobalConfigurations = Set<GlobalConfiguration>();
         ExpoReceipts = Set<ExpoReceipt>();
         NotificationPreferences = Set<NotificationPreferencesRow>();
+        AwaitedTitles = Set<AwaitedTitle>();
     }
 
     /// <summary>
@@ -91,6 +93,11 @@ public class StreamyfinDbContext : DbContext
     /// Gets or sets what each person keeps of their notifications.
     /// </summary>
     public DbSet<NotificationPreferencesRow> NotificationPreferences { get; set; }
+
+    /// <summary>
+    /// Gets or sets the titles people wait for (#225).
+    /// </summary>
+    public DbSet<AwaitedTitle> AwaitedTitles { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -173,6 +180,18 @@ public class StreamyfinDbContext : DbContext
             entity.ToTable("NotificationPreferences");
             entity.HasKey(p => p.UserId);
             entity.Property(p => p.PreferencesJson).IsRequired();
+        });
+
+        modelBuilder.Entity<AwaitedTitle>(entity =>
+        {
+            entity.ToTable("AwaitedTitles");
+            // One row per person and title: waiting twice for the same title is waiting once.
+            entity.HasKey(a => new { a.UserId, a.MediaType, a.TmdbId });
+            entity.Property(a => a.MediaType).IsRequired();
+            entity.Property(a => a.Title).IsRequired();
+            // An arrival looks rows up by id, across everyone.
+            entity.HasIndex(a => a.TmdbId);
+            entity.HasIndex(a => a.TvdbId);
         });
 
         base.OnModelCreating(modelBuilder);
