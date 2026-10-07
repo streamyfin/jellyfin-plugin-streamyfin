@@ -57,7 +57,7 @@ public class MyNotificationsTests
         Assert.NotNull(MyNotifications.Problem(update));
     }
 
-    // Review focus 4: an update that leaves things out stores the defaults for them.
+    // An update that leaves things out stores the defaults for them.
     [Fact]
     public void AnUpdateThatSaysLittleKeepsTheDefaults()
     {

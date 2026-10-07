@@ -27,7 +27,7 @@ public class NotificationPreferencesTests
         Assert.True(mine.Keeps("taskFailed"));
     }
 
-    // Review focus 1: a pause whose end has passed is no pause.
+    // A pause whose end has passed is no pause.
     [Fact]
     public void APauseThatEndedIsNoPause()
     {
@@ -52,7 +52,7 @@ public class NotificationPreferencesTests
         Assert.True(mine.IsPaused(Now.AddYears(1)));
     }
 
-    // Review focus 2: a row edited by hand into nonsense means everything is kept.
+    // A row edited by hand into nonsense means everything is kept.
     [Theory]
     [InlineData(null)]
     [InlineData("")]

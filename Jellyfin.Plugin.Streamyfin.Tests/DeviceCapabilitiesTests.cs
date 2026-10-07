@@ -63,7 +63,7 @@ public class DeviceCapabilitiesTests : IDisposable
         Assert.True(stored.Capabilities.HasCategories);
     }
 
-    // Review focus 3: two devices of one person, only one of which has the channels.
+    // Two devices of one person, only one of which has the channels.
     [Fact]
     public void DevicesThatShowDifferentThingsAreWrittenForApart()
     {

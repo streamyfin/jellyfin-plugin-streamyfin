@@ -200,7 +200,7 @@ public class SeerrWebhookTests
         Assert.Equal(eventKey, notification!.EventKey);
     }
 
-    // Review focus 5: a test from Seerr's settings always arrives.
+    // A test from Seerr's settings always arrives.
     [Fact]
     public void ASeerrTestCannotBeTurnedOff()
     {
