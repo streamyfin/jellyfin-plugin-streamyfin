@@ -449,7 +449,7 @@ public class BackupTests
         Assert.Equal(121361, row.TvdbId);
         Assert.Equal("Game of Thrones", row.Title);
         Assert.Equal(arrived, row.ArrivedItemId);
-        Assert.Null(read.AwaitedProblem());
+        Assert.Null(read.AwaitedProblem(new HashSet<Guid> { alice }));
     }
 
     /// <summary>
@@ -462,7 +462,7 @@ public class BackupTests
     [InlineData("""{"groups":[],"users":[],"awaitedTitles":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"music","tmdbId":1,"title":"Album"}]}""")]
     [InlineData("""{"groups":[],"users":[],"awaitedTitles":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"movie","tmdbId":603,"title":"The Matrix"},{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"movie","tmdbId":603,"title":"The Matrix"}]}""")]
     public void AnAwaitedTitleTheRestoreCouldNotKeepIsRefused(string file) =>
-        Assert.NotNull(_serialization.DeserializeJson<ConfigurationBackup>(file)!.AwaitedProblem());
+        Assert.NotNull(_serialization.DeserializeJson<ConfigurationBackup>(file)!.AwaitedProblem(Known));
 
     /// <summary>
     /// A backup taken before people could wait for titles says nothing about them, and a
@@ -474,6 +474,19 @@ public class BackupTests
         var read = _serialization.DeserializeJson<ConfigurationBackup>("""{"groups":[],"users":[]}""");
 
         Assert.Null(read!.Awaited);
-        Assert.Null(read.AwaitedProblem());
+        Assert.Null(read.AwaitedProblem(Known));
+    }
+
+    /// <summary>
+    /// A user this server does not have is left out of a restore, so what they wait for is not
+    /// checked either: a file from another server is not refused over a user it would not write.
+    /// </summary>
+    [Fact]
+    public void TheTitlesOfAUserThisServerDoesNotHaveAreNotChecked()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            """{"groups":[],"users":[],"awaitedTitles":[{"userId":"9a3e1f2b-7c4d-4e5f-8a6b-1c2d3e4f5a6b","mediaType":"music","tmdbId":1,"title":"Album"}]}""");
+
+        Assert.Null(read!.AwaitedProblem(Known));
     }
 }

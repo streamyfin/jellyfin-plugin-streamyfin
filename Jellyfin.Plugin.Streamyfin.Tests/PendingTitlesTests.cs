@@ -69,4 +69,27 @@ public class PendingTitlesTests
         Assert.False(pending.Has(movie, Now));
         Assert.False(pending.Take(movie, Now));
     }
+
+    /// <summary>
+    /// A library scan asks about every item it touches, so the list is swept at most once a
+    /// minute rather than on every question, and an entry past its day is told apart by its
+    /// own time meanwhile.
+    /// </summary>
+    [Fact]
+    public void AScanDoesNotSweepTheListOnEveryQuestion()
+    {
+        var pending = new PendingTitles(TimeSpan.FromHours(24));
+        var old = Guid.NewGuid();
+
+        pending.Add(old, Now);
+        var before = pending.Sweeps;
+        for (var second = 0; second < 50; second++)
+        {
+            pending.Add(Guid.NewGuid(), Now.AddHours(25).AddSeconds(second));
+            pending.Has(Guid.NewGuid(), Now.AddHours(25).AddSeconds(second));
+        }
+
+        Assert.Equal(before + 1, pending.Sweeps);
+        Assert.False(pending.Has(old, Now.AddHours(25)));
+    }
 }

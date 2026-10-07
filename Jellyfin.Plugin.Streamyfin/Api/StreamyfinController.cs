@@ -404,7 +404,7 @@ public class StreamyfinController : ControllerBase
       return BadRequest(new RestoreReport { Problem = choicesProblem });
     }
 
-    if (backup.AwaitedProblem() is { } awaitedProblem)
+    if (backup.AwaitedProblem(known) is { } awaitedProblem)
     {
       return BadRequest(new RestoreReport { Problem = awaitedProblem });
     }

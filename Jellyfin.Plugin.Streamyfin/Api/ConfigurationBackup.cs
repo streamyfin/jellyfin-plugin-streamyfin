@@ -71,9 +71,15 @@ public class ConfigurationBackup
     /// What makes the awaited titles in this file impossible to restore, found before anything
     /// is written.
     /// </summary>
+    /// <param name="known">
+    /// The users this server has. A restore leaves anyone else out, so what they wait for is not
+    /// checked: a file from another server is not refused over a user it would not write.
+    /// </param>
     /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
-    public string? AwaitedProblem()
+    public string? AwaitedProblem(IReadOnlySet<Guid> known)
     {
+        ArgumentNullException.ThrowIfNull(known);
+
         if (Awaited is not { } titles)
         {
             return null;
@@ -84,7 +90,9 @@ public class ConfigurationBackup
             return "One of the awaited titles in this file is empty.";
         }
 
-        foreach (var title in titles)
+        var kept = titles.Where(title => known.Contains(title.UserId)).ToList();
+
+        foreach (var title in kept)
         {
             if (Configuration.Notifications.AwaitedTitles.Problem(title.MediaType, title.TmdbId, title.TvdbId, title.Title) is { } problem)
             {
@@ -92,12 +100,12 @@ public class ConfigurationBackup
             }
         }
 
-        if (titles.GroupBy(title => (title.UserId, title.MediaType, title.TmdbId)).FirstOrDefault(same => same.Count() > 1) is { } twice)
+        if (kept.GroupBy(title => (title.UserId, title.MediaType, title.TmdbId)).FirstOrDefault(same => same.Count() > 1) is { } twice)
         {
             return $"This file has the same awaited title twice for user {twice.Key.UserId}.";
         }
 
-        return titles.GroupBy(title => title.UserId).FirstOrDefault(one => one.Count() > Configuration.Notifications.AwaitedTitles.MostAwaited) is { } full
+        return kept.GroupBy(title => title.UserId).FirstOrDefault(one => one.Count() > Configuration.Notifications.AwaitedTitles.MostAwaited) is { } full
             ? $"User {full.Key} waits for more than {Configuration.Notifications.AwaitedTitles.MostAwaited} titles in this file."
             : null;
     }
