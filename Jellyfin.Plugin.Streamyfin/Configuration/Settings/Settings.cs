@@ -254,6 +254,13 @@ public class SuggestionsArgs
 /// </summary>
 public class Settings
 {
+    /// <summary>
+    /// A copy of these settings sharing their values, for an answer that adds to them
+    /// without changing the stored ones.
+    /// </summary>
+    /// <returns>The copy.</returns>
+    internal Settings Copy() => (Settings)MemberwiseClone();
+
     [NotNull]
     [Display(Name = "Home view", Description = "Customize the appearance of the app's home page")]
     [SettingScope("Home and appearance", Group = "Home screen")]

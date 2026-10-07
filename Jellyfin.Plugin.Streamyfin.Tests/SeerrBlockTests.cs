@@ -131,6 +131,30 @@ public class SeerrBlockTests
     }
 
     /// <summary>
+    /// An administrator's app receives the stored configuration, which holds Seerr only as
+    /// the flat keys the app no longer gets: it needs the block too, built on a copy, since
+    /// what is stored is the live configuration and keeps no block of its own.
+    /// </summary>
+    [Fact]
+    public void AnAdministratorsAppGetsTheBlockAndWhatIsStoredStaysAsItIs()
+    {
+        var stored = new Config
+        {
+            settings = new Settings
+            {
+                jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example", locked = true }
+            }
+        };
+
+        var served = _serialization.SerializeForApp(IntegrationBlocks.ForApp(stored));
+
+        Assert.Contains("http://seerr.example", served, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("jellyseerrServerUrl", served, System.StringComparison.Ordinal);
+        Assert.Null(stored.settings.seerr);
+        Assert.Equal("http://seerr.example", stored.settings.jellyseerrServerUrl?.value);
+    }
+
+    /// <summary>
     /// A server that says nothing about Seerr serves no block, rather than an empty one
     /// that reads as an opinion.
     /// </summary>

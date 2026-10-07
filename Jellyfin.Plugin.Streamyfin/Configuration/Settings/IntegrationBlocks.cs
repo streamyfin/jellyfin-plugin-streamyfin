@@ -82,6 +82,26 @@ public static class IntegrationBlocks
     }
 
     /// <summary>
+    /// The configuration as the app receives it: a copy whose settings carry Seerr's block.
+    /// The flat keys no longer reach the app, and an administrator is handed the stored
+    /// configuration, which holds Seerr only as those keys.
+    /// </summary>
+    /// <param name="config">The configuration for the caller, which is left as it is.</param>
+    /// <returns>The configuration to serve.</returns>
+    /// <remarks>
+    /// A copy, because for an administrator this is the live configuration, and a block
+    /// stored beside the keys would be a second truth for the next save to disagree with.
+    /// </remarks>
+    public static Config ForApp(Config config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        var settings = config.settings?.Copy();
+        Project(settings);
+        return config.With(settings);
+    }
+
+    /// <summary>
     /// Fills the block from the keys everything else reads.
     /// </summary>
     /// <param name="settings">The settings, changed in place.</param>

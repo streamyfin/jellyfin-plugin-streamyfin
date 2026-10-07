@@ -195,7 +195,7 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult getConfig()
   {
-    return new JsonStringResult(_serializationHelperService.SerializeForApp(ConfigForCaller()));
+    return new JsonStringResult(_serializationHelperService.SerializeForApp(IntegrationBlocks.ForApp(ConfigForCaller())));
   }
 
   [HttpGet("v1/config/schema")]
