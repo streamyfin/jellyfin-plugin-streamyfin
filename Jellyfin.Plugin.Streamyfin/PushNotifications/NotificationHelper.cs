@@ -224,13 +224,20 @@ public class NotificationHelper
     /// announced to people who may open it, whatever a level says.
     /// </param>
     /// <param name="write">Writes the messages for one audience, called once per audience.</param>
+    /// <param name="subject">
+    /// What the event is about, for what each person kept and for the channel, thread and
+    /// buttons of its messages; the event alone when nothing more is known.
+    /// </param>
+    /// <param name="watching">How to ask whether somebody follows a show, for new episodes.</param>
     /// <returns>Expo's response, or null when nobody is to be told.</returns>
     public async Task<ExpoNotificationResponse?> SendForEvent(
         string eventKey,
         NotificationConfiguration? server,
         Func<User, bool> byDefault,
         Func<User, bool>? andAlso,
-        Func<Audience, ExpoNotificationRequest[]> write)
+        Func<Audience, ExpoNotificationRequest[]> write,
+        NotificationSubject? subject = null,
+        IShowWatching? watching = null)
     {
         ArgumentNullException.ThrowIfNull(byDefault);
         ArgumentNullException.ThrowIfNull(write);
@@ -244,6 +251,9 @@ public class NotificationHelper
         var devices = StreamyfinPlugin.Instance?.Database.GetAllDeviceTokens() ?? [];
         var targets = NotificationTargets.From(StreamyfinPlugin.Instance?.Database);
         var serverEnabled = server is { Enabled: true };
+        var preferences = StreamyfinPlugin.Instance?.Database.AllNotificationPreferences() ?? [];
+        var about = subject ?? new NotificationSubject(eventKey);
+        var now = DateTime.UtcNow;
 
         var recipients = DevicesWho(devices, userId =>
         {
@@ -257,7 +267,9 @@ public class NotificationHelper
             return user is not null
                 && !user.IsDisabled()
                 && targets.Reaches(eventKey, userId, serverEnabled, byDefault(user))
-                && (andAlso?.Invoke(user) ?? true);
+                && (andAlso?.Invoke(user) ?? true)
+                // Last, and only ever narrowing: what the person kept of what they were sent.
+                && KeepsFor(preferences.GetValueOrDefault(userId), about, now, user, watching);
         });
 
         if (recipients.Count == 0)
@@ -266,8 +278,31 @@ public class NotificationHelper
             return null;
         }
 
-        return await SendToDevices(recipients, write).ConfigureAwait(false);
+        return await SendToDevices(recipients, write, about).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Whether a person keeps a message their levels sent them.
+    /// </summary>
+    /// <param name="mine">What they chose, or nothing.</param>
+    /// <param name="subject">What the message is about.</param>
+    /// <param name="nowUtc">The moment it is sent.</param>
+    /// <param name="user">The person.</param>
+    /// <param name="watching">How to ask about a show, or nothing for an event about none.</param>
+    /// <returns>True when it goes to their devices.</returns>
+    internal static bool KeepsFor(
+        NotificationPreferences? mine,
+        NotificationSubject subject,
+        DateTime nowUtc,
+        User user,
+        IShowWatching? watching) =>
+        PersonalRule.Keeps(mine, subject, nowUtc, series =>
+            mine is not null
+            && watching is not null
+            && PersonalRule.Follows(
+                mine.Follow,
+                watching.IsFavorite(user, series),
+                () => watching.HasStarted(user, series)));
 
     /// <summary>
     /// Sends to these devices, each in the language it asked for.
