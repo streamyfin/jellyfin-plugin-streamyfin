@@ -216,6 +216,10 @@ public class ApiSurfaceTests
         Assert.Null(authorize!.Policy);
     }
 
+    /// <summary>
+    /// A person's own notification routes ask for a signed in account and no more; the routes
+    /// turn an API key away themselves.
+    /// </summary>
     [Theory]
     [InlineData(nameof(StreamyfinController.GetMyNotifications))]
     [InlineData(nameof(StreamyfinController.SetMyNotifications))]

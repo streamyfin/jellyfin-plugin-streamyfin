@@ -9,14 +9,18 @@ const SEERR_LABELS = {
     seerrPending: "Seerr requests to approve",
 };
 
+/** The names of what the person turned off: events, then libraries, then shows. */
 const named = (choices, labels) => [
     ...(choices.events ?? []).filter((event) => !event.enabled).map((event) => labels[event.key] ?? event.key),
     ...(choices.libraries ?? []).filter((library) => !library.enabled).map((library) => library.name),
     ...(choices.mutedShows ?? []).map((show) => show.name),
 ];
 
-// The server keeps a pause after it ends, and it then holds nothing back. One that ends on
-// another day names the day, since it can last a week and a time alone reads as today.
+/**
+ * The pause, or null when there is none. The server keeps a pause after it ends, and it then
+ * holds nothing back. One that ends on another day names the day, since it can last a week and
+ * a time alone reads as today.
+ */
 const pauseText = (pause, { locale, timeZone, now }) => {
     if (!pause) return null;
     if (!pause.until) return "paused until they turn it back on";
@@ -32,6 +36,7 @@ const pauseText = (pause, { locale, timeZone, now }) => {
     return `paused until ${when}`;
 };
 
+/** The line for the Targeting tab, or null when nothing the person chose holds anything back. */
 export const describeOwnChoices = (choices, labels, { locale = undefined, timeZone = undefined, now = new Date() } = {}) => {
     if (!choices) return null;
 

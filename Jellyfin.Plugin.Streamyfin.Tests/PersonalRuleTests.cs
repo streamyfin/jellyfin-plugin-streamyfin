@@ -18,12 +18,18 @@ public class PersonalRuleTests
     private static NotificationSubject AMovie => new(NotificationEvents.ItemAdded, Movies);
     private static NotificationSubject AnEpisode => new(NotificationEvents.ItemAdded, Movies, Show);
 
+    /// <summary>
+    /// Somebody who chose nothing keeps everything their levels send.
+    /// </summary>
     [Fact]
     public void SomebodyWhoChoseNothingKeepsEverything()
     {
         Assert.True(PersonalRule.Keeps(null, AMovie, Now, Unfollowed));
     }
 
+    /// <summary>
+    /// A pause stops everything, followed shows and server alerts included.
+    /// </summary>
     [Fact]
     public void APauseStopsEverything()
     {
@@ -34,6 +40,9 @@ public class PersonalRuleTests
         Assert.False(PersonalRule.Keeps(mine, new NotificationSubject("taskFailed"), Now, Unfollowed));
     }
 
+    /// <summary>
+    /// A movie in a library the person turned off is not kept.
+    /// </summary>
     [Fact]
     public void AMovieInAMutedLibraryIsNotKept()
     {
@@ -42,6 +51,9 @@ public class PersonalRuleTests
         Assert.False(PersonalRule.Keeps(mine, AMovie, Now, Unfollowed));
     }
 
+    /// <summary>
+    /// New items turned off stop movies and the episodes of shows nobody follows.
+    /// </summary>
     [Fact]
     public void NewItemsTurnedOffStopMoviesAndUnfollowedEpisodes()
     {
@@ -52,6 +64,9 @@ public class PersonalRuleTests
         Assert.False(PersonalRule.Keeps(mine, AnEpisode, Now, Unfollowed));
     }
 
+    /// <summary>
+    /// A followed show still notifies with new items and its library turned off.
+    /// </summary>
     [Fact]
     public void AFollowedShowStillNotifiesWithNewItemsAndItsLibraryOff()
     {
@@ -61,6 +76,9 @@ public class PersonalRuleTests
         Assert.True(PersonalRule.Keeps(mine, AnEpisode, Now, Followed));
     }
 
+    /// <summary>
+    /// A show turned off stays off, even when it is followed.
+    /// </summary>
     [Fact]
     public void AShowTurnedOffStaysOffEvenFollowed()
     {
@@ -69,6 +87,9 @@ public class PersonalRuleTests
         Assert.False(PersonalRule.Keeps(mine, AnEpisode, Now, Followed));
     }
 
+    /// <summary>
+    /// Another event turned off is not kept, and the rest still are.
+    /// </summary>
     [Fact]
     public void AnotherEventTurnedOffIsNotKept()
     {
@@ -79,6 +100,9 @@ public class PersonalRuleTests
         Assert.True(PersonalRule.Keeps(mine, new NotificationSubject("signInFailed"), Now, Unfollowed));
     }
 
+    /// <summary>
+    /// A show is followed the way the person said: as a favorite, as started, or both.
+    /// </summary>
     [Theory]
     [InlineData(true, true, true, false, true)]
     [InlineData(true, false, false, false, false)]
@@ -91,7 +115,9 @@ public class PersonalRuleTests
         Assert.Equal(expected, PersonalRule.Follows(choice, isFavorite, () => hasStarted));
     }
 
-    // Asking whether a show was started costs a library query, so a favorite does not ask.
+    /// <summary>
+    /// Asking whether a show was started costs a library query, so a favorite does not ask.
+    /// </summary>
     [Fact]
     public void AFavoriteDoesNotAskWhetherTheShowWasStarted()
     {

@@ -11,12 +11,18 @@ public class NotificationPreferencesTests
 {
     private static readonly DateTime Now = new(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>
+    /// An event the person never mentioned is kept.
+    /// </summary>
     [Fact]
     public void AnEventNobodyMentionedIsKept()
     {
         Assert.True(new NotificationPreferences().Keeps("itemAdded"));
     }
 
+    /// <summary>
+    /// An event turned off is not kept, and the others still are.
+    /// </summary>
     [Fact]
     public void AnEventTurnedOffIsNotKept()
     {
@@ -27,7 +33,9 @@ public class NotificationPreferencesTests
         Assert.True(mine.Keeps("taskFailed"));
     }
 
-    // A pause whose end has passed is no pause.
+    /// <summary>
+    /// A pause whose end has passed is no pause.
+    /// </summary>
     [Fact]
     public void APauseThatEndedIsNoPause()
     {
@@ -36,6 +44,9 @@ public class NotificationPreferencesTests
         Assert.False(mine.IsPaused(Now));
     }
 
+    /// <summary>
+    /// A pause holds until its end.
+    /// </summary>
     [Fact]
     public void APauseLastsUntilItsEnd()
     {
@@ -44,6 +55,9 @@ public class NotificationPreferencesTests
         Assert.True(mine.IsPaused(Now));
     }
 
+    /// <summary>
+    /// A pause without an end lasts until it is lifted.
+    /// </summary>
     [Fact]
     public void APauseWithoutAnEndLastsUntilItIsLifted()
     {
@@ -52,7 +66,9 @@ public class NotificationPreferencesTests
         Assert.True(mine.IsPaused(Now.AddYears(1)));
     }
 
-    // A row edited by hand into nonsense means everything is kept.
+    /// <summary>
+    /// A row edited by hand into nonsense means everything is kept.
+    /// </summary>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -63,6 +79,9 @@ public class NotificationPreferencesTests
         Assert.Null(NotificationPreferences.Read(stored));
     }
 
+    /// <summary>
+    /// Lists written as null in a row read as empty, and the follow choice as its defaults.
+    /// </summary>
     [Fact]
     public void NullListsInARowReadAsEmpty()
     {
@@ -76,6 +95,9 @@ public class NotificationPreferencesTests
         Assert.True(mine.Follow.Started);
     }
 
+    /// <summary>
+    /// What is written for storage reads back the same.
+    /// </summary>
     [Fact]
     public void WhatIsWrittenReadsBack()
     {

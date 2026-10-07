@@ -14,23 +14,34 @@ public class NotificationPreferencesStorageTests : IDisposable
     private readonly string _directory = TestDirectory.Create();
     private readonly PluginDatabase _db;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NotificationPreferencesStorageTests"/>
+    /// class.
+    /// </summary>
     public NotificationPreferencesStorageTests()
     {
         _db = new PluginDatabase(_directory);
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         try { System.IO.Directory.Delete(_directory, recursive: true); } catch (System.IO.IOException) { }
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Somebody who never chose anything has nothing stored.
+    /// </summary>
     [Fact]
     public void SomebodyWhoNeverChoseHasNothingStored()
     {
         Assert.Null(_db.GetNotificationPreferences(Guid.NewGuid()));
     }
 
+    /// <summary>
+    /// Choices are read back as they were saved.
+    /// </summary>
     [Fact]
     public void ChoicesAreReadBackAsSaved()
     {
@@ -46,6 +57,9 @@ public class NotificationPreferencesStorageTests : IDisposable
         Assert.Equal(mine.MutedLibraries, read.MutedLibraries);
     }
 
+    /// <summary>
+    /// Saving again replaces what was saved before.
+    /// </summary>
     [Fact]
     public void SavingAgainReplaces()
     {
@@ -56,7 +70,9 @@ public class NotificationPreferencesStorageTests : IDisposable
         Assert.False(_db.GetNotificationPreferences(user)!.IsPaused(DateTime.UtcNow));
     }
 
-    // An administrator clearing a user's level must not take the person's own choices with it.
+    /// <summary>
+    /// An administrator clearing a user's level must not take the person's own choices with it.
+    /// </summary>
     [Fact]
     public void ClearingTheUserLevelLeavesTheirChoices()
     {
@@ -69,6 +85,9 @@ public class NotificationPreferencesStorageTests : IDisposable
         Assert.NotNull(_db.GetNotificationPreferences(user));
     }
 
+    /// <summary>
+    /// Everyone's choices are read in one go.
+    /// </summary>
     [Fact]
     public void EveryoneIsReadAtOnce()
     {
@@ -83,6 +102,9 @@ public class NotificationPreferencesStorageTests : IDisposable
         Assert.True(all[bob].IsPaused(DateTime.UtcNow));
     }
 
+    /// <summary>
+    /// A restore replaces everyone's choices, removing those the file does not carry.
+    /// </summary>
     [Fact]
     public void ARestoreReplacesEveryone()
     {

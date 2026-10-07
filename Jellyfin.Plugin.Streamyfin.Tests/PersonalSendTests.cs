@@ -20,8 +20,10 @@ public class PersonalSendTests
     {
         public int StartedAsked { get; private set; }
 
+        /// <inheritdoc />
         public bool IsFavorite(User user, Guid seriesId) => favorite;
 
+        /// <inheritdoc />
         public bool HasStarted(User user, Guid seriesId)
         {
             StartedAsked++;
@@ -31,6 +33,9 @@ public class PersonalSendTests
 
     private static User Alice => new("alice", "provider", "reset");
 
+    /// <summary>
+    /// A favorite show reaches somebody who turned new items off.
+    /// </summary>
     [Fact]
     public void AFavoriteShowReachesSomebodyWhoTurnedNewItemsOff()
     {
@@ -40,6 +45,9 @@ public class PersonalSendTests
         Assert.True(NotificationHelper.KeepsFor(mine, new NotificationSubject(NotificationEvents.ItemAdded, SeriesId: Show), Now, Alice, new Watching(favorite: true, started: false)));
     }
 
+    /// <summary>
+    /// Without a way to ask about a show, it is not followed.
+    /// </summary>
     [Fact]
     public void WithoutAWayToAskAShowIsNotFollowed()
     {
@@ -49,7 +57,9 @@ public class PersonalSendTests
         Assert.False(NotificationHelper.KeepsFor(mine, new NotificationSubject(NotificationEvents.ItemAdded, SeriesId: Show), Now, Alice, watching: null));
     }
 
-    // Somebody who chose nothing costs no library query.
+    /// <summary>
+    /// Somebody who chose nothing costs no library query.
+    /// </summary>
     [Fact]
     public void SomebodyWhoChoseNothingIsNeverAskedAbout()
     {
@@ -59,6 +69,9 @@ public class PersonalSendTests
         Assert.Equal(0, watching.StartedAsked);
     }
 
+    /// <summary>
+    /// A Seerr request notification skips the devices of whoever turned requests off.
+    /// </summary>
     [Fact]
     public void ARequestNotificationSkipsWhoTurnedRequestsOff()
     {
@@ -77,6 +90,10 @@ public class PersonalSendTests
         Assert.Equal(["b"], kept.Select(device => device.Token));
     }
 
+    /// <summary>
+    /// A notification about no event goes to every device it is aimed at, a pause
+    /// notwithstanding.
+    /// </summary>
     [Fact]
     public void ANotificationAboutNothingInParticularGoesToEveryDevice()
     {

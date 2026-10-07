@@ -17,7 +17,9 @@ public class ShowWatchingTests
 {
     private static readonly User Alice = new("alice", "provider", "reset");
 
-    // Started means watched or begun: an episode left halfway is already a show they follow.
+    /// <summary>
+    /// Started means watched or begun: an episode left halfway is already a show they follow.
+    /// </summary>
     [Fact]
     public void AnEpisodeInProgressCountsAsStarted()
     {
@@ -26,6 +28,9 @@ public class ShowWatchingTests
         Assert.True(watching.HasStarted(Alice, Guid.NewGuid()));
     }
 
+    /// <summary>
+    /// An episode watched to the end counts as started.
+    /// </summary>
     [Fact]
     public void AnEpisodeWatchedToTheEndCountsAsStarted()
     {
@@ -34,6 +39,9 @@ public class ShowWatchingTests
         Assert.True(watching.HasStarted(Alice, Guid.NewGuid()));
     }
 
+    /// <summary>
+    /// A show never opened is not started.
+    /// </summary>
     [Fact]
     public void AShowNeverOpenedIsNotStarted()
     {
@@ -42,6 +50,9 @@ public class ShowWatchingTests
         Assert.False(watching.HasStarted(Alice, Guid.NewGuid()));
     }
 
+    /// <summary>
+    /// A library holding one episode, in progress, played, or neither.
+    /// </summary>
     private static ILibraryManager Library(bool inProgress, bool played)
     {
         var library = DispatchProxy.Create<ILibraryManager, EpisodesStub>();

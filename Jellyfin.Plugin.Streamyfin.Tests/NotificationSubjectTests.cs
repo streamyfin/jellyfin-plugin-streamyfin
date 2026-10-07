@@ -9,6 +9,9 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </summary>
 public class NotificationSubjectTests
 {
+    /// <summary>
+    /// Each event belongs to its family, which is its Android channel.
+    /// </summary>
     [Theory]
     [InlineData("itemAdded", "new-content")]
     [InlineData("seerrRequests", "requests")]
@@ -21,6 +24,9 @@ public class NotificationSubjectTests
         Assert.Equal(family, NotificationFamilies.Of(eventKey));
     }
 
+    /// <summary>
+    /// Episodes stack by show on iOS, and everything else by family.
+    /// </summary>
     [Fact]
     public void EpisodesStackByShowAndTheRestByFamily()
     {
@@ -31,6 +37,9 @@ public class NotificationSubjectTests
         Assert.Equal("server-alerts", new NotificationSubject("taskFailed").ThreadId);
     }
 
+    /// <summary>
+    /// Only an episode offers to turn its show off, and no category id holds a dash.
+    /// </summary>
     [Fact]
     public void OnlyAnEpisodeOffersToTurnItsShowOff()
     {
@@ -39,6 +48,9 @@ public class NotificationSubjectTests
         Assert.DoesNotContain('-', new NotificationSubject("itemAdded").CategoryId);
     }
 
+    /// <summary>
+    /// Every event a person can turn off is listed, once.
+    /// </summary>
     [Fact]
     public void EveryEventAPersonCanTurnOffIsListedOnce()
     {

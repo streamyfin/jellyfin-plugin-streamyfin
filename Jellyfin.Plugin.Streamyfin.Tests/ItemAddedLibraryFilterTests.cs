@@ -67,6 +67,10 @@ public class ItemAddedLibraryFilterTests
         Assert.False(ItemAddedService.IsLibraryEnabled(["3a1f0c2e"], null));
     }
 
+    /// <summary>
+    /// An item belongs to the library whose folder holds its path, and to none when no folder
+    /// does.
+    /// </summary>
     [Fact]
     public void AnItemBelongsToTheLibraryWhosePathHoldsIt()
     {
@@ -82,7 +86,9 @@ public class ItemAddedLibraryFilterTests
         Assert.Null(ItemAddedService.LibraryIdOf(folders, null));
     }
 
-    // A library whose folder's name begins like another's is not taken for that other one.
+    /// <summary>
+    /// A library whose folder's name begins like another's is not taken for that other one.
+    /// </summary>
     [Fact]
     public void ALibraryIsNotTakenForAnotherWhoseNameItStartsWith()
     {
@@ -98,7 +104,9 @@ public class ItemAddedLibraryFilterTests
         Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, "/media/movies/Dune (2021)/Dune.mkv"));
     }
 
-    // Inside the folders of two libraries, an item belongs to the nearer one.
+    /// <summary>
+    /// Inside the folders of two libraries, an item belongs to the nearer one.
+    /// </summary>
     [Fact]
     public void TheNearestLibraryFolderWins()
     {
@@ -114,7 +122,10 @@ public class ItemAddedLibraryFilterTests
         Assert.Equal(all, ItemAddedService.LibraryIdOf(folders, "/media/films/Up (2009)/Up.mkv"));
     }
 
-    // Jellyfin compares library paths without regard to case, and Windows paths use backslashes.
+    /// <summary>
+    /// Jellyfin compares library paths without regard to case, and Windows paths use
+    /// backslashes.
+    /// </summary>
     [Fact]
     public void AWindowsPathMatchesWhateverItsCase()
     {
@@ -124,8 +135,10 @@ public class ItemAddedLibraryFilterTests
         Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, @"d:\media\movies\Up (2009)\Up.mkv"));
     }
 
-    // Two libraries can hold folders that differ only by case on a filesystem that tells
-    // them apart; the folder written exactly as the item's path wins.
+    /// <summary>
+    /// Two libraries can hold folders that differ only by case on a filesystem that tells them
+    /// apart; the folder written exactly as the item's path wins.
+    /// </summary>
     [Fact]
     public void AFolderWrittenExactlyWinsOverOneThatDiffersByCase()
     {

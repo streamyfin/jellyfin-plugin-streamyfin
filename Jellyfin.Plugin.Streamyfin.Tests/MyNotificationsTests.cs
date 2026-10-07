@@ -17,6 +17,10 @@ public class MyNotificationsTests
     private static readonly Guid Movies = Guid.NewGuid();
     private static readonly Guid Music = Guid.NewGuid();
 
+    /// <summary>
+    /// Only the events that can reach the person are described, all kept when they chose
+    /// nothing.
+    /// </summary>
     [Fact]
     public void OnlyWhatReachesThePersonIsDescribed()
     {
@@ -34,6 +38,9 @@ public class MyNotificationsTests
         Assert.Null(described.Pause);
     }
 
+    /// <summary>
+    /// What the person turned off is described off, and a muted show by its name.
+    /// </summary>
     [Fact]
     public void WhatThePersonTurnedOffIsDescribedOff()
     {
@@ -49,6 +56,9 @@ public class MyNotificationsTests
         Assert.Equal("The Bear", described.MutedShows.Single().Name);
     }
 
+    /// <summary>
+    /// An update naming an event that does not exist is refused.
+    /// </summary>
     [Fact]
     public void AnEventNobodyKnowsIsRefused()
     {
@@ -57,7 +67,9 @@ public class MyNotificationsTests
         Assert.NotNull(MyNotifications.Problem(update));
     }
 
-    // An update that leaves things out stores the defaults for them.
+    /// <summary>
+    /// An update that leaves things out stores the defaults for them.
+    /// </summary>
     [Fact]
     public void AnUpdateThatSaysLittleKeepsTheDefaults()
     {
@@ -70,6 +82,9 @@ public class MyNotificationsTests
         Assert.True(applied.Follow.Started);
     }
 
+    /// <summary>
+    /// A pause asked for a number of hours ends that many hours later.
+    /// </summary>
     [Theory]
     [InlineData(1)]
     [InlineData(8)]
@@ -79,12 +94,18 @@ public class MyNotificationsTests
         Assert.Equal(Now.AddHours(hours), MyNotifications.PauseFor(hours, Now)!.Until);
     }
 
+    /// <summary>
+    /// A pause asked without hours lasts until it is lifted.
+    /// </summary>
     [Fact]
     public void APauseWithoutHoursLastsUntilLifted()
     {
         Assert.Null(MyNotifications.PauseFor(null, Now)!.Until);
     }
 
+    /// <summary>
+    /// A pause of no time, of negative time or of more than a week is refused.
+    /// </summary>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -94,8 +115,10 @@ public class MyNotificationsTests
         Assert.Null(MyNotifications.PauseFor(hours, Now));
     }
 
-    // A library the server never announces, or one the person cannot open, has nothing
-    // for them to turn off.
+    /// <summary>
+    /// A library the server never announces, or one the person cannot open, has nothing for
+    /// them to turn off.
+    /// </summary>
     [Fact]
     public void OnlyTheLibrariesThatCanAnnounceToThePersonAreListed()
     {
@@ -112,6 +135,9 @@ public class MyNotificationsTests
         Assert.Equal([(Movies, "Movies")], listed);
     }
 
+    /// <summary>
+    /// Every library the person can open is listed when the server announces them all.
+    /// </summary>
     [Fact]
     public void EveryOpenLibraryIsListedWhenTheServerAnnouncesThemAll()
     {
@@ -124,7 +150,10 @@ public class MyNotificationsTests
         Assert.Equal([Movies, Music], MyNotifications.LibrariesFor(folders, null, _ => true).Select(library => library.Id));
     }
 
-    // Every send reads everyone's choices, so no list in them grows without end.
+    /// <summary>
+    /// An update with more shows or libraries than the most is refused: every send reads
+    /// everyone's choices, so no list in them grows without end.
+    /// </summary>
     [Fact]
     public void AnUpdateWithMoreThanTheMostIsRefused()
     {
@@ -135,6 +164,9 @@ public class MyNotificationsTests
         Assert.NotNull(MyNotifications.Problem(libraries));
     }
 
+    /// <summary>
+    /// Turning the same show off twice lists it once.
+    /// </summary>
     [Fact]
     public void AShowIsTurnedOffOnce()
     {
@@ -146,6 +178,9 @@ public class MyNotificationsTests
         Assert.Single(mine.MutedShows);
     }
 
+    /// <summary>
+    /// Turning off one show more than the most is refused, and the list stays as it was.
+    /// </summary>
     [Fact]
     public void TurningOffOneShowPastTheMostIsRefused()
     {

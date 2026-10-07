@@ -176,6 +176,7 @@ public class NotificationHelper
     // a channel only goes to a device that created it.
     private sealed class AudienceComparer : IEqualityComparer<(string? Language, string? Server, bool Channels, bool Categories)>
     {
+        /// <inheritdoc />
         public bool Equals(
             (string? Language, string? Server, bool Channels, bool Categories) left,
             (string? Language, string? Server, bool Channels, bool Categories) right) =>
@@ -184,6 +185,7 @@ public class NotificationHelper
             && left.Channels == right.Channels
             && left.Categories == right.Categories;
 
+        /// <inheritdoc />
         public int GetHashCode((string? Language, string? Server, bool Channels, bool Categories) key) =>
             HashCode.Combine(
                 key.Language is null ? 0 : StringComparer.Ordinal.GetHashCode(key.Language),

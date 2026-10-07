@@ -832,9 +832,11 @@ public class StreamyfinController : ControllerBase
   // Read and written by the person on their own account, never by an API key, which has no
   // person behind it. What they keep only narrows what their levels send them.
 
-  // The events that can reach a person, in the app's order. The levels decide, as they do
-  // when an event is sent. Seerr's two are only known on the person's side, so they stand on
-  // Seerr being set up, and pending requests on being an administrator.
+  /// <summary>
+  /// The events that can reach a person, in the app's order. The levels decide, as they do when
+  /// an event is sent. Seerr's two are only known on the person's side, so they stand on Seerr
+  /// being set up, and pending requests on being an administrator.
+  /// </summary>
   private IEnumerable<string> EventsThatReach(User user)
   {
     var current = StreamyfinPlugin.Instance!.Settings.Current;
@@ -863,8 +865,10 @@ public class StreamyfinController : ControllerBase
       targets.Reaches(key, user.Id, server is { Enabled: true }, byDefault);
   }
 
-  // A show's name is only read through the person's own access, so muting an id they cannot
-  // open does not tell them what it is.
+  /// <summary>
+  /// Describes a person's choices for the app. A show's name is only read through the person's
+  /// own access, so muting an id they cannot open does not tell them what it is.
+  /// </summary>
   private MyNotificationsDto DescribeFor(User user, NotificationPreferences? mine) =>
     MyNotifications.Describe(
       mine,
@@ -876,10 +880,15 @@ public class StreamyfinController : ControllerBase
       mine?.MutedShows ?? [],
       id => _libraryManager.GetItemById<BaseItem>(id, user)?.Name);
 
+  /// <summary>
+  /// The signed in person, or nobody for an API key or a call that carries no user.
+  /// </summary>
   private User? Person() =>
     CallerIsApiKey || CallerId.Equals(Guid.Empty) ? null : _userManager.GetUserById(CallerId);
 
-  // Reads, changes and stores a person's choices in one go, then describes them back.
+  /// <summary>
+  /// Reads, changes and stores a person's choices in one go, then describes them back.
+  /// </summary>
   private MyNotificationsDto Change(User user, Action<NotificationPreferences> change)
   {
     var database = StreamyfinPlugin.Instance!.Database;

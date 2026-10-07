@@ -83,7 +83,10 @@ public class SeerrNotificationMapper
         return notification;
     }
 
-    // The event a person turns these off by; none for Seerr's own test, which always arrives.
+    /// <summary>
+    /// A notification for administrators, under the event a person turns these off by; none for
+    /// Seerr's own test, which always arrives.
+    /// </summary>
     private Notification ForAdmins(string titleKey, string bodyKey, string? requester, string media, string? eventKey) => new()
     {
         IsAdmin = true,

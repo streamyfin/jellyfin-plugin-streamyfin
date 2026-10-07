@@ -186,6 +186,9 @@ public class SeerrWebhookTests
         Assert.Equal("alice", notification?.Username);
     }
 
+    /// <summary>
+    /// Each Seerr notification names the event a person turns it off by.
+    /// </summary>
     [Theory]
     [InlineData("MEDIA_PENDING", "seerrPending")]
     [InlineData("MEDIA_AUTO_APPROVED", "seerrPending")]
@@ -200,7 +203,9 @@ public class SeerrWebhookTests
         Assert.Equal(eventKey, notification!.EventKey);
     }
 
-    // A test from Seerr's settings always arrives.
+    /// <summary>
+    /// A test from Seerr's settings always arrives.
+    /// </summary>
     [Fact]
     public void ASeerrTestCannotBeTurnedOff()
     {

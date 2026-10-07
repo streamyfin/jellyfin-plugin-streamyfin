@@ -173,6 +173,9 @@ public class BackupTests
         Assert.Equal(4, read.UnknownUsers);
     }
 
+    /// <summary>
+    /// A person's notification choices go out in the backup file and come back from it.
+    /// </summary>
     [Fact]
     public void APersonsChoicesTravelInTheBackup()
     {
@@ -186,7 +189,10 @@ public class BackupTests
         Assert.Equal(user, read.NotificationPreferences!.Single().UserId);
     }
 
-    // A backup taken before this existed says nothing about choices, which must stay as they are.
+    /// <summary>
+    /// A backup taken before this existed says nothing about choices, which must stay as they
+    /// are.
+    /// </summary>
     [Fact]
     public void AnOlderBackupSaysNothingAboutChoices()
     {
@@ -195,7 +201,10 @@ public class BackupTests
         Assert.Null(read!.NotificationPreferences);
     }
 
-    // Found before anything is written, or the restore would stop halfway through.
+    /// <summary>
+    /// A file with an empty choice in it is refused before anything is written, or the restore
+    /// would stop halfway through.
+    /// </summary>
     [Fact]
     public void AFileWithAnEmptyChoiceIsRefusedBeforeAnythingIsWritten()
     {

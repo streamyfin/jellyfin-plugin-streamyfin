@@ -13,6 +13,10 @@ public class MessageMarksTests
 {
     private static readonly NotificationSubject AnEpisode = new("itemAdded", Guid.NewGuid(), Guid.Parse("a656b907eb3a73532e40e44b968d0225"));
 
+    /// <summary>
+    /// A device that created the channels and declared the buttons gets the channel, the
+    /// buttons and the thread.
+    /// </summary>
     [Fact]
     public void ADeviceThatShowsEverythingGetsEverything()
     {
@@ -25,7 +29,10 @@ public class MessageMarksTests
         Assert.Equal("series-a656b907eb3a73532e40e44b968d0225", message.ThreadId);
     }
 
-    // A channel the device never created would hide the notification altogether.
+    /// <summary>
+    /// A device that said nothing gets only the thread: a channel it never created would hide
+    /// the notification altogether.
+    /// </summary>
     [Fact]
     public void ADeviceThatSaidNothingGetsOnlyTheThread()
     {
@@ -38,6 +45,9 @@ public class MessageMarksTests
         Assert.Equal("series-a656b907eb3a73532e40e44b968d0225", message.ThreadId);
     }
 
+    /// <summary>
+    /// The thread goes to Expo under the name its service reads.
+    /// </summary>
     [Fact]
     public void TheThreadReachesExpoUnderItsName()
     {

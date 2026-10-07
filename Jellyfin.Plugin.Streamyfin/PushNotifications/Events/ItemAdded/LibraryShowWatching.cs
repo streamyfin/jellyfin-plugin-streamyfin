@@ -29,6 +29,9 @@ internal sealed class LibraryShowWatching(ILibraryManager libraries, IUserDataMa
         AnyEpisode(user, seriesId, query => query.IsPlayed = true)
         || AnyEpisode(user, seriesId, query => query.IsResumable = true);
 
+    /// <summary>
+    /// Whether the person has an episode of the show that the query picks.
+    /// </summary>
     private bool AnyEpisode(User user, Guid seriesId, Action<InternalItemsQuery> which)
     {
         var query = new InternalItemsQuery(user)
