@@ -215,4 +215,20 @@ public class ApiSurfaceTests
         Assert.NotNull(authorize);
         Assert.Null(authorize!.Policy);
     }
+
+    [Theory]
+    [InlineData(nameof(StreamyfinController.GetMyNotifications))]
+    [InlineData(nameof(StreamyfinController.SetMyNotifications))]
+    [InlineData(nameof(StreamyfinController.PauseMyNotifications))]
+    [InlineData(nameof(StreamyfinController.ResumeMyNotifications))]
+    [InlineData(nameof(StreamyfinController.MuteShow))]
+    [InlineData(nameof(StreamyfinController.UnmuteShow))]
+    public void APersonsOwnChoicesNeedAnAccountAndNoMore(string route)
+    {
+        var method = typeof(StreamyfinController).GetMethod(route);
+        var authorize = method!.GetCustomAttribute<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+
+        Assert.NotNull(authorize);
+        Assert.Null(authorize!.Policy);
+    }
 }

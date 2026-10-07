@@ -805,6 +805,202 @@ public class StreamyfinController : ControllerBase
     return PostNotifications([notification]);
   }
 
+  // region A person's own notifications (P4.5)
+  //
+  // Read and written by the person on their own account, never by an API key, which has no
+  // person behind it. What they keep only narrows what their levels send them.
+
+  // The events that can reach a person, in the app's order. The levels decide, as they do
+  // when an event is sent. Seerr's two are only known on the person's side, so they stand on
+  // Seerr being set up, and pending requests on being an administrator.
+  private IEnumerable<string> EventsThatReach(User user)
+  {
+    var current = StreamyfinPlugin.Instance!.Settings.Current;
+    var notifications = current.notifications;
+    var targets = NotificationTargets.From(StreamyfinPlugin.Instance!.Database);
+    var administrator = user.IsAdministrator();
+    var seerr = !string.IsNullOrWhiteSpace(current.settings?.jellyseerrServerUrl?.value);
+
+    (string Key, bool Reaches)[] events =
+    [
+      (NotificationEvents.ItemAdded, Reaches(NotificationEvents.ItemAdded, notifications?.ItemAdded, byDefault: true)),
+      (NotificationEvents.SeerrRequests, seerr),
+      // Everyone hears about their own account being locked out.
+      (NotificationEvents.UserLockedOut, Reaches(NotificationEvents.UserLockedOut, notifications?.UserLockedOut, byDefault: true)),
+      (NotificationEvents.SeerrPending, seerr && administrator),
+      ("sessionStarted", Reaches("sessionStarted", notifications?.SessionStarted, administrator)),
+      ("playbackStarted", Reaches("playbackStarted", notifications?.PlaybackStarted, administrator)),
+      ("signInFailed", Reaches("signInFailed", notifications?.SignInFailed, administrator)),
+      ("taskFailed", Reaches("taskFailed", notifications?.TaskFailed, administrator)),
+      ("pluginChanged", Reaches("pluginChanged", notifications?.PluginChanged, administrator))
+    ];
+
+    return events.Where(e => e.Reaches).Select(e => e.Key);
+
+    bool Reaches(string key, NotificationConfiguration? server, bool byDefault) =>
+      targets.Reaches(key, user.Id, server is { Enabled: true }, byDefault);
+  }
+
+  // A show's name is only read through the person's own access, so muting an id they cannot
+  // open does not tell them what it is.
+  private MyNotificationsDto DescribeFor(User user, NotificationPreferences? mine) =>
+    MyNotifications.Describe(
+      mine,
+      EventsThatReach(user),
+      MyNotifications.LibrariesFor(
+        _libraryManager.GetVirtualFolders(),
+        StreamyfinPlugin.Instance!.Settings.Current.notifications?.ItemAdded?.EnabledLibraries,
+        id => _libraryManager.GetItemById<BaseItem>(id, user) is not null),
+      mine?.MutedShows ?? [],
+      id => _libraryManager.GetItemById<BaseItem>(id, user)?.Name);
+
+  private User? Person() =>
+    CallerIsApiKey || CallerId.Equals(Guid.Empty) ? null : _userManager.GetUserById(CallerId);
+
+  // Reads, changes and stores a person's choices in one go, then describes them back.
+  private MyNotificationsDto Change(User user, Action<NotificationPreferences> change)
+  {
+    var database = StreamyfinPlugin.Instance!.Database;
+    var mine = database.GetNotificationPreferences(user.Id) ?? new NotificationPreferences();
+    change(mine);
+    database.SaveNotificationPreferences(user.Id, mine);
+    return DescribeFor(user, mine);
+  }
+
+  /// <summary>
+  /// What reaches the caller, and what they kept of it.
+  /// </summary>
+  /// <returns>Their events, libraries, followed shows, muted shows and pause.</returns>
+  [HttpGet("v1/notifications/mine")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> GetMyNotifications()
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    return DescribeFor(user, StreamyfinPlugin.Instance!.Database.GetNotificationPreferences(user.Id));
+  }
+
+  /// <summary>
+  /// Replaces what the caller keeps.
+  /// </summary>
+  /// <param name="update">Their choices. What it leaves out goes back to its default.</param>
+  /// <returns>Their choices as stored.</returns>
+  [HttpPut("v1/notifications/mine")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> SetMyNotifications([FromBody, Required] MyNotificationsUpdate update)
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    if (MyNotifications.Problem(update) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    var mine = MyNotifications.Apply(update);
+    StreamyfinPlugin.Instance!.Database.SaveNotificationPreferences(user.Id, mine);
+    return DescribeFor(user, mine);
+  }
+
+  /// <summary>
+  /// Pauses everything for the caller, for some hours or until they lift it.
+  /// </summary>
+  /// <param name="request">How many hours, or none until lifted.</param>
+  /// <returns>Their choices as stored.</returns>
+  [HttpPost("v1/notifications/mine/pause")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> PauseMyNotifications([FromBody, Required] PauseRequest request)
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    if (MyNotifications.PauseFor(request.Hours, DateTime.UtcNow) is not { } pause)
+    {
+      return BadRequest($"A pause lasts from 1 to {MyNotifications.LongestPauseHours} hours, or until it is lifted.");
+    }
+
+    return Change(user, mine => mine.Pause = pause);
+  }
+
+  /// <summary>
+  /// Lifts the caller's pause.
+  /// </summary>
+  /// <returns>Their choices as stored.</returns>
+  [HttpDelete("v1/notifications/mine/pause")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> ResumeMyNotifications()
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    return Change(user, mine => mine.Pause = null);
+  }
+
+  /// <summary>
+  /// Turns a show off for the caller.
+  /// </summary>
+  /// <param name="seriesId">The show.</param>
+  /// <returns>Their choices as stored.</returns>
+  [HttpPost("v1/notifications/mine/shows/{seriesId}/mute")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> MuteShow([FromRoute, Required] Guid seriesId)
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    return Change(user, mine =>
+    {
+      if (!mine.MutedShows.Contains(seriesId))
+      {
+        mine.MutedShows.Add(seriesId);
+      }
+    });
+  }
+
+  /// <summary>
+  /// Turns a show back on for the caller.
+  /// </summary>
+  /// <param name="seriesId">The show.</param>
+  /// <returns>Their choices as stored.</returns>
+  [HttpDelete("v1/notifications/mine/shows/{seriesId}/mute")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<MyNotificationsDto> UnmuteShow([FromRoute, Required] Guid seriesId)
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    return Change(user, mine => mine.MutedShows.Remove(seriesId));
+  }
+
+  // endregion A person's own notifications (P4.5)
+
   // region Settings groups
   //
   // The three targeting levels of P1: what the server declares for everyone, the
