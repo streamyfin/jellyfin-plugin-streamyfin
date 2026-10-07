@@ -93,7 +93,7 @@ public class AwaitedTitleAnnouncer
         var mediaType = title is Movie ? AwaitedTitles.Movie : AwaitedTitles.Tv;
         var told = database.SettleArrival(mediaType, tmdb, tvdb, title.Id, row => decide.Value(row, title));
 
-        return told.Count == 0 ? Task.CompletedTask : Announce(database, title, told.Select(row => row.UserId));
+        return told.Count == 0 ? Task.CompletedTask : Announce(database, title, told);
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public class AwaitedTitleAnnouncer
 
         foreach (var arrival in told.GroupBy(row => row.ArrivedItemId!.Value))
         {
-            await Announce(database, titles[arrival.Key], arrival.Select(row => row.UserId)).ConfigureAwait(false);
+            await Announce(database, titles[arrival.Key], [.. arrival]).ConfigureAwait(false);
         }
 
         return told.Count;
@@ -134,16 +134,20 @@ public class AwaitedTitleAnnouncer
     /// The message for one audience: the title with its year, opening its page.
     /// </summary>
     /// <param name="title">The movie or the show.</param>
+    /// <param name="awaited">What the person asked for.</param>
     /// <param name="audience">The language and the address of the devices.</param>
     /// <returns>The message.</returns>
-    internal ExpoNotificationRequest Message(BaseItem title, Audience audience)
+    internal ExpoNotificationRequest Message(BaseItem title, AwaitedTitle awaited, Audience audience)
     {
         ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(awaited);
         ArgumentNullException.ThrowIfNull(audience);
 
-        var name = title.ProductionYear is { } year
-            ? _localization.GetFormatted(key: "NameAndYear", cultureInfo: audience.Culture, args: [title.Name.Escape(), year])
-            : title.Name.Escape();
+        // The title the person asked for, as Seerr named it. Until its metadata comes, Jellyfin
+        // names an item by its folder, year and ids included.
+        var name = awaited.Year is { } year
+            ? _localization.GetFormatted(key: "NameAndYear", cultureInfo: audience.Culture, args: [awaited.Title.Escape(), year])
+            : awaited.Title.Escape();
 
         return new ExpoNotificationRequest
         {
@@ -184,16 +188,33 @@ public class AwaitedTitleAnnouncer
         };
     }
 
-    private Task<ExpoNotificationResponse?> Announce(PluginDatabase database, BaseItem title, IEnumerable<Guid> people)
+    /// <summary>
+    /// The messages an arrival sends: one per title as the people asked for it, each to those
+    /// people only.
+    /// </summary>
+    /// <param name="told">The rows to announce.</param>
+    /// <returns>Each title as it was asked for, with who asked for it that way.</returns>
+    /// <remarks>
+    /// A row's title is text the person's own app sent. Named by one row and sent to everyone
+    /// who waited, it let one person choose the words another received.
+    /// </remarks>
+    internal static IEnumerable<(AwaitedTitle Named, HashSet<Guid> People)> MessagesFor(IEnumerable<AwaitedTitle> told) =>
+        told
+            .GroupBy(row => (row.Title, row.Year))
+            .Select(same => (same.First(), same.Select(row => row.UserId).ToHashSet()));
+
+    private async Task Announce(PluginDatabase database, BaseItem title, List<AwaitedTitle> told)
     {
-        var whom = people.ToHashSet();
-        var devices = database.GetAllDeviceTokens().Where(device => whom.Contains(device.UserId)).ToList();
+        var devices = database.GetAllDeviceTokens();
 
-        _logger.LogInformation("{Title} arrived for {People} person(s) waiting for it", title.Name.Escape(), whom.Count);
+        foreach (var (named, people) in MessagesFor(told))
+        {
+            _logger.LogInformation("{Title} arrived for {People} person(s) waiting for it", title.Name.Escape(), people.Count);
 
-        return _notificationHelper.SendToDevices(
-            devices,
-            audience => [Message(title, audience)],
-            new NotificationSubject(NotificationEvents.AwaitedTitle));
+            await _notificationHelper.SendToDevices(
+                devices.Where(device => people.Contains(device.UserId)).ToList(),
+                audience => [Message(title, named, audience)],
+                new NotificationSubject(NotificationEvents.AwaitedTitle)).ConfigureAwait(false);
+        }
     }
 }
