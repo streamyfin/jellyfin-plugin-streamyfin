@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1021,6 +1022,124 @@ public class StreamyfinController : ControllerBase
     }
 
     return Change(user, mine => mine.MutedShows.Remove(seriesId));
+  }
+
+  /// <summary>
+  /// The titles the caller waits for, the latest first (#225).
+  /// </summary>
+  /// <returns>Their list.</returns>
+  [HttpGet("v1/notifications/mine/awaited")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<List<AwaitedTitleDto>> GetMyAwaitedTitles()
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    return AwaitedFor(user);
+  }
+
+  /// <summary>
+  /// Adds a title to what the caller waits for (#225).
+  /// </summary>
+  /// <param name="request">The title, from a Seerr page.</param>
+  /// <returns>Their list.</returns>
+  [HttpPost("v1/notifications/mine/awaited")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public ActionResult<List<AwaitedTitleDto>> AwaitTitle([FromBody, Required] AwaitTitleRequest request)
+  {
+    ArgumentNullException.ThrowIfNull(request);
+
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    if (AwaitedTitles.Problem(request.MediaType, request.TmdbId, request.TvdbId, request.Title) is { } problem)
+    {
+      return BadRequest(problem);
+    }
+
+    // Nothing to wait for: it is here, and they can open it.
+    if (AlreadyHere(user, request.MediaType!, request.TmdbId, request.TvdbId))
+    {
+      return Conflict("That title is already on this server.");
+    }
+
+    if (StreamyfinPlugin.Instance!.Database.AddAwaitedTitle(request.ToRow(user.Id, DateTime.UtcNow)) == AwaitResult.Full)
+    {
+      return BadRequest($"At most {AwaitedTitles.MostAwaited} titles can be awaited.");
+    }
+
+    return AwaitedFor(user);
+  }
+
+  /// <summary>
+  /// Takes a title off what the caller waits for (#225).
+  /// </summary>
+  /// <param name="mediaType">The kind of title, <c>movie</c> or <c>tv</c>.</param>
+  /// <param name="tmdbId">Its TMDB id.</param>
+  /// <returns>Their list.</returns>
+  [HttpDelete("v1/notifications/mine/awaited/{mediaType}/{tmdbId}")]
+  [Authorize]
+  [ProducesResponseType(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  public ActionResult<List<AwaitedTitleDto>> StopAwaitingTitle(
+    [FromRoute, Required] string mediaType,
+    [FromRoute, Required] int tmdbId)
+  {
+    if (Person() is not { } user)
+    {
+      return Forbid();
+    }
+
+    StreamyfinPlugin.Instance!.Database.RemoveAwaitedTitle(user.Id, mediaType, tmdbId);
+    return AwaitedFor(user);
+  }
+
+  private static List<AwaitedTitleDto> AwaitedFor(User user) =>
+    [.. StreamyfinPlugin.Instance!.Database.GetAwaitedTitles(user.Id).Select(AwaitedTitleDto.From)];
+
+  // Whether the person can already open the title here, found by its ids. A show counts
+  // only with an episode in it: Sonarr makes a show's folder before anything is in it.
+  private bool AlreadyHere(User user, string mediaType, int tmdbId, int? tvdbId)
+  {
+    var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+      [MediaBrowser.Model.Entities.MetadataProvider.Tmdb.ToString()] = tmdbId.ToString(CultureInfo.InvariantCulture)
+    };
+
+    if (tvdbId is { } tvdb)
+    {
+      ids[MediaBrowser.Model.Entities.MetadataProvider.Tvdb.ToString()] = tvdb.ToString(CultureInfo.InvariantCulture);
+    }
+
+    var movie = mediaType == AwaitedTitles.Movie;
+    var found = _libraryManager.GetItemList(new InternalItemsQuery(user)
+    {
+      IncludeItemTypes = [movie ? BaseItemKind.Movie : BaseItemKind.Series],
+      HasAnyProviderId = ids,
+      Recursive = true,
+      DtoOptions = new DtoOptions(false)
+    });
+
+    return movie
+      ? found.Count > 0
+      : found.Any(series => _libraryManager.GetItemList(new InternalItemsQuery(user)
+        {
+          IncludeItemTypes = [BaseItemKind.Episode],
+          AncestorIds = [series.Id],
+          Recursive = true,
+          Limit = 1,
+          DtoOptions = new DtoOptions(false)
+        }).Count > 0);
   }
 
   // endregion A person's own notifications (P4.5)
