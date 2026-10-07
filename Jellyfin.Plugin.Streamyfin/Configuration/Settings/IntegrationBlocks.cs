@@ -41,9 +41,9 @@ public class SeerrSettings
 /// makes an app that reads a flat key find a nested one.
 /// </para>
 /// <para>
-/// So both are served for now. An administrator may write either and the plugin answers
-/// with both. The app reads the block first since streamyfin#2104, and the flat keys come
-/// out once every copy of the app in the field does.
+/// The app reads the block since streamyfin#2104, published in 0.55.0, so the flat keys are
+/// no longer served to it. They remain what is stored, what the dashboard edits and what
+/// validation reads, and an administrator may still write either shape.
 /// </para>
 /// </remarks>
 public static class IntegrationBlocks
@@ -54,6 +54,12 @@ public static class IntegrationBlocks
         ("seerr.apiKey", "jellyseerrApiKey", block => block.apiKey, settings => settings.jellyseerrApiKey),
         ("seerr.autoLogin", "autoLoginJellyseerr", block => block.autoLogin, settings => settings.autoLoginJellyseerr)
     ];
+
+    /// <summary>
+    /// The flat keys Seerr was served under before the block, which the app no longer
+    /// receives. They stay the stored truth, and an administrator may still write them.
+    /// </summary>
+    public static readonly IReadOnlyList<string> FlatSeerrKeys = [.. _seerr.Select(seerr => seerr.Flat)];
 
     /// <summary>
     /// Copies what a block says onto the keys everything else reads.
@@ -73,6 +79,26 @@ public static class IntegrationBlocks
         settings.jellyseerrServerUrl = block.serverUrl ?? settings.jellyseerrServerUrl;
         settings.jellyseerrApiKey = block.apiKey ?? settings.jellyseerrApiKey;
         settings.autoLoginJellyseerr = block.autoLogin ?? settings.autoLoginJellyseerr;
+    }
+
+    /// <summary>
+    /// The configuration as the app receives it: a copy whose settings carry Seerr's block.
+    /// The flat keys no longer reach the app, and an administrator is handed the stored
+    /// configuration, which holds Seerr only as those keys.
+    /// </summary>
+    /// <param name="config">The configuration for the caller, which is left as it is.</param>
+    /// <returns>The configuration to serve.</returns>
+    /// <remarks>
+    /// A copy, because for an administrator this is the live configuration, and a block
+    /// stored beside the keys would be a second truth for the next save to disagree with.
+    /// </remarks>
+    public static Config ForApp(Config config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        var settings = config.settings?.Copy();
+        Project(settings);
+        return config.With(settings);
     }
 
     /// <summary>

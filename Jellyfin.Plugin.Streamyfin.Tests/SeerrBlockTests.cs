@@ -131,6 +131,30 @@ public class SeerrBlockTests
     }
 
     /// <summary>
+    /// An administrator's app receives the stored configuration, which holds Seerr only as
+    /// the flat keys the app no longer gets: it needs the block too, built on a copy, since
+    /// what is stored is the live configuration and keeps no block of its own.
+    /// </summary>
+    [Fact]
+    public void AnAdministratorsAppGetsTheBlockAndWhatIsStoredStaysAsItIs()
+    {
+        var stored = new Config
+        {
+            settings = new Settings
+            {
+                jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example", locked = true }
+            }
+        };
+
+        var served = _serialization.SerializeForApp(IntegrationBlocks.ForApp(stored));
+
+        Assert.Contains("http://seerr.example", served, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("jellyseerrServerUrl", served, System.StringComparison.Ordinal);
+        Assert.Null(stored.settings.seerr);
+        Assert.Equal("http://seerr.example", stored.settings.jellyseerrServerUrl?.value);
+    }
+
+    /// <summary>
     /// A server that says nothing about Seerr serves no block, rather than an empty one
     /// that reads as an opinion.
     /// </summary>
@@ -251,5 +275,91 @@ public class SeerrBlockTests
         };
 
         Assert.NotNull(IntegrationBlocks.Disagreement(settings));
+    }
+
+    /// <summary>
+    /// The app receives Seerr as its block alone (P6.1): every copy in service reads the
+    /// block since 0.55.0, and the flat keys stay what is stored.
+    /// </summary>
+    [Fact]
+    public void TheAppGetsSeerrAsABlockOnly()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://seerr.example" },
+            autoLoginJellyseerr = new Lockable<bool> { value = true }
+        };
+        IntegrationBlocks.Project(settings);
+
+        var json = new SerializationHelper().SerializeForApp(settings);
+
+        Assert.Contains("\"seerr\"", json, System.StringComparison.Ordinal);
+        Assert.Contains("https://seerr.example", json, System.StringComparison.Ordinal);
+        foreach (var flat in IntegrationBlocks.FlatSeerrKeys)
+        {
+            Assert.DoesNotContain($"\"{flat}\"", json, System.StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// A server without Seerr serves neither shape.
+    /// </summary>
+    [Fact]
+    public void AServerWithoutSeerrServesNeither()
+    {
+        var settings = new Settings();
+        IntegrationBlocks.Project(settings);
+
+        var json = new SerializationHelper().SerializeForApp(settings);
+
+        Assert.DoesNotContain("seerr", json, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The dashboard edits the flat keys through the YAML, which keeps them.
+    /// </summary>
+    [Fact]
+    public void TheDashboardsYamlKeepsTheFlatKeys()
+    {
+        var settings = new Settings { jellyseerrServerUrl = new Lockable<string> { value = "https://seerr.example" } };
+
+        var yaml = new SerializationHelper().SerializeToYaml(settings);
+
+        Assert.Contains("jellyseerrServerUrl", yaml, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A YAML that only writes the flat keys still reaches the app, as the block.
+    /// </summary>
+    [Fact]
+    public void AYamlThatOnlyWritesTheFlatKeysStillServesTheBlock()
+    {
+        var settings = new SerializationHelper().Deserialize<Settings>("jellyseerrServerUrl:\n  value: https://seerr.example\n");
+        IntegrationBlocks.Project(settings);
+
+        var json = new SerializationHelper().SerializeForApp(settings);
+
+        Assert.Contains("\"seerr\"", json, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("\"jellyseerrServerUrl\"", json, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// What a plain user receives is the block without the key, and no flat key at all.
+    /// </summary>
+    [Fact]
+    public void WhatAPlainUserReceivesIsTheBlockWithoutTheKey()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "https://seerr.example" },
+            jellyseerrApiKey = new Lockable<string> { value = "SECRET-ADMIN-KEY" }
+        };
+
+        var json = new SerializationHelper().SerializeForApp(SettingsResolver.Redact(settings));
+
+        Assert.Contains("https://seerr.example", json, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("SECRET-ADMIN-KEY", json, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("\"apiKey\"", json, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("\"jellyseerrApiKey\"", json, System.StringComparison.Ordinal);
     }
 }
