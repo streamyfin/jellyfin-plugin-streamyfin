@@ -698,7 +698,9 @@ public class PluginDatabase
     /// Replaces every targeting level in one go.
     /// </summary>
     /// <param name="groups">The groups to keep, each with its members.</param>
-    /// <param name="overrides">The settings targeted at one user each.</param>
+    /// <param name="overrides">
+    /// What is targeted at one user each, their settings and what they say about the events.
+    /// </param>
     /// <remarks>
     /// One transaction, because half of this is worse than none of it. A restore that
     /// deleted every group and then failed on the third one it was writing back would
@@ -706,7 +708,7 @@ public class PluginDatabase
     /// </remarks>
     public void ReplaceTargeting(
         IEnumerable<(SettingsGroup Group, IReadOnlyList<Guid> Members)> groups,
-        IEnumerable<(Guid UserId, string SettingsJson)> overrides)
+        IEnumerable<UserSettingsOverride> overrides)
     {
         ArgumentNullException.ThrowIfNull(groups);
         ArgumentNullException.ThrowIfNull(overrides);
@@ -737,12 +739,13 @@ public class PluginDatabase
             }
         }
 
-        foreach (var (userId, settingsJson) in overrides)
+        foreach (var user in overrides)
         {
             context.UserSettingsOverrides.Add(new UserSettingsOverride
             {
-                UserId = userId,
-                SettingsJson = settingsJson
+                UserId = user.UserId,
+                SettingsJson = user.SettingsJson,
+                NotificationsJson = user.NotificationsJson
             });
         }
 

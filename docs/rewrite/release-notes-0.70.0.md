@@ -56,7 +56,7 @@ The **Yaml Editor** holds the whole configuration as one file, checked against t
 
 ### Backup and restore
 
-The **Other** tab downloads one file with the configuration, the groups and the settings aimed at one user, which Jellyfin's own backup does not carry, and restores it after checking it. The file contains the Seerr API key, so keep it the way you keep that key.
+The **Other** tab downloads one file with the configuration, the groups and what is aimed at one user, settings and notifications alike, and each person's own notification choices, which Jellyfin's own backup does not carry, and restores it after checking it. The file contains the Seerr API key, so keep it the way you keep that key.
 
 ### Jellyfin 12
 

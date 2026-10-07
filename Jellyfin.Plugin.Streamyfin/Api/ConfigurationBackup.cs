@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
+using Jellyfin.Plugin.Streamyfin.Db;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -108,6 +109,86 @@ public class ConfigurationBackup
     }
 
     /// <summary>
+    /// What makes what a group or a user in this file says about the events impossible to
+    /// restore, checked the way the pages' routes check it.
+    /// </summary>
+    /// <param name="known">
+    /// The users this server has. A restore leaves anyone else out, so what they say is not
+    /// checked: a file from another server is not refused over a user it would not write.
+    /// </param>
+    /// <returns>A sentence for the page that names the level, or <c>null</c>.</returns>
+    public string? NotificationsProblem(IReadOnlySet<Guid> known)
+    {
+        ArgumentNullException.ThrowIfNull(known);
+
+        foreach (var group in Groups)
+        {
+            if (NotificationsValidation.CheckTargeting(group.Notifications) is { } problem)
+            {
+                return $"The group \"{group.Name}\" in this file cannot be restored. {problem}";
+            }
+        }
+
+        foreach (var user in Users.Where(user => known.Contains(user.UserId)))
+        {
+            if (NotificationsValidation.CheckTargeting(user.Notifications) is { } problem)
+            {
+                return $"The settings of user {user.UserId} in this file cannot be restored. {problem}";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The rows a restore writes for the groups and the user settings in this file.
+    /// </summary>
+    /// <param name="serialization">Writes a level's settings the way the plugin stores them.</param>
+    /// <param name="known">The users this server has. Anyone else is left out, and counted.</param>
+    /// <returns>The rows, and how many members and users were left out.</returns>
+    /// <remarks>
+    /// Each level carries what it says about the events next to its settings. Writing the
+    /// settings alone took every group's and every user's notifications away on a restore.
+    /// </remarks>
+    public TargetingRows ToRows(SerializationHelper serialization, IReadOnlySet<Guid> known)
+    {
+        ArgumentNullException.ThrowIfNull(serialization);
+        ArgumentNullException.ThrowIfNull(known);
+
+        var unknownMembers = 0;
+        var groups = new List<(SettingsGroup Group, IReadOnlyList<Guid> Members)>();
+
+        foreach (var group in Groups)
+        {
+            var members = (group.UserIds ?? []).Where(known.Contains).ToList();
+            unknownMembers += (group.UserIds?.Count ?? 0) - members.Count;
+
+            groups.Add((
+                new SettingsGroup
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    Priority = group.Priority,
+                    SettingsJson = serialization.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings()),
+                    NotificationsJson = NotificationTargeting.Write(group.Notifications)
+                },
+                members));
+        }
+
+        var users = Users
+            .Where(user => known.Contains(user.UserId))
+            .Select(user => new UserSettingsOverride
+            {
+                UserId = user.UserId,
+                SettingsJson = serialization.SerializeToJson(user.Settings ?? new Configuration.Settings.Settings()),
+                NotificationsJson = NotificationTargeting.Write(user.Notifications)
+            })
+            .ToList();
+
+        return new TargetingRows(groups, users, unknownMembers, Users.Count - users.Count);
+    }
+
+    /// <summary>
     /// What makes the choices in this file impossible to restore, found before anything is
     /// written. A choice that leaves out what the person chose is as empty as a missing one:
     /// the restore would otherwise take that person's choices away. A restore keeps one entry
@@ -155,7 +236,27 @@ public class UserBackup
     /// </summary>
     [JsonPropertyName("settings")]
     public Configuration.Settings.Settings? Settings { get; set; }
+
+    /// <summary>
+    /// Gets or sets what is targeted at them about the events, or <c>null</c> when nothing
+    /// is, as in a backup taken before a user could be told anything about them.
+    /// </summary>
+    [JsonPropertyName("notifications")]
+    public Dictionary<string, NotificationTargeting>? Notifications { get; set; }
 }
+
+/// <summary>
+/// The rows a restore writes in place of the groups and the user settings on a server.
+/// </summary>
+/// <param name="Groups">Each group, with the members this server has.</param>
+/// <param name="Users">What is targeted at each user this server has.</param>
+/// <param name="UnknownMembers">How many members the file names that this server does not have.</param>
+/// <param name="UnknownUsers">How many users the file names that this server does not have.</param>
+public sealed record TargetingRows(
+    IReadOnlyList<(SettingsGroup Group, IReadOnlyList<Guid> Members)> Groups,
+    IReadOnlyList<UserSettingsOverride> Users,
+    int UnknownMembers,
+    int UnknownUsers);
 
 /// <summary>
 /// One person's notification choices in a backup.
