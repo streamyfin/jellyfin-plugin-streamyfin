@@ -55,6 +55,9 @@ internal sealed class PendingTitles(TimeSpan keep)
         return _since.TryRemove(id, out var since) && nowUtc - since <= keep;
     }
 
+    /// <summary>Gets a value indicating whether no title is waited for, the usual case.</summary>
+    public bool IsEmpty => _since.IsEmpty;
+
     /// <summary>Forgets everything, when the server stops.</summary>
     public void Clear() => _since.Clear();
 

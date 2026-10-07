@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -66,12 +67,34 @@ public class AwaitedTitlesService : BaseEvent, IHostedService
         }
     }
 
+    /// <summary>
+    /// The title an update settles, when it is waited for: a show or a movie by its own update,
+    /// whose metadata brings its ids, or a show by one of its episodes', which stood for the
+    /// show when it was added.
+    /// </summary>
+    /// <param name="pending">The titles waited for.</param>
+    /// <param name="updated">What was updated.</param>
+    /// <param name="nowUtc">Now.</param>
+    /// <returns>The title, or <c>null</c>.</returns>
+    internal static BaseItem? SettledBy(PendingTitles pending, BaseItem updated, DateTime nowUtc)
+    {
+        // Nothing waited for, the usual case: a scan updates every item it touches, and an
+        // episode's show is one more lookup each time.
+        if (pending.IsEmpty)
+        {
+            return null;
+        }
+
+        var title = updated is Series ? updated : AwaitedTitleAnnouncer.TitleOf(updated);
+        return title is not null && pending.Has(title.Id, nowUtc) ? title : null;
+    }
+
     // A title whose ids came with its metadata, after it was added.
     private void OnItemUpdated(object? sender, ItemChangeEventArgs args)
     {
-        if (_pending.Has(args.Item.Id, DateTime.UtcNow))
+        if (SettledBy(_pending, args.Item, DateTime.UtcNow) is { } title)
         {
-            Consider(args.Item);
+            Consider(title);
         }
     }
 

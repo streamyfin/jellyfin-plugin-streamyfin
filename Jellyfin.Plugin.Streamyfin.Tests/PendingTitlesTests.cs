@@ -92,4 +92,19 @@ public class PendingTitlesTests
         Assert.Equal(before + 1, pending.Sweeps);
         Assert.False(pending.Has(old, Now.AddHours(25)));
     }
+
+    /// <summary>
+    /// Empty until a title is waited for, so a scan asks nothing more of the library while
+    /// nobody waits.
+    /// </summary>
+    [Fact]
+    public void ItIsEmptyUntilATitleIsWaitedFor()
+    {
+        var pending = new PendingTitles(TimeSpan.FromHours(24));
+        Assert.True(pending.IsEmpty);
+
+        pending.Add(Guid.NewGuid(), Now);
+
+        Assert.False(pending.IsEmpty);
+    }
 }
