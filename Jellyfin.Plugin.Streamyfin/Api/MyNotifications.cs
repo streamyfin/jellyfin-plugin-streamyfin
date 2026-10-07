@@ -200,15 +200,17 @@ public static class MyNotifications
             return $"There is no notification called {unknown}.";
         }
 
-        if (update.MutedShows?.Count > MostMutedShows)
-        {
-            return $"At most {MostMutedShows} shows can be turned off.";
-        }
-
-        return update.MutedLibraries?.Count > MostMutedLibraries
-            ? $"At most {MostMutedLibraries} libraries can be turned off."
-            : null;
+        return ListsProblem(update.MutedShows?.Count ?? 0, update.MutedLibraries?.Count ?? 0);
     }
+
+    /// <summary>What makes lists this long too long to keep, if anything.</summary>
+    /// <param name="mutedShows">How many shows are turned off.</param>
+    /// <param name="mutedLibraries">How many libraries are turned off.</param>
+    /// <returns>A sentence for the app, or <c>null</c> when they can be kept.</returns>
+    public static string? ListsProblem(int mutedShows, int mutedLibraries) =>
+        mutedShows > MostMutedShows ? $"At most {MostMutedShows} shows can be turned off."
+        : mutedLibraries > MostMutedLibraries ? $"At most {MostMutedLibraries} libraries can be turned off."
+        : null;
 
     /// <summary>Turns a show off, once.</summary>
     /// <param name="mine">The person's choices, changed in place.</param>

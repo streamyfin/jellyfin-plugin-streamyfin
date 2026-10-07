@@ -62,13 +62,33 @@ public class ConfigurationBackup
     /// <summary>
     /// What makes the choices in this file impossible to restore, found before anything is
     /// written. A choice that leaves out what the person chose is as empty as a missing one:
-    /// the restore would otherwise take that person's choices away.
+    /// the restore would otherwise take that person's choices away. A restore keeps one entry
+    /// per person, and holds each to the same most as the app.
     /// </summary>
     /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
-    public string? PreferencesProblem() =>
-        NotificationPreferences?.Any(choice => choice?.Preferences is null) == true
-            ? "One of the notification choices in this file is empty."
-            : null;
+    public string? PreferencesProblem()
+    {
+        if (NotificationPreferences is not { } choices)
+        {
+            return null;
+        }
+
+        if (choices.Any(choice => choice?.Preferences is null))
+        {
+            return "One of the notification choices in this file is empty.";
+        }
+
+        if (choices.GroupBy(choice => choice!.UserId).Any(same => same.Count() > 1))
+        {
+            return "This file has the notification choices of one person twice.";
+        }
+
+        return choices
+            .Select(choice => MyNotifications.ListsProblem(
+                choice!.Preferences!.MutedShows?.Count ?? 0,
+                choice.Preferences.MutedLibraries?.Count ?? 0))
+            .FirstOrDefault(problem => problem is not null);
+    }
 }
 
 /// <summary>

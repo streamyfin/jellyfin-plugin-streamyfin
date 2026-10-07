@@ -218,4 +218,53 @@ public class BackupTests
         Assert.NotNull(read!.PreferencesProblem());
         Assert.Null(new ConfigurationBackup().PreferencesProblem());
     }
+
+    /// <summary>
+    /// A file with the same person twice is refused before anything is written: a restore can
+    /// keep only one of the two, and stopped with an error on the second.
+    /// </summary>
+    [Fact]
+    public void AFileWithOnePersonTwiceIsRefused()
+    {
+        var person = Guid.NewGuid();
+        var backup = new ConfigurationBackup
+        {
+            NotificationPreferences =
+            [
+                new PreferencesBackup { UserId = person, Preferences = new NotificationPreferences() },
+                new PreferencesBackup { UserId = person, Preferences = new NotificationPreferences { Pause = new NotificationPause() } }
+            ]
+        };
+
+        Assert.NotNull(backup.PreferencesProblem());
+    }
+
+    /// <summary>
+    /// A file is held to the same most as the app: every send reads everyone's choices, so a
+    /// restore brings in no list longer than a person could have made.
+    /// </summary>
+    [Theory]
+    [InlineData(MyNotifications.MostMutedShows, MyNotifications.MostMutedLibraries, false)]
+    [InlineData(MyNotifications.MostMutedShows + 1, 0, true)]
+    [InlineData(0, MyNotifications.MostMutedLibraries + 1, true)]
+    public void AFileWithMoreThanTheMostIsRefused(int shows, int libraries, bool refused)
+    {
+        var backup = new ConfigurationBackup
+        {
+            NotificationPreferences =
+            [
+                new PreferencesBackup
+                {
+                    UserId = Guid.NewGuid(),
+                    Preferences = new NotificationPreferences
+                    {
+                        MutedShows = [.. Enumerable.Range(0, shows).Select(_ => Guid.NewGuid())],
+                        MutedLibraries = [.. Enumerable.Range(0, libraries).Select(_ => Guid.NewGuid())]
+                    }
+                }
+            ]
+        };
+
+        Assert.Equal(refused, backup.PreferencesProblem() is not null);
+    }
 }
