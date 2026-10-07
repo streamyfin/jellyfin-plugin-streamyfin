@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -13,6 +14,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -22,16 +24,19 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 public class ItemAddedService : BaseEvent, IHostedService
 {
     private readonly ILibraryManager _libraryManager;
+    private readonly IShowWatching _watching;
     private readonly ConcurrentDictionary<Guid, EpisodeTimer> _seasonItems;
 
     public ItemAddedService(ILibraryManager libraryManager,
         ILoggerFactory loggerFactory,
         LocalizationHelper localization,
         IServerApplicationHost applicationHost,
-        NotificationHelper notificationHelper
+        NotificationHelper notificationHelper,
+        IUserDataManager userData
     ) : base(loggerFactory, localization, applicationHost, notificationHelper)
     {
         _libraryManager = libraryManager;
+        _watching = new LibraryShowWatching(libraryManager, userData);
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
     }
 
@@ -50,6 +55,25 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         return libraryItemId is not null
                && enabledLibraries.Contains(libraryItemId, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The library an item went into, found by its path.
+    /// </summary>
+    /// <param name="folders">The server's libraries.</param>
+    /// <param name="path">Where the item is.</param>
+    /// <returns>The library id, or <c>null</c> when no library holds that path.</returns>
+    internal static Guid? LibraryIdOf(IEnumerable<VirtualFolderInfo> folders, string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return null;
+        }
+
+        var folder = folders.FirstOrDefault(candidate =>
+            candidate.Locations.Any(location => path.Contains(location, StringComparison.Ordinal)));
+
+        return Guid.TryParse(folder?.ItemId, out var id) ? id : null;
     }
 
     // Written once per language among the devices it goes to, so it builds rather than
@@ -153,6 +177,9 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         _logger.LogInformation("Item added is {0} - {1}",  item.GetType().Name, item.Name.Escape());
 
+        // Which library it went into, for the people who turned that library off.
+        Guid? library = Guid.TryParse(virtualFolder?.ItemId, out var found) ? found : null;
+
         switch (item)
         {
             case Movie movie:
@@ -164,7 +191,8 @@ public class ItemAddedService : BaseEvent, IHostedService
                         // Not negotiable, whatever a level says: a title only goes to
                         // somebody who may open it (#69).
                         andAlso: NotificationHelper.CanOpenEvery([item]),
-                        write: audience => MovieMessage(item, audience)),
+                        write: audience => MovieMessage(item, audience),
+                        subject: new NotificationSubject("itemAdded", library)),
                     "item added");
                 break;
             case Episode episode:
@@ -241,6 +269,10 @@ public class ItemAddedService : BaseEvent, IHostedService
             return;
         }
 
+        // The library for those who turned it off, the show for those who follow or muted it.
+        var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), episode.Path);
+        var subject = new NotificationSubject("itemAdded", library, refreshedSeason.Series.Id);
+
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(
             _notificationHelper.SendForEvent(
@@ -248,7 +280,9 @@ public class ItemAddedService : BaseEvent, IHostedService
                 Config?.notifications?.ItemAdded,
                 byDefault: _ => true,
                 andAlso: NotificationHelper.CanOpenEvery(named),
-                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)]),
+                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)],
+                subject: subject,
+                watching: _watching),
             "episodes added");
     }
 

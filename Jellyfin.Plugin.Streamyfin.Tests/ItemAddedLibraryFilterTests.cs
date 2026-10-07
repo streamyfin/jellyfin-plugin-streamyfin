@@ -1,4 +1,6 @@
+using System;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
+using MediaBrowser.Model.Entities;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -63,5 +65,20 @@ public class ItemAddedLibraryFilterTests
     public void UnknownLibraryIsDisabledWhenTheListIsRestricted()
     {
         Assert.False(ItemAddedService.IsLibraryEnabled(["3a1f0c2e"], null));
+    }
+
+    [Fact]
+    public void AnItemBelongsToTheLibraryWhosePathHoldsIt()
+    {
+        var movies = Guid.NewGuid();
+        VirtualFolderInfo[] folders =
+        [
+            new() { ItemId = movies.ToString("N"), Locations = ["/media/movies"] },
+            new() { ItemId = Guid.NewGuid().ToString("N"), Locations = ["/media/shows"] }
+        ];
+
+        Assert.Equal(movies, ItemAddedService.LibraryIdOf(folders, "/media/movies/Dune (2021)/Dune.mkv"));
+        Assert.Null(ItemAddedService.LibraryIdOf(folders, "/elsewhere/file.mkv"));
+        Assert.Null(ItemAddedService.LibraryIdOf(folders, null));
     }
 }
