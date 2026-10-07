@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Xunit;
@@ -68,6 +71,85 @@ public class NotificationPreferencesStorageTests : IDisposable
         _db.SaveNotificationPreferences(user, new NotificationPreferences());
 
         Assert.False(_db.GetNotificationPreferences(user)!.IsPaused(DateTime.UtcNow));
+    }
+
+    /// <summary>
+    /// Two changes at once both land: two buttons tapped in a row, or two devices of one
+    /// account, each read the choices before the other stored them and one change was lost.
+    /// </summary>
+    [Fact]
+    public async Task TwoChangesAtOnceBothLand()
+    {
+        var user = Guid.NewGuid();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        using var firstHasRead = new ManualResetEventSlim();
+        using var secondHasRead = new ManualResetEventSlim();
+
+        var one = Task.Run(() => _db.ChangeNotificationPreferences(user, mine =>
+        {
+            firstHasRead.Set();
+            // Without the write lock the second change reads now, before this one is stored.
+            secondHasRead.Wait(TimeSpan.FromMilliseconds(500));
+            mine.MutedShows.Add(first);
+            return null;
+        }));
+
+        firstHasRead.Wait();
+        var other = Task.Run(() => _db.ChangeNotificationPreferences(user, mine =>
+        {
+            secondHasRead.Set();
+            mine.MutedShows.Add(second);
+            return null;
+        }));
+
+        await Task.WhenAll(one, other);
+        Assert.Equal(new[] { first, second }.Order(), _db.GetNotificationPreferences(user)!.MutedShows.Order());
+    }
+
+    /// <summary>
+    /// A save waits for a change in progress and then replaces it, rather than failing on the
+    /// row the change was about to write for somebody who had none.
+    /// </summary>
+    [Fact]
+    public async Task ASaveWaitsForAChangeInProgress()
+    {
+        var user = Guid.NewGuid();
+        using var changing = new ManualResetEventSlim();
+
+        var change = Task.Run(() => _db.ChangeNotificationPreferences(user, mine =>
+        {
+            changing.Set();
+            Thread.Sleep(300);
+            mine.MutedShows.Add(Guid.NewGuid());
+            return null;
+        }));
+
+        changing.Wait();
+        _db.SaveNotificationPreferences(user, new NotificationPreferences { Pause = new NotificationPause() });
+        await change;
+
+        var stored = _db.GetNotificationPreferences(user)!;
+        Assert.True(stored.IsPaused(DateTime.UtcNow));
+        Assert.Empty(stored.MutedShows);
+    }
+
+    /// <summary>
+    /// A change that is refused stores nothing.
+    /// </summary>
+    [Fact]
+    public void ARefusedChangeStoresNothing()
+    {
+        var user = Guid.NewGuid();
+
+        var (_, problem) = _db.ChangeNotificationPreferences(user, mine =>
+        {
+            mine.MutedShows.Add(Guid.NewGuid());
+            return "No.";
+        });
+
+        Assert.Equal("No.", problem);
+        Assert.Null(_db.GetNotificationPreferences(user));
     }
 
     /// <summary>

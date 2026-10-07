@@ -887,14 +887,15 @@ public class StreamyfinController : ControllerBase
     CallerIsApiKey || CallerId.Equals(Guid.Empty) ? null : _userManager.GetUserById(CallerId);
 
   /// <summary>
-  /// Reads, changes and stores a person's choices in one go, then describes them back.
+  /// Reads, changes and stores a person's choices in one step, then describes them back.
   /// </summary>
   private MyNotificationsDto Change(User user, Action<NotificationPreferences> change)
   {
-    var database = StreamyfinPlugin.Instance!.Database;
-    var mine = database.GetNotificationPreferences(user.Id) ?? new NotificationPreferences();
-    change(mine);
-    database.SaveNotificationPreferences(user.Id, mine);
+    var (mine, _) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(user.Id, stored =>
+    {
+      change(stored);
+      return null;
+    });
     return DescribeFor(user, mine);
   }
 
@@ -1011,14 +1012,14 @@ public class StreamyfinController : ControllerBase
       return NotFound($"There is no show {seriesId:N} on this account.");
     }
 
-    var database = StreamyfinPlugin.Instance!.Database;
-    var mine = database.GetNotificationPreferences(user.Id) ?? new NotificationPreferences();
-    if (MyNotifications.Mute(mine, seriesId) is { } problem)
+    var (mine, problem) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(
+      user.Id,
+      stored => MyNotifications.Mute(stored, seriesId));
+    if (problem is not null)
     {
       return BadRequest(problem);
     }
 
-    database.SaveNotificationPreferences(user.Id, mine);
     return DescribeFor(user, mine);
   }
 

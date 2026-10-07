@@ -854,8 +854,59 @@ public class PluginDatabase
 
         using var context = CreateContext();
 
-        var json = NotificationPreferences.Write(preferences);
+        // Under the write lock, like a change: a lookup and an insert outside it failed on
+        // the row a change was writing for somebody who had none.
+        using var transaction = context.Database.BeginTransaction();
+        Store(context, context.NotificationPreferences.FirstOrDefault(p => p.UserId == userId), userId, preferences);
+        transaction.Commit();
+    }
+
+    /// <summary>
+    /// Changes one person's choices in one step: they are read, changed and stored while the
+    /// write lock is held, so two changes at once, two buttons tapped in a row or two devices
+    /// of one account, both land.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="change">
+    /// Changes the choices in place, or says why it cannot, in which case nothing is stored.
+    /// </param>
+    /// <returns>The choices, and why the change was refused, if it was.</returns>
+    public (NotificationPreferences Preferences, string? Problem) ChangeNotificationPreferences(
+        Guid userId,
+        Func<NotificationPreferences, string?> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
         var existing = context.NotificationPreferences.FirstOrDefault(p => p.UserId == userId);
+        var mine = NotificationPreferences.Read(existing?.PreferencesJson) ?? new NotificationPreferences();
+        if (change(mine) is { } problem)
+        {
+            return (mine, problem);
+        }
+
+        Store(context, existing, userId, mine);
+        transaction.Commit();
+        return (mine, null);
+    }
+
+    /// <summary>
+    /// Writes one person's row, adding it when they had none. Called with the write lock held,
+    /// so nobody adds the same row in between.
+    /// </summary>
+    /// <param name="context">The context the lock is held on.</param>
+    /// <param name="existing">Their row as read under the lock, or <c>null</c>.</param>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="preferences">Their choices.</param>
+    private static void Store(
+        StreamyfinDbContext context,
+        NotificationPreferencesRow? existing,
+        Guid userId,
+        NotificationPreferences preferences)
+    {
+        var json = NotificationPreferences.Write(preferences);
         if (existing is null)
         {
             context.NotificationPreferences.Add(new NotificationPreferencesRow
