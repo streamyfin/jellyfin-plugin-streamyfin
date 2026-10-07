@@ -210,7 +210,8 @@ one change of a setting most people never touched, against a release of both sid
 **A setting the app reads under more than one name.** The app renamed the three
 Seerr settings to `seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr`. It reads
 the `seerr` block first and the jellyseerr keys after it, which every earlier copy
-of the app reads and the plugin still sends. The manifest lists those other names
+of the app reads. The plugin keeps storing them, and stops sending them to the app in
+a breaking change that waits for the oldest copy in service to read the block. The manifest lists those other names
 as `wireNames`, and the script finds them by running the app's own
 `readIntegrationBlocks` rather than by copying it. A setting counts as declared
 under any of its names, and its default is compared through the name the plugin

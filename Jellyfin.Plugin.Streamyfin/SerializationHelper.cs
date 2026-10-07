@@ -102,11 +102,13 @@ public class SerializationHelper
     /// The options every JSON the app receives is written with.
     /// </summary>
     /// <remarks>
-    /// The stored form, except for the subtitle mode: the app compares the SDK's strings
-    /// for it, so the number never matched, and a mode an administrator locked did
-    /// nothing. Public because the parity test compares a declared default against what
-    /// the app reads, and it has to compare the written form. Comparing CLR values would
-    /// pass for an enum written as a number where the app expects its name.
+    /// The stored form, except for two things. The subtitle mode goes out by name: the app
+    /// compares the SDK's strings for it, so the number never matched, and a mode an
+    /// administrator locked did nothing. And Seerr goes out as its block only, without the
+    /// three flat keys it is stored under. Public because the parity test compares a
+    /// declared default against what the app reads, and it has to compare the written form.
+    /// Comparing CLR values would pass for an enum written as a number where the app
+    /// expects its name.
     /// </remarks>
     public JsonSerializerOptions GetAppJsonSerializerOptions()
     {

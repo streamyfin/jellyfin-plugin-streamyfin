@@ -346,9 +346,11 @@ with itself is refused rather than resolved by precedence, since an
 administrator who wrote both meant one of them.
 
 Seerr first, because Seerr is the one that was renamed. Marlin and Streamystats
-follow the same mechanism the day it is worth the second shape. What is left is
-the app reading the block, and then the flat keys coming out, which is the only
-piece of P6 that waits for the app.
+follow the same mechanism the day it is worth the second shape. The app reads the
+block since streamyfin#2104, published in 0.55.0. The flat keys then come out of
+what the app receives, in a breaking change held as a draft until the oldest copy
+of the app in service reads the block. They stay what is stored, what the
+dashboard edits and what an administrator may write.
 
 ## P1.7. Settings parity
 
@@ -396,7 +398,7 @@ from.
 | P4.3 | [#158](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/158) | merged |
 | P6.1 | [#159](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/159) | the rename, merged. Typed blocks wait for the app |
 | P6.2, P6.3 | [#160](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/160), simplified in [#161](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161) | merged |
-| P6.1 typed blocks | [#198](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/198) | the `seerr` block read and served beside the flat keys; the app switch and the removal are what is left |
+| P6.1 typed blocks | [#198](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/198) | the `seerr` block read and served beside the flat keys; the app reads it since streamyfin#2104; the removal of the flat keys from what the app receives waits as a draft |
 | P3.4 | [#162](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/162) | this |
 | P5.1, P5.5 | [#157](https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/157) | merged |
 | P5.4 | none needed | delivered by P1's resolution; proven by `HomePerGroupTests` |

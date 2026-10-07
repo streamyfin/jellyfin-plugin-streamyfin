@@ -195,5 +195,6 @@ reads the block first and the jellyseerr keys after it, and keeps the settings a
 `seerrServerUrl`, `seerrApiKey` and `autoLoginSeerr`. The parity manifest lists the
 block's fields and the jellyseerr keys as the other names the app reads those under,
 so `SettingsParityTests` no longer carries an entry for `seerr`. The flat keys come
-out of the plugin the day every copy in the field reads the block, a breaking
-release on the plugin's side with nothing left for the app.
+out of what the plugin serves the day every copy in the field reads the block: that
+change is ready as a draft, a breaking release on the plugin's side with nothing left
+for the app.
