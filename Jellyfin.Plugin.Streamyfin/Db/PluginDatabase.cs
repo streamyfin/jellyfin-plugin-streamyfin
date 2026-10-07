@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -805,6 +806,95 @@ public class PluginDatabase
 
         context.UserSettingsOverrides.Remove(existing);
         context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Gets what one person keeps of their notifications.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <returns>Their choices, or <c>null</c> when they made none or the row cannot be read.</returns>
+    public NotificationPreferences? GetNotificationPreferences(Guid userId)
+    {
+        using var context = CreateContext();
+        var row = context.NotificationPreferences.AsNoTracking().FirstOrDefault(p => p.UserId == userId);
+        return NotificationPreferences.Read(row?.PreferencesJson);
+    }
+
+    /// <summary>
+    /// Gets everyone's choices at once, for a send that asks about every account.
+    /// </summary>
+    /// <returns>The choices of everyone who made some and whose row can be read.</returns>
+    public Dictionary<Guid, NotificationPreferences> AllNotificationPreferences()
+    {
+        using var context = CreateContext();
+
+        var all = new Dictionary<Guid, NotificationPreferences>();
+        foreach (var row in context.NotificationPreferences.AsNoTracking())
+        {
+            if (NotificationPreferences.Read(row.PreferencesJson) is { } read)
+            {
+                all[row.UserId] = read;
+            }
+        }
+
+        return all;
+    }
+
+    /// <summary>
+    /// Saves one person's choices, replacing what they had.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="preferences">Their choices.</param>
+    public void SaveNotificationPreferences(Guid userId, NotificationPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        using var context = CreateContext();
+
+        var json = NotificationPreferences.Write(preferences);
+        var existing = context.NotificationPreferences.FirstOrDefault(p => p.UserId == userId);
+        if (existing is null)
+        {
+            context.NotificationPreferences.Add(new NotificationPreferencesRow
+            {
+                UserId = userId,
+                PreferencesJson = json,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existing.PreferencesJson = json;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Replaces everyone's choices with the ones given, in one transaction, for a restore.
+    /// </summary>
+    /// <param name="preferences">The choices to keep, per user.</param>
+    public void ReplaceNotificationPreferences(IReadOnlyCollection<(Guid UserId, NotificationPreferences Preferences)> preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        context.NotificationPreferences.ExecuteDelete();
+        foreach (var (userId, mine) in preferences)
+        {
+            context.NotificationPreferences.Add(new NotificationPreferencesRow
+            {
+                UserId = userId,
+                PreferencesJson = NotificationPreferences.Write(mine),
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
     }
 
     /// <summary>
