@@ -61,11 +61,12 @@ public class ConfigurationBackup
 
     /// <summary>
     /// What makes the choices in this file impossible to restore, found before anything is
-    /// written.
+    /// written. A choice that leaves out what the person chose is as empty as a missing one:
+    /// the restore would otherwise take that person's choices away.
     /// </summary>
     /// <returns>A sentence for the page, or <c>null</c> when they can be restored.</returns>
     public string? PreferencesProblem() =>
-        NotificationPreferences?.Any(choice => choice is null) == true
+        NotificationPreferences?.Any(choice => choice?.Preferences is null) == true
             ? "One of the notification choices in this file is empty."
             : null;
 }

@@ -202,14 +202,18 @@ public class BackupTests
     }
 
     /// <summary>
-    /// A file with an empty choice in it is refused before anything is written, or the restore
-    /// would stop halfway through.
+    /// A file with an empty choice in it, or one that leaves out what the person chose, is
+    /// refused before anything is written: the restore would stop halfway through, or take
+    /// that person's choices away.
     /// </summary>
-    [Fact]
-    public void AFileWithAnEmptyChoiceIsRefusedBeforeAnythingIsWritten()
+    [Theory]
+    [InlineData("null")]
+    [InlineData("""{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}""")]
+    [InlineData("""{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","preferences":null}""")]
+    public void AFileWithAnEmptyChoiceIsRefusedBeforeAnythingIsWritten(string choice)
     {
         var read = _serialization.DeserializeJson<ConfigurationBackup>(
-            """{"plugin":"0.70.0.0","groups":[],"users":[],"notificationPreferences":[null]}""");
+            $$"""{"plugin":"0.70.0.0","groups":[],"users":[],"notificationPreferences":[{{choice}}]}""");
 
         Assert.NotNull(read!.PreferencesProblem());
         Assert.Null(new ConfigurationBackup().PreferencesProblem());
