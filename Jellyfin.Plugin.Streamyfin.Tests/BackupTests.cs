@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Api;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
 using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
@@ -170,5 +171,27 @@ public class BackupTests
 
         Assert.True(read!.Configuration);
         Assert.Equal(4, read.UnknownUsers);
+    }
+
+    [Fact]
+    public void APersonsChoicesTravelInTheBackup()
+    {
+        var user = Guid.NewGuid();
+        var mine = new NotificationPreferences { Pause = new NotificationPause() };
+        var backup = new ConfigurationBackup { NotificationPreferences = [new PreferencesBackup { UserId = user, Preferences = mine }] };
+
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        Assert.True(read!.NotificationPreferences!.Single().Preferences!.IsPaused(DateTime.UtcNow));
+        Assert.Equal(user, read.NotificationPreferences!.Single().UserId);
+    }
+
+    // A backup taken before this existed says nothing about choices, which must stay as they are.
+    [Fact]
+    public void AnOlderBackupSaysNothingAboutChoices()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>("""{"plugin":"0.70.0.0","groups":[],"users":[]}""");
+
+        Assert.Null(read!.NotificationPreferences);
     }
 }

@@ -324,7 +324,9 @@ public class StreamyfinController : ControllerBase
         {
           UserId = stored.UserId,
           Settings = Resolution.ReadLevel(stored.SettingsJson, $"user {stored.UserId}")
-        })]
+        })],
+      NotificationPreferences = [.. database.AllNotificationPreferences()
+        .Select(stored => new PreferencesBackup { UserId = stored.Key, Preferences = stored.Value })]
     }));
   }
 
@@ -437,14 +439,28 @@ public class StreamyfinController : ControllerBase
     report.Groups = groups.Count;
     report.Users = overrides.Count;
 
+    // An older backup has nothing to say about anyone's own choices, so they stay.
+    if (backup.NotificationPreferences is { } choices)
+    {
+      var kept = choices
+        .Where(choice => choice.Preferences is not null && known.Contains(choice.UserId))
+        .Select(choice => (choice.UserId, choice.Preferences!))
+        .ToList();
+
+      database.ReplaceNotificationPreferences(kept);
+      report.Preferences = kept.Count;
+    }
+
     _logger.LogInformation(
       "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
-      + "{Users} user override(s), {UnknownMembers} member(s) and {UnknownUsers} user(s) this server does not have",
+      + "{Users} user override(s), {Preferences} person's own choice(s), {UnknownMembers} member(s) and "
+      + "{UnknownUsers} user(s) this server does not have",
       backup.Plugin,
       backup.TakenAt,
       report.Configuration,
       report.Groups,
       report.Users,
+      report.Preferences,
       report.UnknownMembers,
       report.UnknownUsers);
 

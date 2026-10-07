@@ -53,11 +53,14 @@ const download = (text, name) => {
 
 // One sentence rather than a count of four things: what an administrator wants to know
 // is whether the server they backed up is the server they have now.
-const restored = (report) => {
+export const restored = (report) => {
     const parts = [];
     if (report.configuration) parts.push('the configuration');
     if (report.groups) parts.push(`${report.groups} group${report.groups === 1 ? '' : 's'}`);
     if (report.users) parts.push(`${report.users} user${report.users === 1 ? '' : 's'}`);
+    if (report.preferences) {
+        parts.push(`the notification choices of ${report.preferences} ${report.preferences === 1 ? 'person' : 'people'}`);
+    }
 
     const sentence = parts.length ? `Restored ${parts.join(', ')}.` : 'That file had nothing in it.';
     const missing = [];

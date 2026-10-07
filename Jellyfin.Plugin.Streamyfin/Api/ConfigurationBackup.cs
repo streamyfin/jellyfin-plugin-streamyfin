@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
 namespace Jellyfin.Plugin.Streamyfin.Api;
 
@@ -49,6 +50,13 @@ public class ConfigurationBackup
     /// </summary>
     [JsonPropertyName("users")]
     public List<UserBackup> Users { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets what each person chose for their own notifications, or <c>null</c> in a
+    /// backup taken before they could, which a restore then leaves as they are.
+    /// </summary>
+    [JsonPropertyName("notificationPreferences")]
+    public List<PreferencesBackup>? NotificationPreferences { get; set; }
 }
 
 /// <summary>
@@ -67,6 +75,24 @@ public class UserBackup
     /// </summary>
     [JsonPropertyName("settings")]
     public Configuration.Settings.Settings? Settings { get; set; }
+}
+
+/// <summary>
+/// One person's notification choices in a backup.
+/// </summary>
+public class PreferencesBackup
+{
+    /// <summary>
+    /// Gets or sets the Jellyfin user.
+    /// </summary>
+    [JsonPropertyName("userId")]
+    public Guid UserId { get; set; }
+
+    /// <summary>
+    /// Gets or sets their choices.
+    /// </summary>
+    [JsonPropertyName("preferences")]
+    public NotificationPreferences? Preferences { get; set; }
 }
 
 /// <summary>
@@ -109,6 +135,12 @@ public class RestoreReport
     /// </summary>
     [JsonPropertyName("unknownUsers")]
     public int UnknownUsers { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many people had their own notification choices put back.
+    /// </summary>
+    [JsonPropertyName("preferences")]
+    public int Preferences { get; set; }
 
     /// <summary>
     /// Gets or sets what stopped the restore, when something did.
