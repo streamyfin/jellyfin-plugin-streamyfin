@@ -1444,7 +1444,11 @@ public class StreamyfinController : ControllerBase
     return new UserSettingsOverrideDto
     {
       Settings = stored is null ? null : Resolution.ReadLevel(stored.SettingsJson, $"user {userId}"),
-      Notifications = stored is null ? null : Said(stored.NotificationsJson)
+      Notifications = stored is null ? null : Said(stored.NotificationsJson),
+      // GetUserById throws on an empty id rather than finding nobody.
+      OwnChoices = !userId.Equals(Guid.Empty) && _userManager.GetUserById(userId) is { } person
+        ? DescribeFor(person, StreamyfinPlugin.Instance!.Database.GetNotificationPreferences(userId))
+        : null
     };
   }
 

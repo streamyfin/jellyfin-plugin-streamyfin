@@ -74,6 +74,18 @@ public class PluginPagesTests
     }
 
     /// <summary>
+    /// The module Targeting reads a person's own notification choices with is served, or
+    /// the tab fails to load for every user it opens.
+    /// </summary>
+    [Fact]
+    public void TheOwnChoicesModuleIsServed()
+    {
+        var plugin = (IHasWebPages)FormatterServices_CreateUninitialized();
+
+        Assert.Contains("own-choices.js", plugin.GetPages().Select(page => page.Name));
+    }
+
+    /// <summary>
     /// With no preference the declared order stands.
     /// </summary>
     [Theory]

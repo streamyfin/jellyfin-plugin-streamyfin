@@ -28,6 +28,7 @@ const send = (type, path, body) =>
 export default function (view) {
     let renderer = null;
     let shared = null;
+    let ownChoices = null;
     let form = null;
     let fields = [];
     let users = [];
@@ -369,9 +370,13 @@ export default function (view) {
         updateDock();
     };
 
+    // The events by key, as the page names them.
+    const eventLabels = () => Object.fromEntries(events.map((one) => [one.key, one.title]));
+
     const openGroup = (group) => {
         level = { kind: "group", group, cultures: level?.cultures };
         el("sf-level-title").textContent = group.id ? group.name : "New group";
+        el("sf-own-choices").hidden = true;
         el("sf-group-fields").hidden = false;
         el("sf-level-help").hidden = false;
         el("sf-people").hidden = false;
@@ -399,6 +404,11 @@ export default function (view) {
         el("sf-people").hidden = true;
         el("sf-delete").hidden = false;
         saidBefore = stored?.notifications ?? {};
+        // What the person chose for themselves, which an administrator cannot change but needs
+        // to see when somebody says a notification never came.
+        const line = ownChoices?.describeOwnChoices(stored?.ownChoices, eventLabels()) ?? null;
+        el("sf-own-choices").textContent = line ?? "";
+        el("sf-own-choices").hidden = !line;
         renderEvents(saidBefore);
         draw(stored?.settings ?? {});
         markCurrent();
@@ -551,6 +561,7 @@ export default function (view) {
 
         import(window.ApiClient.getUrl("web/configurationpage?name=shared.js")).then(async (loaded) => {
             renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
+            ownChoices = await import(window.ApiClient.getUrl("web/configurationpage?name=own-choices.js"));
 
             if (mine.signal.aborted) return;
 

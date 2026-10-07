@@ -316,6 +316,13 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             EmbeddedResourcePath = _prefix + ".Pages.home-editor.js"
         };
 
+        // The one line Targeting says about a person's own notification choices.
+        yield return new PluginPageInfo
+        {
+            Name = "own-choices.js",
+            EmbeddedResourcePath = _prefix + ".Pages.own-choices.js"
+        };
+
         // The home screens the Home tab offers to start from, held to the schema by a test.
         yield return new PluginPageInfo
         {
