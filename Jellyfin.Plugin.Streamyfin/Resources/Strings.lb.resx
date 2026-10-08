@@ -50,10 +50,10 @@
   <!-- endregion SessionStartEvent -->
   <!-- region UserLockedOutEvent -->
   <data name="UserLockedOutTitle" xml:space="preserve">
-        <value>Benotzer Gesperrt</value>
+        <value>Benotzer gespaart</value>
     </data>
   <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <value>Benotzer {0} gesperrt</value>
+        <value>Benotzer {0} gouf gespaart</value>
         <comment>0 = Username</comment>
     </data>
   <!-- endregion UserLockedOutEvent -->
@@ -142,7 +142,7 @@
         <comment>0 = Requester, 1 = Media name</comment>
     </data>
   <data name="SeerrRequestAvailableTitle" xml:space="preserve">
-        <value>Prett zum Kucken</value>
+        <value>Prett fir ze kucken</value>
     </data>
   <data name="SeerrRequestAvailableBody" xml:space="preserve">
         <value>{1} ass elo disponibel</value>
@@ -165,33 +165,33 @@
         <value>Plugin installéiert</value>
     </data>
   <data name="PluginUpdatedTitle" xml:space="preserve">
-        <value>Plugin Update installéiert</value>
+        <value>Pluginaktualiséierung installéiert</value>
     </data>
   <data name="PluginUninstalledTitle" xml:space="preserve">
         <value>Plugin desinstalléiert</value>
     </data>
   <data name="PluginInstalled" xml:space="preserve">
-        <value>{0} installéiert</value>
+        <value>{0} gouf installéiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginInstalledVersion" xml:space="preserve">
-        <value>{0} {1} installéiert</value>
+        <value>{0} {1} gouf installéiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUpdated" xml:space="preserve">
-        <value>{0} aktualiséiert</value>
+        <value>{0} gouf aktualiséiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUpdatedVersion" xml:space="preserve">
-        <value>{0} op {1} aktualiséiert</value>
+        <value>{0} gouf op {1} aktualiséiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="PluginUninstalled" xml:space="preserve">
-        <value>{0} desinstalléiert</value>
+        <value>{0} gouf desinstalléiert</value>
         <comment>0 = Plugin name</comment>
     </data>
   <data name="PluginUninstalledVersion" xml:space="preserve">
-        <value>{0} {1} desinstalléiert</value>
+        <value>{0} {1} gouf desinstalléiert</value>
         <comment>0 = Plugin name, 1 = Version</comment>
     </data>
   <data name="SignInFailedTitle" xml:space="preserve">
@@ -202,14 +202,14 @@
         <comment>0 = Username that was tried</comment>
     </data>
   <data name="SignInFailedFrom" xml:space="preserve">
-        <value>{0} konnt sech net vun {1} aus umellen</value>
+        <value>{0} konnt sech net vu(n) {1} aus umellen</value>
         <comment>0 = Username that was tried, 1 = Address it came from</comment>
     </data>
   <data name="SignInFailedUnnamed" xml:space="preserve">
         <value>Eng Umeldung gouf ofgeleent</value>
     </data>
   <data name="SignInFailedUnnamedFrom" xml:space="preserve">
-        <value>Eng Umeldung vun {0} aus gouf ofgeleent</value>
+        <value>Eng Umeldung vu(n) {0} aus gouf ofgeleent</value>
         <comment>0 = Address it came from</comment>
     </data>
   <!-- endregion Admin events -->
