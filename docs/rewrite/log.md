@@ -8,6 +8,14 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-08, Crowdin's sync opens its own pull request
+
+Since the first run on 2026-10-05, the weekly Crowdin sync uploaded and downloaded but could not
+open its pull request: GitHub refused it with a 403, since the repository did not let Actions
+create pull requests. That setting is on now, and the run after #233 opened #234 by itself,
+twelve Luxembourgish sentences corrected. The sentences #233 added go through Crowdin like the
+others.
+
 ## 2026-10-08, a person is told when a title they wait for arrives
 
 Seerr tells the person who requested a title when it is available, and nobody else. Somebody who
