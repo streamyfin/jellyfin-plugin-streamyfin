@@ -46,7 +46,7 @@ Three admin alerts join the existing events: a **scheduled task that failed**, w
 
 ### 29 languages
 
-The notifications are translated on [Crowdin](https://translate.streamyfin.app) into 29 languages, and the admin alerts use the words of Jellyfin's own activity log in each of them. A device that tells the server its language gets its notifications in it; the others get the server's language, as before. The app side of that, and the posters a notification about a new item can carry on Android, come with the next version of the app.
+The notifications are translated on [Crowdin](https://translate.streamyfin.app) into 29 languages, and the admin alerts use the words of Jellyfin's own activity log in each of them. A device that tells the server its language gets its notifications in it; the others get the server's language, as before. The app side of that, and the posters a notification about a new item can carry on Android, come with the next version of the app. With that version, anybody can also ask, from the Seerr page of a title that is not on the server yet, to be told when it arrives, whoever adds it.
 
 ### The whole configuration as YAML
 
@@ -56,7 +56,7 @@ The **Yaml Editor** holds the whole configuration as one file, checked against t
 
 ### Backup and restore
 
-The **Other** tab downloads one file with the configuration, the groups and what is aimed at one user, settings and notifications alike, and each person's own notification choices, which Jellyfin's own backup does not carry, and restores it after checking it. The file contains the Seerr API key, so keep it the way you keep that key.
+The **Other** tab downloads one file with the configuration, the groups and what is aimed at one user, settings and notifications alike, each person's own notification choices and the titles they wait for, which Jellyfin's own backup does not carry, and restores it after checking it. The file contains the Seerr API key, so keep it the way you keep that key.
 
 ### Jellyfin 12
 

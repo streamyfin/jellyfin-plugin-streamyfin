@@ -492,6 +492,38 @@ public class PluginDatabase
     }
 
     /// <summary>
+    /// Whether a one time step has already run on this server.
+    /// </summary>
+    /// <param name="name">The step, one of the <see cref="ImportMarker"/> names.</param>
+    /// <returns><c>true</c> once it has run.</returns>
+    public bool HasMarker(string name)
+    {
+        using var context = CreateContext();
+        return context.ImportMarkers.Any(m => m.Name == name);
+    }
+
+    /// <summary>
+    /// Records that a one time step ran, so a later start skips it.
+    /// </summary>
+    /// <param name="name">The step, one of the <see cref="ImportMarker"/> names.</param>
+    public void Mark(string name)
+    {
+        using var context = CreateContext();
+        if (context.ImportMarkers.Any(m => m.Name == name))
+        {
+            return;
+        }
+
+        context.ImportMarkers.Add(new ImportMarker
+        {
+            Name = name,
+            ImportedAt = DateTimeOffset.UtcNow,
+            RowsImported = 0
+        });
+        context.SaveChanges();
+    }
+
+    /// <summary>
     /// Gets every settings group.
     /// </summary>
     /// <returns>The groups, in layer order.</returns>
@@ -952,6 +984,187 @@ public class PluginDatabase
 
         context.SaveChanges();
         transaction.Commit();
+    }
+
+    /// <summary>
+    /// What one person waits for, the latest first (#225).
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <returns>Their titles.</returns>
+    public List<AwaitedTitle> GetAwaitedTitles(Guid userId)
+    {
+        using var context = CreateContext();
+        return [.. context.AwaitedTitles
+            .AsNoTracking()
+            .Where(a => a.UserId == userId)
+            .OrderByDescending(a => a.AddedAt)];
+    }
+
+    /// <summary>
+    /// Adds a title to what one person waits for.
+    /// </summary>
+    /// <param name="title">The title, with its person.</param>
+    /// <returns>Whether it was added, was there already, or the list is full.</returns>
+    public AwaitResult AddAwaitedTitle(AwaitedTitle title)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        if (context.AwaitedTitles.Any(a => a.UserId == title.UserId && a.MediaType == title.MediaType && a.TmdbId == title.TmdbId))
+        {
+            return AwaitResult.AlreadyAwaited;
+        }
+
+        if (context.AwaitedTitles.Count(a => a.UserId == title.UserId) >= AwaitedTitles.MostAwaited)
+        {
+            return AwaitResult.Full;
+        }
+
+        context.AwaitedTitles.Add(title);
+        context.SaveChanges();
+        transaction.Commit();
+        return AwaitResult.Added;
+    }
+
+    /// <summary>
+    /// Takes a title off what one person waits for.
+    /// </summary>
+    /// <param name="userId">The Jellyfin user id.</param>
+    /// <param name="mediaType">The kind of title.</param>
+    /// <param name="tmdbId">Its TMDB id.</param>
+    /// <returns><c>true</c> when it was on their list.</returns>
+    public bool RemoveAwaitedTitle(Guid userId, string mediaType, int tmdbId)
+    {
+        using var context = CreateContext();
+        return context.AwaitedTitles
+            .Where(a => a.UserId == userId && a.MediaType == mediaType && a.TmdbId == tmdbId)
+            .ExecuteDelete() > 0;
+    }
+
+    /// <summary>
+    /// Settles what a title's arrival means for everyone who waited for it, in one step.
+    /// </summary>
+    /// <param name="mediaType">The kind of title that arrived.</param>
+    /// <param name="tmdbId">Its TMDB id, when Jellyfin knows it.</param>
+    /// <param name="tvdbId">Its TVDB id, when Jellyfin knows it.</param>
+    /// <param name="itemId">What arrived, kept for the people a pause holds back.</param>
+    /// <param name="decide">What each waiting row comes to.</param>
+    /// <returns>The rows to announce now, which are off the table.</returns>
+    /// <remarks>
+    /// One transaction, so two arrivals of the same title at once, two episodes of a season
+    /// that came in one go, cannot both announce it: the second finds nobody waiting.
+    /// </remarks>
+    public List<AwaitedTitle> SettleArrival(
+        string mediaType,
+        int? tmdbId,
+        int? tvdbId,
+        Guid itemId,
+        Func<AwaitedTitle, AwaitedOutcome> decide)
+    {
+        ArgumentNullException.ThrowIfNull(decide);
+
+        if (tmdbId is null && tvdbId is null)
+        {
+            return [];
+        }
+
+        // Ids are positive, so -1 matches nothing.
+        var tmdb = tmdbId ?? -1;
+        var tvdb = tvdbId ?? -1;
+
+        IQueryable<AwaitedTitle> Waiting(IQueryable<AwaitedTitle> rows) =>
+            rows.Where(a => a.MediaType == mediaType
+                && a.ArrivedItemId == null
+                && (a.TmdbId == tmdb || a.TvdbId == tvdb));
+
+        // Read first, without the write lock: a library scan adds thousands of items that
+        // nobody waits for, and each would otherwise hold the lock for nothing.
+        using (var reading = CreateContext())
+        {
+            if (!Waiting(reading.AwaitedTitles).Any())
+            {
+                return [];
+            }
+        }
+
+        return Settle(Waiting, decide, itemId);
+    }
+
+    /// <summary>
+    /// Settles the arrivals a pause held back.
+    /// </summary>
+    /// <param name="decide">What each held row comes to now.</param>
+    /// <returns>The rows to announce now, which are off the table.</returns>
+    public List<AwaitedTitle> SettleHeld(Func<AwaitedTitle, AwaitedOutcome> decide)
+    {
+        ArgumentNullException.ThrowIfNull(decide);
+        return Settle(rows => rows.Where(a => a.ArrivedItemId != null), decide, arrived: null);
+    }
+
+    /// <summary>
+    /// Every title everyone waits for, for a backup.
+    /// </summary>
+    /// <returns>The titles.</returns>
+    public List<AwaitedTitle> AllAwaitedTitles()
+    {
+        using var context = CreateContext();
+        return [.. context.AwaitedTitles.AsNoTracking()];
+    }
+
+    /// <summary>
+    /// Replaces every title everyone waits for, in one go.
+    /// </summary>
+    /// <param name="titles">What a backup holds.</param>
+    public void ReplaceAwaitedTitles(IEnumerable<AwaitedTitle> titles)
+    {
+        ArgumentNullException.ThrowIfNull(titles);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        context.AwaitedTitles.ExecuteDelete();
+        context.AwaitedTitles.AddRange(titles);
+        context.SaveChanges();
+        transaction.Commit();
+    }
+
+    private List<AwaitedTitle> Settle(
+        Func<IQueryable<AwaitedTitle>, IQueryable<AwaitedTitle>> which,
+        Func<AwaitedTitle, AwaitedOutcome> decide,
+        Guid? arrived)
+    {
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        var announce = new List<AwaitedTitle>();
+
+        foreach (var row in which(context.AwaitedTitles).ToList())
+        {
+            switch (decide(row))
+            {
+                case AwaitedOutcome.Announce:
+                    announce.Add(row);
+                    context.AwaitedTitles.Remove(row);
+                    break;
+                case AwaitedOutcome.Drop:
+                    context.AwaitedTitles.Remove(row);
+                    break;
+                case AwaitedOutcome.Hold:
+                    // An arrival names what came; a row held already keeps what it names.
+                    row.ArrivedItemId ??= arrived;
+                    break;
+                case AwaitedOutcome.KeepWaiting:
+                    // What came is not something they can open, or is gone: wait again.
+                    row.ArrivedItemId = null;
+                    break;
+            }
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+        return announce;
     }
 
     /// <summary>

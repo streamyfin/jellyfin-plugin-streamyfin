@@ -528,6 +528,9 @@ notifications:
     enabledLibraries: []    # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam
 
+  awaitedTitle:
+    enabled: true  # A title somebody asked to be told about arrived, from the app's Seerr pages
+
   taskFailed:
     enabled: true  # A scheduled task failed, with the reason it gave (admin only)
 

@@ -47,6 +47,10 @@ public class PluginConfiguration : BasePluginConfiguration
       Enabled = true,
       EnabledLibraries = []
     },
+    AwaitedTitle = new()
+    {
+      Enabled = true
+    },
     TaskFailed = new()
     {
       Enabled = true

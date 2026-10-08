@@ -414,4 +414,79 @@ public class BackupTests
 
     // The user the files above name, as the server they are restored on knows them.
     private static readonly HashSet<Guid> Known = [Guid.Parse("4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11")];
+
+    /// <summary>
+    /// A backup carries the titles each person waits for, and puts them back as they were
+    /// (#225).
+    /// </summary>
+    [Fact]
+    public void ABackupCarriesTheTitlesEachPersonWaitsFor()
+    {
+        var alice = Guid.NewGuid();
+        var arrived = Guid.NewGuid();
+        var backup = new ConfigurationBackup
+        {
+            Awaited =
+            [
+                AwaitedTitleBackup.From(new Db.AwaitedTitle
+                {
+                    UserId = alice,
+                    MediaType = "tv",
+                    TmdbId = 1399,
+                    TvdbId = 121361,
+                    Title = "Game of Thrones",
+                    Year = 2011,
+                    AddedAt = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc),
+                    ArrivedItemId = arrived
+                })
+            ]
+        };
+
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+        var row = Assert.Single(read!.Awaited!).ToRow();
+
+        Assert.Equal(alice, row.UserId);
+        Assert.Equal(121361, row.TvdbId);
+        Assert.Equal("Game of Thrones", row.Title);
+        Assert.Equal(arrived, row.ArrivedItemId);
+        Assert.Null(read.AwaitedProblem(new HashSet<Guid> { alice }));
+    }
+
+    /// <summary>
+    /// An awaited title the restore could not keep refuses the file before anything is
+    /// written: an empty entry, a title that is not one, or the same title twice for a person.
+    /// </summary>
+    /// <param name="file">The backup.</param>
+    [Theory]
+    [InlineData("""{"groups":[],"users":[],"awaitedTitles":[null]}""")]
+    [InlineData("""{"groups":[],"users":[],"awaitedTitles":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"music","tmdbId":1,"title":"Album"}]}""")]
+    [InlineData("""{"groups":[],"users":[],"awaitedTitles":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"movie","tmdbId":603,"title":"The Matrix"},{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11","mediaType":"movie","tmdbId":603,"title":"The Matrix"}]}""")]
+    public void AnAwaitedTitleTheRestoreCouldNotKeepIsRefused(string file) =>
+        Assert.NotNull(_serialization.DeserializeJson<ConfigurationBackup>(file)!.AwaitedProblem(Known));
+
+    /// <summary>
+    /// A backup taken before people could wait for titles says nothing about them, and a
+    /// restore leaves them as they are.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupSaysNothingAboutAwaitedTitles()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>("""{"groups":[],"users":[]}""");
+
+        Assert.Null(read!.Awaited);
+        Assert.Null(read.AwaitedProblem(Known));
+    }
+
+    /// <summary>
+    /// A user this server does not have is left out of a restore, so what they wait for is not
+    /// checked either: a file from another server is not refused over a user it would not write.
+    /// </summary>
+    [Fact]
+    public void TheTitlesOfAUserThisServerDoesNotHaveAreNotChecked()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(
+            """{"groups":[],"users":[],"awaitedTitles":[{"userId":"9a3e1f2b-7c4d-4e5f-8a6b-1c2d3e4f5a6b","mediaType":"music","tmdbId":1,"title":"Album"}]}""");
+
+        Assert.Null(read!.AwaitedProblem(Known));
+    }
 }

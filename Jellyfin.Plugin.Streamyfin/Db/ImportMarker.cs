@@ -22,6 +22,11 @@ public class ImportMarker
     public const string LegacyGlobalConfig = "legacy-global-config";
 
     /// <summary>
+    /// The awaited titles were turned on, once, on a server that never mentioned them (#225).
+    /// </summary>
+    public const string AwaitedTitlesOn = "awaited-titles-on";
+
+    /// <summary>
     /// Gets or sets the name of the import.
     /// </summary>
     public string Name { get; set; } = string.Empty;

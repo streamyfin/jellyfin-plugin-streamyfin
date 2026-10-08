@@ -61,6 +61,9 @@ export const restored = (report) => {
     if (report.preferences) {
         parts.push(`the notification choices of ${report.preferences} ${report.preferences === 1 ? 'person' : 'people'}`);
     }
+    if (report.awaited) {
+        parts.push(`the ${report.awaited} title${report.awaited === 1 ? '' : 's'} people wait for`);
+    }
 
     const sentence = parts.length ? `Restored ${parts.join(', ')}.` : 'That file had nothing in it.';
     const missing = [];

@@ -185,6 +185,17 @@ Seerr account that is local to Seerr matches nothing and the notification goes n
 An event this route does not know about, one Seerr adds later, is passed through with
 Seerr's own subject and message rather than dropped.
 
+### Titles people wait for
+
+Seerr tells the person who requested a title when it is available, and nobody else. From
+the Seerr page of a movie or a show that is not on the server yet, anybody can ask the app
+to tell them when it arrives. The plugin keeps the title for them and, when it lands in
+Jellyfin, through Seerr or added by hand, notifies everyone who waited for it and can open
+it, then forgets it. It needs no webhook: it watches Jellyfin's own library.
+
+A person who paused their notifications hears about it once the pause is over. The event is
+"Awaited title" on the Notifications tab, on by default.
+
 ### Issues, and anything else, with a template
 
 Issue events are not handled by the route above. They are a conversation rather than a

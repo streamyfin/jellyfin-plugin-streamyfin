@@ -13,6 +13,7 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// <summary>
 /// The line a media notification ends with, naming the item.
 /// </summary>
+[Collection(StaticLibrary.Name)]
 public class MediaNotificationTests
 {
     /// <summary>
@@ -43,7 +44,7 @@ public class MediaNotificationTests
 
     // Episode.Series and Episode.Season go through the static BaseItem.LibraryManager,
     // which the server sets at startup. Only lookups by id are answered here.
-    private static T WithLibrary<T>(IEnumerable<BaseItem> items, Func<T> act)
+    internal static T WithLibrary<T>(IEnumerable<BaseItem> items, Func<T> act)
     {
         var library = DispatchProxy.Create<ILibraryManager, LibraryStub>();
         foreach (var item in items)
