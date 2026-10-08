@@ -8,6 +8,28 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-08, a person is told when a title they wait for arrives
+
+Seerr tells the person who requested a title when it is available, and nobody else. Somebody who
+wanted the same movie, or a movie an administrator added by hand, heard nothing (#225). A person
+can now wait, from their own account, for a movie or a show that is not on the server yet, and is
+told when it arrives, however it arrives (#233).
+
+A title is matched by its TMDB id, or for a show by TMDB or TVDB, the ids Seerr and Jellyfin
+share, and a show counts as arrived with its first episode. An item has its ids when it is added
+only if its folder carries them, so one added without is kept for a day and settled by the update
+that brings them, its own or one of its episodes'. Every waiting row is settled in the database's
+write lock before anything is sent, so a season arriving at once tells each person once.
+
+The alert goes past the person's other choices, since they asked for the title by name: new items,
+a library or a show turned off do not stop it, as long as they can open what arrived. A pause holds
+it, and a task every 15 minutes sends what the pause held once it is over, each arrival on its own
+so one that fails to send does not lose the next. The event is on by default, and an administrator
+or the person can turn it off like any other. The backup carries what each person waits for.
+
+The app's half, a button on Seerr's pages and a list in the Notifications screen, comes on top of
+streamyfin/streamyfin#2216.
+
 ## 2026-10-07, a restore checks the whole file and keeps the notifications
 
 A backup file with the same user twice, two groups with the same id or name, or an empty entry
