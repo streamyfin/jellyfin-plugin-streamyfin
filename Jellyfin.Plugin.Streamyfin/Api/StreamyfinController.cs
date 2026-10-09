@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.Streamyfin.Compat;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.Integrations;
@@ -1236,7 +1237,7 @@ public class StreamyfinController : ControllerBase
     return new QueryResult<BaseItemDto>(
       page.StartIndex,
       page.Total,
-      _dtoService.GetBaseItemDtos([.. page.Items], new DtoOptions(), user));
+      Dtos.Of(_dtoService, [.. page.Items], new DtoOptions(), user));
   }
 
   /// <summary>
@@ -1301,7 +1302,7 @@ public class StreamyfinController : ControllerBase
       .OfType<BaseItem>()
       .ToList();
 
-    return new QueryResult<BaseItemDto>(from, shelf.Count, _dtoService.GetBaseItemDtos(items, new DtoOptions(), user));
+    return new QueryResult<BaseItemDto>(from, shelf.Count, Dtos.Of(_dtoService, items, new DtoOptions(), user));
   }
 
   /// <summary>
