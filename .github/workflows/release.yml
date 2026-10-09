@@ -117,27 +117,111 @@ jobs:
       # One tag and one release carrying both artifacts. Two releases would mean
       # two changelogs for the same commit and two things for a user to choose
       # between without knowing which server line they are on.
+      #
+      # The tag, the commit on main and the release are public the moment they exist,
+      # so a rerun of this job has to finish what a failed attempt started rather than
+      # stop on it, as prerelease.yml does since #170. The release commit names the run
+      # that made it, and a rerun keeps the run's id: a tag on that commit, made on top
+      # of the dispatched one, is this run's own earlier attempt, and this one carries on
+      # from it. Any other tag stops here, another run dispatched on the same commit
+      # included, which would otherwise upload its own zips over a published release.
       - name: Tag and release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name 'streamyfin'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          make update-version
-          git commit -m "new release: ${VERSION}" Jellyfin.Plugin.Streamyfin/Jellyfin.Plugin.Streamyfin.csproj
-          git tag "${VERSION}"
-          git push origin HEAD:main --tags
-          gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
+          git fetch --quiet --tags origin main
+
+          # Read once, and assigned, so that gh failing, or answering anything but a list,
+          # fails the step instead of passing for no release. Drafts are listed: gh creates
+          # a release as one, uploads, then publishes, and an attempt cancelled or killed in
+          # between leaves the draft.
+          releases=$(gh release list --json tagName,isDraft --limit 100)
+          count=$(jq -e --arg v "$VERSION" 'if type == "array" then map(select(.tagName == $v)) | length else error("gh release list did not answer a list") end' <<<"$releases")
+
+          made_by="Release-Run: ${GITHUB_RUN_ID}"
+          tagged=$(git rev-parse --quiet --verify "refs/tags/${VERSION}^{commit}" || true)
+          if [ -z "$tagged" ]; then
+            # Before anything is public. With no tag yet only a draft can carry the version,
+            # one somebody prepared, and it is not this run's to publish. Stopping here keeps
+            # the tag off origin, where it would wait for a release the rerun refuses.
+            if [ "$count" -gt 0 ]; then
+              echo "::error::A release for ${VERSION} exists already, a draft this run did not make. Nothing was pushed. Delete it or give it another tag, then start the workflow again." >&2
+              exit 1
+            fi
+            make update-version
+            git commit -m "new release: ${VERSION}" -m "$made_by" Jellyfin.Plugin.Streamyfin/Jellyfin.Plugin.Streamyfin.csproj
+            git tag "${VERSION}"
+            # Both or neither, so the tag never lands on a commit main refused.
+            if ! git push --atomic origin HEAD:main "refs/tags/${VERSION}"; then
+              echo "::error::The release commit and its tag did not reach origin, git says why above. If main moved while this release was building, a rerun builds the same commit again and is refused the same way: start the workflow again from main. Otherwise rerun the failed job." >&2
+              exit 1
+            fi
+            gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
+          elif [ "$(git rev-parse "${tagged}^")" = "${GITHUB_SHA}" ] \
+            && [ "$(git log -1 --format=%s "$tagged")" = "new release: ${VERSION}" ] \
+            && git log -1 --format=%b "$tagged" | grep -qxF "$made_by"; then
+            echo "${VERSION} was tagged by an earlier attempt of this run. Carrying on from it."
+
+            if [ "$count" -eq 0 ]; then
+              gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
+            elif [ "$count" -gt 1 ]; then
+              # gh names a release by its tag, and with two it picks one: an upload or a
+              # publish could land on the one this run did not make.
+              echo "::error::${count} releases carry ${VERSION}, drafts included, and this run leaves them all as they are. Delete the ones it did not make, then rerun the failed job." >&2
+              exit 1
+            else
+              release=$(gh release view "${VERSION}" --json assets,isDraft,author)
+              # The tag being this run's does not make the release its own: a draft somebody
+              # prepared while a first attempt failed to create one is found the same way.
+              # The workflow makes its releases with GITHUB_TOKEN, so they are the bot's; a
+              # step that pushed with another token, an App's or a person's, would change
+              # this login with it. The author rather than a mark in the notes, which are
+              # rewritten by hand once the release is out.
+              author=$(jq -r .author.login <<<"$release")
+              if [ "$author" != "github-actions[bot]" ]; then
+                echo "::error::The release for ${VERSION} was made by ${author}, not by this workflow, and is left as it is. Delete it or give it another tag, then rerun the failed job." >&2
+                exit 1
+              fi
+              # By digest, not by name or size: "Re-run all jobs" rebuilds the zips, and a
+              # rebuilt zip has the same size and other bytes, so the manifest's checksum
+              # would no longer match what the release serves.
+              for zip in dist/*.zip; do
+                digest="sha256:$(shasum -a 256 "$zip" | cut -d' ' -f1)"
+                if ! jq -e --arg n "$(basename "$zip")" --arg d "$digest" \
+                  'any(.assets[]; .name == $n and .digest == $d and .state == "uploaded")' <<<"$release" >/dev/null; then
+                  gh release upload "${VERSION}" "$zip" --clobber
+                fi
+              done
+              if [ "$(jq -r .isDraft <<<"$release")" = "true" ]; then
+                gh release edit "${VERSION}" --draft=false
+              fi
+            fi
+          else
+            echo "::error::${VERSION} is already tagged at ${tagged}, which this run did not make." >&2
+            exit 1
+          fi
 
       # One manifest serves every Jellyfin line, so each build adds its own entry to
       # it, with the targetAbi that build was compiled against. The checksum is
       # verified against the uploaded file before the manifest is written, so a
       # failed upload cannot be published.
+      #
+      # The entries are computed in this checkout, the commit the zips were built from,
+      # since its Makefile and Directory.Build.props decide each build's targetAbi and
+      # main may have moved on by a rerun. They go into main's manifest as it is now,
+      # which on a rerun already carries the release commit, and the push lands on top.
       - name: Add both builds to the manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git fetch --quiet origin main
+          git show origin/main:manifest.json > manifest.json
           make update-manifest JELLYFIN_TARGET=jf11
           make update-manifest JELLYFIN_TARGET=jf12
+          cp manifest.json "$RUNNER_TEMP/manifest.json"
+          git checkout --quiet --force -B release-manifest origin/main
+          cp "$RUNNER_TEMP/manifest.json" manifest.json
           git commit -m "new release: ${VERSION} manifests" manifest.json
           git push origin HEAD:main
