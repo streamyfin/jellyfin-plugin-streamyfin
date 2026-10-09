@@ -5,8 +5,10 @@ using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SQLitePCL;
 
 namespace Jellyfin.Plugin.Streamyfin.Db;
 
@@ -50,6 +52,7 @@ public class PluginDatabase
 
         ImportLegacyDeviceTokens(context);
         KeepOneRowPerToken(context);
+        RemoveTokensPastTheBound(context);
     }
 
     /// <summary>
@@ -576,7 +579,19 @@ public class PluginDatabase
             }
         }
 
-        context.SaveChanges();
+        try
+        {
+            context.SaveChanges();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: raw.SQLITE_CONSTRAINT_UNIQUE } refused
+            && refused.Message.Contains("SettingsGroups.Name", StringComparison.Ordinal))
+        {
+            // Caught here rather than checked before, so that two saves at once cannot both
+            // pass a check. SQLite names the index it refused, "UNIQUE constraint failed:
+            // SettingsGroups.Name", so an index added later is not taken for this one.
+            throw new GroupNameTakenException(group.Name, ex);
+        }
+
         return group;
     }
 
@@ -1272,6 +1287,54 @@ public class PluginDatabase
             _logger?.LogWarning(
                 ex,
                 "Could not remove the older registrations of a push token. This is tried again on the next start");
+        }
+    }
+
+    /// <summary>
+    /// Removes the registrations whose push token is longer than <see cref="DeviceToken.LongestToken"/>.
+    /// </summary>
+    /// <remarks>
+    /// Registration refuses them from this version on. Earlier builds stored any length, and
+    /// the import carries what they stored, so a token of a megabyte would otherwise go out
+    /// to Expo in every send that included its device. Not fatal, like the statement above.
+    /// </remarks>
+    /// <param name="context">An open context on the new database.</param>
+    private void RemoveTokensPastTheBound(StreamyfinDbContext context)
+    {
+        try
+        {
+            // Measured here, the way the route measures, rather than by SQLite's length(),
+            // which counts characters where the route counts UTF-16 units and stops at the
+            // first NUL: a token the route refuses could have stayed. Read without tracking
+            // and removed by statement, like the step above, so that this writes nothing but
+            // the removals, whatever an earlier step left in the context.
+            var past = context.DeviceTokens
+                .AsNoTracking()
+                .Select(t => new { t.DeviceId, t.Token })
+                .AsEnumerable()
+                .Where(t => t.Token.Length > DeviceToken.LongestToken)
+                .Select(t => t.DeviceId)
+                .ToList();
+
+            var removed = 0;
+            foreach (var deviceId in past)
+            {
+                removed += context.DeviceTokens.Where(t => t.DeviceId == deviceId).ExecuteDelete();
+            }
+
+            if (removed > 0)
+            {
+                _logger?.LogWarning(
+                    "Removed {Count} device registration(s) whose push token is longer than {Longest} characters",
+                    removed,
+                    DeviceToken.LongestToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Could not remove the registrations whose push token is too long. This is tried again on the next start");
         }
     }
 
