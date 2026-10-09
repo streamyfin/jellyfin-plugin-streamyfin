@@ -34,6 +34,17 @@ public class SerializationHelper
     private readonly ISerializer _yamlSerializer;
     private readonly NewtonsoftJsonSerializer _jsonSerializer;
 
+    // YamlDotNet 16.0.0 fills a cache that is not safe for concurrent writes the first time
+    // its serializer, or its deserializer, meets a type; each of the two keeps its own. The
+    // controller's helper is shared by every request, so calls that arrived together after
+    // a restart, the dashboard asking for config/default and config/yaml from its tabs,
+    // corrupted it: those reads answered 500, sometimes until the next restart, and a save
+    // came back with an error. One gate per object, since a cache belongs to one instance.
+    // YamlDotNet 16.1.0 made the cache concurrent (aaubry/YamlDotNet#920); the gates can go
+    // once the plugin is past 16.0.0.
+    private readonly object _yamlSerializerGate = new();
+    private readonly object _yamlDeserializerGate = new();
+
     public SerializationHelper()
     {
         _yamlSerializer = new SerializerBuilder()
@@ -285,7 +296,13 @@ public class SerializationHelper
     /// <summary>
     /// Serialize to Yaml with Streamyfin expected options
     /// </summary>
-    public string SerializeToYaml<T>(T item) => _yamlSerializer.Serialize(item);
+    public string SerializeToYaml<T>(T item)
+    {
+        lock (_yamlSerializerGate)
+        {
+            return _yamlSerializer.Serialize(item);
+        }
+    }
     
     /// <summary>
     /// Serialize to Json with Streamyfin expected using copied options
@@ -314,7 +331,13 @@ public class SerializationHelper
     /// <summary>
     /// Deserialize Json/Yaml
     /// </summary>
-    public T Deserialize<T>(string value) => _deserializer.Deserialize<T>(value);
+    public T Deserialize<T>(string value)
+    {
+        lock (_yamlDeserializerGate)
+        {
+            return _deserializer.Deserialize<T>(value);
+        }
+    }
 
     /// <summary>
     /// Deserialize Json, with the same options <see cref="SerializeToJson{T}"/> writes it.
