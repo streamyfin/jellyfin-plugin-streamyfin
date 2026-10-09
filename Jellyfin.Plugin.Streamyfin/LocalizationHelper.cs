@@ -43,7 +43,10 @@ public class LocalizationHelper
         IServerConfigurationManager? serverConfig,
         Func<IReadOnlyList<WordingOverride>?>? wording)
     {
-        _wording = wording ?? (() => StreamyfinPlugin.Instance?.Configuration.Config.notifications?.Wording);
+        // The plugin's own store, where the dashboard saves. Configuration, Jellyfin's XML,
+        // is only read at start-up to carry the old file over, so the sentences an
+        // administrator rewrote never reached it.
+        _wording = wording ?? (() => StreamyfinPlugin.Instance?.Settings.Current.notifications?.Wording);
 
         if (loggerFactory != null)
         {
