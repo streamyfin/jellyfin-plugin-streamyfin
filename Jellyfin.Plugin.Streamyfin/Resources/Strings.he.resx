@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Required headers -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <!-- region MediaTypes -->
+  <data name="MovieMediaType" xml:space="preserve">
+        <value>סרט</value>
+    </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
+  <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>הניגון התחיל</value>
+    </data>
+  <data name="UserWatching" xml:space="preserve">
+        <value>צופה כעת: {0}</value>
+        <comment>0 = Username</comment>
+    </data>
+  <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <value>{0}, S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
+    </data>
+  <data name="SeriesSeason" xml:space="preserve">
+        <value>{0}, עונה {1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
+    </data>
+  <data name="Series Episode" xml:space="preserve">
+        <value>{0}, פרק {1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
+    </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
+  <data name="SessionStartTitle" xml:space="preserve">
+        <value>הפעלה חדשה</value>
+    </data>
+  <data name="UserNowOnline" xml:space="preserve">
+        <value>מחובר כעת: {0}</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
+  <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>משתמש ננעל</value>
+    </data>
+  <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <value>המשתמש {0} ננעל</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
+  <data name="ItemAddedTitle" xml:space="preserve">
+        <value>נוסף {0}</value>
+        <comment>0 = Media type</comment>
+    </data>
+  <data name="EpisodeAddedTitle" xml:space="preserve">
+        <value>נוסף פרק</value>
+    </data>
+  <data name="EpisodesAddedTitle" xml:space="preserve">
+        <value>נוספו פרקים</value>
+    </data>
+  <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <value>נוסף פרק {1} לעונה {2} של {0}</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
+    </data>
+  <data name="EpisodeAdded" xml:space="preserve">
+        <value>נוסף פרק {1} של {0}</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
+    </data>
+  <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <value>נוסף פרק לעונה {1} של {0}</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
+    </data>
+  <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <value>נוספו {1} פרקים לעונה {2} של {0}</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
+    </data>
+  <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <value>נוספו {1} פרקים לסדרה {0}</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
+    </data>
+  <!-- endregion ItemAddedEvent -->
+  <data name="NameAndYear" xml:space="preserve">
+        <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
+    </data>
+  <!-- region Seerr webhook -->
+  <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>תוכן לא ידוע</value>
+    </data>
+  <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>מישהו</value>
+    </data>
+  <data name="SeerrTestTitle" xml:space="preserve">
+        <value>החיבור ל-Seerr תקין</value>
+    </data>
+  <data name="SeerrTestBody" xml:space="preserve">
+        <value>זוהי התראת הבדיקה משרת ה-Seerr שלכם</value>
+    </data>
+  <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>בקשת מדיה חדשה</value>
+    </data>
+  <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>בקשה מ-{0}: {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>הבקשה אושרה אוטומטית</value>
+    </data>
+  <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>הבקשה של {0} עבור {1} אושרה אוטומטית</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>הבקשה נכשלה</value>
+    </data>
+  <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>לא ניתן היה לעבד את הבקשה של {0} עבור {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>הבקשה אושרה</value>
+    </data>
+  <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>הבקשה שלכם עבור {1} אושרה</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>הבקשה נדחתה</value>
+    </data>
+  <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>הבקשה שלכם עבור {1} נדחתה</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>מוכן לצפייה</value>
+    </data>
+  <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>עכשיו אפשר לצפות ב-{1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
+  <data name="TaskFailedTitle" xml:space="preserve">
+        <value>משימה מתוזמנת נכשלה</value>
+    </data>
+  <data name="TaskFailed" xml:space="preserve">
+        <value>{0} נכשל</value>
+        <comment>0 = Task name</comment>
+    </data>
+  <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>{0} נכשל: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+  <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>התוסף הותקן</value>
+    </data>
+  <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>העדכון לתוסף הותקן</value>
+    </data>
+  <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>התוסף הוסר</value>
+    </data>
+  <data name="PluginInstalled" xml:space="preserve">
+        <value>{0} הותקן</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>{0} {1} הותקן</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUpdated" xml:space="preserve">
+        <value>{0} עודכן</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>{0} עודכן לגרסה {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUninstalled" xml:space="preserve">
+        <value>{0} הוסר</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>{0} {1} הוסר</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="SignInFailedTitle" xml:space="preserve">
+        <value>התחברות נכשלה</value>
+    </data>
+  <data name="SignInFailed" xml:space="preserve">
+        <value>ניסיון ההתחברות של {0} נכשל</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+  <data name="SignInFailedFrom" xml:space="preserve">
+        <value>ניסיון ההתחברות של {0} מ-{1} נכשל</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+  <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>ניסיון התחברות נדחה</value>
+    </data>
+  <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>ניסיון התחברות מ-{0} נדחה</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+  <!-- endregion Admin events -->
+</root>

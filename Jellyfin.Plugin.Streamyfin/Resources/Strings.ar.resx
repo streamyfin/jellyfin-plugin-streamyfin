@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Required headers -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <!-- region MediaTypes -->
+  <data name="MovieMediaType" xml:space="preserve">
+        <value>فيلم</value>
+    </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
+  <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>بدأ التشغيل</value>
+    </data>
+  <data name="UserWatching" xml:space="preserve">
+        <value>يشاهد {0} الآن</value>
+        <comment>0 = Username</comment>
+    </data>
+  <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <value>{0}، S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
+    </data>
+  <data name="SeriesSeason" xml:space="preserve">
+        <value>{0}، الموسم {1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
+    </data>
+  <data name="Series Episode" xml:space="preserve">
+        <value>{0}، الحلقة {1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
+    </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
+  <data name="SessionStartTitle" xml:space="preserve">
+        <value>بدأت جلسة</value>
+    </data>
+  <data name="UserNowOnline" xml:space="preserve">
+        <value>أصبح {0} متصلًا الآن</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
+  <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>تم قفل حساب المستخدم</value>
+    </data>
+  <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <value>تم قفل حساب المستخدم {0}</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
+  <data name="ItemAddedTitle" xml:space="preserve">
+        <value>تمت إضافة {0}</value>
+        <comment>0 = Media type</comment>
+    </data>
+  <data name="EpisodeAddedTitle" xml:space="preserve">
+        <value>تمت إضافة حلقة</value>
+    </data>
+  <data name="EpisodesAddedTitle" xml:space="preserve">
+        <value>تمت إضافة حلقات</value>
+    </data>
+  <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <value>تمت إضافة الحلقة {1} إلى الموسم {2} من {0}</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
+    </data>
+  <data name="EpisodeAdded" xml:space="preserve">
+        <value>تمت إضافة الحلقة {1} من {0}</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
+    </data>
+  <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <value>تمت إضافة حلقة إلى الموسم {1} من {0}</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
+    </data>
+  <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <value>حلقات جديدة في الموسم {2} من {0}: {1}</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
+    </data>
+  <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <value>حلقات جديدة من {0}: {1}</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
+    </data>
+  <!-- endregion ItemAddedEvent -->
+  <data name="NameAndYear" xml:space="preserve">
+        <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
+    </data>
+  <!-- region Seerr webhook -->
+  <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>محتوى غير معروف</value>
+    </data>
+  <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>شخص ما</value>
+    </data>
+  <data name="SeerrTestTitle" xml:space="preserve">
+        <value>تم الاتصال بـ Seerr</value>
+    </data>
+  <data name="SeerrTestBody" xml:space="preserve">
+        <value>هذا إشعار تجريبي من خادم Seerr الخاص بك</value>
+    </data>
+  <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>طلب وسائط جديد</value>
+    </data>
+  <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>طلب من {0}: {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>تمت الموافقة على الطلب تلقائيًا</value>
+    </data>
+  <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>تمت الموافقة تلقائيًا على طلب {0} لـ {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>فشل الطلب</value>
+    </data>
+  <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>تعذّرت معالجة طلب {0} لـ {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>تمت الموافقة على الطلب</value>
+    </data>
+  <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>تمت الموافقة على طلبك لـ {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>تم رفض الطلب</value>
+    </data>
+  <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>تم رفض طلبك لـ {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>جاهز للمشاهدة</value>
+    </data>
+  <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>يمكنك الآن مشاهدة {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
+  <data name="TaskFailedTitle" xml:space="preserve">
+        <value>فشل المهمة المجدولة</value>
+    </data>
+  <data name="TaskFailed" xml:space="preserve">
+        <value>فشلت {0}</value>
+        <comment>0 = Task name</comment>
+    </data>
+  <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>فشلت {0}: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+  <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>تم تثبيت الملحق</value>
+    </data>
+  <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>تم تحديث الملحق</value>
+    </data>
+  <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>تمت إزالة الملحق</value>
+    </data>
+  <data name="PluginInstalled" xml:space="preserve">
+        <value>تم تثبيت {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>تم تثبيت {0} {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUpdated" xml:space="preserve">
+        <value>تم تحديث {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>تم تحديث {0} إلى الإصدار {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUninstalled" xml:space="preserve">
+        <value>تمت إزالة {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>تمت إزالة {0} {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="SignInFailedTitle" xml:space="preserve">
+        <value>فشل تسجيل الدخول</value>
+    </data>
+  <data name="SignInFailed" xml:space="preserve">
+        <value>تعذّر على {0} تسجيل الدخول</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+  <data name="SignInFailedFrom" xml:space="preserve">
+        <value>تعذّر على {0} تسجيل الدخول من {1}</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+  <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>تم رفض محاولة تسجيل دخول</value>
+    </data>
+  <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>تم رفض محاولة تسجيل دخول من {0}</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+  <!-- endregion Admin events -->
+</root>

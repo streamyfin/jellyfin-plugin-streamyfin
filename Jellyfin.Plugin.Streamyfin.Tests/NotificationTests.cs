@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Xunit;
@@ -12,7 +13,21 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 public class NotificationTests(ITestOutputHelper output)
 {
     private static readonly SerializationHelper _serializationHelper = new();
-    private readonly NotificationHelper _notificationHelper = new(null, null, _serializationHelper);
+
+    private readonly NotificationHelper _notificationHelper =
+        new(null, null, _serializationHelper, new PlainHttpClientFactory());
+
+    /// <summary>
+    /// These two reach the real Expo endpoint, so they need a client that really connects.
+    /// The plugin itself is handed a configured one by the server; this keeps these tests
+    /// doing what they did before the client was injected, with the same thirty second
+    /// timeout, so a network stall fails the run rather than holding CI for a hundred.
+    /// </summary>
+    private sealed class PlainHttpClientFactory : System.Net.Http.IHttpClientFactory
+    {
+        public System.Net.Http.HttpClient CreateClient(string name) =>
+            new() { Timeout = System.TimeSpan.FromSeconds(30) };
+    }
 
     // Replace with your own android emulator / ios simulator token
     // Do not use a real devices token. If you do, you can invalidate the token by re-installing streamyfin on your device.
@@ -22,7 +37,7 @@ public class NotificationTests(ITestOutputHelper output)
     /// Assert we can send a single notification and receive a proper ExpoNotificationResponse
     /// </summary>
     [Fact]
-    public void SingleExpoPushNotificationTest()
+    public async Task SingleExpoPushNotificationTest()
     {
         var request = new ExpoNotificationRequest
         {
@@ -32,18 +47,17 @@ public class NotificationTests(ITestOutputHelper output)
             Body = "All platforms should see this body",
         };
 
-        var task = _notificationHelper.Send(request);
-        task.Wait();
+        var response = await _notificationHelper.Send(request);
 
-        Assert.NotNull(task.Result);
-        output.WriteLine(_serializationHelper.ToJson(task.Result));
+        Assert.NotNull(response);
+        output.WriteLine(_serializationHelper.ToJson(response));
     }
     
     /// <summary>
     /// Assert we can send a batch of notifications and receive a proper ExpoNotificationResponse
     /// </summary>
     [Fact]
-    public void BatchExpoPushNotificationTest()
+    public async Task BatchExpoPushNotificationTest()
     {
         var notifications = new List<ExpoNotificationRequest>();
 
@@ -60,15 +74,14 @@ public class NotificationTests(ITestOutputHelper output)
             );
         }
 
-        var task = _notificationHelper.Send(notifications.ToArray());
-        task.Wait();
+        var response = await _notificationHelper.Send(notifications.ToArray());
 
-        Assert.NotNull(task.Result);
+        Assert.NotNull(response);
         Assert.Equal(
             expected: 5,
-            actual: task.Result.Data.Count
+            actual: response.Data.Count
         );
 
-        output.WriteLine(_serializationHelper.ToJson(task.Result));
+        output.WriteLine(_serializationHelper.ToJson(response));
     }
 }

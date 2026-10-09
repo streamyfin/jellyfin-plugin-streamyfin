@@ -1,0 +1,76 @@
+name: Something is broken
+description: The plugin does not do what it says, or stops the server doing what it says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The server log is what answers most of these. It is in the dashboard under
+        Logs, or on disk at `config/log/`. Please redact anything that identifies your
+        users or your server before pasting it.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to get there
+      description: The shortest path from a working server to what you saw.
+      placeholder: |
+        1. Open the Streamyfin tab in the dashboard
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: plugin
+    attributes:
+      label: Plugin version
+      description: The dashboard lists it under Plugins, and the Streamyfin tab shows it beside its name.
+      placeholder: "0.70.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: jellyfin
+    attributes:
+      label: Jellyfin version
+      placeholder: "12.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How Jellyfin runs
+      options:
+        - Docker
+        - Linux package
+        - Windows
+        - macOS
+        - Unraid, Synology or another appliance
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: What the server log says
+      description: The lines around the moment it went wrong. Redact user names, addresses and keys.
+      render: text
+
+  - type: textarea
+    id: plugins
+    attributes:
+      label: The other plugins on this server
+      description: >
+        With their versions. Plugins share one process, so the one that breaks is not
+        always the one that reports it.
+      render: text

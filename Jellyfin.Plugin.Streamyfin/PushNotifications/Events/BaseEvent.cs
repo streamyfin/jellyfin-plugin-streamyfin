@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using MediaBrowser.Controller;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,7 @@ public abstract class BaseEvent
     private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
 
-    protected static Config? Config => StreamyfinPlugin.Instance?.Configuration.Config;
+    protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;
     
     protected readonly ILogger _logger;
     protected readonly LocalizationHelper _localization;
@@ -33,6 +35,28 @@ public abstract class BaseEvent
     }
 
     /// <summary>
+    /// Starts a send the caller cannot await, and logs the failure instead of
+    /// letting it disappear.
+    /// </summary>
+    /// <param name="send">The send in progress.</param>
+    /// <param name="what">What is being sent, for the log line.</param>
+    /// <remarks>
+    /// Jellyfin's event handlers are synchronous, so a send cannot be awaited from
+    /// one. Before this the exception landed in a task nobody observed, which is
+    /// why a failing send looked exactly like a working one.
+    /// </remarks>
+    protected void SendDetached(Task send, string what)
+    {
+        ArgumentNullException.ThrowIfNull(send);
+
+        _ = send.ContinueWith(
+            task => _logger.LogError(task.Exception, "Failed to send the {What} notification", what),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+    }
+
+    /// <summary>
     /// Check if the event was recently processed before
     /// </summary>
     /// <param name="sessionKey"></param>
@@ -41,19 +65,39 @@ public abstract class BaseEvent
     {
         _logger.LogDebug("Checking recent events for key: {0}", sessionKey);
 
-        var recentlyProcessed = 
-            RecentEvents.TryGetValue(sessionKey, out DateTime lastProcessedTime) && 
-            DateTime.UtcNow - lastProcessedTime < GetRecentEventThreshold();
+        var threshold = GetRecentEventThreshold();
 
-        if (!recentlyProcessed)
+        // Claimed rather than looked at and then written: two of the same event can arrive
+        // on two threads, and a read followed by a write let both of them through, which is
+        // exactly what this is here to stop. Whoever claims the key sends; the other is
+        // told it is recent.
+        while (true)
         {
-            _logger.LogDebug("No recent events for key: {0}", sessionKey);
-            // Update the cache with the latest event time
-            RecentEvents[sessionKey] = DateTime.UtcNow;
-        }
-        else _logger.LogDebug("There are recent events for key: {0}", sessionKey);
+            var now = DateTime.UtcNow;
 
-        return recentlyProcessed;
+            if (!RecentEvents.TryGetValue(sessionKey, out var last))
+            {
+                if (RecentEvents.TryAdd(sessionKey, now))
+                {
+                    _logger.LogDebug("No recent events for key: {0}", sessionKey);
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (now - last < threshold)
+            {
+                _logger.LogDebug("There are recent events for key: {0}", sessionKey);
+                return true;
+            }
+
+            if (RecentEvents.TryUpdate(sessionKey, now, last))
+            {
+                _logger.LogDebug("No recent events for key: {0}", sessionKey);
+                return false;
+            }
+        }
     }
     
     /// <summary>
@@ -71,6 +115,15 @@ public abstract class BaseEvent
             .ToList()
             .ForEach(key => RecentEvents.TryRemove(key, out _));
     }
+
+    /// <summary>
+    /// How long two of the same event wait, as configured or as this event prefers.
+    /// </summary>
+    /// <param name="configuration">The event's configuration, which may be absent.</param>
+    /// <param name="fallback">The wait to use when nothing is configured.</param>
+    /// <returns>The wait between two of the same event.</returns>
+    protected static TimeSpan WaitFrom(Configuration.Notifications.NotificationConfiguration? configuration, TimeSpan fallback) =>
+        configuration?.RecentEventThreshold is { } seconds ? TimeSpan.FromSeconds(Math.Abs(seconds)) : fallback;
 
     /// <summary>
     /// How long we want to wait until allowing an event with a matching sessionKey to be processed

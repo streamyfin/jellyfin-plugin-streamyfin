@@ -1,38 +1,39 @@
 <div data-role="page" class="page type-interior pluginConfigurationPage withTabs"
      data-require="emby-button,emby-select,emby-checkbox"
      data-controller="__plugin/Yaml.js">
-    <div class="content-primary" style="max-width: 53em; height: 100%">
-        <div class="verticalSection">
-            <div class="sectionTitleContainer">
-                <h1 class="sectionTitle">Streamyfin</h1>
-            </div>
-            <div class="sectionTitleContainer" 
-                 style="display: flex; flex-direction: row; justify-content: space-between;">
-                <h2 class="sectionTitle">Yaml Editor</h2>
-                <div>
-                    <a is="emby-linkbutton" class="raised raised-mini" style="margin-left: 2em;" target="_blank"
-                       href="https://github.com/streamyfin/jellyfin-plugin-streamyfin">
-                        <i class="md-icon button-icon button-icon-left secondaryText"></i>
-                        <span>Help</span>
-                    </a>
-                    <a is="emby-linkbutton" class="raised raised-mini" style="margin-left: 0em;" target="_blank"
-                       href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/tree/main/examples">
-                        <i class="md-icon button-icon button-icon-left secondaryText"></i>
-                        <span>Examples</span>
-                    </a>
-                    <button id="example-btn" is="emby-button" class="raised raised-mini button-delete emby-button"
-                            style="margin-right: 0em;">
-                        <span>Load example</span>
-                    </button>
-                </div>
+    <link rel="stylesheet" href="configurationpage?name=settings-form.css">
+
+    <div class="content-primary sf-page" id="sf-app" data-sf-theme="dark">
+        <div class="sf-top">
+            <h1>Streamyfin</h1>
+            <span class="sf-meta">Yaml editor</span>
+            <div class="sf-actions">
+                <a class="sf-btn" target="_blank" rel="noreferrer"
+                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin">Help</a>
+                <a class="sf-btn" target="_blank" rel="noreferrer"
+                   href="https://github.com/streamyfin/jellyfin-plugin-streamyfin/tree/main/examples">Examples</a>
+                <button type="button" class="sf-btn" id="example-btn">Load an example</button>
             </div>
         </div>
 
-        <div id="config-layout">
-            <div id="yaml-editor" style="width: 100%; height: 800px; border: 0px solid grey; display: block; margin-bottom: 24px">
+        <div class="sf-banner">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6"/></svg>
+            <div>The whole configuration as one file, the way the server stores it. The other tabs
+                write the same thing; this is where a setting they do not draw can still be reached,
+                and where a configuration can be pasted in whole.</div>
+        </div>
+
+        <section class="sf-card sf-card--plain">
+            <div class="sf-body">
+                <div class="sf-editor" id="yaml-editor"></div>
             </div>
-            <button id="save-btn" is="emby-button" type="submit" class="raised button-submit block">
-                <span>Save</span>
+        </section>
+
+        <div class="sf-dock" id="sf-dock">
+            <span class="sf-dock-text"><span class="sf-dot" id="sf-dot" hidden></span><span id="sf-dock-summary">Nothing to save</span></span>
+            <button type="button" class="sf-btn sf-btn--primary" id="save-btn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+                <span>Save changes</span>
             </button>
         </div>
     </div>
