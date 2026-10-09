@@ -21,5 +21,5 @@ It becomes the commit message when this is squashed, so write it for someone rea
      a real Jellyfin. A screenshot of a page goes here, with user names and addresses
      redacted. -->
 
-- [ ] `dotnet test` on both targets, or CI says so
+- [ ] `make test` on both targets (Release, what ships), or CI says so
 - [ ] Seen on a real server, and which one
