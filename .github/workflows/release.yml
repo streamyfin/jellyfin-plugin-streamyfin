@@ -29,15 +29,25 @@ jobs:
         with:
           node-version: "lts/*"
 
+      # The assignment stands on its own line so that a version the script refuses fails
+      # this step. Inside echo's argument the refusal was lost: the step went green with an
+      # empty version and the build failed later, saying make could not compute one.
       - id: compute
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-        run: echo "version=$(node scripts/next-version.js)" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node scripts/next-version.js)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.target }}
     needs: version
     runs-on: ubuntu-latest
+    # Without it make computes its own number from the commits, which is not the one
+    # typed into the form: the zips would carry that number while the release, the tag
+    # and the manifest entries carry the typed one.
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     strategy:
       fail-fast: true
       matrix:
@@ -119,14 +129,15 @@ jobs:
           git push origin HEAD:main --tags
           gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
 
-      # Each manifest gets its own entry, with the targetAbi the matching build
-      # was compiled against. The checksum is verified against the uploaded file
-      # before the manifest is written, so a failed upload cannot be published.
-      - name: Update both manifests
+      # One manifest serves every Jellyfin line, so each build adds its own entry to
+      # it, with the targetAbi that build was compiled against. The checksum is
+      # verified against the uploaded file before the manifest is written, so a
+      # failed upload cannot be published.
+      - name: Add both builds to the manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make update-manifest JELLYFIN_TARGET=jf11
           make update-manifest JELLYFIN_TARGET=jf12
-          git commit -m "new release: ${VERSION} manifests" manifest.json manifest-jf12.json
+          git commit -m "new release: ${VERSION} manifests" manifest.json
           git push origin HEAD:main
