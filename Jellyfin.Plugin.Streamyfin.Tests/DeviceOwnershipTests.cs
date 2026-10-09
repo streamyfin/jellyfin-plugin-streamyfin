@@ -116,6 +116,40 @@ public class DeviceOwnershipTests
     }
 
     /// <summary>
+    /// A token longer than any push token is refused rather than stored: a megabyte of one
+    /// went into the database whole, once per device id an account cared to post.
+    /// </summary>
+    [Fact]
+    public void ATokenLongerThanAnyPushTokenIsRefused()
+    {
+        var huge = Posted(Alice, "ExponentPushToken[" + new string('x', 1024 * 1024) + "]");
+
+        Assert.Equal(Registration.TokenTooLong, DeviceRegistration.Check(huge, Alice, callerIsApiKey: false));
+    }
+
+    /// <summary>
+    /// One character past the bound is refused, so the bound is the one the server keeps.
+    /// </summary>
+    [Fact]
+    public void ATokenOneCharacterPastTheBoundIsRefused()
+    {
+        var past = Posted(Alice, new string('x', DeviceToken.LongestToken + 1));
+
+        Assert.Equal(Registration.TokenTooLong, DeviceRegistration.Check(past, Alice, callerIsApiKey: false));
+    }
+
+    /// <summary>
+    /// The bound leaves room for every token a push service hands out, the longest included.
+    /// </summary>
+    [Fact]
+    public void ATokenAtTheBoundIsStored()
+    {
+        var longest = Posted(Alice, new string('x', DeviceToken.LongestToken));
+
+        Assert.Equal(Registration.Accepted, DeviceRegistration.Check(longest, Alice, callerIsApiKey: false));
+    }
+
+    /// <summary>
     /// A user may only remove their own device, and an API key may remove any.
     /// </summary>
     [Fact]

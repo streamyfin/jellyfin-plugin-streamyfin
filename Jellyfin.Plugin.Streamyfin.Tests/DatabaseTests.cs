@@ -410,6 +410,47 @@ public class DatabaseTests : IDisposable
         context.SaveChanges();
     }
 
+    /// <summary>
+    /// A registration an earlier build stored past the bound, which the import carries over,
+    /// is removed at the next start, and one at the bound stays.
+    /// </summary>
+    [Fact]
+    public void ATokenPastTheBoundIsRemovedAtTheNextStart()
+    {
+        var atTheBound = Guid.NewGuid();
+        var pastIt = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = atTheBound, Token = new string('x', DeviceToken.LongestToken), UserId = Guid.NewGuid() });
+        _db.AddDeviceToken(new DeviceToken { DeviceId = pastIt, Token = new string('x', DeviceToken.LongestToken + 1), UserId = Guid.NewGuid() });
+
+        var restarted = new PluginDatabase(_directory);
+
+        Assert.NotNull(restarted.GetDeviceTokenForDeviceId(atTheBound));
+        Assert.Null(restarted.GetDeviceTokenForDeviceId(pastIt));
+    }
+
+    /// <summary>
+    /// The bound is counted at the next start the way the route counts it, in UTF-16 units.
+    /// SQLite's length() counts a character outside the BMP once and stops at a NUL, so both
+    /// of these are tokens the route refuses that it would have kept.
+    /// </summary>
+    [Fact]
+    public void ATokenIsMeasuredTheWayTheRouteMeasuresIt()
+    {
+        var wide = Guid.NewGuid();
+        var cut = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken { DeviceId = wide, Token = string.Concat(Enumerable.Repeat("\U0001F600", (DeviceToken.LongestToken / 2) + 1)), UserId = Guid.NewGuid() });
+        _db.AddDeviceToken(new DeviceToken { DeviceId = cut, Token = "x\0" + new string('x', DeviceToken.LongestToken), UserId = Guid.NewGuid() });
+
+        // Stored whole, or the start below would have nothing to measure.
+        Assert.Equal(DeviceToken.LongestToken + 2, _db.GetDeviceTokenForDeviceId(wide)!.Token.Length);
+        Assert.Equal(DeviceToken.LongestToken + 2, _db.GetDeviceTokenForDeviceId(cut)!.Token.Length);
+
+        var restarted = new PluginDatabase(_directory);
+
+        Assert.Null(restarted.GetDeviceTokenForDeviceId(wide));
+        Assert.Null(restarted.GetDeviceTokenForDeviceId(cut));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

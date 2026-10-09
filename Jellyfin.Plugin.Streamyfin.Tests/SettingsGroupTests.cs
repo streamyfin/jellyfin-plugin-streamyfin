@@ -340,6 +340,73 @@ public class SettingsGroupTests : IDisposable
         Assert.Contains("an unnamed level", Assert.Single(log.Messages), StringComparison.Ordinal);
     }
 
+    private static SettingsGroup Named(string name, Guid? id = null) =>
+        new() { Id = id ?? Guid.Empty, Name = name, SettingsJson = "{}" };
+
+    /// <summary>
+    /// A group saved under a name another group has is refused by the database, as a type the
+    /// routes answer with a 400. The unique index refused it before as a 500.
+    /// </summary>
+    [Fact]
+    public void ANameInUseIsRefused()
+    {
+        _db.SaveSettingsGroup(Named("Kids"));
+
+        var taken = Assert.Throws<GroupNameTakenException>(() => _db.SaveSettingsGroup(Named("Kids")));
+
+        Assert.Equal("Kids", taken.Name);
+        Assert.Equal("A group named \"Kids\" exists already.", taken.Message);
+        Assert.Single(_db.GetSettingsGroups());
+    }
+
+    /// <summary>
+    /// A rename to another group's name is refused, and the group keeps its own name freely.
+    /// </summary>
+    [Fact]
+    public void ARenameCannotTakeAnotherGroupsName()
+    {
+        var kids = _db.SaveSettingsGroup(Named("Kids"));
+        var adults = _db.SaveSettingsGroup(Named("Adults"));
+
+        Assert.Throws<GroupNameTakenException>(() => _db.SaveSettingsGroup(Named("Kids", adults.Id)));
+        _db.SaveSettingsGroup(Named("Kids", kids.Id));
+
+        Assert.Equal(new[] { "Adults", "Kids" }, _db.GetSettingsGroups().Select(g => g.Name).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Compared the way the database compares them, where "Kids" and "kids" are two names.
+    /// </summary>
+    [Fact]
+    public void ANameDifferingInCaseIsAnotherName()
+    {
+        _db.SaveSettingsGroup(Named("Kids"));
+        _db.SaveSettingsGroup(Named("kids"));
+
+        Assert.Equal(2, _db.GetSettingsGroups().Count);
+    }
+
+    /// <summary>
+    /// Two saves of one name at the same moment leave one group, and the other is the same
+    /// refusal: a check made before the write would have let both through to a 500.
+    /// </summary>
+    [Fact]
+    public void TwoSavesOfOneNameAtOnceLeaveOneGroup()
+    {
+        for (var round = 0; round < 20; round++)
+        {
+            var name = $"Twins {round}";
+            var refused = 0;
+
+            System.Threading.Tasks.Parallel.Invoke(
+                () => { try { _db.SaveSettingsGroup(Named(name)); } catch (GroupNameTakenException) { System.Threading.Interlocked.Increment(ref refused); } },
+                () => { try { _db.SaveSettingsGroup(Named(name)); } catch (GroupNameTakenException) { System.Threading.Interlocked.Increment(ref refused); } });
+
+            Assert.Equal(1, refused);
+            Assert.Single(_db.GetSettingsGroups(), group => group.Name == name);
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
