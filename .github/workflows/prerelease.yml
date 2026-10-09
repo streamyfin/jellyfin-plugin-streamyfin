@@ -66,11 +66,14 @@ jobs:
             exit 1
           fi
 
+      # Assigned first, so that a refusal from the script (nothing new since the last
+      # release, for one) fails this step instead of handing the build an empty version.
       - id: compute
         env:
           CHANNEL: unstable
         run: |
-          echo "version=$(node scripts/next-version.js)" >> "$GITHUB_OUTPUT"
+          version=$(node scripts/next-version.js)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
