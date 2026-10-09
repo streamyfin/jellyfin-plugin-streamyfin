@@ -133,9 +133,23 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch --quiet --tags origin main
 
+          # Read once, and assigned, so that gh failing, or answering anything but a list,
+          # fails the step instead of passing for no release. Drafts are listed: gh creates
+          # a release as one, uploads, then publishes, and an attempt cancelled or killed in
+          # between leaves the draft.
+          releases=$(gh release list --json tagName,isDraft --limit 100)
+          count=$(jq -e --arg v "$VERSION" 'if type == "array" then map(select(.tagName == $v)) | length else error("gh release list did not answer a list") end' <<<"$releases")
+
           made_by="Release-Run: ${GITHUB_RUN_ID}"
           tagged=$(git rev-parse --quiet --verify "refs/tags/${VERSION}^{commit}" || true)
           if [ -z "$tagged" ]; then
+            # Before anything is public. With no tag yet only a draft can carry the version,
+            # one somebody prepared, and it is not this run's to publish. Stopping here keeps
+            # the tag off origin, where it would wait for a release the rerun refuses.
+            if [ "$count" -gt 0 ]; then
+              echo "::error::A release for ${VERSION} exists already, a draft this run did not make. Nothing was pushed. Delete it or give it another tag, then start the workflow again." >&2
+              exit 1
+            fi
             make update-version
             git commit -m "new release: ${VERSION}" -m "$made_by" Jellyfin.Plugin.Streamyfin/Jellyfin.Plugin.Streamyfin.csproj
             git tag "${VERSION}"
@@ -144,22 +158,32 @@ jobs:
               echo "::error::The release commit and its tag did not reach origin, git says why above. If main moved while this release was building, a rerun builds the same commit again and is refused the same way: start the workflow again from main. Otherwise rerun the failed job." >&2
               exit 1
             fi
-            # Created here and nowhere else: a release that already exists for this version,
-            # a draft somebody prepared, is not this run's to publish.
             gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
           elif [ "$(git rev-parse "${tagged}^")" = "${GITHUB_SHA}" ] \
             && [ "$(git log -1 --format=%s "$tagged")" = "new release: ${VERSION}" ] \
             && git log -1 --format=%b "$tagged" | grep -qxF "$made_by"; then
             echo "${VERSION} was tagged by an earlier attempt of this run. Carrying on from it."
 
-            # Read once, and assigned, so that gh failing fails the step instead of passing
-            # for no release. Drafts are listed: gh creates a release as one, uploads, then
-            # publishes, and an attempt cancelled or killed in between leaves the draft.
-            releases=$(gh release list --json tagName,isDraft --limit 100)
-            if ! jq -e --arg v "$VERSION" 'any(.[]; .tagName == $v)' <<<"$releases" >/dev/null; then
+            if [ "$count" -eq 0 ]; then
               gh release create "${VERSION}" dist/*.zip --generate-notes --verify-tag
+            elif [ "$count" -gt 1 ]; then
+              # gh names a release by its tag, and with two it picks one: an upload or a
+              # publish could land on the one this run did not make.
+              echo "::error::${count} releases carry ${VERSION}, drafts included, and this run leaves them all as they are. Delete the ones it did not make, then rerun the failed job." >&2
+              exit 1
             else
-              release=$(gh release view "${VERSION}" --json assets,isDraft)
+              release=$(gh release view "${VERSION}" --json assets,isDraft,author)
+              # The tag being this run's does not make the release its own: a draft somebody
+              # prepared while a first attempt failed to create one is found the same way.
+              # The workflow makes its releases with GITHUB_TOKEN, so they are the bot's; a
+              # step that pushed with another token, an App's or a person's, would change
+              # this login with it. The author rather than a mark in the notes, which are
+              # rewritten by hand once the release is out.
+              author=$(jq -r .author.login <<<"$release")
+              if [ "$author" != "github-actions[bot]" ]; then
+                echo "::error::The release for ${VERSION} was made by ${author}, not by this workflow, and is left as it is. Delete it or give it another tag, then rerun the failed job." >&2
+                exit 1
+              fi
               # By digest, not by name or size: "Re-run all jobs" rebuilds the zips, and a
               # rebuilt zip has the same size and other bytes, so the manifest's checksum
               # would no longer match what the release serves.

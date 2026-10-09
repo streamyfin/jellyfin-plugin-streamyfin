@@ -55,7 +55,11 @@ case "$1" in
     if [ -f "$STATE/fail-manifest" ]; then echo "Error verifying checksum for URL" >&2; exit 1; fi
     target="\${2#JELLYFIN_TARGET=}"
     zip="streamyfin-$VERSION-$target.zip"
-    served="$STATE/release-$VERSION/assets/$zip"
+    # What the download URL serves: the published release of the tag, drafts serve nothing.
+    served=""
+    for r in "$STATE"/releases/*; do
+      [ -d "$r" ] && [ "$(cat "$r/tag")" = "$VERSION" ] && [ ! -f "$r/draft" ] && served="$r/assets/$zip"
+    done
     if [ ! -f "$served" ] || [ "$(shasum "dist/$zip" | cut -d' ' -f1)" != "$(shasum "$served" | cut -d' ' -f1)" ]; then
       echo "Checksum mismatch for URL: $zip" >&2; exit 1
     fi
@@ -71,42 +75,75 @@ case "$1" in
 esac
 `;
 
-// gh as the workflow uses it. release create makes a draft, uploads, then publishes, and
-// deletes its draft when an upload fails; only a gh that is killed leaves the draft
-// behind. list includes drafts, view gives each asset's digest, and each can be told to
-// fail the way a call to GitHub can.
+// gh as the workflow uses it. Each release is a folder with its tag and author, so a tag
+// can carry several, as GitHub allows for drafts. release create makes a draft, uploads,
+// then publishes, and deletes its draft when an upload fails; only a gh that is killed
+// leaves the draft behind. It refuses a tag only when a published release has it: its check
+// is a HEAD on releases/tags/<tag>, which answers for published releases alone
+// (publishedReleaseExists in cli/cli). view, upload and edit name a release by its tag.
+// Which one gh gets when several carry it is not defined, v2.98 running the published and
+// the draft lookups at once and keeping the first to answer; this one takes the published
+// release, else the oldest draft, and the workflow refuses a tag several releases carry, so
+// no test depends on the order. view prints only the fields --json asks for, as gh does,
+// and upload refuses an asset that is there already unless told --clobber. list includes
+// drafts, view gives each asset's digest, and each can be told to fail the way a call to
+// GitHub can.
 const GH = `#!/usr/bin/env bash
 set -eu
 verb="$2"
+mkdir -p "$STATE/releases"
 case "$verb" in
   list)
     if [ -f "$STATE/fail-list" ]; then echo "HTTP 502: Bad Gateway" >&2; exit 1; fi
+    if [ -f "$STATE/odd-list" ]; then echo '{"message":"Server Error"}'; exit 0; fi
     printf '['; first=1
-    for r in "$STATE"/release-*; do
+    for r in "$STATE"/releases/*; do
       [ -d "$r" ] || continue
       [ $first = 1 ] || printf ','; first=0
       draft=false; [ -f "$r/draft" ] && draft=true
-      printf '{"tagName":"%s","isDraft":%s}' "\${r##*/release-}" "$draft"
+      printf '{"tagName":"%s","isDraft":%s}' "$(cat "$r/tag")" "$draft"
     done
     printf ']\\n'; exit 0 ;;
 esac
 tag="$3"; shift 3
-release="$STATE/release-$tag"
+named() {
+  local r first=""
+  for r in "$STATE"/releases/*; do
+    [ -d "$r" ] && [ "$(cat "$r/tag")" = "$tag" ] || continue
+    if [ ! -f "$r/draft" ]; then echo "$r"; return; fi
+    [ -n "$first" ] || first=$r
+  done
+  echo "$first"
+}
+release=$(named)
 case "$verb" in
   view)
-    [ -d "$release" ] || { echo "release not found" >&2; exit 1; }
-    draft=false; [ -f "$release/draft" ] && draft=true
-    printf '{"isDraft":%s,"assets":[' "$draft"; first=1
-    for f in "$release"/assets/*; do
-      [ -e "$f" ] || continue
-      [ $first = 1 ] || printf ','; first=0
-      printf '{"name":"%s","size":%s,"digest":"sha256:%s","state":"uploaded"}' "$(basename "$f")" "$(wc -c < "$f" | tr -d ' ')" "$(shasum -a 256 "$f" | cut -d' ' -f1)"
+    [ -n "$release" ] || { echo "release not found" >&2; exit 1; }
+    fields=""; while [ $# -gt 0 ]; do [ "$1" = "--json" ] && fields="$2"; shift; done
+    out=""
+    for field in $(echo "$fields" | tr ',' ' '); do
+      case "$field" in
+        isDraft) value=false; [ -f "$release/draft" ] && value=true ;;
+        author) value="{\\"login\\":\\"$(cat "$release/author")\\"}" ;;
+        assets)
+          value="["; first=1
+          for f in "$release"/assets/*; do
+            [ -e "$f" ] || continue
+            [ $first = 1 ] || value="$value,"; first=0
+            value="$value{\\"name\\":\\"$(basename "$f")\\",\\"size\\":$(wc -c < "$f" | tr -d ' '),\\"digest\\":\\"sha256:$(shasum -a 256 "$f" | cut -d' ' -f1)\\",\\"state\\":\\"uploaded\\"}"
+          done
+          value="$value]" ;;
+        *) echo "unexpected field: $field" >&2; exit 2 ;;
+      esac
+      out="$out\${out:+,}\\"$field\\":$value"
     done
-    printf ']}\\n' ;;
+    printf '{%s}\\n' "$out" ;;
   create)
     if [ -f "$STATE/fail-create" ]; then echo "HTTP 502: release not created" >&2; exit 1; fi
-    if [ -d "$release" ]; then mv "$release" "$STATE/other-$tag"; fi
-    mkdir -p "$release/assets"; touch "$release/draft"
+    if [ -n "$release" ] && [ ! -f "$release/draft" ]; then echo "a release with the same tag name already exists: $tag" >&2; exit 1; fi
+    last=$(ls "$STATE/releases" | sort | tail -1)
+    release="$STATE/releases/$(printf '%03d' $(( 10#\${last:-0} + 1 )))"
+    mkdir -p "$release/assets"; echo "$tag" > "$release/tag"; echo "github-actions[bot]" > "$release/author"; touch "$release/draft"
     for f in "$@"; do
       case "$f" in -*) continue ;; esac
       if [ -n "$(ls "$release/assets")" ]; then
@@ -117,10 +154,15 @@ case "$verb" in
     done
     rm -f "$release/draft"; echo "create $tag" >> "$STATE/log" ;;
   upload)
-    [ -d "$release" ] || exit 1
-    for f in "$@"; do case "$f" in -*) ;; *) cp "$f" "$release/assets/"; echo "upload $(basename "$f")" >> "$STATE/log" ;; esac; done ;;
+    [ -n "$release" ] || exit 1
+    clobber=false; for f in "$@"; do [ "$f" = "--clobber" ] && clobber=true; done
+    for f in "$@"; do
+      case "$f" in -*) continue ;; esac
+      if [ -e "$release/assets/$(basename "$f")" ] && [ $clobber = false ]; then echo "asset under the same name already exists: $(basename "$f")" >&2; exit 1; fi
+      cp "$f" "$release/assets/"; echo "upload $(basename "$f")" >> "$STATE/log"
+    done ;;
   edit)
-    [ -d "$release" ] || exit 1; rm -f "$release/draft"; echo "publish $tag" >> "$STATE/log" ;;
+    [ -n "$release" ] || exit 1; rm -f "$release/draft"; echo "publish $tag" >> "$STATE/log" ;;
   *) echo "unexpected: gh release $verb $tag $*" >&2; exit 2 ;;
 esac
 `;
@@ -215,13 +257,41 @@ const ghLog = (box) => {
     const log = join(box.state, "log");
     return existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean) : [];
 };
-const published = (box) => {
-    const release = join(box.state, `release-${VERSION}`);
-    return {
-        draft: existsSync(join(release, "draft")),
-        assets: existsSync(release) ? readdirSync(join(release, "assets")).sort() : [],
-    };
+// Every release carrying the tag, in the order they were made.
+const releasesOf = (box, tag = VERSION) => {
+    const root = join(box.state, "releases");
+    if (!existsSync(root)) return [];
+    return readdirSync(root).sort().map((name) => join(root, name))
+        .filter((dir) => readFileSync(join(dir, "tag"), "utf8").trim() === tag)
+        .map((dir) => ({
+            dir,
+            author: readFileSync(join(dir, "author"), "utf8").trim(),
+            draft: existsSync(join(dir, "draft")),
+            assets: readdirSync(join(dir, "assets")).sort(),
+            notes: existsSync(join(dir, "notes")) ? readFileSync(join(dir, "notes"), "utf8") : null,
+        }));
 };
+// The release gh means by the version: the published one, else the first draft.
+const published = (box) => {
+    const all = releasesOf(box);
+    const release = all.find((r) => !r.draft) ?? all[0];
+    return release ? { draft: release.draft, assets: release.assets } : { draft: false, assets: [] };
+};
+// A draft a maintainer made by hand for the version, with the notes they are writing.
+const NOTES = "Notes a maintainer is still writing";
+const prepareDraft = (box) => {
+    const root = join(box.state, "releases");
+    mkdirSync(root, { recursive: true });
+    const last = readdirSync(root).sort().at(-1);
+    const dir = join(root, String((last ? Number(last) : 0) + 1).padStart(3, "0"));
+    mkdirSync(join(dir, "assets"), { recursive: true });
+    writeFileSync(join(dir, "tag"), `${VERSION}\n`);
+    writeFileSync(join(dir, "author"), "a-maintainer\n");
+    writeFileSync(join(dir, "draft"), "");
+    writeFileSync(join(dir, "notes"), NOTES);
+};
+const untouched = { author: "a-maintainer", draft: true, assets: [], notes: NOTES };
+const asPrepared = ({ author, draft, assets, notes }) => ({ author, draft, assets, notes });
 const fail = (box, what) => writeFileSync(join(box.state, `fail-${what}`), "");
 const recover = (box, what) => rmSync(join(box.state, `fail-${what}`));
 const BOTH = [`streamyfin-${VERSION}-jf11.zip`, `streamyfin-${VERSION}-jf12.zip`];
@@ -270,7 +340,7 @@ describe("a rerun of the same run", () => {
         const box = sandbox();
         fail(box, "upload");
         expect(run(box, attempt(box), TAG_STEP).code).not.toBe(0);
-        expect(published(box)).toEqual({ draft: false, assets: [] });
+        expect(releasesOf(box)).toEqual([]);
 
         recover(box, "upload");
         const second = attempt(box);
@@ -383,7 +453,8 @@ describe("a tag this run did not make stops it before anything is published", ()
         refused(box, attempt(box), "202");
 
         expect(ghLog(box)).toEqual(log);
-        expect(readFileSync(join(box.state, `release-${VERSION}`, "assets", BOTH[1]), "utf8")).toBe(`jf12 built by run ${RUN}, build 1`);
+        const served = releasesOf(box).find((r) => !r.draft);
+        expect(readFileSync(join(served.dir, "assets", BOTH[1]), "utf8")).toBe(`jf12 built by run ${RUN}, build 1`);
     });
 
     test("a release commit for this version made on top of another commit", () => {
@@ -408,21 +479,79 @@ describe("a tag this run did not make stops it before anything is published", ()
     });
 });
 
-test("a draft somebody prepared for the version is left alone, and the release created beside it", () => {
+describe("a draft somebody prepared for the version is never this run's to publish", () => {
+    test("one there before the run stops it before anything is pushed", () => {
+        const box = sandbox();
+        prepareDraft(box);
+        const before = onOrigin(box, "refs/heads/main");
+
+        const tag = run(box, attempt(box), TAG_STEP);
+
+        expect(tag.code).not.toBe(0);
+        expect(tag.output).toContain(`::error::A release for ${VERSION} exists already`);
+        expect(tag.output).toContain("Nothing was pushed");
+        expect(onOrigin(box, `refs/tags/${VERSION}`)).toBeNull();
+        expect(onOrigin(box, "refs/heads/main")).toBe(before);
+        expect(ghLog(box)).toEqual([]);
+        expect(releasesOf(box).map(asPrepared)).toEqual([untouched]);
+    });
+
+    test("one made while a first attempt could not create the release stops the rerun, which leaves it alone", () => {
+        const box = sandbox();
+        fail(box, "create");
+        expect(run(box, attempt(box), TAG_STEP).code).not.toBe(0);
+        expect(onOrigin(box, `refs/tags/${VERSION}`)).not.toBeNull();
+        recover(box, "create");
+        prepareDraft(box);
+
+        const tag = run(box, attempt(box), TAG_STEP);
+
+        expect(tag.code).not.toBe(0);
+        expect(tag.output).toContain(`::error::The release for ${VERSION} was made by a-maintainer`);
+        expect(ghLog(box)).toEqual([]);
+        expect(releasesOf(box).map(asPrepared)).toEqual([untouched]);
+    });
+
+    test("beside the draft a killed attempt left, the rerun touches neither", () => {
+        const box = sandbox();
+        writeFileSync(join(box.state, "kill-upload"), "");
+        expect(run(box, attempt(box), TAG_STEP).code).not.toBe(0);
+        rmSync(join(box.state, "kill-upload"));
+        prepareDraft(box);
+
+        const tag = run(box, attempt(box), TAG_STEP);
+
+        expect(tag.code).not.toBe(0);
+        expect(tag.output).toContain(`::error::2 releases carry ${VERSION}`);
+        expect(ghLog(box)).toEqual([]);
+        const [left, prepared] = releasesOf(box);
+        expect(left).toMatchObject({ author: "github-actions[bot]", draft: true, assets: [BOTH[0]] });
+        expect(asPrepared(prepared)).toEqual(untouched);
+    });
+});
+
+test("nothing is pushed when gh cannot say which releases exist", () => {
     const box = sandbox();
-    const prepared = join(box.state, `release-${VERSION}`);
-    mkdirSync(join(prepared, "assets"), { recursive: true });
-    writeFileSync(join(prepared, "draft"), "");
-    writeFileSync(join(prepared, "notes"), "Notes a maintainer is still writing");
-    const dir = attempt(box);
+    fail(box, "list");
 
-    expect(run(box, dir, TAG_STEP).code).toBe(0);
+    const tag = run(box, attempt(box), TAG_STEP);
 
-    expect(ghLog(box)).toEqual([`create ${VERSION}`]);
-    expect(published(box)).toEqual({ draft: false, assets: BOTH });
-    const setAside = join(box.state, `other-${VERSION}`);
-    expect(existsSync(join(setAside, "draft"))).toBe(true);
-    expect(readFileSync(join(setAside, "notes"), "utf8")).toBe("Notes a maintainer is still writing");
+    expect(tag.code).not.toBe(0);
+    expect(tag.output).toContain("HTTP 502");
+    expect(onOrigin(box, `refs/tags/${VERSION}`)).toBeNull();
+    expect(releaseCommits(box)).toHaveLength(0);
+});
+
+test("nothing is pushed when gh answers the list with something that is not one", () => {
+    const box = sandbox();
+    writeFileSync(join(box.state, "odd-list"), "");
+
+    const tag = run(box, attempt(box), TAG_STEP);
+
+    expect(tag.code).not.toBe(0);
+    expect(tag.output).toContain("gh release list did not answer a list");
+    expect(onOrigin(box, `refs/tags/${VERSION}`)).toBeNull();
+    expect(releaseCommits(box)).toHaveLength(0);
 });
 
 test("the tag never reaches origin when main moved during the build, and the error says to start again", () => {
