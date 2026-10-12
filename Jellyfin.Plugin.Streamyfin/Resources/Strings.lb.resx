@@ -62,6 +62,14 @@
         <value>{0} bäigesat</value>
         <comment>0 = Media type</comment>
     </data>
+  <data name="AwaitedTitleArrivedTitle" xml:space="preserve">
+        <value>Elo um Server</value>
+        <comment>Title of the notification about a movie or a show the person asked to be told about</comment>
+    </data>
+  <data name="AwaitedTitleArrivedBody" xml:space="preserve">
+        <value>{0}, wourop du gewaart hues, ass hei.</value>
+        <comment>0 = Name of the movie or the show, with its year</comment>
+    </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
         <value>Episod bäigesat</value>
     </data>
