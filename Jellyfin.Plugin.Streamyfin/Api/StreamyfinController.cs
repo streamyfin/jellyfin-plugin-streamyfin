@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq;
+using System.IO;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.Streamyfin.Compat;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.Integrations;
@@ -29,6 +32,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 
 // The plugin has a SortOrder of its own, in the settings it serves to the app. This one is
 // the server's, for the queries below.
@@ -158,32 +163,209 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult<ConfigSaveResponse> saveConfig(
     [FromBody, Required] ConfigYamlRes config
-  )
+  ) => SaveYaml(_serializationHelperService, config.Value, StreamyfinPlugin.Instance!.Settings);
+
+  /// <summary>
+  /// What <see cref="saveConfig"/> does with a document: stores it, or answers why not and
+  /// stores nothing.
+  /// </summary>
+  /// <param name="serialization">The plugin's serializers.</param>
+  /// <param name="yaml">The document the editor sent.</param>
+  /// <param name="store">Where the configuration is kept.</param>
+  /// <returns>The answer the editor shows.</returns>
+  internal static ConfigSaveResponse SaveYaml(SerializationHelper serialization, string yaml, GlobalConfigurationStore store)
   {
-    Config p;
+    var (p, problem) = ToSave(serialization, yaml, store.Current.settings);
+    if (p is null)
+    {
+      return new ConfigSaveResponse { Error = true, Message = problem! };
+    }
+
+    store.Save(p);
+
+    return new ConfigSaveResponse { Error = false };
+  }
+
+  /// <summary>
+  /// What <see cref="saveConfig"/> answers for a document with nothing in it.
+  /// </summary>
+  internal const string EmptyYaml = "Nothing was saved: the Yaml is empty.";
+
+  /// <summary>
+  /// The configuration a Yaml document holds, or the sentence the editor shows instead.
+  /// </summary>
+  /// <param name="serialization">The plugin's serializers.</param>
+  /// <param name="yaml">The document the editor sent.</param>
+  /// <returns>The configuration, or why there is none to save: exactly one of the two.</returns>
+  internal static (Config? Config, string? Problem) ReadYaml(SerializationHelper serialization, string yaml)
+  {
     try
     {
-      p = _serializationHelperService.Deserialize<Config>(config.Value);
+      // A document with nothing in it, blank or only comments, is read as null rather than
+      // refused. Saving read the settings of that null and answered 500, and before 0.70
+      // the same document replaced the whole configuration with nothing. So did a document
+      // that writes no value anywhere, {} or a setting with nothing under it.
+      if (!WritesAValue(yaml))
+      {
+        return (null, EmptyYaml);
+      }
+
+      Config? read = serialization.Deserialize<Config>(yaml);
+      return read is null ? (null, EmptyYaml) : (read, null);
     }
     catch (Exception e)
     {
       // The message and what caused it, not the stack. YamlDotNet says where in the
       // document it gave up, which is the useful half, and this string is shown to an
       // administrator in a banner above the editor.
-      return new ConfigSaveResponse { Error = true, Message = Because(e) };
+      return (null, Because(e));
     }
-
-    var problem = SettingsValidation.Check(p.settings, StreamyfinPlugin.Instance!.Settings.Current.settings)
-      ?? NotificationsValidation.Check(p.notifications);
-    if (problem is not null)
-    {
-      return new ConfigSaveResponse { Error = true, Message = problem };
-    }
-
-    StreamyfinPlugin.Instance!.Settings.Save(p);
-
-    return new ConfigSaveResponse { Error = false };
   }
+
+  /// <summary>
+  /// What saving a Yaml document stores, or why it stores nothing: read, then checked
+  /// against the settings in use, in that order.
+  /// </summary>
+  /// <param name="serialization">The plugin's serializers.</param>
+  /// <param name="yaml">The document the editor sent.</param>
+  /// <param name="current">The settings in use.</param>
+  /// <returns>The configuration to store, or the sentence the editor shows: exactly one.</returns>
+  internal static (Config? Config, string? Problem) ToSave(SerializationHelper serialization, string yaml, Settings? current)
+  {
+    var (read, unreadable) = ReadYaml(serialization, yaml);
+    if (read is null)
+    {
+      return (null, unreadable);
+    }
+
+    var refusal = Refusal(serialization, read, current);
+    return refusal is null ? (read, null) : (null, refusal);
+  }
+
+  // Judged on the document as written, not on what it reads into: the settings fill in
+  // what a document leaves out (locked is false, a number is 0), so a setting with nothing
+  // under it reads as values nobody wrote. A scalar that is null or blank gives no value, a
+  // list gives one, empty or not, and a mapping gives one when something under it does. A
+  // document this reader cannot parse is left to the deserializer, as it always was.
+  //
+  // Read event by event, in one pass with no recursion, rather than loaded as a tree. In the
+  // tree an alias is the very node its anchor names, so a node can hold itself: walking it
+  // never ended, a key that held itself overflowed the stack as soon as the tree hashed it,
+  // and either took the server's process down. Here an alias counts what its anchor was
+  // judged to give, and an alias inside the node it names, not judged yet, counts as a
+  // value, which leaves such a document to the deserializer.
+  private static bool WritesAValue(string yaml)
+  {
+    var parser = new Parser(new StringReader(yaml));
+    var judged = new Dictionary<AnchorName, bool>();
+    var open = new Stack<OpenNode>();
+    var writes = false;
+
+    try
+    {
+      while (parser.MoveNext())
+      {
+        switch (parser.Current)
+        {
+          case MappingStart or SequenceStart when open.Count == DeepestToJudge:
+            // Far deeper than any configuration, whose deepest point is 8 levels down. Each
+            // level makes YamlDotNet's scanner slower on every token after it, and the
+            // deserializer refuses such a document without reading that far.
+            return true;
+          case MappingStart mapping:
+            Open(mapping.Anchor, isMapping: true);
+            break;
+          case SequenceStart sequence:
+            Open(sequence.Anchor, isMapping: false);
+            break;
+          case MappingEnd or SequenceEnd:
+            var done = open.Pop();
+            Close(done.Anchor, !done.IsMapping || done.Writes);
+            break;
+          case Scalar scalar:
+            Close(scalar.Anchor, !(scalar.Style == ScalarStyle.Plain && scalar.Value is "" or "~" or "null" or "Null" or "NULL")
+              && !string.IsNullOrWhiteSpace(scalar.Value));
+            break;
+          case AnchorAlias alias:
+            Close(AnchorName.Empty, !judged.TryGetValue(alias.Value, out var named) || named);
+            break;
+        }
+      }
+    }
+    catch (YamlException)
+    {
+      return true;
+    }
+
+    return writes;
+
+    void Open(AnchorName anchor, bool isMapping)
+    {
+      // An earlier node of the same name no longer answers for it.
+      judged.Remove(anchor);
+      open.Push(new OpenNode(anchor, isMapping));
+    }
+
+    void Close(AnchorName anchor, bool value)
+    {
+      if (!anchor.IsEmpty)
+      {
+        judged[anchor] = value;
+      }
+
+      if (!open.TryPeek(out var parent))
+      {
+        writes |= value;
+      }
+      else if (parent.IsMapping)
+      {
+        // Keys and values alternate; only a value can write one.
+        parent.Writes |= parent.AtValue && value;
+        parent.AtValue = !parent.AtValue;
+      }
+    }
+  }
+
+  private const int DeepestToJudge = 64;
+
+  private sealed class OpenNode(AnchorName anchor, bool isMapping)
+  {
+    public AnchorName Anchor { get; } = anchor;
+
+    public bool IsMapping { get; } = isMapping;
+
+    public bool AtValue { get; set; }
+
+    public bool Writes { get; set; }
+  }
+
+  /// <summary>
+  /// Why a configuration read from the Yaml editor is not saved, or null to save it.
+  /// </summary>
+  /// <param name="serialization">The plugin's serializers.</param>
+  /// <param name="config">What <see cref="ReadYaml"/> read. The checks tidy it in place.</param>
+  /// <param name="current">The settings in use, which the checks compare against.</param>
+  /// <returns>The sentence the editor shows, or null.</returns>
+  internal static string? Refusal(SerializationHelper serialization, Config config, Settings? current) =>
+    SettingsValidation.Check(config.settings, current)
+      ?? NotificationsValidation.Check(config.notifications)
+      // After the checks, which tidy a blank address away: a document whose only value was
+      // one is judged as it would be stored. Saving a document of empty sections, {} among
+      // them, replaced the whole configuration with nothing while answering it went well.
+      ?? (SetsNothing(serialization, config) ? EmptyYaml : null);
+
+  // Read from the Json the store keeps, which leaves the nulls out, so a section only counts
+  // when a value is set somewhere under it. A list counts, empty or not: emptying one is a
+  // choice somebody made.
+  private static bool SetsNothing(SerializationHelper serialization, Config config) =>
+    !HasAValue(JsonNode.Parse(serialization.SerializeToJson(config)));
+
+  private static bool HasAValue(JsonNode? node) => node switch
+  {
+    null => false,
+    JsonObject members => members.Any(member => HasAValue(member.Value)),
+    _ => true,
+  };
 
   /// <summary>
   /// The configuration, as the calling user should receive it.
@@ -664,6 +846,25 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
+  /// Whether a notification of a posted list has something to show.
+  /// </summary>
+  /// <param name="notification">One item of the list, as the request carried it.</param>
+  /// <returns>Whether it is sent. The others are left out, as they always were.</returns>
+  internal static bool IsSendable(Notification? notification)
+  {
+    // An empty item, a null in the list, has nothing to show either. Reading its title
+    // failed the whole request with a 500.
+    if (notification is null || notification.Body.IsNullOrNonWord())
+    {
+      return false;
+    }
+
+    // A body is required. A title may be left out, but one that is there needs a word:
+    // a title of only spaces or symbols leaves the item out, as it always has.
+    return string.IsNullOrEmpty(notification.Title) || !notification.Title.IsNullOrNonWord();
+  }
+
+  /// <summary>
   /// Forward notifications to Expo's push service using the persisted device tokens.
   /// </summary>
   /// <param name="notifications">What to send, each with an optional target.</param>
@@ -681,7 +882,7 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
-  public ActionResult PostNotifications([FromBody, Required] List<Notification> notifications)
+  public ActionResult PostNotifications([FromBody, Required] List<Notification?> notifications)
   {
     var db = StreamyfinPlugin.Instance?.Database;
 
@@ -696,22 +897,10 @@ public class StreamyfinController : ControllerBase
     var preferences = db?.AllNotificationPreferences() ?? [];
     var now = DateTime.UtcNow;
 
+    // Declared nullable so that nothing reads an item before the nulls are left out.
     var validNotifications = notifications
-      .FindAll(n =>
-      {
-        var title = n.Title ?? "";
-        var body = n.Body ?? "";
-
-        // Title and body are both valid
-        if (!title.IsNullOrNonWord() && !body.IsNullOrNonWord())
-        {
-          return true;
-        }
-
-        // Title can be empty, body is required.
-        return string.IsNullOrEmpty(title) && !body.IsNullOrNonWord();
-        // every other scenario is invalid
-      })
+      .OfType<Notification>()
+      .Where(IsSendable)
       .SelectMany(notification =>
       {
         List<DeviceToken> tokens = [];
@@ -1247,7 +1436,7 @@ public class StreamyfinController : ControllerBase
     return new QueryResult<BaseItemDto>(
       page.StartIndex,
       page.Total,
-      _dtoService.GetBaseItemDtos([.. page.Items], new DtoOptions(), user));
+      Dtos.Of(_dtoService, [.. page.Items], new DtoOptions(), user));
   }
 
   /// <summary>
@@ -1312,7 +1501,7 @@ public class StreamyfinController : ControllerBase
       .OfType<BaseItem>()
       .ToList();
 
-    return new QueryResult<BaseItemDto>(from, shelf.Count, _dtoService.GetBaseItemDtos(items, new DtoOptions(), user));
+    return new QueryResult<BaseItemDto>(from, shelf.Count, Dtos.Of(_dtoService, items, new DtoOptions(), user));
   }
 
   /// <summary>

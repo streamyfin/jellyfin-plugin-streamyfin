@@ -8,10 +8,11 @@ namespace Jellyfin.Plugin.Streamyfin.Injection;
 /// Puts the plugin's mark on its row in the dashboard drawer, in the drawer's own colour.
 /// </summary>
 /// <remarks>
-/// The drawer renders the icon as <c>&lt;Icon&gt;{MenuIcon}&lt;/Icon&gt;</c>, MUI's icon
-/// font component, so <c>MenuIcon</c> can only ever be a Material ligature. The only way
-/// to show an image is to reach the page from outside, which is what File Transformation
-/// exists for.
+/// Jellyfin 12's drawer renders the icon as <c>&lt;Icon&gt;{MenuIcon}&lt;/Icon&gt;</c>, MUI's
+/// icon font component, so <c>MenuIcon</c> can only ever be a Material ligature, and 10.11's
+/// draws the Folder icon, an SVG, for every plugin whatever its <c>MenuIcon</c>. The only
+/// way to show an image is to reach the page from outside, which is what File
+/// Transformation exists for.
 ///
 /// <para>
 /// This is deliberately CSS and not script. The drawer is a React tree that re-renders,
@@ -83,24 +84,41 @@ public static class DrawerLogoPatch
         + "<path d=\"M4.4 10.67C6.8 9.67 8.8 10.07 10.8 11.97S14.95 15.16 17.95 15.01L21.95 23.01L0.4 23.01L0.4 10.67Z\" clip-path=\"url(#in)\"/>"
         + "</svg>";
 
+    /// <summary>
+    /// The stylesheet that draws the mark on the drawer row of <paramref name="landingPage"/>
+    /// and hides the icon the dashboard draws there.
+    /// </summary>
+    /// <param name="landingPage">The name of the plugin page the row opens.</param>
     private static string Style(string landingPage)
     {
         var mark = "data:image/svg+xml," + Uri.EscapeDataString(Mark);
 
         // Scoped to the drawer's plugin list, which jellyfin-web labels
         // plugins-subheader, so the rule cannot reach a link anywhere else in the app.
-        // Inside that list it still matches on the page name, because the drawer renders
-        // nothing identifying the plugin. Another plugin with a page of the same name,
-        // also asking for a drawer row, would pick this up. The cost is a wrong icon.
+        // Inside that list it matches the end of the link, because the drawer renders
+        // nothing identifying the plugin: a page whose name only begins the same, Home
+        // Screen Sections when the landing page is Home, keeps its own icon. Another
+        // plugin with a page of exactly this name, also asking for a drawer row, would
+        // pick this up. The cost is a wrong icon.
+        var row = "[aria-labelledby=\"plugins-subheader\"] a[href$=\"configurationpage?name=" + landingPage + "\"]";
+
+        // Drawn in the icon's container, which both lines render, with the icon inside it
+        // hidden, whichever it is: the icon font on 12, the Folder SVG on 10.11. The mark
+        // is a background, which a contrast theme would paint over with the canvas colour
+        // without forced-color-adjust.
         return string.Create(
             CultureInfo.InvariantCulture,
             $$"""
             <style id="{{Marker}}">
-            [aria-labelledby="plugins-subheader"] a[href*="configurationpage?name={{landingPage}}"] .MuiIcon-root {
-                font-size: 0;
+            {{row}} .MuiListItemIcon-root > * {
+                display: none;
+            }
+            {{row}} .MuiListItemIcon-root::before {
+                content: "";
                 width: 1.5rem;
                 height: 1.5rem;
                 background-color: currentColor;
+                forced-color-adjust: preserve-parent-color;
                 -webkit-mask: url("{{mark}}") center / contain no-repeat;
                 mask: url("{{mark}}") center / contain no-repeat;
             }

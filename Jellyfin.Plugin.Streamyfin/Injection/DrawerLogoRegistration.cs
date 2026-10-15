@@ -22,8 +22,9 @@ namespace Jellyfin.Plugin.Streamyfin.Injection;
 ///
 /// <para>
 /// File Transformation is not in the official catalogue and most servers will not have
-/// it. Its absence is the normal case and costs nothing: the plugin keeps its Material
-/// glyph and this logs once at debug.
+/// it. Its absence is the normal case and costs nothing: the plugin's row keeps the icon
+/// the dashboard gives it, the Material glyph on 12 and the folder on 10.11, and this logs
+/// once at debug.
 /// </para>
 /// </remarks>
 public class DrawerLogoRegistration : IScheduledTask
@@ -70,7 +71,7 @@ public class DrawerLogoRegistration : IScheduledTask
         if (pluginInterface is null)
         {
             _logger.LogDebug(
-                "File Transformation is not installed, so the drawer keeps the Material icon");
+                "File Transformation is not installed, so the plugin's drawer row keeps the dashboard's icon");
             return Task.CompletedTask;
         }
 
@@ -91,7 +92,7 @@ public class DrawerLogoRegistration : IScheduledTask
             // which means it changed under us. Worth a warning rather than the silence
             // of a null conditional, since the outcome looks exactly like success.
             _logger.LogWarning(
-                "File Transformation is installed but has no {Method}, so the drawer keeps the Material icon",
+                "File Transformation is installed but has no {Method}, so the plugin's drawer row keeps the dashboard's icon",
                 RegisterMethod);
             return Task.CompletedTask;
         }

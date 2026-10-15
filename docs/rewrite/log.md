@@ -8,6 +8,47 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-15, what rehearsing the release found
+
+Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
+them, the routes were fuzzed from their OpenAPI description and every change went through a
+review. What that found landed today, each with its tests and a proof on a server:
+
+- **Cutting the release.** The build job now gets the version the release is cut as, where it
+  built 1.0.0.0 and then failed on its manifest, and a version the workflow refuses stops the run
+  (#235). A release whose first run pushed its tag and then failed is finished by a rerun, and
+  the tag and `main` go out together or not at all (#237). `make test` runs in Release, as the
+  release builds, where one test failed in Debug and would have stopped it (#240).
+- **The Yaml editor.** The first requests for `config/yaml` after a restart, made at once, no
+  longer answer 500 (#236). A document that sets nothing, `{}` or a setting with nothing under
+  it, is refused instead of replacing the configuration with nothing, NaN and the infinities are
+  refused by name, and a `null` in a list of notifications no longer fails the others (#257). The
+  emptiness is judged on the document as written, read event by event: its first version
+  followed aliases into themselves, and a document of two lines took the server down. The Yaml
+  tab keeps the configuration when a save is refused and takes what the server stored (#260),
+  and a document written with Seerr's block is stored as the keys alone (#261).
+- **The API.** A group name already in use answers 400 instead of 500, and a push token has a
+  length bound (#243). The plugin is out of Jellyfin's API document, which three of its type
+  names broke for the whole server (#256).
+- **Notifications.** The sentences an administrator rewrites are the ones sent (#239).
+- **The app 0.56.** Its four new settings are declared, and `maxAutoPlayEpisodeCount` stays for
+  the 0.55 apps that still read it (#264).
+- **Jellyfin 12 with the 10.11 build.** Jellyfin offers no update for a version it already has,
+  and both builds of a release share their number, so a server moved from 10.11 to 12 keeps the
+  build for 10.11. For You and My Media answer there again instead of 500 (#241).
+- **The drawer's mark** shows on Jellyfin 10.11 too, where the drawer draws the Folder icon for
+  every plugin whatever the plugin asks for (#268).
+- **The tests.** A test's cleanup emptied every SQLite pool while other classes ran, which failed
+  a build now and then; it empties the pools of its own databases only (#269).
+- **The release notes** say what reaches an administrator's app, what each app gets and what
+  Jellyfin 12 changes, with the view ids measured on a server moved from 10.11.11 to 12.2 (#267).
+- **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
+  Luxembourgish and Traditional Chinese, and reworded twelve Luxembourgish ones (#251).
+
+Left for later, each with its issue: the views Jellyfin 12 gives new ids (#255), the two ways
+the pages save (#262), a Seerr address that differs by a space (#263), the enums the parity
+check does not compare (#265) and a Yaml key written twice (#266).
+
 ## 2026-10-08, Crowdin's sync opens its own pull request
 
 Since the first run on 2026-10-05, the weekly Crowdin sync uploaded and downloaded but could not

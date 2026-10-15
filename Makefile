@@ -51,8 +51,11 @@ export RELEASE_TAG = $(if $(filter unstable,$(CHANNEL)),unstable-$(VERSION),$(VE
 # It works because targetAbi is a floor. A 10.11 server drops the jf12 entry and is
 # left with the jf11 one; a 12 server keeps both and takes the jf12 one, because the
 # writer sorts a shared version by targetAbi descending and the server's sort is
-# stable. So a server that moves from 10.11 to 12 is offered the right build without
-# anyone editing the URL they configured, which one file per line could never do.
+# stable. So a server that moves from 10.11 to 12 takes the jf12 build with the next
+# version it installs, without anyone editing the URL they configured, which one file
+# per line could never do. Until then it runs the jf11 build of the version it has:
+# Jellyfin only offers a higher version as an update, never the same one built for
+# another line, which is why that build has to work on 12 (Compat/Dtos.cs).
 export MANIFEST = $(if $(filter unstable,$(CHANNEL)),manifest-unstable.json,manifest.json)
 
 # How many versions the manifest keeps, counted in versions rather than entries,

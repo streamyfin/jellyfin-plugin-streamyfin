@@ -26,7 +26,7 @@ public class DeviceCapabilitiesTests : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        try { System.IO.Directory.Delete(_directory, recursive: true); } catch (System.IO.IOException) { }
+        TestDirectory.Delete(_directory);
         GC.SuppressFinalize(this);
     }
 
