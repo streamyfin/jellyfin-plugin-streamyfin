@@ -42,6 +42,8 @@ The **Home** tab edits the rows of the app's home screen as a list: what fills e
 
 Three admin alerts join the existing events: a **scheduled task that failed**, with the reason it gave, a **plugin installed, updated or removed**, and a **refused sign in**, with the name tried and where it came from. Every event can be turned off, aimed at a group or at one user, and written differently in any language, and each waits between two of the same so a server that keeps failing does not keep notifying. A new item is announced only to the people who can open the library it went into.
 
+Each person also chooses what reaches them: which events, which libraries new items come from, new episodes of the shows they favorited or started, a show they turn off, and a pause from an hour to a week, or until they lift it. The plugin keeps these choices, so they follow the account to every device; the app's screen for them is still to come (streamyfin/streamyfin#2216).
+
 <p align="center"><img width="800" alt="The Notifications tab with one card per event" src="https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/develop/assets/screenshots/notifications.png"></p>
 
 ### 29 languages
@@ -82,7 +84,7 @@ The app for Jellyfin 12 is 0.56 (streamyfin/streamyfin#2192), with the sign in, 
 - **`POST /streamyfin/notification` needs an administrator** now.
 - **The plugin's routes are no longer in Jellyfin's API documentation.** Swagger and `/api-docs/openapi.json` leave them out: with them in, one type name the plugin shares with Jellyfin or with another plugin made the whole document answer 500. The routes answer as before.
 - **The three new admin alerts are off on a server that was already running**, since its stored configuration does not mention them. A fresh install has them on.
-- **Moving a server to Jellyfin 12.** Jellyfin 12 gives the Live TV view, and each account's Playlists view, a new id, once; Collections keeps its own. Where Hidden libraries holds one of the old ids, for the server, a group or one account, the view shows again in the app, and a locked value keeps the app from hiding it itself. Those views are not in the list of libraries the tabs offer, which shows an old id as Other: write the new id, which `/UserViews` gives for each account, in the Yaml Editor after the upgrade (#255).
+- **Moving a server to Jellyfin 12.** The server keeps the build for 10.11 until the next release, since Jellyfin only offers a higher version as an update, and that build runs on 12 (#247). Jellyfin 12 gives the Live TV view, and each account's Playlists view, a new id, once; Collections keeps its own. Where Hidden libraries holds one of the old ids, for the server, a group or one account, the view shows again in the app, and a locked value keeps the app from hiding it itself. Those views are not in the list of libraries the tabs offer, which shows an old id as Other: write the new id, which `/UserViews` gives for each account, in the Yaml Editor after the upgrade (#255).
 - **Notifications go out in batches of 100 devices.** No test server could try a send to more than 100 real devices.
 
 ## How to try it
