@@ -24,7 +24,7 @@ settings:
   
   maxAutoPlayEpisodeCount:
     locked: false
-    value: 3  # Maximum episodes to autoplay (1-10)
+    value: 3  # Apps before 0.56: episodes played in a row on their own, up to 7; 0 or -1 for no limit
 
   # ==================== Audio Settings ====================
   rememberAudioSelections:

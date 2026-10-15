@@ -396,13 +396,16 @@ public class SettingsFormTests
     /// flag is passed to the mute hook under <c>enabled: subtitlesOnMute</c>, the
     /// look-ahead count is read after an early return on <c>audioLookaheadEnabled</c>,
     /// the hold rate after one on <c>enableHoldToSpeed</c>, and the background opacity
-    /// only feeds the alpha of a background that <c>subtitleBackground</c> draws.
+    /// only feeds the alpha of a background that <c>subtitleBackground</c> draws. The still
+    /// watching preset is greyed while <c>autoPlayNextEpisode</c> is off, and the native player
+    /// only asks while auto play is on.
     /// </remarks>
     [Theory]
     [InlineData("subtitlesOnMuteAllowRestart", "subtitlesOnMute")]
     [InlineData("audioLookaheadCount", "audioLookaheadEnabled")]
     [InlineData("holdToSpeedRate", "enableHoldToSpeed")]
     [InlineData("subtitleBackgroundOpacity", "subtitleBackground")]
+    [InlineData("stillWatchingPreset", "autoPlayNextEpisode")]
     public void ADependentSettingNamesWhatItDependsOn(string key, string parent)
     {
         Assert.Equal(parent, Field(key).DependsOn);

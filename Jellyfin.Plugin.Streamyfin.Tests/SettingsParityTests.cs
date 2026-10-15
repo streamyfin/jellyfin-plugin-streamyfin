@@ -41,10 +41,6 @@ public class SettingsParityTests
             + "there is nothing an administrator could put in it.",
         ["playbackSpeedPerShow"] =
             "Not a setting. A map the player writes by itself, keyed by series id.",
-        ["autoPlayEpisodeCount"] =
-            "Not a setting. A counter the player keeps by itself, of the episodes it has "
-            + "played in a row against maxAutoPlayEpisodeCount; a locked value would stop "
-            + "auto play for good or never.",
         ["videoPlayer"] =
             "Picks the engine and the controls for every platform at once: ExoPlayer, which "
             + "Android TV needs for HDR, also moves every iPhone off the native controls. A "
@@ -100,7 +96,14 @@ public class SettingsParityTests
     /// than deleting them. An entry dies when the plugin stops declaring the key, or when
     /// the app reads it again.
     /// </remarks>
-    private static readonly Dictionary<string, string> KeptForAppsInTheField = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> KeptForAppsInTheField = new(StringComparer.Ordinal)
+    {
+        ["maxAutoPlayEpisodeCount"] =
+            "The app 0.56 replaced it with stillWatchingPreset (streamyfin#2192) and reads it "
+            + "only to carry it over: migrateStillWatchingSetting turns the plugin's count "
+            + "into the first preset with at least as many episodes, and an administrator's lock on it beats an unlocked "
+            + "preset. The 0.55 apps in the field read nothing else to cap auto play.",
+    };
 
     /// <summary>
     /// One setting the app reads, as <c>scripts/app-settings-manifest.js</c> writes it.
@@ -642,6 +645,18 @@ public class SettingsParityTests
     }
 
     /// <summary>
+    /// A key kept for the apps in the field keeps their default, so Reset stays beside it. The
+    /// manifest is written from the app's develop, which no longer declares the key.
+    /// </summary>
+    [Fact]
+    public void AKeyKeptForTheAppsInTheFieldKeepsTheirDefault()
+    {
+        var without = KeptForAppsInTheField.Keys.Where(key => AppDefaults.For(key) is null).ToArray();
+
+        Assert.True(without.Length == 0, "Kept for the apps in the field, with no default to reset to:\n  " + string.Join("\n  ", without));
+    }
+
+    /// <summary>
     /// A key kept for the apps in the field is stale from both sides.
     /// </summary>
     [Fact]
@@ -881,8 +896,8 @@ public class SettingsParityTests
     /// An enum reaches the app under the string the app compares against.
     /// </summary>
     /// <remarks>
-    /// Three of these cannot be spelled as a C# member name: <c>5.1</c> and
-    /// <c>gpu-next</c> are not identifiers, and <c>default</c> is a keyword. Renaming a
+    /// Some of these cannot be spelled as a C# member name: <c>5.1</c> and <c>gpu-next</c>
+    /// are not identifiers, and <c>default</c> and <c>long</c> are keywords. Renaming a
     /// member to something legal without saying so on the wire is silent: the build
     /// passes, the app receives a string it has no case for, and the setting does
     /// nothing.
@@ -908,6 +923,14 @@ public class SettingsParityTests
     [InlineData(SubtitleAlignX.Center, "\"center\"")]
     [InlineData(SubtitleAlignY.Bottom, "\"bottom\"")]
     [InlineData(SubtitleAlignY.Top, "\"top\"")]
+    [InlineData(MusicNormalizationMode.Off, "\"off\"")]
+    [InlineData(MusicNormalizationMode.Track, "\"track\"")]
+    [InlineData(MusicNormalizationMode.Album, "\"album\"")]
+    [InlineData(StillWatchingPreset.Disabled, "\"disabled\"")]
+    [InlineData(StillWatchingPreset.Short, "\"short\"")]
+    [InlineData(StillWatchingPreset.Default, "\"default\"")]
+    [InlineData(StillWatchingPreset.Long, "\"long\"")]
+    [InlineData(StillWatchingPreset.VeryLong, "\"veryLong\"")]
     // The app compares the SDK's strings for this one. It was written as a number until
     // the regenerated manifest showed it, and a locked mode did nothing.
     [InlineData(SubtitlePlaybackMode.Default, "\"Default\"")]

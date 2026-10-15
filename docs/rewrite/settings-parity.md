@@ -40,8 +40,8 @@ all pick it up with no further change.
 **50 of the 52 are decided as declarable.** Two are not. One of the 50,
 `downloadQuality`, needs a matching app change before it can land, for the reason
 given under the type rules below. These are the first study's numbers, on the 52
-settings the app had then; the manifest records 95 now, and the keys taken out since are
-under "Six keys left again" below.
+settings the app had then; the manifest records 97 now, and the keys taken out since are
+under "Six keys left again" and "The app 0.56" below.
 
 `playbackSpeedPerMedia` and `playbackSpeedPerShow` stay out. They are not
 settings. They are `Record<string, number>` maps the player writes by itself,
@@ -157,9 +157,20 @@ had one. `videoPlayer` picks the engine and the controls for every platform at o
 value an administrator set for Android TV, ExoPlayer for HDR, also moved every iPhone
 off the native controls. `autoPlayEpisodeCount` is no setting: it is the counter the player
 keeps against the maximum, and a locked value would stop auto play for good or never. The
-six are in `NotDeclared` with the reasons, and the two native player switches, which each
+six went into `NotDeclared` with the reasons, and the two native player switches, which each
 name one platform, stay. None of the six was in 0.68.1, so only an unstable build ever
 stored one; a stored configuration that holds one still loads, without it.
+
+**The app 0.56.** Four keys arrived: `musicNormalizationMode`, `showUpcomingOnHome` and
+`stillWatchingPreset` with Jellyfin 12's support (streamyfin#2192), `syncPlayIgnoreWait` with
+SyncPlay in the native players (streamyfin#2201). All four are declared without a default,
+so the app keeps its own until an administrator sets one. `stillWatchingPreset` replaces
+`maxAutoPlayEpisodeCount`, which the app now reads only to carry it over to the first preset
+that allows at least as many episodes, so the plugin keeps declaring it for the 0.55 apps
+in the field, in `KeptForAppsInTheField`, with their default of 3 for Reset. 0 or -1 sets no
+limit there and reads as Disabled in 0.56, and a lock on the count wins over a preset left
+unlocked, which both descriptions say. `autoPlayEpisodeCount` left the app at the same time,
+and its entry in `NotDeclared` went with it, leaving five.
 
 ## The manifest, and the test that reads it
 

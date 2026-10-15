@@ -210,6 +210,54 @@ public enum TVTypographyScale
     ExtraLarge
 };
 
+/// <summary>
+/// How the app evens out the loudness of music, as its <c>MUSIC_NORMALIZATION_MODES</c>
+/// names the choices.
+/// </summary>
+[JsonConverter(typeof(StringEnumConverter))]
+public enum MusicNormalizationMode
+{
+    [EnumMember(Value = "off")]
+    [JsonStringEnumMemberName("off")]
+    Off,
+
+    [EnumMember(Value = "track")]
+    [JsonStringEnumMemberName("track")]
+    Track,
+
+    [EnumMember(Value = "album")]
+    [JsonStringEnumMemberName("album")]
+    Album
+};
+
+/// <summary>
+/// When the app asks whether someone is still watching, as its <c>StillWatchingPreset</c>
+/// names the choices. The thresholds are jellyfin-web 12's.
+/// </summary>
+[JsonConverter(typeof(StringEnumConverter))]
+public enum StillWatchingPreset
+{
+    [EnumMember(Value = "disabled")]
+    [JsonStringEnumMemberName("disabled")]
+    Disabled,
+
+    [EnumMember(Value = "short")]
+    [JsonStringEnumMemberName("short")]
+    Short,
+
+    [EnumMember(Value = "default")]
+    [JsonStringEnumMemberName("default")]
+    Default,
+
+    [EnumMember(Value = "long")]
+    [JsonStringEnumMemberName("long")]
+    Long,
+
+    [EnumMember(Value = "veryLong")]
+    [JsonStringEnumMemberName("veryLong")]
+    VeryLong
+};
+
 [JsonConverter(typeof(StringEnumConverter))]
 public enum DownloadQuality
 {
