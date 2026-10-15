@@ -1,0 +1,77 @@
+{
+  "seed": "",
+  "iterations": {
+    "unit": 100,
+    "integration": 0
+  },
+  "timeBudgetSeconds": 0,
+  "jellyfin": {
+    "lines": []
+  },
+  "faults": {},
+  "floors": {
+    "slack": 1.0
+  },
+  "mutation": {
+    "iterations": 10,
+    "cs": {
+      "concurrency": 4,
+      "additionalTimeoutMs": 5000,
+      "shards": [
+        { "name": "configuration", "mutate": ["**/Configuration/**/*.cs"] },
+        { "name": "notifications", "mutate": ["**/PushNotifications/**/*.cs"] },
+        { "name": "data", "mutate": ["**/Db/**/*.cs", "**/Migrations/**/*.cs"] },
+        {
+          "name": "rest",
+          "mutate": ["**/*.cs", "!**/Configuration/**", "!**/PushNotifications/**", "!**/Db/**", "!**/Migrations/**"]
+        }
+      ]
+    },
+    "js": {
+      "concurrency": 4,
+      "timeoutMS": 10000,
+      "shards": [
+        {
+          "name": "pages-form",
+          "mutate": ["Jellyfin.Plugin.Streamyfin/Pages/settings-form.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Pages"]
+        },
+        {
+          "name": "pages-targeting",
+          "mutate": ["Jellyfin.Plugin.Streamyfin/Pages/Targeting/**/*.js", "Jellyfin.Plugin.Streamyfin/Pages/Other/**/*.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Pages"]
+        },
+        {
+          "name": "pages-home",
+          "mutate": ["Jellyfin.Plugin.Streamyfin/Pages/Home/**/*.js", "Jellyfin.Plugin.Streamyfin/Pages/home-editor.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Pages"]
+        },
+        {
+          "name": "pages-shared",
+          "mutate": [
+            "Jellyfin.Plugin.Streamyfin/Pages/shared.js",
+            "Jellyfin.Plugin.Streamyfin/Pages/YamlEditor/**/*.js",
+            "Jellyfin.Plugin.Streamyfin/Pages/own-choices.js",
+            "Jellyfin.Plugin.Streamyfin/Pages/wording-editor.js"
+          ],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Pages"]
+        },
+        {
+          "name": "pages-notifications",
+          "mutate": ["Jellyfin.Plugin.Streamyfin/Pages/Notifications/**/*.js", "Jellyfin.Plugin.Streamyfin/Pages/Application/**/*.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Pages"]
+        },
+        {
+          "name": "scripts-manifest",
+          "mutate": ["scripts/app-settings-manifest.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts"]
+        },
+        {
+          "name": "scripts-rest",
+          "mutate": ["scripts/**/*.js", "!scripts/app-settings-manifest.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts", "Jellyfin.Plugin.Streamyfin.Tests/Measure"]
+        }
+      ]
+    }
+  }
+}

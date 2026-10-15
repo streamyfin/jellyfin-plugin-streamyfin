@@ -1,0 +1,4 @@
+# The test settings and the measuring scripts read the same on every system.
+tests/** text eol=lf
+scripts/measure/** text eol=lf
+Jellyfin.Plugin.Streamyfin.Tests/Measure/** text eol=lf

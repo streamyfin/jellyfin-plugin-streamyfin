@@ -10,3 +10,7 @@ dist/
 env.local
 github
 Jellyfin.Plugin.Streamyfin.sln.DotSettings.user
+# What the measuring tools write
+artifacts/
+StrykerOutput/
+.stryker-tmp/
