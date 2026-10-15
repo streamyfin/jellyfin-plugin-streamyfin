@@ -56,11 +56,75 @@ public class DowngradeRoundTripTests : IDisposable
     /// </remarks>
     private static Config ThroughXml(Config config)
     {
-        var serializer = new XmlSerializer(typeof(PluginConfiguration));
         using var writer = new StringWriter();
-        serializer.Serialize(writer, new PluginConfiguration { Config = config });
-        using var reader = new StringReader(writer.ToString());
-        return ((PluginConfiguration)serializer.Deserialize(reader)!).Config;
+        new XmlSerializer(typeof(PluginConfiguration)).Serialize(writer, new PluginConfiguration { Config = config });
+        return FromXml(writer.ToString());
+    }
+
+    /// <summary>
+    /// The configuration Jellyfin reads from the plugin's XML file.
+    /// </summary>
+    private static Config FromXml(string xml)
+    {
+        using var reader = new StringReader(xml);
+        return ((PluginConfiguration)new XmlSerializer(typeof(PluginConfiguration)).Deserialize(reader)!).Config;
+    }
+
+    /// <summary>
+    /// The XML an earlier version wrote is read as it was meant, element names included.
+    /// </summary>
+    /// <remarks>
+    /// The serializer names the items of a list after their type, so a section's sort
+    /// order is written as <c>&lt;SortOrder&gt;Descending&lt;/SortOrder&gt;</c>. A type
+    /// renamed without keeping that name would drop the sort order of every section in a
+    /// file written before, on the first start after the update and with nothing in the
+    /// log. The text is what 0.70.0.0 and the versions before it write for these three
+    /// settings.
+    /// </remarks>
+    [Fact]
+    public void TheFileAnEarlierVersionWroteIsReadAsItWasMeant()
+    {
+        const string written = """
+            <?xml version="1.0" encoding="utf-16"?>
+            <PluginConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+              <Config>
+                <settings>
+                  <home>
+                    <locked>false</locked>
+                    <value>
+                      <sections>
+                        <Section>
+                          <title>Recently Added</title>
+                          <items>
+                            <sortOrder>
+                              <SortOrder>Descending</SortOrder>
+                            </sortOrder>
+                          </items>
+                        </Section>
+                      </sections>
+                    </value>
+                  </home>
+                  <subtitleMode>
+                    <locked>true</locked>
+                    <value>Smart</value>
+                  </subtitleMode>
+                  <libraryOptions>
+                    <locked>true</locked>
+                    <value>
+                      <display>row</display>
+                    </value>
+                  </libraryOptions>
+                </settings>
+              </Config>
+            </PluginConfiguration>
+            """;
+
+        var settings = FromXml(written).settings!;
+
+        var section = Assert.Single(settings.home!.value!.sections!);
+        Assert.Equal([SortOrder.Descending], section.items!.sortOrder!);
+        Assert.Equal(SubtitlePlaybackMode.Smart, settings.subtitleMode!.value);
+        Assert.Equal(DisplayType.row, settings.libraryOptions!.value!.display);
     }
 
     /// <summary>

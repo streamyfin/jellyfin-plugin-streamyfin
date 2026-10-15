@@ -69,6 +69,7 @@ The plugin is built for Jellyfin 10.11 and for Jellyfin 12 from one tree, and on
 - **Seerr.** The three Seerr settings are read under their new names (`seerrServerUrl`, `seerrApiKey`, `autoLoginSeerr`) and still sent under the old ones for the apps in the field. Nothing to change.
 - **If you had set the Seerr API key, rotate it.** Earlier versions sent it to every signed-in device; 0.70 sends credentials to administrators only, but the devices that connected before kept their copy.
 - **`POST /streamyfin/notification` needs an administrator** now.
+- **The plugin's routes are no longer in Jellyfin's API documentation.** Swagger and `/api-docs/openapi.json` leave them out: with them in, one type name the plugin shares with Jellyfin or with another plugin made the whole document answer 500. The routes answer as before.
 - **The three new admin alerts are off on a server that was already running**, since its stored configuration does not mention them. A fresh install has them on.
 - **Notifications go out in batches of 100 devices.** No test server could try a send to more than 100 real devices.
 
