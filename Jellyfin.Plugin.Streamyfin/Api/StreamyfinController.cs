@@ -31,8 +31,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using YamlDotNet.RepresentationModel;
 using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 
 // The plugin has a SortOrder of its own, in the settings it serves to the app. This one is
 // the server's, for the queries below.
@@ -241,34 +241,98 @@ public class StreamyfinController : ControllerBase
   // what a document leaves out (locked is false, a number is 0), so a setting with nothing
   // under it reads as values nobody wrote. A scalar that is null or blank gives no value, a
   // list gives one, empty or not, and a mapping gives one when something under it does. A
-  // document this reader cannot load, a key written twice for one, is left to the
-  // deserializer, as it always was.
+  // document this reader cannot parse is left to the deserializer, as it always was.
+  //
+  // Read event by event, in one pass with no recursion, rather than loaded as a tree. In the
+  // tree an alias is the very node its anchor names, so a node can hold itself: walking it
+  // never ended, a key that held itself overflowed the stack as soon as the tree hashed it,
+  // and either took the server's process down. Here an alias counts what its anchor was
+  // judged to give, and an alias inside the node it names, not judged yet, counts as a
+  // value, which leaves such a document to the deserializer.
   private static bool WritesAValue(string yaml)
   {
-    var stream = new YamlStream();
+    var parser = new Parser(new StringReader(yaml));
+    var judged = new Dictionary<AnchorName, bool>();
+    var open = new Stack<OpenNode>();
+    var writes = false;
+
     try
     {
-      stream.Load(new StringReader(yaml));
+      while (parser.MoveNext())
+      {
+        switch (parser.Current)
+        {
+          case MappingStart or SequenceStart when open.Count == DeepestToJudge:
+            // Far deeper than any configuration, whose deepest point is 8 levels down. Each
+            // level makes YamlDotNet's scanner slower on every token after it, and the
+            // deserializer refuses such a document without reading that far.
+            return true;
+          case MappingStart mapping:
+            Open(mapping.Anchor, isMapping: true);
+            break;
+          case SequenceStart sequence:
+            Open(sequence.Anchor, isMapping: false);
+            break;
+          case MappingEnd or SequenceEnd:
+            var done = open.Pop();
+            Close(done.Anchor, !done.IsMapping || done.Writes);
+            break;
+          case Scalar scalar:
+            Close(scalar.Anchor, !(scalar.Style == ScalarStyle.Plain && scalar.Value is "" or "~" or "null" or "Null" or "NULL")
+              && !string.IsNullOrWhiteSpace(scalar.Value));
+            break;
+          case AnchorAlias alias:
+            Close(AnchorName.Empty, !judged.TryGetValue(alias.Value, out var named) || named);
+            break;
+        }
+      }
     }
     catch (YamlException)
     {
       return true;
     }
-    catch (ArgumentException)
+
+    return writes;
+
+    void Open(AnchorName anchor, bool isMapping)
     {
-      return true;
+      // An earlier node of the same name no longer answers for it.
+      judged.Remove(anchor);
+      open.Push(new OpenNode(anchor, isMapping));
     }
 
-    return stream.Documents.Any(document => WritesAValue(document.RootNode));
+    void Close(AnchorName anchor, bool value)
+    {
+      if (!anchor.IsEmpty)
+      {
+        judged[anchor] = value;
+      }
+
+      if (!open.TryPeek(out var parent))
+      {
+        writes |= value;
+      }
+      else if (parent.IsMapping)
+      {
+        // Keys and values alternate; only a value can write one.
+        parent.Writes |= parent.AtValue && value;
+        parent.AtValue = !parent.AtValue;
+      }
+    }
   }
 
-  private static bool WritesAValue(YamlNode node) => node switch
+  private const int DeepestToJudge = 64;
+
+  private sealed class OpenNode(AnchorName anchor, bool isMapping)
   {
-    YamlScalarNode scalar => !(scalar.Style == ScalarStyle.Plain && scalar.Value is "" or "~" or "null" or "Null" or "NULL")
-      && !string.IsNullOrWhiteSpace(scalar.Value),
-    YamlMappingNode mapping => mapping.Children.Any(child => WritesAValue(child.Value)),
-    _ => true,
-  };
+    public AnchorName Anchor { get; } = anchor;
+
+    public bool IsMapping { get; } = isMapping;
+
+    public bool AtValue { get; set; }
+
+    public bool Writes { get; set; }
+  }
 
   /// <summary>
   /// Why a configuration read from the Yaml editor is not saved, or null to save it.

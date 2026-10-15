@@ -57,6 +57,7 @@ public class EmptyBodiesTests
     [InlineData("settings:\n  jellyseerrServerUrl:\n    value:\n")]
     [InlineData("settings:\n  jellyseerrServerUrl:\n    value: ~\n")]
     [InlineData("notifications:\n  itemAdded: {}\n")]
+    [InlineData("settings:\n  forwardSkipTime: &none\n    value: ~\n  rewindSkipTime: *none\n")]
     public void AYamlThatSetsNothingIsRefused(string yaml)
     {
         Assert.Equal(StreamyfinController.EmptyYaml, Decide(yaml));
@@ -74,6 +75,7 @@ public class EmptyBodiesTests
     [InlineData("notifications:\n  wording: []\n")]
     [InlineData("settings:\n  forwardSkipTime:\n    value: 0\n")]
     [InlineData("settings:\n  autoLoginJellyseerr:\n    value: false\n")]
+    [InlineData("settings:\n  forwardSkipTime: &skip\n    value: 20\n  rewindSkipTime: *skip\n")]
     public void AYamlThatSetsSomethingIsSaved(string yaml)
     {
         Assert.Null(Decide(yaml));
