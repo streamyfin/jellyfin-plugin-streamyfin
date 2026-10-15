@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "measure": "bun scripts/measure/cli.js all",
+    "measure:verdict": "bun scripts/measure/cli.js verdict",
+    "floors:raise": "bun scripts/measure/cli.js raise"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.13.2",
