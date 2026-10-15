@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -91,6 +92,9 @@ public class SettingsParityTests
 
     private const string NextEpisodes =
         "streamyfin/streamyfin#2275 adds Next episodes to the app's Downloads settings and reads it there.";
+
+    // How the dashboard tells an administrator that a setting does nothing yet.
+    private const string NotReadYet = ". No released app reads it yet";
 
     /// <summary>
     /// Keys the plugin still declares for the copies of the app in the field, which the
@@ -333,6 +337,31 @@ public class SettingsParityTests
             unknown.Length == 0,
             "Declared, but the app reads no such key. One the apps in the field still read "
             + "belongs in KeptForAppsInTheField:\n  " + string.Join("\n  ", unknown));
+    }
+
+    /// <summary>
+    /// A setting declared ahead of the app says so on the dashboard, and only that one.
+    /// </summary>
+    /// <remarks>
+    /// Locked, it changes nothing on any device until an app reads it, and a lock that looks
+    /// like it works was the mistake of pull request #109. The sentence goes with the entry
+    /// in <see cref="DeclaredAheadOfTheApp"/>, so it leaves when the app catches up.
+    /// </remarks>
+    [Fact]
+    public void ASettingDeclaredAheadOfTheAppSaysSo()
+    {
+        var wrong = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => DeclaredAheadOfTheApp.ContainsKey(property.Name)
+                != (property.GetCustomAttribute<DisplayAttribute>()?.Description?.EndsWith(NotReadYet, StringComparison.Ordinal) ?? false))
+            .Select(property => property.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            wrong.Length == 0,
+            "Declared ahead of the app without saying so, or saying so for a key the app reads:\n  "
+            + string.Join("\n  ", wrong));
     }
 
     /// <summary>

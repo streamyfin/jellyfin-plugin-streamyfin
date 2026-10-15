@@ -390,18 +390,18 @@ public class Settings
     // download sheet. Each such series keeps its own count once on, and the sheet lets a
     // person pick another whatever the lock: the count here is the one it starts with.
     [NotNull]
-    [Display(Name = "Episodes to keep", Description = "How many of the next unwatched episodes a series turned on from now on starts with. A series already on keeps its own count, and a person can pick another for a series in its download sheet, locked or not")]
+    [Display(Name = "Episodes to keep", Description = "How many of the next unwatched episodes a series turned on from now on starts with. A series already on keeps its own count, and a person can pick another for a series in its download sheet, locked or not. No released app reads it yet")]
     [SettingScope("Downloads", Group = "Next episodes")]
     [Bounds(3, 10)]
     public Lockable<int>? nextEpisodesDownloadCount { get; set; } // = 3;
 
     [NotNull]
-    [Display(Name = "Download over", Description = "Which connection next episodes may download over. Home network only uses the server's local address set up in the app under Network, never the remote one, and a device with none set up there downloads no next episode")]
+    [Display(Name = "Download over", Description = "Which connection next episodes may download over. Home network only uses the server's local address set up in the app under Network, never the remote one, and a device with none set up there downloads no next episode. No released app reads it yet")]
     [SettingScope("Downloads", Group = "Next episodes")]
     public Lockable<NextEpisodesNetwork>? nextEpisodesNetwork { get; set; } // = wifi;
 
     [NotNull]
-    [Display(Name = "Delete any watched download", Description = "When a series deletes its watched episodes, also delete the ones downloaded by hand, not only those it downloaded itself")]
+    [Display(Name = "Delete any watched download", Description = "When a series deletes its watched episodes, also delete the ones downloaded by hand, not only those it downloaded itself. No released app reads it yet")]
     [SettingScope("Downloads", Group = "Next episodes")]
     public Lockable<bool>? nextEpisodesDeleteAnyDownload { get; set; } // = false;
     // No default for either. The app leaves both null and follows what the server or the
