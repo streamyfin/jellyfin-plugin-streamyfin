@@ -64,8 +64,10 @@ review. What that found landed today, each with its tests and a proof on a serve
 Left for later, each with its issue: the views Jellyfin 12 gives new ids (#255), the two ways
 the pages save (#262), a Seerr address that differs by a space (#263), the enums the parity
 check does not compare (#265), a Yaml key written twice (#266), the server and the user a
-notification is for, which a button needs to act on the right account (#273), and what the
-review of #276 found around group names and the titles in the log (#277).
+notification is for, which a button needs to act on the right account (#273), what the
+review of #276 found around group names and the titles in the log (#277), and the placeholder
+addresses earlier versions stored, which a server upgraded from a default configuration still
+serves as its Seerr address (#279, found by the final candidate's run).
 
 ## 2026-10-08, Crowdin's sync opens its own pull request
 
