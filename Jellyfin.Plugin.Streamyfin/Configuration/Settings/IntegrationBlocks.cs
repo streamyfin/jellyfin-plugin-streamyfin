@@ -62,9 +62,9 @@ public static class IntegrationBlocks
     public static readonly IReadOnlyList<string> FlatSeerrKeys = [.. _seerr.Select(seerr => seerr.Flat)];
 
     /// <summary>
-    /// Copies what a block says onto the keys everything else reads.
+    /// Copies what a block says onto the keys everything else reads, then removes the block.
     /// </summary>
-    /// <param name="settings">The settings, changed in place.</param>
+    /// <param name="settings">The settings, changed in place: the block is gone after this.</param>
     /// <remarks>
     /// Only where the block says something. A block that names one of the three leaves
     /// the other two alone, which is what a level overriding one setting means.
@@ -79,6 +79,10 @@ public static class IntegrationBlocks
         settings.jellyseerrServerUrl = block.serverUrl ?? settings.jellyseerrServerUrl;
         settings.jellyseerrApiKey = block.apiKey ?? settings.jellyseerrApiKey;
         settings.autoLoginJellyseerr = block.autoLogin ?? settings.autoLoginJellyseerr;
+
+        // Read, then gone. Kept beside the keys, the block was stored as a second copy, and the
+        // next document that changed a key by itself disagreed with it and was refused.
+        settings.seerr = null;
     }
 
     /// <summary>
