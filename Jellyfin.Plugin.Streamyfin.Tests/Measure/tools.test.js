@@ -7,7 +7,7 @@ const settings = {
     mutation: {
         iterations: 10,
         cs: { concurrency: 4, additionalTimeoutMs: 5000 },
-        js: { concurrency: 3, timeoutMS: 10000 },
+        js: { concurrency: 3, timeoutMS: 10000, skippedTests: ["Jellyfin.Plugin.Streamyfin.Tests/Scripts/release-resume.test.js"] },
     },
 };
 
@@ -48,14 +48,17 @@ describe("a C# mutation shard", () => {
     });
 
     // The timeout is a setting, so a mutant that flips between Timeout and Survived can be
-    // given more time rather than turn the verdict red.
+    // given more time rather than turn the verdict red. Stryker.NET only reads it from its
+    // configuration file, so each shard gets one of its own, next to its reports.
     test("runs with the concurrency, the timeout and the draws its settings give", () => {
-        const { command, env } = mutationCs({ shard, settings, owners });
+        const base = { "stryker-config": { project: "Jellyfin.Plugin.Streamyfin.csproj", reporters: ["json"] } };
+        const { command, env, config, configFile } = mutationCs({ shard, settings, owners, base });
 
-        expect(command).toContain("--config-file");
+        expect(configFile).toBe("artifacts/mutation-cs-data/stryker-config.json");
+        expect(command[command.indexOf("--config-file") + 1]).toBe("../artifacts/mutation-cs-data/stryker-config.json");
+        expect(config).toEqual({ "stryker-config": { ...base["stryker-config"], "additional-timeout": 5000 } });
         expect(command[command.indexOf("--output") + 1]).toBe("../artifacts/mutation-cs-data");
         expect(command[command.indexOf("--concurrency") + 1]).toBe("4");
-        expect(command[command.indexOf("--additional-timeout") + 1]).toBe("5000");
         expect(env).toEqual({ STREAMYFIN_TEST_ITERATIONS_UNIT: "10" });
     });
 });
@@ -72,7 +75,9 @@ describe("a JavaScript mutation shard", () => {
         expect(config).toEqual({
             ...base,
             mutate: ["Jellyfin.Plugin.Streamyfin/Pages/settings-form.js", "!Jellyfin.Plugin.Streamyfin/Pages/Libraries/**"],
-            commandRunner: { command: "bun test Jellyfin.Plugin.Streamyfin.Tests/Pages" },
+            commandRunner: {
+                command: "bun test Jellyfin.Plugin.Streamyfin.Tests/Pages --path-ignore-patterns=Jellyfin.Plugin.Streamyfin.Tests/Scripts/release-resume.test.js",
+            },
             concurrency: 3,
             timeoutMS: 10000,
             jsonReporter: { fileName: "artifacts/mutation-js-pages-form/mutation.json" },

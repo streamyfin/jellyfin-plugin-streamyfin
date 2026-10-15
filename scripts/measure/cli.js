@@ -124,7 +124,14 @@ const commands = {
     },
     "mutation-cs": (settings, [name]) => {
         fresh("artifacts", `mutation-cs-${name}`);
-        run(mutationCs({ shard: shardNamed(settings, "cs", name), settings, owners: readOwners(ROOT) }));
+        const job = mutationCs({
+            shard: shardNamed(settings, "cs", name),
+            settings,
+            owners: readOwners(ROOT),
+            base: readJson(join(ROOT, "Jellyfin.Plugin.Streamyfin.Tests", "stryker-config.json")),
+        });
+        writeFileSync(join(ROOT, job.configFile), `${JSON.stringify(job.config, null, 2)}\n`);
+        run(job);
     },
     "mutation-js": (settings, [name]) => {
         fresh("artifacts", `mutation-js-${name}`);

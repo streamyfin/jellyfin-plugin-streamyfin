@@ -1,0 +1,10 @@
+[
+  { "file": "Jellyfin.Plugin.Streamyfin/Api/StreamyfinController.cs", "reason": "Every route of the plugin, called through Jellyfin's API with its authentication: the integration matrix of route and caller answers for it." },
+  { "file": "Jellyfin.Plugin.Streamyfin/Plugin.cs", "reason": "Built by Jellyfin with its application paths and XML serializer, which only a running server has." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PluginServiceRegistrator.cs", "reason": "Registers the plugin's services in Jellyfin's container when the server starts." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PushNotifications/Events/PlaybackStartEvent.cs", "reason": "One of Jellyfin's event consumers, fed by its event bus; what it sends is built by services that have unit tests." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PushNotifications/Events/PluginChangedEvent.cs", "reason": "One of Jellyfin's event consumers, fed by its event bus; what it sends is built by services that have unit tests." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PushNotifications/Events/SessionStartEvent.cs", "reason": "One of Jellyfin's event consumers, fed by its event bus; what it sends is built by services that have unit tests." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PushNotifications/Events/SignInFailedEvent.cs", "reason": "One of Jellyfin's event consumers, fed by its event bus; what it sends is built by services that have unit tests." },
+  { "file": "Jellyfin.Plugin.Streamyfin/PushNotifications/Events/UserLockedOutEvent.cs", "reason": "One of Jellyfin's event consumers, fed by its event bus; what it sends is built by services that have unit tests." }
+]

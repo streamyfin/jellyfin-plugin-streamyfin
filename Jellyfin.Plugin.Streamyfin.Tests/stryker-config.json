@@ -1,0 +1,8 @@
+{
+  "stryker-config": {
+    "project": "Jellyfin.Plugin.Streamyfin.csproj",
+    "configuration": "Release",
+    "reporters": ["json", "html", "progress"],
+    "mutate": ["**/*.cs", "!**/obj/**", "!**/Migrations/*.Designer.cs", "!**/Migrations/*ModelSnapshot.cs"]
+  }
+}

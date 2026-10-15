@@ -30,6 +30,7 @@
     "js": {
       "concurrency": 4,
       "timeoutMS": 10000,
+      "skippedTests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts/release-resume.test.js"],
       "shards": [
         {
           "name": "pages-form",
@@ -67,9 +68,14 @@
           "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts"]
         },
         {
+          "name": "scripts-measure",
+          "mutate": ["scripts/measure/**/*.js"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Measure"]
+        },
+        {
           "name": "scripts-rest",
-          "mutate": ["scripts/**/*.js", "!scripts/app-settings-manifest.js"],
-          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts", "Jellyfin.Plugin.Streamyfin.Tests/Measure"]
+          "mutate": ["scripts/**/*.js", "!scripts/app-settings-manifest.js", "!scripts/measure/**"],
+          "tests": ["Jellyfin.Plugin.Streamyfin.Tests/Scripts"]
         }
       ]
     }

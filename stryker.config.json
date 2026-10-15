@@ -1,0 +1,12 @@
+{
+  "testRunner": "command",
+  "coverageAnalysis": "off",
+  "reporters": ["json", "html", "clear-text", "progress"],
+  "mutate": [
+    "Jellyfin.Plugin.Streamyfin/Pages/**/*.js",
+    "scripts/**/*.js",
+    "!Jellyfin.Plugin.Streamyfin/Pages/Libraries/**"
+  ],
+  "commandRunner": { "command": "bun test" },
+  "ignorePatterns": ["!.git"]
+}

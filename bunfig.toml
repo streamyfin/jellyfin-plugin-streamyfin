@@ -3,3 +3,6 @@
 [test]
 root = "Jellyfin.Plugin.Streamyfin.Tests"
 preload = ["./Jellyfin.Plugin.Streamyfin.Tests/Pages/dom.setup.js"]
+# Coverage, when it is asked for: the libraries the pages ship are not ours to measure.
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["Jellyfin.Plugin.Streamyfin/Pages/Libraries/**"]
