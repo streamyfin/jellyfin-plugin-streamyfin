@@ -1067,12 +1067,18 @@ public class StreamyfinController : ControllerBase
     MyNotifications.Describe(
       mine,
       EventsThatReach(user),
-      MyNotifications.LibrariesFor(
-        _libraryManager.GetVirtualFolders(),
-        StreamyfinPlugin.Instance!.Settings.Current.notifications?.ItemAdded?.EnabledLibraries,
-        id => _libraryManager.GetItemById<BaseItem>(id, user) is not null),
+      OfferedLibraries(user),
       mine?.MutedShows ?? [],
       id => _libraryManager.GetItemById<BaseItem>(id, user)?.Name);
+
+  /// <summary>
+  /// The libraries whose new items can reach a person, which their choices are offered for.
+  /// </summary>
+  private IEnumerable<(Guid Id, string Name)> OfferedLibraries(User user) =>
+    MyNotifications.LibrariesFor(
+      _libraryManager.GetVirtualFolders(),
+      StreamyfinPlugin.Instance!.Settings.Current.notifications?.ItemAdded?.EnabledLibraries,
+      id => _libraryManager.GetItemById<BaseItem>(id, user) is not null);
 
   /// <summary>
   /// The signed in person, or nobody for an API key or a call that carries no user.
@@ -1112,10 +1118,11 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Replaces the events, libraries and followed shows the caller keeps. The pause and the muted
-  /// shows have routes of their own and stay as they are.
+  /// Changes the events, libraries and followed shows the caller keeps. The events and libraries
+  /// they are not offered now, and what the update leaves out, stay as they are; so do the pause
+  /// and the muted shows, which have routes of their own.
   /// </summary>
-  /// <param name="update">Their choices. What it leaves out goes back to its default.</param>
+  /// <param name="update">Their choices for what the app shows them.</param>
   /// <returns>Their choices as stored.</returns>
   [HttpPut("v1/notifications/mine")]
   [Authorize]
@@ -1134,12 +1141,11 @@ public class StreamyfinController : ControllerBase
       return BadRequest(problem);
     }
 
-    var (mine, _) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(user.Id, stored =>
-    {
-      MyNotifications.Apply(update, stored);
-      return null;
-    });
-    return DescribeFor(user, mine);
+    var offered = OfferedLibraries(user).Select(library => library.Id).ToList();
+    var (mine, refused) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(
+      user.Id,
+      stored => MyNotifications.Apply(update, stored, offered));
+    return refused is null ? DescribeFor(user, mine) : BadRequest(refused);
   }
 
   /// <summary>

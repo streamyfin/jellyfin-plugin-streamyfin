@@ -231,20 +231,42 @@ public static class MyNotifications
     }
 
     /// <summary>
-    /// Writes an update into a person's choices, with the defaults for what it leaves out. The
-    /// pause and the muted shows stay as they are: their own routes change them, and a screen
-    /// opened before a notification's button was pressed would otherwise take it back.
+    /// Writes an update into a person's choices. It speaks for what the app shows them: the
+    /// events it names and the libraries they are offered. A choice about anything else stands,
+    /// since the app only shows what reaches them now, and an event or a library that does not
+    /// for a while would otherwise lose it (#272). What the update leaves out stays as it is.
+    /// The pause and the muted shows stay as they are too: their own routes change them, and a
+    /// screen opened before a notification's button was pressed would otherwise take it back.
     /// </summary>
     /// <param name="update">The update.</param>
-    /// <param name="mine">Their choices, changed in place.</param>
-    public static void Apply(MyNotificationsUpdate update, NotificationPreferences mine)
+    /// <param name="mine">Their choices, changed in place unless the update is refused.</param>
+    /// <param name="offered">The libraries the person is offered now, which the update speaks for.</param>
+    /// <returns>A sentence for the app when the libraries kept off would pass the most, or <c>null</c>.</returns>
+    public static string? Apply(MyNotificationsUpdate update, NotificationPreferences mine, IEnumerable<Guid> offered)
     {
         ArgumentNullException.ThrowIfNull(update);
         ArgumentNullException.ThrowIfNull(mine);
+        ArgumentNullException.ThrowIfNull(offered);
 
-        mine.Events = update.Events is null ? new(StringComparer.Ordinal) : new(update.Events, StringComparer.Ordinal);
-        mine.MutedLibraries = update.MutedLibraries ?? [];
-        mine.Follow = update.Follow ?? new();
+        if (update.MutedLibraries is not null)
+        {
+            var spoken = offered.ToHashSet();
+            List<Guid> mutedLibraries = [.. mine.MutedLibraries.Where(id => !spoken.Contains(id)).Concat(update.MutedLibraries).Distinct()];
+            if (ListsProblem(0, mutedLibraries.Count) is { } problem)
+            {
+                return problem;
+            }
+
+            mine.MutedLibraries = mutedLibraries;
+        }
+
+        foreach (var (key, keep) in update.Events ?? [])
+        {
+            mine.Events[key] = keep;
+        }
+
+        mine.Follow = update.Follow ?? mine.Follow;
+        return null;
     }
 
     /// <summary>The pause a number of hours asks for.</summary>

@@ -68,25 +68,87 @@ public class MyNotificationsTests
     }
 
     /// <summary>
-    /// An update that leaves things out stores the defaults for them.
+    /// An update that says nothing about a part leaves it as it is: a choice stands until the
+    /// person changes it.
     /// </summary>
     [Fact]
-    public void AnUpdateThatSaysLittleKeepsTheDefaults()
+    public void AnUpdateThatSaysNothingChangesNothing()
     {
+        var muted = Guid.NewGuid();
         var mine = new NotificationPreferences
         {
-            MutedLibraries = [Guid.NewGuid()],
+            MutedLibraries = [muted],
             Follow = new FollowChoice { Favorites = false, Started = false }
         };
         mine.Events["itemAdded"] = false;
 
-        MyNotifications.Apply(new MyNotificationsUpdate(), mine);
+        Assert.Null(MyNotifications.Apply(new MyNotificationsUpdate(), mine, [Movies]));
 
         Assert.Null(MyNotifications.Problem(new MyNotificationsUpdate()));
-        Assert.Empty(mine.Events);
-        Assert.Empty(mine.MutedLibraries);
-        Assert.True(mine.Follow.Favorites);
-        Assert.True(mine.Follow.Started);
+        Assert.False(mine.Keeps("itemAdded"));
+        Assert.Equal([muted], mine.MutedLibraries);
+        Assert.False(mine.Follow.Favorites);
+        Assert.False(mine.Follow.Started);
+    }
+
+    /// <summary>
+    /// The app only sends the events that reach the person now. One that stops reaching them for
+    /// a while, because an administrator turned it off for the server, keeps their choice, and does
+    /// not come back on when it reaches them again (#272).
+    /// </summary>
+    [Fact]
+    public void AnEventTheUpdateLeavesOutKeepsItsChoice()
+    {
+        var mine = new NotificationPreferences();
+        mine.Events["playbackStarted"] = false;
+
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, []);
+
+        Assert.False(mine.Keeps("playbackStarted"));
+        Assert.False(mine.Keeps("itemAdded"));
+    }
+
+    /// <summary>
+    /// The update speaks for the libraries the person is offered: one they turned back on there
+    /// is on, and one they are not offered now stays off (#272).
+    /// </summary>
+    [Fact]
+    public void TheUpdateSpeaksForTheOfferedLibrariesOnly()
+    {
+        var mine = new NotificationPreferences { MutedLibraries = [Movies, Music] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies]);
+
+        Assert.Equal([Music], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// A library sent twice, or already off, is kept off once.
+    /// </summary>
+    [Fact]
+    public void ALibraryIsTurnedOffOnce()
+    {
+        var mine = new NotificationPreferences { MutedLibraries = [Movies] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Movies] }, mine, [Movies]);
+
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// The libraries kept off, the ones the update speaks for and the others together, stay under
+    /// the most a person can turn off, and an update that would pass it changes nothing.
+    /// </summary>
+    [Fact]
+    public void TheLibrariesKeptOffStayUnderTheMost()
+    {
+        var notOffered = Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid()).ToList();
+        var mine = new NotificationPreferences { MutedLibraries = [.. notOffered] };
+
+        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies]);
+
+        Assert.NotNull(problem);
+        Assert.Equal(notOffered, mine.MutedLibraries);
     }
 
     /// <summary>
@@ -104,7 +166,7 @@ public class MyNotificationsTests
             MutedShows = [show]
         };
 
-        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine);
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, []);
 
         Assert.NotNull(mine.Pause);
         Assert.Equal([show], mine.MutedShows);
