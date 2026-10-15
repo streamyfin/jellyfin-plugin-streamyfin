@@ -33,6 +33,8 @@ review. What that found landed today, each with its tests and a proof on a serve
 - **Notifications.** The sentences an administrator rewrites are the ones sent (#239).
 - **The app 0.56.** Its four new settings are declared, and `maxAutoPlayEpisodeCount` stays for
   the 0.55 apps that still read it (#264).
+- **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
+  Luxembourgish and Traditional Chinese, and reworded twelve Luxembourgish ones (#251).
 
 Left for later, each with its issue: the views Jellyfin 12 gives new ids (#255), the two ways
 the pages save (#262), a Seerr address that differs by a space (#263), the enums the parity
