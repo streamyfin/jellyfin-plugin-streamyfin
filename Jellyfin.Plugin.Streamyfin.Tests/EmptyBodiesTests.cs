@@ -80,6 +80,25 @@ public class EmptyBodiesTests
     }
 
     /// <summary>
+    /// A null tagged as a string writes no value either: the deserializer reads it as null,
+    /// so counting it as one would store a configuration with nothing in it. A quoted null is
+    /// text, and is kept.
+    /// </summary>
+    /// <param name="written">How the document writes the value.</param>
+    /// <param name="read">What the setting holds once read.</param>
+    [Theory]
+    [InlineData("!!str null", null)]
+    [InlineData("!!str ~", null)]
+    [InlineData("\"null\"", "null")]
+    public void AValueIsJudgedAsTheDeserializerReadsIt(string written, string? read)
+    {
+        var yaml = $"settings:\n  jellyseerrApiKey:\n    value: {written}\n";
+
+        Assert.Equal(read, _serialization.Deserialize<Config>(yaml)?.settings?.jellyseerrApiKey?.value);
+        Assert.Equal(read is null ? StreamyfinController.EmptyYaml : null, Decide(yaml));
+    }
+
+    /// <summary>
     /// A number that is not one, or an infinity, is refused with the setting's name rather
     /// than failing the save.
     /// </summary>
