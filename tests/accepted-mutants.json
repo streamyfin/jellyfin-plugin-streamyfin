@@ -2,6 +2,7 @@
   {
     "file": "scripts/measure/cli.js",
     "line": "if (!source.has(file)) source.set(file, readFileSync(join(root, file), \"utf8\").split(/\\r?\\n/));",
+    "column": 13,
     "mutator": "ConditionalExpression",
     "replacement": "true",
     "reason": "Equivalent: without the cache each file is read again for every mutant on it, with the same text."
@@ -9,20 +10,15 @@
   {
     "file": "scripts/measure/diff.js",
     "line": "if (target.startsWith('\"')) {",
+    "column": 17,
     "mutator": "MethodExpression",
     "replacement": "target.endsWith('\"')",
     "reason": "Equivalent: git writes a quoted name between two quotes, so a header that ends with one also starts with one."
   },
   {
-    "file": "scripts/measure/diff.js",
-    "line": "} else if (raw.startsWith(\"@@ \") && file !== null) {",
-    "mutator": "ConditionalExpression",
-    "replacement": "true",
-    "reason": "Equivalent: after +++ /dev/null the only hunk is the deletion, +0,0, which adds no line to look up."
-  },
-  {
     "file": "scripts/measure/verdict.js",
     "line": "if (!folders.has(name)) folders.set(name, { lines: [0, 0], branches: [0, 0], mutants: [] });",
+    "column": 95,
     "mutator": "ArrayDeclaration",
     "replacement": "[\"Stryker was here\"]",
     "reason": "Equivalent: the score counts a mutant by its status, and a string has none, so it counts in neither part."
@@ -30,8 +26,17 @@
   {
     "file": "scripts/measure/verdict.js",
     "line": "if (value > min + slack + 1e-9) {",
+    "column": 13,
     "mutator": "EqualityOperator",
     "replacement": "value >= min + slack + 1e-9",
     "reason": "Equivalent: the values are tenths, so none is ever exactly min + slack + 1e-9, where > and >= part."
+  },
+  {
+    "file": "scripts/measure/diff.js",
+    "line": "for (let at = Number(start); file !== null && at < Number(start) + Number(added); at += 1) {",
+    "column": 42,
+    "mutator": "ConditionalExpression",
+    "replacement": "true",
+    "reason": "Equivalent: after +++ /dev/null the only hunk is the deletion, +0,0, so the loop has no line to add whether the file is checked or not."
   }
 ]

@@ -56,6 +56,17 @@ describe("the mutation shards", () => {
     });
 });
 
+// The measure reads *.js only: a module written as .mjs or .cjs would be neither counted
+// nor mutated, and nothing would say so.
+describe("the JavaScript the measure reads", () => {
+    test("is every module of ours", () => {
+        const other = ["Jellyfin.Plugin.Streamyfin/Pages/**/*.{mjs,cjs}", "scripts/**/*.{mjs,cjs}"]
+            .flatMap((pattern) => [...new Bun.Glob(pattern).scanSync({ cwd: ROOT })]);
+
+        expect(other).toEqual([]);
+    });
+});
+
 describe("every tool", () => {
     const cs = EXCLUDED.filter((pattern) => !pattern.startsWith(PLUGIN));
     const js = EXCLUDED.filter((pattern) => pattern.startsWith(PLUGIN));

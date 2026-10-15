@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { changedLines } from "./diff.js";
-import { ownJsFiles, readOwners, unloaded } from "./folders.js";
+import { folderOf, ownJsFiles, readOwners, unloaded } from "./folders.js";
 import { mergeCoverage, parseLcov } from "./lcov.js";
 import { readMutants } from "./mutants.js";
 import { toRepoPath } from "./paths.js";
@@ -33,8 +33,14 @@ export const collect = ({ root, settings, owners }) => {
 
     const reports = COVERAGE.map(([dir, name]) => {
         const paths = found(join(root, "artifacts", `coverage-${dir}`), name);
-        if (paths.length === 0) throw new Error(`artifacts/coverage-${dir} holds no coverage: run bun scripts/measure/cli.js ${dir === "js" ? "coverage-js" : `coverage-cs ${dir.slice(3)}`}`);
-        return paths.map((path) => parseLcov(readFileSync(path, "utf8"), toPath));
+        const rerun = `run bun scripts/measure/cli.js ${dir === "js" ? "coverage-js" : `coverage-cs ${dir.slice(3)}`}`;
+        if (paths.length === 0) throw new Error(`artifacts/coverage-${dir} holds no coverage: ${rerun}`);
+        const files = paths.map((path) => parseLcov(readFileSync(path, "utf8"), toPath));
+        // A target whose tests never ran writes a report all the same, with nothing of ours in it.
+        if (!files.some((report) => [...report.keys()].some((path) => folderOf(path) !== null))) {
+            throw new Error(`artifacts/coverage-${dir} covers no file of the repository: ${rerun}`);
+        }
+        return files;
     });
     const coverage = mergeCoverage(...reports.flat());
 
@@ -158,8 +164,9 @@ export const commandsFor = ({ root = ROOT, print = console.log, run = runTool, e
         verdict: (settings, args) => {
             const at = args.indexOf("--base");
             const base = at === -1 ? "origin/develop" : args[at + 1];
-            // A branch's first push has no commit before it, so no line to compare.
-            const result = verdictFor({ root, settings, changed: /^0*$/.test(base ?? "") ? new Map() : changed(base, { cwd: root }) });
+            if (!base) throw new Error("verdict needs a base to compare with: --base <commit>");
+            // A branch's first push names forty zeros as the commit before it: no line to compare.
+            const result = verdictFor({ root, settings, changed: /^0{40}$/.test(base) ? new Map() : changed(base, { cwd: root }) });
             const summary = readFileSync(join(root, "artifacts", "measure", "summary.md"), "utf8");
             if (env.GITHUB_STEP_SUMMARY) writeFileSync(env.GITHUB_STEP_SUMMARY, summary, { flag: "a" });
             print(summary);

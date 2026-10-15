@@ -15,8 +15,15 @@ export const diffArgs = (from) => [
 export const parseDiff = (text) => {
     const changed = new Map();
     let file = null;
+    // The lines of the current hunk still to come, old side and new: inside a hunk every line
+    // is content, one that reads like a header included.
+    let left = 0;
 
     for (const raw of text.split(/\r?\n/)) {
+        if (left > 0) {
+            if (raw.startsWith("-") || raw.startsWith("+")) left -= 1;
+            continue;
+        }
         if (raw.startsWith("+++ ")) {
             const target = raw.slice(4);
             if (target.startsWith('"')) {
@@ -24,9 +31,10 @@ export const parseDiff = (text) => {
             }
             file = target === "/dev/null" ? null : target.slice("b/".length);
             if (file !== null && !changed.has(file)) changed.set(file, new Set());
-        } else if (raw.startsWith("@@ ") && file !== null) {
-            const [, start, count = "1"] = /\+(\d+)(?:,(\d+))? @@/.exec(raw);
-            for (let at = Number(start); at < Number(start) + Number(count); at += 1) {
+        } else if (raw.startsWith("@@ ")) {
+            const [, removed = "1", start, added = "1"] = /@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(raw);
+            left = Number(removed) + Number(added);
+            for (let at = Number(start); file !== null && at < Number(start) + Number(added); at += 1) {
                 changed.get(file).add(at);
             }
         }

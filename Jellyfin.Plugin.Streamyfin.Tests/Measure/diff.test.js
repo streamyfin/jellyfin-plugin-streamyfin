@@ -29,12 +29,19 @@ describe("a diff with no context", () => {
 
     test("counts every line of a new file, and none of a deleted one", () => {
         const changed = parseDiff([
+            "diff --git a/scripts/measure/new.js b/scripts/measure/new.js",
             "--- /dev/null",
             "+++ b/scripts/measure/new.js",
             "@@ -0,0 +1,3 @@",
+            "+one",
+            "+two",
+            "+three",
+            "diff --git a/scripts/old.js b/scripts/old.js",
             "--- a/scripts/old.js",
             "+++ /dev/null",
             "@@ -1,2 +0,0 @@",
+            "-gone",
+            "-too",
         ].join("\n"));
 
         expect(lines(changed, "scripts/measure/new.js")).toEqual([1, 2, 3]);
@@ -47,6 +54,55 @@ describe("a diff with no context", () => {
         const changed = parseDiff("--- a/scripts/a.js\r\n+++ b/scripts/a.js\r\n@@ -1 +1,2 @@\r\n");
 
         expect(lines(changed, "scripts/a.js")).toEqual([1, 2]);
+    });
+
+    // Inside a hunk every line is content: an added line that reads "++ added" is "+" and
+    // "++ added", not the next file's header.
+    test("reads an added line that starts with ++ as part of its hunk", () => {
+        const changed = parseDiff([
+            "--- a/scripts/a.md",
+            "+++ b/scripts/a.md",
+            "@@ -1,0 +2 @@",
+            "+++ added",
+            "@@ -5 +6 @@",
+            "-old",
+            "+new",
+            "\\ No newline at end of file",
+        ].join("\n"));
+
+        expect([...changed.keys()]).toEqual(["scripts/a.md"]);
+        expect(lines(changed, "scripts/a.md")).toEqual([2, 6]);
+    });
+
+    // A file without a final newline gets a marker line inside its hunk, which is neither side.
+    test("counts the marker of a missing newline as no line of the hunk", () => {
+        const changed = parseDiff([
+            "+++ b/scripts/a.md",
+            "@@ -1 +1 @@",
+            "-old",
+            "\\ No newline at end of file",
+            "+++ x",
+            "\\ No newline at end of file",
+        ].join("\n"));
+
+        expect([...changed.keys()]).toEqual(["scripts/a.md"]);
+        expect(lines(changed, "scripts/a.md")).toEqual([1]);
+    });
+
+    // "@@ -5 +6 @@" says one line on each side, and the next header comes after both.
+    test("reads a hunk header whose counts are left out as one line each", () => {
+        const changed = parseDiff([
+            "+++ b/scripts/a.md",
+            "@@ -1 +0,0 @@",
+            "-gone",
+            "@@ -5 +4 @@",
+            "-old",
+            "+++ x",
+            "@@ -20,12 +20 @@",
+        ].join("\n"));
+
+        expect([...changed.keys()]).toEqual(["scripts/a.md"]);
+        expect(lines(changed, "scripts/a.md")).toEqual([4, 20]);
     });
 
     test("counts a hunk of ten lines or more", () => {

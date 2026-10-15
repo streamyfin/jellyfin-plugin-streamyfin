@@ -26,9 +26,15 @@ describe("a Stryker report", () => {
         };
 
         expect(readMutants(report, (path) => toRepoPath(path, ROOT))).toEqual([
-            { file: "Jellyfin.Plugin.Streamyfin/Db/A.cs", line: 4, mutator: "Boolean mutation", replacement: "false", status: "Survived" },
-            { file: "scripts/a.js", line: 9, mutator: "StringLiteral", replacement: '""', status: "Killed" },
+            { file: "Jellyfin.Plugin.Streamyfin/Db/A.cs", line: 4, endLine: 4, column: 3, mutator: "Boolean mutation", replacement: "false", status: "Survived" },
+            { file: "scripts/a.js", line: 9, endLine: 9, column: 3, mutator: "StringLiteral", replacement: '""', status: "Killed" },
         ]);
+    });
+
+    test("keeps where a mutant spanning lines ends", () => {
+        const report = { files: { "a.js": { mutants: [mutant("Survived", 4, { location: { start: { line: 4, column: 3 }, end: { line: 6, column: 1 } } })] } } };
+
+        expect(readMutants(report, (path) => path)[0]).toMatchObject({ line: 4, endLine: 6, column: 3 });
     });
 
     test("with a file that has no mutants gives none for it", () => {

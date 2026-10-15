@@ -73,6 +73,25 @@ describe("the reports on disk", () => {
         expect(missingReports).toEqual([]);
     });
 
+    // A target whose tests never ran, or whose code coverlet did not instrument, writes a
+    // report with no file of the repository in it, and would leave the other measured alone.
+    test("refuse a coverage report that names no file of the repository", () => {
+        const root = repository();
+        put(root, "artifacts/coverage-cs-jf11/0a/coverage.info", "SF:/usr/share/dotnet/x.cs\nDA:1,1\nend_of_record\n");
+
+        expect(() => collect({ root, settings: SETTINGS, owners: new Map() }))
+            .toThrow(new Error("artifacts/coverage-cs-jf11 covers no file of the repository: run bun scripts/measure/cli.js coverage-cs jf11"));
+    });
+
+    // Coverlet adds a folder per run, and a report may name files out of the repository too.
+    test("take a report with one file of the repository among others, next to an empty one", () => {
+        const root = repository();
+        put(root, "artifacts/coverage-cs-jf11/0a/coverage.info", `SF:/usr/share/dotnet/x.cs\nDA:1,1\nend_of_record\nSF:${join(root, "Jellyfin.Plugin.Streamyfin/Db/A.cs")}\nDA:1,1\nend_of_record\n`);
+        put(root, "artifacts/coverage-cs-jf11/0b/coverage.info", "SF:/usr/share/dotnet/y.cs\nDA:1,1\nend_of_record\n");
+
+        expect(collect({ root, settings: SETTINGS, owners: new Map() }).coverage.has("Jellyfin.Plugin.Streamyfin/Db/A.cs")).toBe(true);
+    });
+
     test("name a shard that left no report", () => {
         const root = repository();
         rmSync(join(root, "artifacts/mutation-js-scripts"), { recursive: true });
@@ -247,13 +266,29 @@ describe("the verdict command", () => {
         expect(asked).toEqual([base]);
     });
 
-    // A branch's first push names no commit before it: forty zeros, or nothing at all.
-    test.each([[["--base", "0000000000000000000000000000000000000000"]], [["--base"]]])("compares nothing on a first push, given %p", (args) => {
+    test.each([[`1${"0".repeat(40)}`], [`${"0".repeat(40)}1`]])("compares with a commit that only has forty zeros in it, %s", (base) => {
+        const asked = [];
+        const commands = commandsFor({ root: repository(), print: () => {}, env: {}, changed: (from) => { asked.push(from); return new Map(); } });
+
+        commands.verdict(SETTINGS, ["--base", base]);
+
+        expect(asked).toEqual([base]);
+    });
+
+    // A branch's first push names no commit before it: forty zeros.
+    test.each([[["--base", "0000000000000000000000000000000000000000"]]])("compares nothing on a first push, given %p", (args) => {
         const asked = [];
         const commands = commandsFor({ root: repository(), print: () => {}, env: {}, changed: (from) => { asked.push(from); return survivorChanged; } });
 
         expect(commands.verdict(SETTINGS, args)).toBe(0);
         expect(asked).toEqual([]);
+    });
+
+    // An event that gives no base would otherwise judge no line at all, and pass.
+    test.each([[["--base"]], [["--base", ""]]])("refuses an empty base, given %p", (args) => {
+        const commands = commandsFor({ root: repository(), print: () => {}, env: {}, changed: () => new Map() });
+
+        expect(() => commands.verdict(SETTINGS, args)).toThrow(new Error("verdict needs a base to compare with: --base <commit>"));
     });
 
     test("fails with exit code 1 when a survivor sits on a changed line", () => {
@@ -385,11 +420,17 @@ describe("a tool run", () => {
         const root = repository();
         mkdirSync(join(root, "sub"));
         const { printed, print } = recorder();
-        const code = "require('fs').writeFileSync('seen.txt', [process.env.MEASURE_ADDED, process.env.HOME === undefined].join(' '))";
+        // A variable this process sets, since HOME, say, is not there on Windows.
+        process.env.MEASURE_PARENT = "kept";
+        const code = "require('fs').writeFileSync('seen.txt', [process.env.MEASURE_ADDED, process.env.MEASURE_PARENT].join(' '))";
 
-        runTool({ command: script(code), cwd: "sub", env: { MEASURE_ADDED: "yes" } }, { root, print });
+        try {
+            runTool({ command: script(code), cwd: "sub", env: { MEASURE_ADDED: "yes" } }, { root, print });
+        } finally {
+            delete process.env.MEASURE_PARENT;
+        }
 
-        expect(readFileSync(join(root, "sub/seen.txt"), "utf8")).toBe("yes false");
+        expect(readFileSync(join(root, "sub/seen.txt"), "utf8")).toBe("yes kept");
         expect(printed).toEqual([`> bun -e ${code}`]);
     });
 

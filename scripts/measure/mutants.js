@@ -9,6 +9,9 @@ export const readMutants = (report, toPath) =>
         (file.mutants ?? []).map((mutant) => ({
             file: toPath(path),
             line: mutant.location.start.line,
+            // A mutant can span lines, and a change to any of them is a change to it.
+            endLine: mutant.location.end?.line ?? mutant.location.start.line,
+            column: mutant.location.start.column,
             mutator: mutant.mutatorName,
             replacement: mutant.replacement ?? "",
             status: mutant.status,

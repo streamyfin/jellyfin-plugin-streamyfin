@@ -90,9 +90,19 @@ describe("the summary", () => {
         const text = summarize({ ...passed, ok: false, escaped });
 
         expect(text.split("\n").filter((line) => line.startsWith("| scripts/a.js |")).length).toBe(100);
-        expect(text).toContain("\nAnd 30 more.\n");
+        expect(text).toContain(" | Survived |\n\nAnd 30 more.\n");
         expect(text).toContain(`\`${"x".repeat(120)}…\``);
         expect(text.length).toBeLessThan(65536);
+    });
+
+    test("lists exactly a hundred with no count, and a line of exactly 120 characters whole", () => {
+        const escaped = Array.from({ length: 100 }, (_, at) => ({
+            file: "scripts/a.js", line: at + 1, text: "x".repeat(120), mutator: "M", replacement: "y", status: "Survived",
+        }));
+        const text = summarize({ ...passed, ok: false, escaped });
+
+        expect(text).not.toContain("more.");
+        expect(text).toContain(`\`${"x".repeat(120)}\``);
     });
 
     test("carries its marker, the verdict and every folder against its floors", () => {

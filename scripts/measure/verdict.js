@@ -66,7 +66,20 @@ const floorProblems = (folder, floor, slack) => {
     });
 };
 
-const keyOf = (file, text, mutator, replacement) => JSON.stringify([file, text, mutator, replacement]);
+// The line's text rather than its number, so an acceptance holds when code moves, and the
+// column, so it covers its own mutant and not a twin further along the same line.
+const keyOf = (file, text, column, mutator, replacement) => JSON.stringify([file, text, column, mutator, replacement]);
+
+// A disable comment takes mutants out of the run without a reason anybody reads.
+const DISABLE = /Stryker disable/i;
+const CODE = /\.(cs|js)$/;
+
+const spans = (mutant, changedLines) => {
+    for (let line = mutant.line; line <= (mutant.endLine ?? mutant.line); line += 1) {
+        if (changedLines?.has(line)) return true;
+    }
+    return false;
+};
 
 export const judge = ({ measured, floors, slack, mutants, accepted, owners, changed, lineText, missingReports }) => {
     const folders = measured.map((folder) => ({
@@ -80,19 +93,27 @@ export const judge = ({ measured, floors, slack, mutants, accepted, owners, chan
             .filter((name) => !measured.some((folder) => folder.name === name))
             .map((name) => `${name} has floors but nothing is measured in it: run bun run floors:raise`),
         ...missingReports.map((shard) => `the mutation shard ${shard} left no report`),
+        ...accepted
+            .filter((entry) => !String(entry.reason ?? "").trim())
+            .map((entry) => `tests/accepted-mutants.json: every entry needs a reason (${entry.file}: ${entry.line})`),
+        ...[...changed]
+            .filter(([file]) => CODE.test(file) && counted(file, owners))
+            .flatMap(([file, lines]) => [...lines]
+                .filter((line) => DISABLE.test(lineText(file, line)))
+                .map((line) => `a Stryker disable comment on ${file}:${line}: accept its mutants in tests/accepted-mutants.json instead`)),
     ];
 
-    const acceptances = new Map(accepted.map((entry) => [keyOf(entry.file, entry.line, entry.mutator, entry.replacement), entry]));
+    const acceptances = new Map(accepted.map((entry) => [keyOf(entry.file, entry.line, entry.column, entry.mutator, entry.replacement), entry]));
     const used = new Set();
     const escapedOnChanged = [];
 
     for (const mutant of mutants) {
         if (!escaped(mutant) || !counted(mutant.file, owners)) continue;
         const text = lineText(mutant.file, mutant.line);
-        const key = keyOf(mutant.file, text, mutant.mutator, mutant.replacement);
+        const key = keyOf(mutant.file, text, mutant.column, mutant.mutator, mutant.replacement);
         if (acceptances.has(key)) {
             used.add(key);
-        } else if (changed.get(mutant.file)?.has(mutant.line)) {
+        } else if (spans(mutant, changed.get(mutant.file))) {
             const { file, line, mutator, replacement, status } = mutant;
             escapedOnChanged.push({ file, line, text, mutator, replacement, status });
         }

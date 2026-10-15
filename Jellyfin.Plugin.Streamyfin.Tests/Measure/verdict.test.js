@@ -12,7 +12,7 @@ const file = (covered, total) => ({
     branches: new Map(),
 });
 
-const mutant = (status, extra = {}) => ({ file: DB, line: 3, mutator: "Boolean mutation", replacement: "false", status, ...extra });
+const mutant = (status, extra = {}) => ({ file: DB, line: 3, endLine: 3, column: 5, mutator: "Boolean mutation", replacement: "false", status, ...extra });
 
 describe("a folder's measure", () => {
     test("is rounded down to a tenth, so a floor is never met by rounding up", () => {
@@ -190,13 +190,13 @@ describe("a mutant that escapes", () => {
 
     // Matched on the line's text rather than its number, so the entry holds when code moves.
     test("that was accepted with a reason passes", () => {
-        const accepted = [{ file: DB, line: "return true;", mutator: "Boolean mutation", replacement: "false", reason: "an equivalent mutant" }];
+        const accepted = [{ file: DB, line: "return true;", column: 5, mutator: "Boolean mutation", replacement: "false", reason: "an equivalent mutant" }];
 
         expect(verdict({ mutants: [mutant("Survived")], changed, accepted }).ok).toBe(true);
     });
 
     test("no longer, leaves its acceptance stale, which fails the run", () => {
-        const accepted = [{ file: DB, line: "return true;", mutator: "Boolean mutation", replacement: "false", reason: "an equivalent mutant" }];
+        const accepted = [{ file: DB, line: "return true;", column: 5, mutator: "Boolean mutation", replacement: "false", reason: "an equivalent mutant" }];
         const result = verdict({ mutants: [mutant("Killed")], accepted });
 
         expect(result.ok).toBe(false);
@@ -207,10 +207,58 @@ describe("a mutant that escapes", () => {
 describe("an acceptance", () => {
     test("covers its own mutant only, not another on the same line", () => {
         const changed = new Map([[DB, new Set([3])]]);
-        const accepted = [{ file: DB, line: "return true;", mutator: "Boolean mutation", replacement: "false", reason: "equivalent" }];
+        const accepted = [{ file: DB, line: "return true;", column: 5, mutator: "Boolean mutation", replacement: "false", reason: "equivalent" }];
         const result = verdict({ mutants: [mutant("Survived"), mutant("Survived", { replacement: "!true" })], accepted, changed });
 
         expect(result.escaped.map((escapedMutant) => escapedMutant.replacement)).toEqual(["!true"]);
         expect(result.stale).toEqual([]);
+    });
+});
+
+describe("an acceptance, further", () => {
+    const changed = new Map([[DB, new Set([3])]]);
+    const entry = { file: DB, line: "return true;", column: 5, mutator: "Boolean mutation", replacement: "false", reason: "equivalent" };
+
+    test("names its column, so a twin further along the line still escapes", () => {
+        const result = verdict({ mutants: [mutant("Survived"), mutant("Survived", { column: 12 })], accepted: [entry], changed });
+
+        expect(result.escaped.map((one) => one.line)).toEqual([3]);
+        expect(result.ok).toBe(false);
+    });
+
+    test("without a reason fails the run", () => {
+        const blank = verdict({ mutants: [mutant("Survived")], accepted: [{ ...entry, reason: "  " }], changed });
+        const { reason, ...missing } = entry;
+
+        expect(blank.ok).toBe(false);
+        expect(blank.problems).toEqual([`tests/accepted-mutants.json: every entry needs a reason (${DB}: return true;)`]);
+        expect(verdict({ mutants: [mutant("Survived")], accepted: [missing], changed }).problems)
+            .toEqual([`tests/accepted-mutants.json: every entry needs a reason (${DB}: return true;)`]);
+    });
+});
+
+describe("the lines a mutant spans", () => {
+    test("are all judged, so a change further down a multi-line expression catches it", () => {
+        const result = verdict({ mutants: [mutant("Survived", { endLine: 4 })], changed: new Map([[DB, new Set([4])]]) });
+
+        expect(result.ok).toBe(false);
+        expect(result.escaped.map((one) => one.line)).toEqual([3]);
+    });
+});
+
+describe("a Stryker disable comment", () => {
+    const lineText = (file, line) => (line === 7 ? "// Stryker disable all" : "return true;");
+
+    test("on a changed line of code fails the run, since it takes mutants out without a reason", () => {
+        const result = verdict({ changed: new Map([[DB, new Set([7])]]), lineText });
+
+        expect(result.ok).toBe(false);
+        expect(result.problems).toEqual([`a Stryker disable comment on ${DB}:7: accept its mutants in tests/accepted-mutants.json instead`]);
+    });
+
+    test("in a file that is not code, or the integration tests answer for, is left alone", () => {
+        expect(verdict({ changed: new Map([["scripts/README.md", new Set([7])]]), lineText }).ok).toBe(true);
+        expect(verdict({ changed: new Map([["scripts/data.json", new Set([7])]]), lineText }).ok).toBe(true);
+        expect(verdict({ changed: new Map([[OWNED, new Set([7])]]), owners: new Set([OWNED]), lineText }).ok).toBe(true);
     });
 });
