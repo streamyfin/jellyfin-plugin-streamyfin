@@ -387,15 +387,16 @@ public class Settings
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
 
     // "Keep next episodes downloaded": a user turns it on per series in the app's
-    // download sheet. These are what every such series follows.
+    // download sheet. Each such series keeps its own count once on, and the sheet lets a
+    // person pick another whatever the lock: the count here is the one it starts with.
     [NotNull]
-    [Display(Name = "Episodes to keep", Description = "How many of the next unwatched episodes a series keeps downloaded once it is turned on for it")]
+    [Display(Name = "Episodes to keep", Description = "How many of the next unwatched episodes a series turned on from now on starts with. A series already on keeps its own count, and a person can pick another for a series in its download sheet, locked or not")]
     [SettingScope("Downloads", Group = "Next episodes")]
     [Bounds(3, 10)]
     public Lockable<int>? nextEpisodesDownloadCount { get; set; } // = 3;
 
     [NotNull]
-    [Display(Name = "Download over", Description = "Which connection next episodes may download over. Home network only uses the server's local address set up in the app under Network, never the remote one")]
+    [Display(Name = "Download over", Description = "Which connection next episodes may download over. Home network only uses the server's local address set up in the app under Network, never the remote one, and a device with none set up there downloads no next episode")]
     [SettingScope("Downloads", Group = "Next episodes")]
     public Lockable<NextEpisodesNetwork>? nextEpisodesNetwork { get; set; } // = wifi;
 
