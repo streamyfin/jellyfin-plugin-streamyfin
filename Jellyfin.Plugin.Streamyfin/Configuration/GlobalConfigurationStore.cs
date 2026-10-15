@@ -346,7 +346,13 @@ public sealed class GlobalConfigurationStore
 
         try
         {
-            return _serialization.DeserializeJson<Config>(json) ?? new Config();
+            var config = _serialization.DeserializeJson<Config>(json) ?? new Config();
+
+            // The builds of develop since #198 stored Seerr's block beside the keys it was
+            // copied onto. Served back with it, the next save that changed a key by itself
+            // disagreed with the block and was refused, so it is folded as a level is.
+            IntegrationBlocks.Fold(config.settings);
+            return config;
         }
         catch (System.Text.Json.JsonException ex)
         {
