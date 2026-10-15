@@ -33,6 +33,11 @@ review. What that found landed today, each with its tests and a proof on a serve
 - **Notifications.** The sentences an administrator rewrites are the ones sent (#239).
 - **The app 0.56.** Its four new settings are declared, and `maxAutoPlayEpisodeCount` stays for
   the 0.55 apps that still read it (#264).
+- **Jellyfin 12 with the 10.11 build.** Jellyfin offers no update for a version it already has,
+  and both builds of a release share their number, so a server moved from 10.11 to 12 keeps the
+  build for 10.11. For You and My Media answer there again instead of 500 (#241).
+- **The release notes** say what reaches an administrator's app, what each app gets and what
+  Jellyfin 12 changes, with the view ids measured on a server moved from 10.11.11 to 12.2 (#267).
 - **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
   Luxembourgish and Traditional Chinese, and reworded twelve Luxembourgish ones (#251).
 
