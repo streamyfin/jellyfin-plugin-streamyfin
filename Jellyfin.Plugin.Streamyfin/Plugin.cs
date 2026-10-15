@@ -167,10 +167,12 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// The dashboard's icon for that entry.
     /// </summary>
     /// <remarks>
-    /// It has to be a Material ligature and cannot be the plugin's own logo.
+    /// It has to be a Material ligature and cannot be the plugin's own logo. On Jellyfin 12,
     /// <c>PluginDrawerSection.tsx</c> in the web client renders it as
     /// <c>&lt;Icon&gt;{pageInfo.MenuIcon}&lt;/Icon&gt;</c>, which is the MUI icon font
-    /// component, so anything that is not a glyph name comes out as literal text.
+    /// component, so anything that is not a glyph name comes out as literal text. 10.11
+    /// ignores it and draws the Folder icon for every plugin. With File Transformation
+    /// installed, <see cref="Injection.DrawerLogoPatch"/> puts the mark in its place on both.
     /// The logo still shows where an image is allowed, on the plugin catalogue entry,
     /// through <c>imageUrl</c> in the manifest.
     ///
