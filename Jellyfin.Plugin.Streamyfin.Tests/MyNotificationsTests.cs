@@ -82,7 +82,7 @@ public class MyNotificationsTests
         };
         mine.Events["itemAdded"] = false;
 
-        Assert.Null(MyNotifications.Apply(new MyNotificationsUpdate(), mine, [Movies]));
+        Assert.Null(MyNotifications.Apply(new MyNotificationsUpdate(), mine, [Movies], [Movies, Music, muted]));
 
         Assert.Null(MyNotifications.Problem(new MyNotificationsUpdate()));
         Assert.False(mine.Keeps("itemAdded"));
@@ -102,7 +102,7 @@ public class MyNotificationsTests
         var mine = new NotificationPreferences();
         mine.Events["playbackStarted"] = false;
 
-        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, []);
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, [], [Movies, Music]);
 
         Assert.False(mine.Keeps("playbackStarted"));
         Assert.False(mine.Keeps("itemAdded"));
@@ -117,7 +117,7 @@ public class MyNotificationsTests
     {
         var mine = new NotificationPreferences { MutedLibraries = [Movies, Music] };
 
-        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies]);
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies], [Movies, Music]);
 
         Assert.Equal([Music], mine.MutedLibraries);
     }
@@ -131,8 +131,39 @@ public class MyNotificationsTests
     {
         var mine = new NotificationPreferences();
 
-        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Music] }, mine, [Movies]);
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Music] }, mine, [Movies], [Movies, Music]);
 
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// A library the server no longer has is forgotten: no route could turn it back on, it would
+    /// count under the most a person can turn off, and a library made again under its name gets
+    /// the same id.
+    /// </summary>
+    [Fact]
+    public void ALibraryTheServerNoLongerHasIsForgotten()
+    {
+        var gone = Guid.NewGuid();
+        var mine = new NotificationPreferences { MutedLibraries = [gone, Music] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies], [Movies, Music]);
+
+        Assert.Equal([Music], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// Libraries the server no longer has do not count under the most either.
+    /// </summary>
+    [Fact]
+    public void LibrariesTheServerNoLongerHasDoNotCountUnderTheMost()
+    {
+        var gone = Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid()).ToList();
+        var mine = new NotificationPreferences { MutedLibraries = [.. gone] };
+
+        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies], [Movies]);
+
+        Assert.Null(problem);
         Assert.Equal([Movies], mine.MutedLibraries);
     }
 
@@ -144,7 +175,7 @@ public class MyNotificationsTests
     {
         var mine = new NotificationPreferences { MutedLibraries = [Movies] };
 
-        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Movies] }, mine, [Movies]);
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Movies] }, mine, [Movies], [Movies, Music]);
 
         Assert.Equal([Movies], mine.MutedLibraries);
     }
@@ -159,7 +190,7 @@ public class MyNotificationsTests
         var notOffered = Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid()).ToList();
         var mine = new NotificationPreferences { MutedLibraries = [.. notOffered] };
 
-        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies]);
+        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies], [Movies, .. notOffered]);
 
         Assert.NotNull(problem);
         Assert.Equal(notOffered, mine.MutedLibraries);
@@ -180,7 +211,7 @@ public class MyNotificationsTests
             MutedShows = [show]
         };
 
-        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, []);
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, [], [Movies, Music]);
 
         Assert.NotNull(mine.Pause);
         Assert.Equal([show], mine.MutedShows);
