@@ -210,19 +210,25 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: bun scripts/measure/cli.js verdict --base "$BASE"
 
+      # A measure that failed leaves no report, or none of its own: the Windows tests leave
+      # none at all, so the reports alone would pass a pull request that breaks them.
+      - name: Every measure finished
+        if: always()
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed=$(echo "$NEEDS" | bun -e 'const needs = JSON.parse(await Bun.stdin.text()); console.log(Object.entries(needs).filter(([, need]) => need.result === "failure" || need.result === "cancelled").map(([job]) => job).join(" "))')
+          if [ -n "$failed" ]; then
+            echo "::error::Not every measure finished: $failed"
+            exit 1
+          fi
+
       - name: Say it on the pull request
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('artifacts/measure/summary.md') != ''
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         with:
           script: |
-            const fs = require('fs');
-            const body = fs.readFileSync('artifacts/measure/summary.md', 'utf8');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
-            const mine = comments.find((comment) => comment.user?.type === 'Bot' && comment.body?.startsWith('<!-- streamyfin-measure -->'));
-            if (mine) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
+            const comment = require('./scripts/measure-comment.js')
+            await comment.post({ github, context, fs: require('fs'), needs: JSON.parse(process.env.NEEDS) })

@@ -45,6 +45,16 @@ describe("the measure workflow", () => {
         expect(workflow.jobs.verdict.if).toBe("always()");
     });
 
+    // A measure that failed leaves no report, or none of its own: the Windows tests leave none
+    // at all, so the reports alone would pass a pull request that breaks them.
+    test("fails the verdict when a measure did not finish", () => {
+        const check = steps("verdict").find((step) => step.name === "Every measure finished");
+
+        expect(check.if).toBe("always()");
+        expect(check.env).toEqual({ NEEDS: "${{ toJSON(needs) }}" });
+        expect(check.run).toContain("exit 1");
+    });
+
     // The verdict reads artifacts/<name>/, where download-artifact puts each one.
     test("uploads each report under the folder the verdict reads", () => {
         const uploads = [
@@ -60,12 +70,19 @@ describe("the measure workflow", () => {
         }
     });
 
-    test("writes only to a pull request from a branch here, and finds its comment by the marker", () => {
+    test("writes only to a pull request from a branch here, even when there is nothing to judge", () => {
         const say = steps("verdict").find((step) => step.name === "Say it on the pull request");
 
         expect(workflow.permissions).toEqual({ contents: "read" });
         expect(workflow.jobs.verdict.permissions).toEqual({ contents: "read", "pull-requests": "write" });
-        expect(say.if).toContain("github.event.pull_request.head.repo.full_name == github.repository");
-        expect(say.with.script).toContain(MARKER);
+        expect(say.if).toBe("always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository");
+        expect(say.with.script).toContain("require('./scripts/measure-comment.js')");
+    });
+
+    // The comment finds its own by the summary's marker, which it marks with the run.
+    test("comments with the summary's marker", () => {
+        const { runOf } = require("../../scripts/measure-comment.js");
+
+        expect(runOf(`${MARKER}\n`)).toEqual({ run: 0, attempt: 0 });
     });
 });
