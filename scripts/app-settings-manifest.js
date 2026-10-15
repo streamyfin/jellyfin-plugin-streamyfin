@@ -54,10 +54,6 @@ const RESHAPED = {
         note: 'the app looks the scalar up in BITRATES; null is the Max entry',
         wire: (value) => value.value ?? null,
     },
-    maxAutoPlayEpisodeCount: {
-        note: 'the app rebuilds { key, value } from the scalar',
-        wire: (value) => value.value,
-    },
     subtitleSize: {
         note: 'the app divides a value of 10 or more by 100',
         wire: (value) => Math.round(value * 100),

@@ -272,6 +272,11 @@ public class Settings
     public Lockable<bool>? showHomeBackdrop { get; set; } // = true;
 
     [NotNull]
+    [Display(Name = "Upcoming episodes on home", Description = "Add a home row with the episodes about to air in the TV libraries")]
+    [SettingScope("Home and appearance", Group = "Home screen")]
+    public Lockable<bool>? showUpcomingOnHome { get; set; } // = false
+
+    [NotNull]
     [Display(Name = "Show the hero carousel", Description = "Show the large rotating carousel at the top of the home screen")]
     [SettingScope("Home and appearance", Group = "Hero carousel")]
     public Lockable<bool>? showHeroCarousel { get; set; } // = true;
@@ -357,6 +362,11 @@ public class Settings
     [Display(Name = "Prefer local audio", Description = "Prefer downloaded audio over streaming when it is available")]
     [SettingScope("Music")]
     public Lockable<bool>? preferLocalAudio { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Volume normalization", Description = "Plays songs at a matched loudness: off, track or album")]
+    [SettingScope("Music")]
+    public Lockable<MusicNormalizationMode>? musicNormalizationMode { get; set; } // = off
 
     [NotNull]
     [Display(Name = "Audio look-ahead caching", Description = "Pre-cache upcoming tracks for gapless music playback")]
@@ -494,10 +504,21 @@ public class Settings
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
 
     [NotNull]
-    [Display(Name = "Max auto play episode count", Description = "How many episodes play one after another on their own, up to 7. 0 or -1 turns auto play off")]
+    [Display(Name = "Max auto play episode count", Description = "For the app before 0.56: how many episodes play one after another on their own, up to 7, and 0 or -1 for no limit. Auto play next episode is what turns auto play off. The app 0.56 reads this as the first still watching preset that allows at least as many episodes, 0 or -1 as Disabled, and a lock on this wins over a still watching preset left unlocked")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
     [Bounds(-1, 7)]
     public Lockable<int>? maxAutoPlayEpisodeCount { get; set; } // = 3
+
+    [NotNull]
+    [Display(Name = "Ask \"Are you still watching?\"", Description = "Before the next episode plays on its own, ask whether someone is still watching. Once a session has lasted the preset's minutes, the app asks after its number of episodes in a row, or after as many minutes without a touch: short 60 minutes and 2 episodes, default 90 and 3, long 150 and 5, very long 240 and 8. Read by the app 0.56 and later, where it replaces the max auto play episode count; a lock on that count wins over this one left unlocked")]
+    [SettingScope("Playback controls", Group = "Autoplay and resume")]
+    [DependsOn("autoPlayNextEpisode")]
+    public Lockable<StillWatchingPreset>? stillWatchingPreset { get; set; } // = default
+
+    [NotNull]
+    [Display(Name = "Don't wait for this device in SyncPlay", Description = "On, a device turns on Don't wait for this device each time it joins a SyncPlay group, so the group starts and resumes without waiting for it. People can still change it in the player, so a lock only decides how each join starts. On for everyone, no device is waited for")]
+    [SettingScope("Home and appearance", Group = "SyncPlay")]
+    public Lockable<bool>? syncPlayIgnoreWait { get; set; } // = false
 
     [NotNull]
     [Display(Name = "Auto play next episode", Description = "Automatically start the next episode when one finishes")]

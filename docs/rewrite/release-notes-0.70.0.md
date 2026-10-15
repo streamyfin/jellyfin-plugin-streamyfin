@@ -22,7 +22,7 @@ It carries an unstable number, above the 0.68.1.0 it follows and below the 0.70.
 
 ### Every setting of the app, from the dashboard
 
-The **Application** tab draws the 86 settings the app reads, grouped the way the app groups them. Each one is **Free**, **Suggested** or **Locked**: left to the user, pushed once as their starting point, or pinned so they cannot change it. Only what you set travels; everything else stays the app's own default. A legend at the top of each tab says what every state and every box means, **Reset** beside a value puts the app's own default back, and libraries are picked by name rather than typed as ids. The plugin also has its own entry in the dashboard's menu now, drawn like the menu's own icons where the File Transformation plugin is installed.
+The **Application** tab draws the 90 settings the app reads, grouped the way the app groups them. Each one is **Free**, **Suggested** or **Locked**: left to the user, pushed once as their starting point, or pinned so they cannot change it. Only what you set travels; everything else stays the app's own default. A legend at the top of each tab says what every state and every box means, **Reset** beside a value puts the app's own default back, and libraries are picked by name rather than typed as ids. The plugin also has its own entry in the dashboard's menu now, drawn like the menu's own icons where the File Transformation plugin is installed.
 
 <p align="center"><img width="800" alt="The Application tab: the legend above settings grouped into cards, one of them locked with Reset beside it" src="https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/develop/assets/screenshots/application.png"></p>
 
