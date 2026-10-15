@@ -6,7 +6,7 @@
 // every cancelled confirmation as a yes, which is what deleted a settings group when the
 // administrator clicked Annuler.
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 // shared.js asks the dashboard for its address as it loads, and loads the configuration
 // unless a page has already done it, so both are in place before the module is.
@@ -17,15 +17,23 @@ const {
     confirmed,
     drawLegend,
     forgetKept,
+    getConfig,
     KEPT_DESCRIPTIONS,
     paintDisplaySwitches,
     readKept,
+    REREAD,
     saveConfig,
+    saveYamlConfig,
     setConfig,
+    setOnConfigUpdatedListener,
     tools,
     warmKept,
     wireDisplaySwitches,
 } = await import("../../Jellyfin.Plugin.Streamyfin/Pages/shared.js");
+
+// The library the dashboard loads as js-yaml.js, so what is read and written here is what
+// the pages read and write.
+const jsYaml = await import("../../Jellyfin.Plugin.Streamyfin/Pages/Libraries/js-yaml.min.js");
 
 afterEach(() => {
     delete window.Dashboard;
@@ -384,5 +392,213 @@ describe("answers kept between tabs", () => {
         await Promise.all(KEPT_DESCRIPTIONS.map((path) => readKept(path)));
 
         expect(asked).toEqual(KEPT_DESCRIPTIONS.map((path) => `GET ${path}`));
+    });
+});
+
+// The Yaml tab set what its editor held as the configuration every tab saves, and only
+// then sent it. A refused document stayed there: the next save from another tab sent it
+// again with that tab's change, and a document refused for setting nothing, `settings: {}`,
+// was then stored with the start page the Other tab added, which emptied the rest.
+describe("saving the Yaml tab", () => {
+    const FULL = {
+        settings: { forwardSkipTime: { locked: false, value: 30 } },
+        notifications: { itemAdded: { enabled: true } },
+        other: { homePage: "Application" },
+    };
+    const EMPTY = "Nothing was saved: the Yaml is empty.";
+    let posted;
+    let alerts;
+    let answer;
+    let heard;
+    let server;
+    let before;
+
+    // A server that stores what it is sent unless it refuses it, and answers a read with
+    // what it holds. `keep` is what it makes of a document it stores, `lost` throws the
+    // answer away after storing, and `down` fails every request.
+    const serve = () => {
+        server = { holds: jsYaml.dump(FULL), keep: (yaml) => yaml, lost: false, down: false, reads: 0 };
+        window.ApiClient.ajax = async ({ type = "GET", data }) => {
+            if (server.down) throw new Error("offline");
+            if (type === "GET") {
+                server.reads += 1;
+                return { json: async () => ({ Value: server.holds }) };
+            }
+            posted.push(JSON.parse(data).Value);
+            if (!answer.Error) server.holds = server.keep(JSON.parse(data).Value);
+            if (server.lost) throw new Error("the answer was lost");
+            return { json: async () => answer };
+        };
+    };
+
+    beforeEach(() => {
+        before = { jsYaml: tools.jsYaml, config: getConfig() };
+        posted = [];
+        alerts = [];
+        heard = [];
+        answer = { Error: false };
+        tools.jsYaml = jsYaml;
+        window.Dashboard = {
+            showLoadingMsg() {},
+            hideLoadingMsg() {},
+            processPluginConfigurationUpdateResult() {},
+            alert: (message) => alerts.push(message),
+        };
+        serve();
+        setConfig(structuredClone(FULL));
+        setOnConfigUpdatedListener("yaml-save-test", (config, raw, cause) => heard.push({ config, raw, cause }));
+    });
+
+    afterEach(() => {
+        setOnConfigUpdatedListener("yaml-save-test", undefined);
+        setOnConfigUpdatedListener("throws", undefined);
+        delete window.ApiClient.ajax;
+        tools.jsYaml = before.jsYaml;
+        setConfig(before.config);
+    });
+
+    test("a refused document leaves the configuration as it was, for the next tab that saves", async () => {
+        answer = { Error: true, Message: EMPTY };
+
+        expect(await saveYamlConfig("settings: {}\n")).toBe(false);
+
+        expect(alerts).toEqual([EMPTY]);
+        expect(getConfig()).toEqual(FULL);
+        expect(heard).toEqual([]);
+        expect(server.reads).toBe(0);
+
+        answer = { Error: false };
+        expect(await saveConfig()).toBe(true);
+        expect(jsYaml.load(posted[1])).toEqual(FULL);
+    });
+
+    test("a stored document becomes the configuration, and every tab hears of it", async () => {
+        const text = "settings:\n  forwardSkipTime:\n    value: 10\n";
+        const stored = { settings: { forwardSkipTime: { value: 10 } } };
+
+        expect(await saveYamlConfig(text)).toBe(true);
+
+        expect(jsYaml.load(posted[0])).toEqual(stored);
+        expect(getConfig()).toEqual(stored);
+        expect(heard).toEqual([{ config: stored, raw: text, cause: undefined }]);
+    });
+
+    // The server folds Seerr's block and the old spellings into the keys. Kept as written,
+    // the block made the Application tab show Seerr's address as Free, and a change there
+    // sent the block with the new key, which the server refused as two different values.
+    test("what the server stored is what the other tabs save next, not the document as written", async () => {
+        server.keep = () => "settings:\n  jellyseerrServerUrl:\n    value: http://seerr.example\n";
+
+        expect(await saveYamlConfig("settings:\n  seerr:\n    serverUrl:\n      value: http://seerr.example\n")).toBe(true);
+
+        expect(getConfig()).toEqual({ settings: { jellyseerrServerUrl: { value: "http://seerr.example" } } });
+        expect(heard.map((one) => one.config)).toEqual([getConfig()]);
+    });
+
+    // A proxy that times out, or a connection dropped on the way back, after the server
+    // stored the document: the pages kept the configuration from before, and the next save
+    // from another tab put it back over the document without a word.
+    test("a request that fails after the server stored the document takes what the server holds", async () => {
+        server.lost = true;
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(await saveYamlConfig("settings:\n  forwardSkipTime:\n    value: 10\n")).toBe(false);
+        } finally {
+            logged.mockRestore();
+        }
+
+        const held = { settings: { forwardSkipTime: { value: 10 } } };
+        expect(getConfig()).toEqual(held);
+        // Told that it was read back, so the editor keeps what the administrator wrote.
+        expect(heard).toEqual([{ config: held, raw: undefined, cause: REREAD }]);
+    });
+
+    test("a request that fails before the server stored anything leaves the configuration as it was", async () => {
+        server.keep = () => server.holds;
+        server.lost = true;
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(await saveYamlConfig("settings:\n  forwardSkipTime:\n    value: 10\n")).toBe(false);
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(getConfig()).toEqual(FULL);
+    });
+
+    test("a server that cannot be reached leaves the configuration as it was", async () => {
+        server.down = true;
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(await saveYamlConfig("settings:\n  forwardSkipTime:\n    value: 10\n")).toBe(false);
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(getConfig()).toEqual(FULL);
+        expect(heard).toEqual([]);
+    });
+
+    // A tab whose listener throws on what it was handed, as the wording card did on a
+    // `wording` list with an empty item, which the server stores.
+    test("a tab that throws on the new configuration stops neither the save nor the tabs after it", async () => {
+        setOnConfigUpdatedListener("yaml-save-test", undefined);
+        setOnConfigUpdatedListener("throws", () => {
+            throw new TypeError("null is not an object (evaluating 'one.key')");
+        });
+        setOnConfigUpdatedListener("yaml-save-test", (config, raw, cause) => heard.push({ config, raw, cause }));
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        let stored;
+        let logs;
+        try {
+            stored = await saveYamlConfig("notifications:\n  wording:\n    -\n");
+            logs = logged.mock.calls.length;
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(stored).toBe(true);
+        expect(heard).toHaveLength(1);
+        expect(logs).toBe(1);
+    });
+
+    // The server judges a document that sets nothing, `{}` as much as a blank one, and
+    // says so in the sentence it answers with.
+    test("a document with nothing in it is sent, so the server can say why it is not saved", async () => {
+        answer = { Error: true, Message: EMPTY };
+
+        for (const text of ["", "# only a comment\n", "---\n"]) {
+            expect(await saveYamlConfig(text)).toBe(false);
+        }
+
+        expect(posted.map((value) => jsYaml.load(value) ?? null)).toEqual([null, null, null]);
+        expect(alerts).toEqual([EMPTY, EMPTY, EMPTY]);
+        expect(getConfig()).toEqual(FULL);
+    });
+
+    test("a document that cannot be read is not sent, and says where it stops", async () => {
+        expect(await saveYamlConfig("settings:\n  forwardSkipTime: [1\n")).toBe(false);
+
+        expect(posted).toEqual([]);
+        expect(alerts).toEqual([
+            "Nothing was saved: the Yaml cannot be read at line 3, column 1 (unexpected end of the stream within a flow collection).",
+        ]);
+        expect(getConfig()).toEqual(FULL);
+        expect(heard).toEqual([]);
+    });
+
+    // js-yaml reads one document, and says so without a place in the file.
+    test("two documents in one file are not sent, and say why", async () => {
+        expect(await saveYamlConfig("settings: {}\n---\nother: {}\n")).toBe(false);
+
+        expect(posted).toEqual([]);
+        expect(alerts).toEqual([
+            "Nothing was saved: the Yaml cannot be read (expected a single document in the stream, but found more).",
+        ]);
+        expect(getConfig()).toEqual(FULL);
     });
 });

@@ -113,6 +113,17 @@ export const toConfig = (list) => {
     return [...kept.values()];
 };
 
+/**
+ * The rows for what is stored. An empty item, which the Yaml tab can store as a bare dash
+ * under `wording:`, is left out: reading a key out of it took the card down.
+ */
+export const rowsOf = (stored) =>
+    (stored ?? []).filter((one) => one != null).map((one) => ({
+        key: one.key,
+        locale: one.locale ?? "",
+        text: one.text ?? "",
+    }));
+
 export const summarise = (list) => {
     const rows = toConfig(list).length;
 

@@ -330,9 +330,21 @@ export const setOnConfigUpdatedListener = (key, listener) => {
     onConfigLoadedListeners[key] = listener;
 }
 
-const triggerConfigListeners = (value, raw) => {
-    Object.values(onConfigLoadedListeners).forEach(listener => listener?.(config, raw));
+// One tab that throws on what it is handed stops neither the others nor the save that told
+// them: a configuration the server stored has to reach every tab.
+const triggerConfigListeners = (value, raw, cause) => {
+    Object.values(onConfigLoadedListeners).forEach((listener) => {
+        try {
+            listener?.(config, raw, cause);
+        } catch (error) {
+            console.error(error);
+        }
+    });
 }
+
+// What a listener is told when the configuration was read back from the server after a
+// save whose answer never came: an editor keeps what the administrator wrote.
+export const REREAD = "reread";
 // endregion listeners
 
 // region getters/setters
@@ -371,20 +383,68 @@ export const setPage = (resource) => {
     LibraryMenu.setTabs(tabs[index].resource, index, StreamyfinTabs)
 }
 
+const STORED = "stored";
+const REFUSED = "refused";
+const FAILED = "failed";
+
 // Resolves to true once the server has stored the configuration, and to false when it
 // refused it or the request failed, so a page can keep its unsaved state on a refusal.
-export const saveConfig = () => {
-    Dashboard.showLoadingMsg();
-    
-    if (!config) {
-        Dashboard.hideLoadingMsg();
+export const saveConfig = () => config
+    ? store(config).then((outcome) => outcome === STORED)
+    : Promise.resolve(false);
+
+// The Yaml tab's save. The configuration every tab saves changes only once the server has
+// stored the document: set before, a refused document stayed there, and the next save from
+// another tab sent it again with that tab's change. A document with nothing in it is sent
+// all the same, so the server says why it is not saved.
+export const saveYamlConfig = (text) => {
+    let value;
+    try {
+        value = tools.jsYaml.load(text);
+    } catch (error) {
+        Dashboard.alert(unreadable(error));
         return Promise.resolve(false);
     }
 
+    return store(value).then(async (outcome) => {
+        if (outcome === REFUSED) return false;
+
+        // What the server holds is read back rather than assumed. It folds Seerr's block
+        // and the old spellings into the keys, so the document as written is not what the
+        // other tabs should save next. And a request that failed on its way back may have
+        // been stored, which the next save from another tab would otherwise undo.
+        const held = await readStored();
+        if (outcome === STORED) {
+            config = held ?? value;
+            triggerConfigListeners(config, text);
+        } else if (held !== undefined) {
+            config = held;
+            triggerConfigListeners(config, undefined, REREAD);
+        }
+        return outcome === STORED;
+    });
+}
+
+// The configuration the server holds, or undefined when it cannot be asked.
+const readStored = () => window.ApiClient.ajax({type: 'GET', url: YAML_URL, contentType: 'application/json'})
+    .then(async (response) => tools.jsYaml.load((await response.json()).Value))
+    .catch((error) => {
+        console.error(error);
+        return undefined;
+    });
+
+// js-yaml says where it stopped as a line and a column counted from 0.
+const unreadable = (error) => error?.mark
+    ? `Nothing was saved: the Yaml cannot be read at line ${error.mark.line + 1}, column ${error.mark.column + 1} (${error.reason}).`
+    : `Nothing was saved: the Yaml cannot be read (${error?.message ?? error}).`;
+
+const store = (value) => {
+    Dashboard.showLoadingMsg();
+
     //todo: potentially just keep it as json? we only need to convert only for editor reasons
-    // convert config back to yaml 
+    // convert config back to yaml
     const data = JSON.stringify({
-        Value: tools.jsYaml.dump(config),
+        Value: tools.jsYaml.dump(value),
     });
 
     return window.ApiClient.ajax({type: 'POST', url: YAML_URL, data, contentType: 'application/json'})
@@ -393,16 +453,16 @@ export const saveConfig = () => {
 
             if (Error) {
                 Dashboard.alert(Message);
-                return false;
+                return REFUSED;
             } 
 
             Dashboard.processPluginConfigurationUpdateResult();
             forgetKept();
-            return true;
+            return STORED;
         })
         .catch((error) => {
             console.error(error);
-            return false;
+            return FAILED;
         })
         .finally(Dashboard.hideLoadingMsg);
 }
@@ -537,6 +597,8 @@ if (!window.Streamyfin?.shared) {
             setYamlConfig,
             setPage,
             saveConfig,
+            saveYamlConfig,
+            REREAD,
             getJsonSchema,
             getDefaultConfig,
             getConfig,
