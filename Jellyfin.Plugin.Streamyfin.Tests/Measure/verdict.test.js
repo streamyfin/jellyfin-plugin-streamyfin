@@ -36,6 +36,42 @@ describe("a folder's measure", () => {
     });
 });
 
+describe("a folder's measure, further", () => {
+    const branched = (...branches) => ({
+        lines: new Map([[1, 1]]),
+        branches: new Map(branches.map(([covered, total], at) => [at + 1, { covered, total }])),
+    });
+
+    test("adds up the branches of its files, and lists the folders by name", () => {
+        const coverage = new Map([
+            ["Jellyfin.Plugin.Streamyfin/Pages/a.js", branched([1, 2], [2, 2])],
+            [DB, branched([0, 4])],
+        ]);
+
+        expect(measureFolders({ coverage, mutants: [], owners: new Set() })).toEqual([
+            { name: "Db", lines: 100, branches: 0, mutation: null },
+            { name: "Pages", lines: 100, branches: 75, mutation: null },
+        ]);
+    });
+
+    test("measures no line of a folder that only has mutants, and no mutation of one that has none", () => {
+        const coverage = new Map([[DB, file(3, 4)]]);
+        const mutants = [mutant("Survived", { file: "Jellyfin.Plugin.Streamyfin/Configuration/A.cs" })];
+
+        expect(measureFolders({ coverage, mutants, owners: new Set() })).toEqual([
+            { name: "Configuration", lines: null, branches: null, mutation: 0 },
+            { name: "Db", lines: 75, branches: null, mutation: null },
+        ]);
+    });
+
+    test("leaves out what sits in no folder: the tests, the docs", () => {
+        const coverage = new Map([[DB, file(1, 1)], ["Jellyfin.Plugin.Streamyfin.Tests/A.cs", file(0, 9)], ["docs/a.js", file(0, 9)]]);
+        const mutants = [mutant("Survived", { file: "Jellyfin.Plugin.Streamyfin.Tests/A.cs" })];
+
+        expect(measureFolders({ coverage, mutants, owners: new Set() })).toEqual([{ name: "Db", lines: 100, branches: null, mutation: null }]);
+    });
+});
+
 const measured = [{ name: "Db", lines: 70.5, branches: 58.3, mutation: 50.7 }];
 const FLOORS = { Db: { lines: 70.5, branches: 58.3, mutation: 50.7 } };
 
@@ -106,6 +142,30 @@ describe("the floors", () => {
     });
 });
 
+describe("the floors, further", () => {
+    test("stay on each folder they were set for, and a folder without any has none", () => {
+        const result = verdict({ measured: [...measured, { name: "New", lines: 10, branches: null, mutation: null }] });
+
+        expect(result.folders.map((folder) => folder.floor)).toEqual([FLOORS.Db, null]);
+    });
+
+    test("fail the run when one folder of several is under them", () => {
+        const result = verdict({
+            measured: [{ ...measured[0], lines: 60 }, { name: "Pages", lines: 50, branches: null, mutation: 40 }],
+            floors: { ...FLOORS, Pages: { lines: 50, branches: null, mutation: 40 } },
+        });
+
+        expect(result.folders.map((folder) => folder.problems.length)).toEqual([1, 0]);
+        expect(result.ok).toBe(false);
+    });
+
+    test("ask to be set for a metric measured where they say nothing yet", () => {
+        const result = verdict({ floors: { Db: { lines: 70.5, branches: null, mutation: 50.7 } } });
+
+        expect(result.folders[0].problems).toEqual(["branches is now measured, at 58.3 %: run bun run floors:raise"]);
+    });
+});
+
 describe("a mutant that escapes", () => {
     const changed = new Map([[DB, new Set([3])]]);
 
@@ -141,5 +201,16 @@ describe("a mutant that escapes", () => {
 
         expect(result.ok).toBe(false);
         expect(result.stale).toEqual(accepted);
+    });
+});
+
+describe("an acceptance", () => {
+    test("covers its own mutant only, not another on the same line", () => {
+        const changed = new Map([[DB, new Set([3])]]);
+        const accepted = [{ file: DB, line: "return true;", mutator: "Boolean mutation", replacement: "false", reason: "equivalent" }];
+        const result = verdict({ mutants: [mutant("Survived"), mutant("Survived", { replacement: "!true" })], accepted, changed });
+
+        expect(result.escaped.map((escapedMutant) => escapedMutant.replacement)).toEqual(["!true"]);
+        expect(result.stale).toEqual([]);
     });
 });

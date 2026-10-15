@@ -62,6 +62,27 @@ describe("the test settings", () => {
         expect(settings.mutation.js.shards).toEqual([{ name: "b", mutate: ["b.js"] }]);
     });
 
+    test("take false as false, and true as true", () => {
+        const root = rootWith(SAMPLE);
+
+        expect(readSettings({ root, env: { STREAMYFIN_TEST_STRICT: "false" } }).strict).toBe(false);
+        expect(readSettings({ root, env: { STREAMYFIN_TEST_STRICT: "true" } }).strict).toBe(true);
+    });
+
+    test("refuse blanks for a number", () => {
+        expect(() => readSettings({ root: rootWith(SAMPLE), env: { STREAMYFIN_TEST_ITERATIONS_UNIT: "  " } }))
+            .toThrow("STREAMYFIN_TEST_ITERATIONS_UNIT is not a number");
+    });
+
+    test("leave a setting written as null alone", () => {
+        expect(readSettings({ root: rootWith({ ...SAMPLE, seed: null }), env: {} }).seed).toBeNull();
+    });
+
+    // STREAMYFIN_TEST_ alone names no setting: it never replaces the whole file.
+    test("take no override for the file as a whole", () => {
+        expect(readSettings({ root: rootWith(SAMPLE), env: { STREAMYFIN_TEST_: "{}" } })).toEqual(SAMPLE);
+    });
+
     test("refuse a value that is not of the setting's kind, and say which variable", () => {
         const root = rootWith(SAMPLE);
 

@@ -21,7 +21,8 @@ export const parseLcov = (text, toPath = (path) => path) => {
             const [number, , , taken] = line.slice(5).split(",");
             const at = Number(number);
             const before = current.branches.get(at) ?? { covered: 0, total: 0 };
-            const hit = taken !== "-" && Number(taken) > 0;
+            // A branch never reached is written "-", which is not a number either.
+            const hit = Number(taken) > 0;
             current.branches.set(at, { covered: before.covered + (hit ? 1 : 0), total: before.total + 1 });
         } else if (line === "end_of_record") {
             current = null;

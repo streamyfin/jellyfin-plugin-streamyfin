@@ -3,14 +3,16 @@
 
 const DRIVE = /^[A-Za-z]:\//;
 
-export const toRepoPath = (path, root) => {
-    const slashed = path.replaceAll("\\", "/");
-    if (!DRIVE.test(slashed) && !slashed.startsWith("/")) return slashed.replace(/^\.\//, "");
+export const slashed = (path) => path.replaceAll("\\", "/");
 
-    const base = root.replaceAll("\\", "/").replace(/\/+$/, "");
+export const toRepoPath = (raw, root) => {
+    const path = slashed(raw);
+    if (!DRIVE.test(path) && !path.startsWith("/")) return path.replace(/^\.\//, "");
+
+    const base = slashed(root).replace(/\/+$/, "");
     // A Windows drive letter can come back in either case.
-    const inside = DRIVE.test(slashed)
-        ? slashed.toLowerCase().startsWith(`${base.toLowerCase()}/`)
-        : slashed.startsWith(`${base}/`);
-    return inside ? slashed.slice(base.length + 1) : slashed;
+    const inside = DRIVE.test(path)
+        ? path.toLowerCase().startsWith(`${base.toLowerCase()}/`)
+        : path.startsWith(`${base}/`);
+    return inside ? path.slice(base.length + 1) : path;
 };

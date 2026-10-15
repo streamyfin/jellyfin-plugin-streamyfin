@@ -20,7 +20,7 @@ import { raisedFloors, summarize } from "./summary.js";
 import { coverageCs, coverageJs, mutationCs, mutationJs } from "./tools.js";
 import { judge, measureFolders } from "./verdict.js";
 
-const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+const readJson = (path) => JSON.parse(readFileSync(path));
 
 const found = (dir, name) => (existsSync(dir)
     ? [...new Bun.Glob(`**/${name}`).scanSync({ cwd: dir })].map((path) => join(dir, path))
@@ -87,23 +87,17 @@ export const verdictFor = ({ root, settings, changed }) => {
     return result;
 };
 
-const run = ({ command, cwd, env = {} }) => {
-    console.log(`> ${command.join(" ")}`);
+// One tool, from the folder its job names, with what the job adds to the environment. Its
+// output goes straight to this process's, so a long run shows as it goes.
+export const runTool = ({ command, cwd, env = {} }, { root = ROOT, print = console.log } = {}) => {
+    print(`> ${command.join(" ")}`);
     const child = Bun.spawnSync(command, {
-        cwd: join(ROOT, cwd),
+        cwd: join(root, cwd),
         env: { ...process.env, ...env },
         stdout: "inherit",
         stderr: "inherit",
     });
     if (child.exitCode !== 0) throw new Error(`${command.slice(0, 2).join(" ")} exited with ${child.exitCode}`);
-};
-
-// A run starts from an empty folder: coverlet adds a folder per run, and an old report left
-// next to a new one would be read as part of it.
-const fresh = (...parts) => {
-    const dir = join(ROOT, ...parts);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
 };
 
 const shardNamed = (settings, kind, name) => {
@@ -112,70 +106,92 @@ const shardNamed = (settings, kind, name) => {
     return shard;
 };
 
-const commands = {
-    "coverage-cs": (settings, [target]) => {
-        if (target !== "jf11" && target !== "jf12") throw new Error("coverage-cs takes jf11 or jf12");
-        fresh("artifacts", `coverage-cs-${target}`);
-        run(coverageCs({ target }));
-    },
-    "coverage-js": () => {
-        fresh("artifacts", "coverage-js");
-        run(coverageJs());
-    },
-    "mutation-cs": (settings, [name]) => {
-        fresh("artifacts", `mutation-cs-${name}`);
-        const job = mutationCs({
-            shard: shardNamed(settings, "cs", name),
-            settings,
-            owners: readOwners(ROOT),
-            base: readJson(join(ROOT, "Jellyfin.Plugin.Streamyfin.Tests", "stryker-config.json")),
-        });
-        writeFileSync(join(ROOT, job.configFile), `${JSON.stringify(job.config, null, 2)}\n`);
-        run(job);
-    },
-    "mutation-js": (settings, [name]) => {
-        fresh("artifacts", `mutation-js-${name}`);
-        const job = mutationJs({ shard: shardNamed(settings, "js", name), settings, base: readJson(join(ROOT, "stryker.config.json")) });
-        writeFileSync(join(ROOT, job.configFile), `${JSON.stringify(job.config, null, 2)}\n`);
-        run(job);
-    },
-    shards: (settings, [kind]) => {
-        console.log(JSON.stringify(settings.mutation[kind].shards.map((shard) => shard.name)));
-    },
-    verdict: (settings, args) => {
-        const at = args.indexOf("--base");
-        const base = at === -1 ? "origin/develop" : args[at + 1];
-        // A branch's first push has no commit before it, so no line to compare.
-        const changed = /^0*$/.test(base ?? "") ? new Map() : changedLines(base);
-        const result = verdictFor({ root: ROOT, settings, changed });
-        const summary = readFileSync(join(ROOT, "artifacts", "measure", "summary.md"), "utf8");
-        if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, summary, { flag: "a" });
-        console.log(summary);
-        if (!result.ok) process.exitCode = 1;
-    },
-    raise: (settings) => {
-        const owners = readOwners(ROOT);
-        const { coverage, mutants, missingReports } = collect({ root: ROOT, settings, owners });
-        if (missingReports.length > 0) throw new Error(`every report is needed to raise the floors, missing: ${missingReports.join(", ")}`);
-        const path = join(ROOT, "tests", "floors.json");
-        const floors = raisedFloors(readJson(path), measureFolders({ coverage, mutants, owners }));
-        writeFileSync(path, `${JSON.stringify(floors, null, 2)}\n`);
-        console.log(JSON.stringify(floors, null, 2));
-    },
-    all: (settings, args) => {
-        for (const target of ["jf12", "jf11"]) commands["coverage-cs"](settings, [target]);
-        commands["coverage-js"](settings, []);
-        for (const shard of settings.mutation.cs.shards) commands["mutation-cs"](settings, [shard.name]);
-        for (const shard of settings.mutation.js.shards) commands["mutation-js"](settings, [shard.name]);
-        commands.verdict(settings, args);
-    },
+// Every command, given what it touches: the repository, where it prints, how a tool runs,
+// the environment and how the changed lines are found. Each returns its exit code.
+export const commandsFor = ({ root = ROOT, print = console.log, run = runTool, env = process.env, changed = changedLines } = {}) => {
+    const tool = (job) => run(job, { root, print });
+    // A run starts from an empty folder: coverlet adds a folder per run, and an old report
+    // left next to a new one would be read as part of it.
+    const fresh = (...parts) => {
+        const dir = join(root, ...parts);
+        rmSync(dir, { recursive: true, force: true });
+        mkdirSync(dir, { recursive: true });
+    };
+    const runWithConfig = (job) => {
+        writeFileSync(join(root, job.configFile), `${JSON.stringify(job.config, null, 2)}\n`);
+        tool(job);
+    };
+
+    const commands = {
+        "coverage-cs": (settings, [target]) => {
+            if (target !== "jf11" && target !== "jf12") throw new Error("coverage-cs takes jf11 or jf12");
+            fresh("artifacts", `coverage-cs-${target}`);
+            tool(coverageCs({ target }));
+            return 0;
+        },
+        "coverage-js": () => {
+            fresh("artifacts", "coverage-js");
+            tool(coverageJs());
+            return 0;
+        },
+        "mutation-cs": (settings, [name]) => {
+            const shard = shardNamed(settings, "cs", name);
+            fresh("artifacts", `mutation-cs-${name}`);
+            runWithConfig(mutationCs({
+                shard,
+                settings,
+                owners: readOwners(root),
+                base: readJson(join(root, "Jellyfin.Plugin.Streamyfin.Tests", "stryker-config.json")),
+            }));
+            return 0;
+        },
+        "mutation-js": (settings, [name]) => {
+            const shard = shardNamed(settings, "js", name);
+            fresh("artifacts", `mutation-js-${name}`);
+            runWithConfig(mutationJs({ shard, settings, base: readJson(join(root, "stryker.config.json")) }));
+            return 0;
+        },
+        shards: (settings, [kind]) => {
+            print(JSON.stringify(settings.mutation[kind].shards.map((shard) => shard.name)));
+            return 0;
+        },
+        verdict: (settings, args) => {
+            const at = args.indexOf("--base");
+            const base = at === -1 ? "origin/develop" : args[at + 1];
+            // A branch's first push has no commit before it, so no line to compare.
+            const result = verdictFor({ root, settings, changed: /^0*$/.test(base ?? "") ? new Map() : changed(base, { cwd: root }) });
+            const summary = readFileSync(join(root, "artifacts", "measure", "summary.md"), "utf8");
+            if (env.GITHUB_STEP_SUMMARY) writeFileSync(env.GITHUB_STEP_SUMMARY, summary, { flag: "a" });
+            print(summary);
+            return result.ok ? 0 : 1;
+        },
+        raise: (settings) => {
+            const owners = readOwners(root);
+            const { coverage, mutants, missingReports } = collect({ root, settings, owners });
+            if (missingReports.length > 0) throw new Error(`every report is needed to raise the floors, missing: ${missingReports.join(", ")}`);
+            const path = join(root, "tests", "floors.json");
+            const floors = raisedFloors(readJson(path), measureFolders({ coverage, mutants, owners }));
+            writeFileSync(path, `${JSON.stringify(floors, null, 2)}\n`);
+            print(JSON.stringify(floors, null, 2));
+            return 0;
+        },
+        all: (settings, args) => {
+            for (const target of ["jf12", "jf11"]) commands["coverage-cs"](settings, [target]);
+            commands["coverage-js"](settings);
+            for (const shard of settings.mutation.cs.shards) commands["mutation-cs"](settings, [shard.name]);
+            for (const shard of settings.mutation.js.shards) commands["mutation-js"](settings, [shard.name]);
+            return commands.verdict(settings, args);
+        },
+    };
+    return commands;
 };
 
 if (import.meta.main) {
     const [name, ...args] = process.argv.slice(2);
-    if (!commands[name]) {
+    const commands = commandsFor();
+    if (!Object.hasOwn(commands, name)) {
         console.error(`usage: bun scripts/measure/cli.js <${Object.keys(commands).join("|")}> [arguments]`);
         process.exit(2);
     }
-    commands[name](readSettings(), args);
+    process.exitCode = commands[name](readSettings(), args);
 }

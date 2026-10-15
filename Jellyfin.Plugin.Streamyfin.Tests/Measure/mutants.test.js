@@ -31,6 +31,10 @@ describe("a Stryker report", () => {
         ]);
     });
 
+    test("with a file that has no mutants gives none for it", () => {
+        expect(readMutants({ files: { "scripts/a.js": { source: "" } } }, (path) => path)).toEqual([]);
+    });
+
     test("without a replacement gives an empty one rather than nothing", () => {
         const report = { files: { "a.js": { mutants: [mutant("Survived", 1, { replacement: undefined })] } } };
 

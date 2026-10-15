@@ -26,7 +26,7 @@ const draws = (settings) => ({ STREAMYFIN_TEST_ITERATIONS_UNIT: String(settings.
 // the configuration's, so the generated code and the files the integration tests answer for
 // are left out here, on every shard. The timeout has no command line option, so each shard
 // gets a configuration of its own, next to its reports: the test project's, with the timeout.
-export const mutationCs = ({ shard, settings, owners, base = { "stryker-config": {} } }) => {
+export const mutationCs = ({ shard, settings, owners, base = {} }) => {
     const out = `artifacts/mutation-cs-${shard.name}`;
     const configFile = `${out}/stryker-config.json`;
     const generated = EXCLUDED.filter((pattern) => !pattern.startsWith(PLUGIN)).map((pattern) => `!${pattern}`);

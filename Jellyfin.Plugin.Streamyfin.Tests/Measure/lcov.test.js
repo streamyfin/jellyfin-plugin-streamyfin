@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { counts, mergeCoverage, parseLcov } from "../../scripts/measure/lcov.js";
-import { toRepoPath } from "../../scripts/measure/paths.js";
+import { slashed, toRepoPath } from "../../scripts/measure/paths.js";
 
 const ROOT = "/home/runner/work/plugin";
 
@@ -21,6 +21,21 @@ describe("a path from a report", () => {
 
     test("outside the repository stays as it was, so nothing counts it", () => {
         expect(toRepoPath("/usr/share/dotnet/x.cs", ROOT)).toBe("/usr/share/dotnet/x.cs");
+        expect(toRepoPath("D:\\other\\x.cs", "C:\\a\\plugin")).toBe("D:/other/x.cs");
+    });
+
+    test("finds the root whatever slashes end it", () => {
+        expect(toRepoPath(`${ROOT}/scripts/a.js`, `${ROOT}//`)).toBe("scripts/a.js");
+        expect(toRepoPath(`${ROOT}/scripts/a.js`, `${ROOT}/`)).toBe("scripts/a.js");
+    });
+
+    test("only drops a leading ./, and takes a colon inside a relative path as part of a name", () => {
+        expect(toRepoPath("scripts/./a.js", ROOT)).toBe("scripts/./a.js");
+        expect(toRepoPath("./scripts/a:/b.js", ROOT)).toBe("scripts/a:/b.js");
+    });
+
+    test("turn every backslash into a slash", () => {
+        expect(slashed("a\\b\\c.js")).toBe("a/b/c.js");
     });
 });
 
@@ -46,6 +61,28 @@ const JF11 = [
 ].join("\n");
 
 const read = (text) => parseLcov(text, (path) => toRepoPath(path, ROOT));
+
+describe("an LCOV report, line by line", () => {
+    test("keeps the paths as written when nothing maps them", () => {
+        expect([...parseLcov("SF:/abs/a.js\nDA:1,1\nend_of_record\n").keys()]).toEqual(["/abs/a.js"]);
+    });
+
+    test("reads a line with spaces around it", () => {
+        expect([...parseLcov("  SF:scripts/a.js  \n DA:1,1 \nend_of_record \n").keys()]).toEqual(["scripts/a.js"]);
+    });
+
+    test("ends a file at end_of_record, and not before", () => {
+        const files = parseLcov(["SF:scripts/a.js", "FNF:0", "DA:1,1", "LF:2", "DA:2,0", "end_of_record", "DA:3,1", ""].join("\n"));
+
+        expect([...files.get("scripts/a.js").lines]).toEqual([[1, 1], [2, 0]]);
+    });
+
+    test("counts a branch taken once or more as covered, and one never reached as not", () => {
+        const files = parseLcov(["SF:a.cs", "BRDA:4,0,0,2", "BRDA:4,0,1,0", "BRDA:4,0,2,-", "end_of_record", ""].join("\n"));
+
+        expect(files.get("a.cs").branches.get(4)).toEqual({ covered: 1, total: 3 });
+    });
+});
 
 describe("an LCOV report", () => {
     test("gives each file's lines and, line by line, its branches", () => {

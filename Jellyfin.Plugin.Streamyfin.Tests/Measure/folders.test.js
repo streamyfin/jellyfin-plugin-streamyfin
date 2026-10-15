@@ -68,6 +68,8 @@ describe("the files the integration tests answer for", () => {
         const file = "Jellyfin.Plugin.Streamyfin/Plugin.cs";
 
         expect(() => readOwners(rootWith([{ file, reason: " " }], [file]))).toThrow("every entry needs a file and a reason");
+        expect(() => readOwners(rootWith([{ file }], [file]))).toThrow("every entry needs a file and a reason");
+        expect(() => readOwners(rootWith([{ reason: "no file" }], [file]))).toThrow("every entry needs a file and a reason");
         expect(() => readOwners(rootWith([{ file, reason: "gone" }]))).toThrow(`${file} does not exist`);
     });
 });

@@ -45,4 +45,4 @@ const overridden = (value, path, env) => {
 };
 
 export const readSettings = ({ root = ROOT, env = process.env } = {}) =>
-    overridden(JSON.parse(readFileSync(join(root, "tests", "settings.json"), "utf8")), "", env);
+    overridden(JSON.parse(readFileSync(join(root, "tests", "settings.json"))), "", env);

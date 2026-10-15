@@ -24,13 +24,18 @@ describe("coverage", () => {
     });
 
     test("of the JavaScript runs bun test with LCOV", () => {
-        expect(coverageJs().command).toEqual(["bun", "test", "--coverage", "--coverage-reporter=lcov", "--coverage-dir=artifacts/coverage-js"]);
+        expect(coverageJs()).toEqual({ command: ["bun", "test", "--coverage", "--coverage-reporter=lcov", "--coverage-dir=artifacts/coverage-js"], cwd: "." });
     });
 });
 
 describe("a C# mutation shard", () => {
     const shard = { name: "data", mutate: ["**/Db/**/*.cs"] };
-    const owners = new Map([["Jellyfin.Plugin.Streamyfin/Api/StreamyfinController.cs", "every route"], ["scripts/x.js", "not C#"]]);
+    const owners = new Map([
+        ["Jellyfin.Plugin.Streamyfin/Api/StreamyfinController.cs", "every route"],
+        ["scripts/x.js", "not C#"],
+        ["Jellyfin.Plugin.Streamyfin/Pages/x.js", "a page, not C#"],
+        ["Jellyfin.Plugin.Streamyfin.Tests/X.cs", "C#, not the plugin's"],
+    ]);
 
     test("mutates its files, never generated code nor what the integration tests answer for", () => {
         const { command, cwd } = mutationCs({ shard, settings, owners });
@@ -68,8 +73,9 @@ describe("a JavaScript mutation shard", () => {
     const base = { testRunner: "command", coverageAnalysis: "off", reporters: ["json", "html", "clear-text"] };
 
     test("gets a configuration of its own, next to its reports", () => {
-        const { config, configFile, command } = mutationJs({ shard, settings, base });
+        const { config, configFile, command, cwd } = mutationJs({ shard, settings, base });
 
+        expect(cwd).toBe(".");
         expect(configFile).toBe("artifacts/mutation-js-pages-form/stryker.config.json");
         expect(command).toEqual(["node", "node_modules/@stryker-mutator/core/bin/stryker.js", "run", configFile]);
         expect(config).toEqual({

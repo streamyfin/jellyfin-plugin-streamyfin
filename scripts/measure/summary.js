@@ -65,9 +65,7 @@ export const raisedFloors = (floors, measured) => Object.fromEntries(measured.ma
     const before = floors[folder.name] ?? {};
     const lifted = (metric) => {
         const value = folder[metric];
-        const floor = before[metric] ?? null;
-        if (value === null || floor === null) return value;
-        return Math.max(value, floor);
+        return value === null ? null : Math.max(value, before[metric] ?? value);
     };
     return [folder.name, { lines: lifted("lines"), branches: lifted("branches"), mutation: lifted("mutation") }];
 }));

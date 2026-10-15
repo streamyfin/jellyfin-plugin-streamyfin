@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { slashed } from "./paths.js";
 
 const PLUGIN = "Jellyfin.Plugin.Streamyfin/";
 
@@ -20,7 +21,6 @@ const excluded = EXCLUDED.map((pattern) => new Bun.Glob(pattern));
 export const isExcluded = (path) => excluded.some((glob) => glob.match(path));
 
 export const folderOf = (path) => {
-    if (path.startsWith(`${PLUGIN}Pages/`)) return "Pages";
     if (path.startsWith("scripts/")) return "scripts";
     if (!path.startsWith(PLUGIN)) return null;
 
@@ -31,7 +31,7 @@ export const folderOf = (path) => {
 
 export const readOwners = (root) => {
     const owners = new Map();
-    for (const entry of JSON.parse(readFileSync(join(root, "tests", "owners.json"), "utf8"))) {
+    for (const entry of JSON.parse(readFileSync(join(root, "tests", "owners.json")))) {
         if (!entry.file || !entry.reason?.trim()) {
             throw new Error(`tests/owners.json: every entry needs a file and a reason (${JSON.stringify(entry)})`);
         }
@@ -59,6 +59,5 @@ export const unloaded = (text) => ({
 export const ownJsFiles = (root) =>
     ["Jellyfin.Plugin.Streamyfin/Pages/**/*.js", "scripts/**/*.js"]
         .flatMap((pattern) => [...new Bun.Glob(pattern).scanSync({ cwd: root })])
-        .map((path) => path.replaceAll("\\", "/"))
-        .filter((path) => !isExcluded(path))
-        .sort();
+        .map(slashed)
+        .filter((path) => !isExcluded(path));
