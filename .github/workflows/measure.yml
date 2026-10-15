@@ -1,0 +1,224 @@
+name: Measure
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: measure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shards:
+    name: shards
+    runs-on: ubuntu-latest
+    outputs:
+      cs: ${{ steps.shards.outputs.cs }}
+      js: ${{ steps.shards.outputs.js }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      - id: shards
+        run: |
+          echo "cs=$(bun scripts/measure/cli.js shards cs)" >> "$GITHUB_OUTPUT"
+          echo "js=$(bun scripts/measure/cli.js shards js)" >> "$GITHUB_OUTPUT"
+
+  unit-cs:
+    name: unit C# ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: jf11
+            dotnet: 9.0.x
+          - target: jf12
+            dotnet: 10.0.x
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      - name: Test with coverage
+        run: bun scripts/measure/cli.js coverage-cs ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-cs-${{ matrix.target }}
+          path: artifacts/coverage-cs-${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  unit-cs-windows:
+    name: unit C# on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test Jellyfin.Plugin.Streamyfin.Tests --configuration Release
+
+  unit-js:
+    name: unit JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      - run: bun install --frozen-lockfile
+
+      - name: Test with coverage
+        run: bun scripts/measure/cli.js coverage-js
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-js
+          path: artifacts/coverage-js/
+          if-no-files-found: error
+          retention-days: 7
+
+  mutation-cs:
+    name: mutation C# ${{ matrix.shard }}
+    needs: shards
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.shards.outputs.cs) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      - run: dotnet tool restore
+
+      - name: Mutate
+        run: bun scripts/measure/cli.js mutation-cs ${{ matrix.shard }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: mutation-cs-${{ matrix.shard }}
+          path: artifacts/mutation-cs-${{ matrix.shard }}/
+          if-no-files-found: warn
+          retention-days: 7
+
+  mutation-js:
+    name: mutation JavaScript ${{ matrix.shard }}
+    needs: shards
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.shards.outputs.js) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      # StrykerJS runs under node, and runs bun for every mutant.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "lts/*"
+
+      - run: bun install --frozen-lockfile
+
+      - name: Mutate
+        run: bun scripts/measure/cli.js mutation-js ${{ matrix.shard }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: mutation-js-${{ matrix.shard }}
+          path: artifacts/mutation-js-${{ matrix.shard }}/
+          if-no-files-found: warn
+          retention-days: 7
+
+  verdict:
+    name: verdict
+    needs: [unit-cs, unit-cs-windows, unit-js, mutation-cs, mutation-js]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The whole history, so the verdict finds where the branch left its base.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      # Each artifact lands in artifacts/<its name>/, the layout a run on a machine writes.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+
+      - name: Judge
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bun scripts/measure/cli.js verdict --base "$BASE"
+
+      - name: Say it on the pull request
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('artifacts/measure/summary.md') != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('artifacts/measure/summary.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+            const mine = comments.find((comment) => comment.user?.type === 'Bot' && comment.body?.startsWith('<!-- streamyfin-measure -->'));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
