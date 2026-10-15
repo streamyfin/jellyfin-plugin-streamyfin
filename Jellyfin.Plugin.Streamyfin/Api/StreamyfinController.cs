@@ -639,7 +639,7 @@ public class StreamyfinController : ControllerBase
       "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
       + "{Users} user override(s), {Preferences} person's own choice(s), {Awaited} awaited title(s), {UnknownMembers} member(s) and "
       + "{UnknownUsers} user(s) this server does not have",
-      backup.Plugin,
+      backup.Plugin.ForLog(),
       backup.TakenAt,
       report.Configuration,
       report.Groups,
@@ -1691,7 +1691,7 @@ public class StreamyfinController : ControllerBase
     }
     catch (GroupNameTakenException taken)
     {
-      _logger.LogWarning("Refused a group named {Name}: another group has that name", request.Name);
+      _logger.LogWarning("Refused a group named {Name}: another group has that name", request.Name.ForLog());
       return BadRequest(taken.Message);
     }
 
@@ -1755,7 +1755,7 @@ public class StreamyfinController : ControllerBase
     }
     catch (GroupNameTakenException taken)
     {
-      _logger.LogWarning("Refused renaming group {Id} to {Name}: another group has that name", id, request.Name);
+      _logger.LogWarning("Refused renaming group {Id} to {Name}: another group has that name", id, request.Name.ForLog());
       return BadRequest(taken.Message);
     }
 

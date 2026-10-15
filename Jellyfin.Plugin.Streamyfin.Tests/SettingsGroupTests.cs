@@ -327,6 +327,24 @@ public class SettingsGroupTests : IDisposable
     }
 
     /// <summary>
+    /// The line and paragraph separators end a line in some readers without being control
+    /// characters, so they are cleaned as well.
+    /// </summary>
+    [Fact]
+    public void TheWarningAboutAnUnreadableLevelKeepsTheUnicodeSeparatorsOut()
+    {
+        var log = new RecordingLogger<SettingsResolutionService>();
+        var resolution = new SettingsResolutionService(_serialization, log);
+
+        Assert.Null(resolution.ReadLevel("{ this is not json", "group Night\u2028fatal\u2029everything is fine"));
+
+        var written = Assert.Single(log.Messages);
+        Assert.DoesNotContain("\u2028", written, StringComparison.Ordinal);
+        Assert.DoesNotContain("\u2029", written, StringComparison.Ordinal);
+        Assert.Contains("group Night fatal everything is fine", written, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A level named by nothing at all still says something.
     /// </summary>
     [Fact]
