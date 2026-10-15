@@ -55,8 +55,8 @@
     "mutation": 70.9
   },
   "scripts": {
-    "lines": 66.9,
+    "lines": 68.1,
     "branches": null,
-    "mutation": 71.5
+    "mutation": 73
   }
 }
