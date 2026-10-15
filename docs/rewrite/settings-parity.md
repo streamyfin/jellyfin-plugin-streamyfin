@@ -172,6 +172,15 @@ limit there and reads as Disabled in 0.56, and a lock on the count wins over a p
 unlocked, which both descriptions say. `autoPlayEpisodeCount` left the app at the same time,
 and its entry in `NotDeclared` went with it, leaving five.
 
+**Ahead of the app: next episodes.** `nextEpisodesDownloadCount`, `nextEpisodesNetwork` and
+`nextEpisodesDeleteAnyDownload` are declared for streamyfin#2275, before the app reads them, so
+the manifest leaves them out and `DeclaredAheadOfTheApp` names that pull request. They ship no
+default, which a test holds: every app that refreshes would write an unlocked default into the
+person's own settings, the apps that do not read the key included. The count is the one a series
+turned on from now on starts with, and a series keeps its own after that, locked or not. Wi-Fi
+only is the network's member 0, the app's default, so a lock written without a value is that
+one. Once the app reads the keys, the parity tests ask for the entry to go.
+
 ## The manifest, and the test that reads it
 
 `Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json` lists what the app
