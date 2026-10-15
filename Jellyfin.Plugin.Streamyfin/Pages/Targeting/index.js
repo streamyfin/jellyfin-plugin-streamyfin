@@ -14,6 +14,21 @@ const readJson = (path) =>
     window.ApiClient.ajax({ type: "GET", url: url(path), contentType: "application/json" })
         .then((response) => response.json());
 
+// What the server said when it refused a save. ApiClient rejects with the response itself,
+// whose body is the route's sentence written as a JSON string, so the page used to show its
+// fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
+// sentence still reads as the fallback.
+export const refusal = async (error) => {
+    const fallback = error?.message ?? "Streamyfin could not save that. The server log has the reason.";
+    const response = typeof error?.text === "function" ? error : error?.response;
+    const body = await response?.text?.().catch(() => null);
+
+    let said = null;
+    try { said = JSON.parse(body ?? ""); } catch { /* not a sentence */ }
+
+    return typeof said === "string" && said.trim() ? said.trim() : fallback;
+};
+
 const send = (type, path, body) =>
     window.ApiClient.ajax({
         type,
@@ -469,7 +484,7 @@ export default function (view) {
             }
         } catch (error) {
             console.error(error);
-            window.Dashboard?.alert(error?.message ?? "Streamyfin could not save that. The server log has the reason.");
+            window.Dashboard?.alert(await refusal(error));
         } finally {
             window.Dashboard?.hideLoadingMsg();
         }
