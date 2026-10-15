@@ -88,6 +88,10 @@ public class ConfigSaveResponse
 /// </para>
 /// </remarks>
 [ApiController]
+// Out of the OpenAPI document Jellyfin writes for its API and every plugin's. The document
+// names each schema after the short name of its type, so one name this plugin shares with
+// Jellyfin or another plugin answers 500 for the whole of it. ApiSurfaceTests says more.
+[ApiExplorerSettings(IgnoreApi = true)]
 [Route("streamyfin")]
 public class StreamyfinController : ControllerBase
 {
