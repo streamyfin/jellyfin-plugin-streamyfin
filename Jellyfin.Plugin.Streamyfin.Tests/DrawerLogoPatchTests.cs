@@ -197,8 +197,10 @@ public class DrawerLogoPatchTests
         Assert.Equal(Fragment, DrawerLogoPatch.Inject(Fragment, LandingPage));
     }
 
-    // The one link every rule aims at, read out of the stylesheet. A rule left with
-    // another link would put the mark and the hidden icon out of step.
+    /// <summary>
+    /// The one link every rule aims at, read out of the stylesheet. A rule left with
+    /// another link would put the mark and the hidden icon out of step.
+    /// </summary>
     private static LinkSelector RowLink(string patched)
     {
         var links = Regex.Matches(patched, @"a\[href(?<op>[\^$*]?=)""(?<value>[^""]*)""\]")
@@ -209,9 +211,14 @@ public class DrawerLogoPatchTests
         return Assert.Single(links);
     }
 
-    // An attribute selector on a link, matched the way CSS matches it.
+    /// <summary>
+    /// An attribute selector on a link, matched the way CSS matches it.
+    /// </summary>
     private sealed record LinkSelector(string Operator, string Value)
     {
+        /// <summary>
+        /// Whether the selector takes a link with this <c>href</c>.
+        /// </summary>
         public bool Matches(string href) => Operator switch
         {
             "=" => href == Value,

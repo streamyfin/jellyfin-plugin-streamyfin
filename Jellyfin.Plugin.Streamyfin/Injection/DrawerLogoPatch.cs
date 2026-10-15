@@ -84,6 +84,11 @@ public static class DrawerLogoPatch
         + "<path d=\"M4.4 10.67C6.8 9.67 8.8 10.07 10.8 11.97S14.95 15.16 17.95 15.01L21.95 23.01L0.4 23.01L0.4 10.67Z\" clip-path=\"url(#in)\"/>"
         + "</svg>";
 
+    /// <summary>
+    /// The stylesheet that draws the mark on the drawer row of <paramref name="landingPage"/>
+    /// and hides the icon the dashboard draws there.
+    /// </summary>
+    /// <param name="landingPage">The name of the plugin page the row opens.</param>
     private static string Style(string landingPage)
     {
         var mark = "data:image/svg+xml," + Uri.EscapeDataString(Mark);
