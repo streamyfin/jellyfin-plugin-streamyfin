@@ -70,8 +70,9 @@ const floorProblems = (folder, floor, slack) => {
 // column, so it covers its own mutant and not a twin further along the same line.
 const keyOf = (file, text, column, mutator, replacement) => JSON.stringify([file, text, column, mutator, replacement]);
 
-// A disable comment takes mutants out of the run without a reason anybody reads.
-const DISABLE = /Stryker disable/i;
+// A disable comment takes mutants out of the run without a reason anybody reads. Only a
+// comment is one: code may name the directive, as this does.
+const DISABLE = /\/[/*]\s*Stryker disable/i;
 const CODE = /\.(cs|js)$/;
 
 const spans = (mutant, changedLines) => {

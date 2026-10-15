@@ -14,7 +14,7 @@ const runOf = (body) => {
     return found ? { run: Number(found[1] ?? 0), attempt: Number(found[2] ?? 0) } : null;
 };
 
-const newer = (one, other) => (one.run === other.run ? one.attempt > other.attempt : one.run > other.run);
+const newer = (one, other) => (one.run - other.run || one.attempt - other.attempt) > 0;
 
 // Create the comment, update the measure's own, or leave one a newer run wrote.
 const plan = ({ comments, run, attempt }) => {

@@ -256,6 +256,16 @@ describe("a Stryker disable comment", () => {
         expect(result.problems).toEqual([`a Stryker disable comment on ${DB}:7: accept its mutants in tests/accepted-mutants.json instead`]);
     });
 
+    // The check's own code names the directive, in its pattern and its message: only a
+    // comment is one.
+    test("is only a comment, not code that names it", () => {
+        const named = (file, line) => (line === 7 ? 'const message = "a Stryker disable comment";' : "/Stryker disable/i");
+
+        expect(verdict({ changed: new Map([[DB, new Set([7, 8])]]), lineText: named }).ok).toBe(true);
+        expect(verdict({ changed: new Map([[DB, new Set([7])]]), lineText: () => "    /* Stryker disable next-line all */" }).ok).toBe(false);
+        expect(verdict({ changed: new Map([[DB, new Set([7])]]), lineText: () => "//Stryker disable all" }).ok).toBe(false);
+    });
+
     test("in a file that is not code, or the integration tests answer for, is left alone", () => {
         expect(verdict({ changed: new Map([["scripts/README.md", new Set([7])]]), lineText }).ok).toBe(true);
         expect(verdict({ changed: new Map([["scripts/data.json", new Set([7])]]), lineText }).ok).toBe(true);

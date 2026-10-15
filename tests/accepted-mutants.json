@@ -38,5 +38,13 @@
     "mutator": "ConditionalExpression",
     "replacement": "true",
     "reason": "Equivalent: after +++ /dev/null the only hunk is the deletion, +0,0, so the loop has no line to add whether the file is checked or not."
+  },
+  {
+    "file": "scripts/measure-comment.js",
+    "line": "const found = MARKER.exec(body ?? \"\");",
+    "column": 39,
+    "mutator": "StringLiteral",
+    "replacement": "\"Stryker was here!\"",
+    "reason": "Equivalent: neither an empty string nor this one holds the marker, so a comment without a body is not the measure's either way."
   }
 ]
