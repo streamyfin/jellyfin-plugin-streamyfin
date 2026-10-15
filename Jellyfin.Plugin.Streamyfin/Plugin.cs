@@ -37,8 +37,11 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             loggerFactory.CreateLogger<GlobalConfigurationStore>());
 
         // Reading base.Configuration here is what makes Jellyfin parse the old XML, so
-        // this is the last point at which its contents are available to carry over.
+        // this is the last point at which its contents are available to carry over. It is
+        // the plugin's one read of it, which BannedSymbols.txt keeps that way.
+#pragma warning disable RS0030
         Settings.Import(Configuration?.Config, applicationPaths.PluginConfigurationsPath);
+#pragma warning restore RS0030
         Settings.SwitchOnAwaitedTitles();
     }
 

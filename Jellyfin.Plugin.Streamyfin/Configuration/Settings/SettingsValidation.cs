@@ -54,10 +54,6 @@ public static class SettingsValidation
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
             var bounds = descriptor.Bounds;
-            if (bounds is null && !descriptor.IsWebAddress)
-            {
-                continue;
-            }
 
             // A level carries a setting or it does not. The absent ones are not this
             // method's business: they fall through to the level below.
@@ -77,12 +73,29 @@ public static class SettingsValidation
                     address));
             }
 
-            if (bounds is null || !IsNumber(value))
+            if (!IsNumber(value))
             {
                 continue;
             }
 
             var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+
+            // Yaml reads .nan and .inf as numbers, and a comparison with NaN is never true,
+            // so bounds let it through, and a setting without bounds has none to meet. The
+            // Json the store writes has no spelling for either, and saving answered 500.
+            if (double.IsNaN(number) || double.IsInfinity(number))
+            {
+                problems.Add(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} needs a number, and this is not one.",
+                    descriptor.DisplayName ?? descriptor.Key));
+                continue;
+            }
+
+            if (bounds is null)
+            {
+                continue;
+            }
             // A value the level already holds is left alone: bounds that arrived after
             // it was stored, as the app's own ranges did in 0.70, would otherwise refuse
             // every save of any tab, and the restore of the server's own backup, over a
@@ -105,7 +118,7 @@ public static class SettingsValidation
     /// <summary>
     /// Tidies these settings and says what still cannot be stored.
     /// </summary>
-    /// <param name="settings">The settings, which are trimmed in place.</param>
+    /// <param name="settings">The settings, which are trimmed in place and lose Seerr's block once it is on the keys.</param>
     /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
     /// <returns>The message to refuse with, or <c>null</c> when they can be stored.</returns>
     /// <remarks>

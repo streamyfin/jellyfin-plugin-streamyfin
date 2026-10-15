@@ -182,10 +182,14 @@ export default function (view, params) {
                 },
                 saveConfig: function (e) {
                     e.preventDefault();
-                    shared.setYamlConfig(Page.editor.getModel().getValue())
-                    shared.saveConfig().then((stored) => {
+                    // Read only until the server answers: a stored document comes back as
+                    // what the server holds, and would replace anything typed meanwhile.
+                    Page.editor.updateOptions({ readOnly: true });
+                    saveBtn().disabled = true;
+                    shared.saveYamlConfig(Page.editor.getModel().getValue()).then((stored) => {
                         if (stored) saved();
-                    })
+                        else saveBtn().disabled = false;
+                    }).finally(() => Page.editor?.updateOptions({ readOnly: false }))
                 },
                 loadConfig: function (config) {
                     Dashboard.hideLoadingMsg();
@@ -250,7 +254,11 @@ export default function (view, params) {
                         Page.loadConfig(shared.getConfig());
                     }
 
-                    shared.setOnConfigUpdatedListener('yaml-editor', (config) => {
+                    shared.setOnConfigUpdatedListener('yaml-editor', (config, raw, cause) => {
+                        // Read back after a save whose answer never came: what the
+                        // administrator wrote may not be stored, so it stays.
+                        if (cause === shared.REREAD && Page.editor != null) return;
+
                         // only set if editor isn't instantiated 
                         if (Page.editor == null) {
                             console.log("loading")

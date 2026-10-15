@@ -9,6 +9,7 @@ import {
     change,
     problems,
     remove,
+    rowsOf,
     summarise,
     toConfig,
 } from "../../Jellyfin.Plugin.Streamyfin/Pages/wording-editor.js";
@@ -157,5 +158,20 @@ describe("what is stored", () => {
             { key: "TaskFailedTitle", locale: "", text: "one" },
             { key: "UserNowOnline", locale: "fr", text: "deux" },
         ])).toBe("2 sentences written differently");
+    });
+});
+
+// The Yaml tab can store a list with an empty item, `wording:` followed by a bare dash. The
+// card read a key out of it, threw, and the Notifications tab did not draw.
+describe("the rows read from what is stored", () => {
+    test("leave an empty item out", () => {
+        expect(rowsOf([null, { key: "UserNowOnline", text: "{0} arrived" }])).toEqual([
+            { key: "UserNowOnline", locale: "", text: "{0} arrived" },
+        ]);
+    });
+
+    test("are none when nothing is stored", () => {
+        expect(rowsOf(undefined)).toEqual([]);
+        expect(rowsOf([null])).toEqual([]);
     });
 });
