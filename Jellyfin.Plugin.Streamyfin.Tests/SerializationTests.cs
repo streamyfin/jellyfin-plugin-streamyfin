@@ -106,6 +106,32 @@ public class SerializationTests(ITestOutputHelper output)
     }
 
     /// <summary>
+    /// A next episodes network locked without a value is Wi-Fi only, the app's default.
+    /// </summary>
+    /// <remarks>
+    /// A lock written with no value comes out with the enum's member numbered 0. Had that been
+    /// Any network, a value forgotten in the Yaml would have locked every device onto mobile
+    /// data, the most permissive choice, where the app itself starts at Wi-Fi only.
+    /// </remarks>
+    [Fact]
+    public void ANetworkLockedWithoutAValueIsWifiOnly()
+    {
+        var config = _serializationHelper.Deserialize<Config>(
+            """
+            settings:
+                nextEpisodesNetwork:
+                    locked: true
+            """);
+
+        Xunit.Assert.Equal(NextEpisodesNetwork.Wifi, config.settings?.nextEpisodesNetwork?.value);
+        // Stored by its name as well as served by it, so the numbers move nothing stored.
+        foreach (var written in new[] { _serializationHelper.SerializeForApp(config), _serializationHelper.SerializeToJson(config) })
+        {
+            Xunit.Assert.Contains("\"value\":\"wifi\"", written.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// Ensures all types of enums are json serialized correctly
     /// </summary>
     [Fact]

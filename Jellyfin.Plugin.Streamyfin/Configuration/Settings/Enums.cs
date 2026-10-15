@@ -331,21 +331,23 @@ public enum InactivityTimeout
 // Labelled and ordered as the app's Settings → Downloads, NextEpisodesNetwork in
 // utils/atoms/settings.ts. On the home network the app talks to the server's local
 // address, so next episodes download over the LAN and never through the remote one.
+// Wi-Fi only is numbered 0, the app's default: a lock written without a value takes
+// the member numbered 0, and Any network there would open every device to mobile data.
 [JsonConverter(typeof(StringEnumConverter))]
 public enum NextEpisodesNetwork
 {
     [EnumMember(Value = "any")]
     [JsonStringEnumMemberName("any")]
     [Display(Name = "Any network")]
-    Any,
+    Any = 1,
 
     [EnumMember(Value = "wifi")]
     [JsonStringEnumMemberName("wifi")]
     [Display(Name = "Wi-Fi only")]
-    Wifi,
+    Wifi = 0,
 
     [EnumMember(Value = "home")]
     [JsonStringEnumMemberName("home")]
     [Display(Name = "Home network only")]
-    Home
+    Home = 2
 };
