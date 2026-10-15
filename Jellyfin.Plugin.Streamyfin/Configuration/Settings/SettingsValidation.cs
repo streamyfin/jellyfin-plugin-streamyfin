@@ -118,7 +118,7 @@ public static class SettingsValidation
     /// <summary>
     /// Tidies these settings and says what still cannot be stored.
     /// </summary>
-    /// <param name="settings">The settings, which are trimmed in place.</param>
+    /// <param name="settings">The settings, which are trimmed in place and lose Seerr's block once it is on the keys.</param>
     /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
     /// <returns>The message to refuse with, or <c>null</c> when they can be stored.</returns>
     /// <remarks>

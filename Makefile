@@ -68,8 +68,10 @@ print:
 build:
 	dotnet build Jellyfin.Plugin.Streamyfin --configuration Release -p:JellyfinTarget=$(JELLYFIN_TARGET)
 
+# Release, like build and like CI: what is tested is what ships, and a Debug build differs
+# from it, its JSON written indented for one.
 test:
-	dotnet test Jellyfin.Plugin.Streamyfin.Tests -p:JellyfinTarget=$(JELLYFIN_TARGET)
+	dotnet test Jellyfin.Plugin.Streamyfin.Tests --configuration Release -p:JellyfinTarget=$(JELLYFIN_TARGET)
 
 zip:
 	mkdir -p ./dist

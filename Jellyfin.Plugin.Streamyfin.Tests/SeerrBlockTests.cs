@@ -155,6 +155,31 @@ public class SeerrBlockTests
     }
 
     /// <summary>
+    /// A document written with the block is stored with the keys alone. The block stayed
+    /// beside them, and the next document that changed a key by itself disagreed with the
+    /// copy it still carried and was refused.
+    /// </summary>
+    [Fact]
+    public void ABlockIsNotStoredBesideTheKeys()
+    {
+        var written = _serialization.Deserialize<Settings>("seerr:\n  serverUrl:\n    value: http://seerr-a.example\n");
+
+        Assert.Null(SettingsValidation.Check(written));
+        var stored = _serialization.SerializeToJson(written);
+
+        Assert.Null(written.seerr);
+        Assert.DoesNotContain("\"seerr\"", stored, System.StringComparison.Ordinal);
+        Assert.Equal("http://seerr-a.example", written.jellyseerrServerUrl?.value);
+
+        // What an administrator sends next: what is stored, with the key changed by itself.
+        var edited = _serialization.DeserializeJson<Settings>(stored)!;
+        edited.jellyseerrServerUrl = new Lockable<string> { value = "http://seerr-b.example" };
+
+        Assert.Null(SettingsValidation.Check(edited, written));
+        Assert.Equal("http://seerr-b.example", edited.jellyseerrServerUrl?.value);
+    }
+
+    /// <summary>
     /// A server that says nothing about Seerr serves no block, rather than an empty one
     /// that reads as an opinion.
     /// </summary>

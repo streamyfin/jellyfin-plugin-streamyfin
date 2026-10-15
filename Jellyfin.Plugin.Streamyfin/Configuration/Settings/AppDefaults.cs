@@ -20,13 +20,24 @@ public static class AppDefaults
 {
     private static readonly Lazy<Dictionary<string, JsonElement>> _byKey = new(Read);
 
+    // The default of the apps in the field for a key the app's develop no longer declares and
+    // the plugin still serves them. The manifest, written from develop, has no line for it any
+    // more, and Reset would leave a setting those apps still read.
+    private static readonly Dictionary<string, JsonElement> _keptForTheField = new(StringComparer.Ordinal)
+    {
+        // The app 0.55 caps auto play at 3 episodes in a row.
+        ["maxAutoPlayEpisodeCount"] = JsonSerializer.SerializeToElement(3),
+    };
+
     /// <summary>
     /// The app's default for a setting, or <c>null</c> when the app has none to give.
     /// </summary>
     /// <param name="key">The setting's key.</param>
     /// <returns>The value, written the way the plugin stores it.</returns>
     public static JsonElement? For(string key) =>
-        _byKey.Value.TryGetValue(key, out var value) ? value : null;
+        _byKey.Value.TryGetValue(key, out var value) ? value
+        : _keptForTheField.TryGetValue(key, out var kept) ? kept
+        : null;
 
     private static Dictionary<string, JsonElement> Read()
     {
