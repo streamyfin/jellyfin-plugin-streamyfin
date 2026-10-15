@@ -908,6 +908,9 @@ public class SettingsParityTests
     [InlineData(SubtitleAlignX.Center, "\"center\"")]
     [InlineData(SubtitleAlignY.Bottom, "\"bottom\"")]
     [InlineData(SubtitleAlignY.Top, "\"top\"")]
+    [InlineData(NextEpisodesNetwork.Any, "\"any\"")]
+    [InlineData(NextEpisodesNetwork.Wifi, "\"wifi\"")]
+    [InlineData(NextEpisodesNetwork.Home, "\"home\"")]
     // The app compares the SDK's strings for this one. It was written as a number until
     // the regenerated manifest showed it, and a locked mode did nothing.
     [InlineData(SubtitlePlaybackMode.Default, "\"Default\"")]

@@ -385,9 +385,9 @@ public class Settings
     public Lockable<int>? nextEpisodesDownloadCount { get; set; } // = 3;
 
     [NotNull]
-    [Display(Name = "Wi-Fi only", Description = "Download next episodes only on Wi-Fi or Ethernet, never over mobile data")]
+    [Display(Name = "Download over", Description = "Which connection next episodes may download over. Home network only uses the server's local address set up in the app under Network, never the remote one")]
     [SettingScope("Downloads", Group = "Next episodes")]
-    public Lockable<bool>? nextEpisodesWifiOnly { get; set; } // = true;
+    public Lockable<NextEpisodesNetwork>? nextEpisodesNetwork { get; set; } // = wifi;
 
     [NotNull]
     [Display(Name = "Delete any watched download", Description = "When a series deletes its watched episodes, also delete the ones downloaded by hand, not only those it downloaded itself")]

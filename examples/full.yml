@@ -370,11 +370,11 @@ settings:
   # For series a user set to keep their next episodes downloaded.
   nextEpisodesDownloadCount:
     locked: false
-    value: 3  # Next unwatched episodes each series keeps downloaded: 3, 5 or 10
+    value: 3  # Next unwatched episodes each series keeps downloaded, 3 to 10. The app offers 3, 5 and 10
 
-  nextEpisodesWifiOnly:
+  nextEpisodesNetwork:
     locked: false
-    value: true  # Never download them over mobile data
+    value: wifi  # any, wifi (never mobile data) or home (only the server's local address on the home Wi-Fi)
 
   nextEpisodesDeleteAnyDownload:
     locked: false

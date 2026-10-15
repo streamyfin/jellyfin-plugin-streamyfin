@@ -98,7 +98,7 @@ public class PluginConfiguration : BasePluginConfiguration
     autoLoginJellyseerr = new() { value = true },
     showDownloadLiveActivity = new() { value = true },
     nextEpisodesDownloadCount = new() { value = 3 },
-    nextEpisodesWifiOnly = new() { value = true },
+    nextEpisodesNetwork = new() { value = NextEpisodesNetwork.Wifi },
     nextEpisodesDeleteAnyDownload = new() { value = false },
     enableH265ForChromecast = new() { value = false },
     mpvCacheEnabled = new() { value = MpvCacheMode.Auto },
