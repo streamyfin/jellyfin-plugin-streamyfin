@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Jellyfin.Plugin.Streamyfin.Api;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Xunit;
@@ -52,10 +53,12 @@ public class AwaitedTitleModelsTests
         });
 
         var json = _serialization.SerializeToJson(dto);
+        // Read rather than matched as text: a Debug build writes the same JSON indented.
+        using var read = JsonDocument.Parse(json);
 
         Assert.True(dto.Arrived);
-        Assert.Contains("\"arrived\":true", json, StringComparison.Ordinal);
-        Assert.Contains("\"tmdbId\":603", json, StringComparison.Ordinal);
+        Assert.True(read.RootElement.GetProperty("arrived").GetBoolean());
+        Assert.Equal(603, read.RootElement.GetProperty("tmdbId").GetInt32());
         Assert.DoesNotContain("userId", json, StringComparison.Ordinal);
     }
 }
