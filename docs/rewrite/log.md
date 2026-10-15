@@ -36,6 +36,10 @@ review. What that found landed today, each with its tests and a proof on a serve
 - **Jellyfin 12 with the 10.11 build.** Jellyfin offers no update for a version it already has,
   and both builds of a release share their number, so a server moved from 10.11 to 12 keeps the
   build for 10.11. For You and My Media answer there again instead of 500 (#241).
+- **The drawer's mark** shows on Jellyfin 10.11 too, where the drawer draws the Folder icon for
+  every plugin whatever the plugin asks for (#268).
+- **The tests.** A test's cleanup emptied every SQLite pool while other classes ran, which failed
+  a build now and then; it empties the pools of its own databases only (#269).
 - **The release notes** say what reaches an administrator's app, what each app gets and what
   Jellyfin 12 changes, with the view ids measured on a server moved from 10.11.11 to 12.2 (#267).
 - **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
