@@ -28,7 +28,7 @@ The **Application** tab draws the 90 settings the app reads, grouped the way the
 
 ### Groups, and one user
 
-The **Targeting** tab aims the same settings, and the notifications, at a group of users or at one account. One user beats their groups, a group beats everyone, and between two groups the higher priority wins. An administrator who belongs to a group sees what is aimed at them in the app, not the server-wide values.
+The **Targeting** tab aims the same settings, and the notifications, at a group of users or at one account. One user beats their groups, a group beats everyone, and between two groups the higher priority wins. The notifications aimed this way reach administrators as they reach anyone. The settings do not reach an administrator's own app yet. The app reads `/Streamyfin/config`, which gives an administrator the server-wide configuration untouched, as the dashboard needs it to edit; an administrator's app gets what is aimed at them once it reads the settings resolved for each account (streamyfin/streamyfin#2004).
 
 <p align="center"><img width="800" alt="The Targeting tab with two groups and one user" src="https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/develop/assets/screenshots/targeting.png"></p>
 
@@ -46,7 +46,7 @@ Three admin alerts join the existing events: a **scheduled task that failed**, w
 
 ### 29 languages
 
-The notifications are translated on [Crowdin](https://translate.streamyfin.app) into 29 languages, and the admin alerts use the words of Jellyfin's own activity log in each of them. A device that tells the server its language gets its notifications in it; the others get the server's language, as before. The app side of that, and the posters a notification about a new item can carry on Android, come with the next version of the app. With that version, anybody can also ask, from the Seerr page of a title that is not on the server yet, to be told when it arrives, whoever adds it.
+The notifications are translated on [Crowdin](https://translate.streamyfin.app) into 29 languages, and the admin alerts use the words of Jellyfin's own activity log in each of them. A device that tells the server its language gets its notifications in it; the others get the server's language, as before. The app side of that, and the posters a notification about a new item can carry on Android, are still to come in the app (streamyfin/streamyfin#2076), as is asking, from the Seerr page of a title that is not on the server yet, to be told when it arrives, whoever adds it (streamyfin/streamyfin#2244).
 
 ### The whole configuration as YAML
 
@@ -62,15 +62,27 @@ The **Other** tab downloads one file with the configuration, the groups and what
 
 The plugin is built for Jellyfin 10.11 and for Jellyfin 12 from one tree, and one repository URL serves both: your server installs the build it can run. It was loaded on Jellyfin 12.0 and on 12.2. The build for 12 is also the one Jellyfin 13 unstable installs: it compiles against 13's prerelease and runs on it.
 
+The app for Jellyfin 12 is 0.56 (streamyfin/streamyfin#2192), with the sign in, Top Shelf and hidden library fixes for 12. Jellyfin 12 removed the `/emby` and `/mediabrowser` route aliases, and 0.56 moves a server saved under one of them to its root address; it also keeps the views someone hid in the app hidden across the new ids Jellyfin 12 gives some of them. Both need 0.56 to have seen the server before the move: an account saved on a device but not signed in only moves while the old address still answers, and a hidden view is only followed if the app saw its old id. So put 0.56 on the devices, and open it, before moving a server to 12, and until 0.56 is out, wait before moving a server the apps reach under `/emby` or `/mediabrowser`.
+
+## Compatibility
+
+| | Versions |
+| --- | --- |
+| Jellyfin | 10.11.9 and later on the 10.11 line, and 12 (tried on 12.0 and 12.2). Jellyfin 13 unstable installs the build for 12. |
+| Streamyfin app | 0.55.0 and later. 0.55.2 is the one to use once it is out, and 0.56 on Jellyfin 12, as [Jellyfin 12](#jellyfin-12) says. |
+| What 0.55.2 changes | Each account signed in on a device asks for its settings with its own session (streamyfin/streamyfin#2197), which the groups and the per-user settings rely on. With 0.55.0 or 0.55.1, the settings of a first sign in arrive at the next refresh, and after an account switch on a TV, the new account keeps the previous one's settings until then, and acts in Seerr as the previous account (streamyfin/streamyfin#2233). |
+| Apps before 0.55.0 | Not supported. They no longer get Seerr, and a setting the app renamed in 0.55, such as the hero carousel, does nothing. |
+
 ## Before you update
 
 - **The configuration moves.** It leaves `Jellyfin.Plugin.Streamyfin.xml` for `data/streamyfin.db`, and the device registrations leave the old `streamyfin_plugin.db`. Neither old file is written to again, so 0.68.1.0 finds both as it left them if you go back.
-- **Jellyfin 10.11.9 or later** on the 10.11 line.
-- **Seerr.** The three Seerr settings are read under their new names (`seerrServerUrl`, `seerrApiKey`, `autoLoginSeerr`) and still sent under the old ones for the apps in the field. Nothing to change.
+- **The versions** of Jellyfin and of the app are in [Compatibility](#compatibility).
+- **Seerr reaches the app as one block.** The three Seerr settings are read under their new names (`seerrServerUrl`, `seerrApiKey`, `autoLoginSeerr`) as well as the old ones, and the app receives them as one block, which it reads since 0.55.0. An older app no longer gets Seerr from the plugin: update the apps first.
 - **If you had set the Seerr API key, rotate it.** Earlier versions sent it to every signed-in device; 0.70 sends credentials to administrators only, but the devices that connected before kept their copy.
 - **`POST /streamyfin/notification` needs an administrator** now.
 - **The plugin's routes are no longer in Jellyfin's API documentation.** Swagger and `/api-docs/openapi.json` leave them out: with them in, one type name the plugin shares with Jellyfin or with another plugin made the whole document answer 500. The routes answer as before.
 - **The three new admin alerts are off on a server that was already running**, since its stored configuration does not mention them. A fresh install has them on.
+- **Moving a server to Jellyfin 12.** Jellyfin 12 gives the Live TV view, and each account's Playlists view, a new id, once; Collections keeps its own. Where Hidden libraries holds one of the old ids, for the server, a group or one account, the view shows again in the app, and a locked value keeps the app from hiding it itself. Those views are not in the list of libraries the tabs offer, which shows an old id as Other: write the new id, which `/UserViews` gives for each account, in the Yaml Editor after the upgrade (#255).
 - **Notifications go out in batches of 100 devices.** No test server could try a send to more than 100 real devices.
 
 ## How to try it
