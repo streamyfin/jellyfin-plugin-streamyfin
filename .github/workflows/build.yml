@@ -6,13 +6,17 @@ on:
     branches:
       - main
       - develop
+  # By hand: gh workflow run build.yml --ref <branch>, on a branch whose copy of this file
+  # has the trigger, and the Run workflow button once it is on main.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# A new push supersedes the one before it on the same ref.
+# A new push supersedes the one before it on the same ref. A run started by hand only
+# supersedes another one started by hand, so it never cancels the build of a push.
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
