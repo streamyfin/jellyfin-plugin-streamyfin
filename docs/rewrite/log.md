@@ -30,7 +30,11 @@ review. What that found landed today, each with its tests and a proof on a serve
 - **The API.** A group name already in use answers 400 instead of 500, and a push token has a
   length bound (#243). The plugin is out of Jellyfin's API document, which three of its type
   names broke for the whole server (#256).
-- **Notifications.** The sentences an administrator rewrites are the ones sent (#239).
+- **Notifications.** The sentences an administrator rewrites are the ones sent (#239). A
+  person's choice about an event or a library they are not offered for a while is kept, where
+  their next switch erased it and the notifications came back once it was offered again; a
+  library the server deletes is forgotten, and the most a person can turn off is counted on what
+  is kept (#274, found reviewing the app's Notifications screen, streamyfin/streamyfin#2216).
 - **The app 0.56.** Its four new settings are declared, and `maxAutoPlayEpisodeCount` stays for
   the 0.55 apps that still read it (#264).
 - **Jellyfin 12 with the 10.11 build.** Jellyfin offers no update for a version it already has,
@@ -53,7 +57,8 @@ review. What that found landed today, each with its tests and a proof on a serve
 
 Left for later, each with its issue: the views Jellyfin 12 gives new ids (#255), the two ways
 the pages save (#262), a Seerr address that differs by a space (#263), the enums the parity
-check does not compare (#265) and a Yaml key written twice (#266).
+check does not compare (#265), a Yaml key written twice (#266), and the server and the user a
+notification is for, which a button needs to act on the right account (#273).
 
 ## 2026-10-08, Crowdin's sync opens its own pull request
 
