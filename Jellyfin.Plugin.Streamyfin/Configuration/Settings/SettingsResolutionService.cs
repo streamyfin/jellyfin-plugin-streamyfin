@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Jellyfin.Plugin.Streamyfin.Db;
+using Jellyfin.Plugin.Streamyfin.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -205,19 +205,9 @@ public sealed class SettingsResolutionService(
             return "an unnamed level";
         }
 
-        var cleaned = new StringBuilder(Math.Min(what.Length, Longest));
+        // The cleaning every other log line uses, so the two cannot drift apart.
+        var cleaned = what.ForLog()!;
 
-        foreach (var character in what)
-        {
-            if (cleaned.Length == Longest)
-            {
-                cleaned.Append('\u2026');
-                break;
-            }
-
-            cleaned.Append(char.IsControl(character) ? ' ' : character);
-        }
-
-        return cleaned.ToString();
+        return cleaned.Length <= Longest ? cleaned : string.Concat(cleaned.AsSpan(0, Longest), "\u2026");
     }
 }

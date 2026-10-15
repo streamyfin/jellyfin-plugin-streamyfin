@@ -639,7 +639,7 @@ public class StreamyfinController : ControllerBase
       "Restored a backup taken by {Plugin} on {Taken}: configuration {Configuration}, {Groups} group(s), "
       + "{Users} user override(s), {Preferences} person's own choice(s), {Awaited} awaited title(s), {UnknownMembers} member(s) and "
       + "{UnknownUsers} user(s) this server does not have",
-      backup.Plugin,
+      backup.Plugin.ForLog(),
       backup.TakenAt,
       report.Configuration,
       report.Groups,

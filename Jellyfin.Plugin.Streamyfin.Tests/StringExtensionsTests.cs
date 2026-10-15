@@ -25,6 +25,23 @@ public class StringExtensionsTests
         Assert.Equal(logged, sent.ForLog());
     }
 
+    /// <summary>
+    /// An escape sequence can erase the start of the line in a terminal and leave only what
+    /// follows it, and a backspace or a NUL hides what came before it: the forged entry is
+    /// on the same line, but it is the one that shows.
+    /// </summary>
+    [Theory]
+    [InlineData("Kids\u001b[2K\u001b[G[FTL] forged", "Kids [2K [G[FTL] forged")]
+    [InlineData("Kids\u009b2K[FTL] forged", "Kids 2K[FTL] forged")]
+    [InlineData("Kids\b\b\b\b[FTL] forged", "Kids [FTL] forged")]
+    [InlineData("a\u0000b", "a b")]
+    [InlineData("a\u001cb\u001d\u001ec", "a b c")]
+    [InlineData("a\tb\u007fc", "a b c")]
+    public void A_control_character_cannot_hide_what_comes_before_it(string sent, string logged)
+    {
+        Assert.Equal(logged, sent.ForLog());
+    }
+
     [Fact]
     public void A_value_on_one_line_is_logged_as_sent()
     {
