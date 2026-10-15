@@ -82,9 +82,10 @@ public sealed class SettingsResolutionService(
         // server holds its address, and neither level is wrong on its own.
         SearchEngineRule.Apply(resolved);
 
-        // Both shapes leave here, so an app reading either finds Seerr. The flat keys go
-        // the day every copy in the field reads the block. A caller who is not an
-        // administrator gets this again after the redaction, from what is left.
+        // The block, built from the flat keys. Both shapes leave here, and the app receives
+        // the block alone: the flat keys are left out when the configuration is written for
+        // it (SerializationHelper). A caller who is not an administrator gets this again
+        // after the redaction, from what is left.
         IntegrationBlocks.Project(resolved);
 
         return resolved;
