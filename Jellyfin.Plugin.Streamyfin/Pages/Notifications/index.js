@@ -104,14 +104,7 @@ const wordingCard = async (sentences, edited) => {
     }
     adder.append(picker, addButton);
 
-    const rowsOf = (stored) =>
-        (stored ?? []).map((one) => ({
-            key: one.key,
-            locale: one.locale ?? "",
-            text: one.text ?? "",
-        }));
-
-    let list = rowsOf(shared.getConfig()?.notifications?.wording);
+    let list = editor.rowsOf(shared.getConfig()?.notifications?.wording);
 
     const store = () => {
         const config = shared.getConfig() ?? {};
@@ -204,7 +197,7 @@ const wordingCard = async (sentences, edited) => {
 
         if (JSON.stringify(incoming) === JSON.stringify(editor.toConfig(list))) return;
 
-        list = rowsOf(incoming);
+        list = editor.rowsOf(incoming);
         draw();
     });
 

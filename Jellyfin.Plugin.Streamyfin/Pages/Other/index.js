@@ -95,16 +95,15 @@ export default function (view, params) {
             const renderer = await import(window.ApiClient.getUrl("web/configurationpage?name=settings-form.js"));
             renderer.applyTheme(view.querySelector("#sf-app"));
 
-            homePage().options.length = 0;
-            shared.StreamyfinTabs().forEach(tab => homePage().add(new Option(tab.name, tab.resource)))
+            homePage().replaceChildren(...shared.StreamyfinTabs().map((tab) => new Option(tab.name, tab.resource)));
 
             homePage().value = shared.getConfig()?.other?.homePage;
 
+            // A configuration the Yaml tab stored can have no section for this tab. Reading
+            // into it threw, and the tabs listening after this one never heard of it.
             shared.setOnConfigUpdatedListener('other', (config) => {
                 console.log("updating dom for other")
-                const {other} = config;
-
-                homePage().value = other.homePage
+                homePage().value = config?.other?.homePage;
             })
 
             // The value has to reach the configuration, not just the dock: saving writes
