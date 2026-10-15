@@ -3,7 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Jellyfin.Plugin.Streamyfin.Api;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -134,6 +138,59 @@ public class ApiSurfaceTests
         Assert.Contains($"v1/{plural}", served);
         Assert.Contains($"v1/{singular}", served);
         Assert.Contains(singular, served);
+    }
+
+    /// <summary>
+    /// Nothing of the plugin goes into Jellyfin's API document.
+    /// </summary>
+    /// <remarks>
+    /// Jellyfin documents its own API and every plugin's in one OpenAPI document, and names
+    /// each schema after the short name of its type. One type of any plugin named like
+    /// another type in the document makes the generator give up on all of it:
+    /// <c>/api-docs/openapi.json</c> answers 500 and Swagger shows nothing. 0.70's settings
+    /// did that next to Jellyfin's own <c>SortOrder</c>, <c>LibraryOptions</c> and
+    /// <c>SubtitlePlaybackMode</c>, and <c>SeerrSettings</c> does it next to another
+    /// plugin's. Out of the document, no name of the plugin can break it, whatever Jellyfin
+    /// or the other plugins call theirs. The app and the integrations call the routes by
+    /// their paths, so nothing they do changes.
+    /// <para>
+    /// Asked of ASP.NET's own API explorer, over the plugin's assembly as Jellyfin loads it,
+    /// so the controllers and actions it finds are the ones Jellyfin's would: a controller
+    /// that does not derive from <c>ControllerBase</c>, an action that puts itself back, one
+    /// inherited from a base. Jellyfin's document takes what has no group or the group
+    /// <c>api-docs</c>. It also documents the type of every configuration store a plugin
+    /// declares through an <c>IConfigurationFactory</c>, whatever the controllers say, so
+    /// there must be none.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void NothingOfThePluginGoesIntoJellyfinsApiDocument()
+    {
+        var plugin = typeof(StreamyfinPlugin).Assembly;
+        var mvc = new ServiceCollection()
+            .AddLogging()
+            .AddMvcCore()
+            .AddApiExplorer()
+            .ConfigureApplicationPartManager(parts => parts.ApplicationParts.Clear())
+            .AddApplicationPart(plugin);
+        using var services = mvc.Services.BuildServiceProvider();
+
+        var controllers = new ControllerFeature();
+        mvc.PartManager.PopulateFeature(controllers);
+        var documented = services.GetRequiredService<IApiDescriptionGroupCollectionProvider>()
+            .ApiDescriptionGroups.Items
+            .SelectMany(group => group.Items)
+            .Where(description => description.GroupName is null or "api-docs")
+            .Select(description => $"{description.HttpMethod} {description.RelativePath}")
+            .ToArray();
+        var stores = plugin.GetTypes()
+            .Where(type => typeof(MediaBrowser.Common.Configuration.IConfigurationFactory).IsAssignableFrom(type))
+            .Select(type => type.FullName!)
+            .ToArray();
+
+        Assert.Contains(typeof(StreamyfinController).GetTypeInfo(), controllers.Controllers);
+        Assert.Empty(documented);
+        Assert.Empty(stores);
     }
 
     /// <summary>

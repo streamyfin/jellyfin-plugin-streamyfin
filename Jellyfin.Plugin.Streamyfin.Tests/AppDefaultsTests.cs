@@ -26,6 +26,7 @@ public class AppDefaultsTests
     [InlineData("enableHorizontalSwipeSkip", "true")]
     [InlineData("skipIntro", "\"ask\"")]
     [InlineData("maxAutoPlayEpisodeCount", "3")]
+    [InlineData("stillWatchingPreset", "\"default\"")]
     [InlineData("defaultPlaybackSpeed", "1")]
     public void ASettingThePluginDeclaresNothingForHasTheApps(string key, string expected)
     {

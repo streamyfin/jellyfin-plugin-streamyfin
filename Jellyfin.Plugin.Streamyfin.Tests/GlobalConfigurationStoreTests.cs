@@ -65,6 +65,30 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
+    /// A configuration stored with Seerr's block beside the keys, as the builds of develop
+    /// since #198 wrote it, is read with the keys alone. Served back with the block, the
+    /// next save that changed a key by itself disagreed with it and was refused.
+    /// </summary>
+    [Fact]
+    public void ABlockStoredBesideTheKeysIsReadAsTheKeys()
+    {
+        var address = new Lockable<string> { value = "http://seerr.example" };
+        _db.SaveGlobalConfigJson(_serialization.SerializeToJson(new Config
+        {
+            settings = new Settings
+            {
+                seerr = new SeerrSettings { serverUrl = address },
+                jellyseerrServerUrl = new Lockable<string> { value = address.value }
+            }
+        }));
+
+        var settings = new GlobalConfigurationStore(_db, _serialization).Current.settings;
+
+        Assert.Null(settings?.seerr);
+        Assert.Equal("http://seerr.example", settings?.jellyseerrServerUrl?.value);
+    }
+
+    /// <summary>
     /// A write is visible immediately on the store that made it. The value is held in
     /// memory between writes, and a stale read after a save would be worse than no cache.
     /// </summary>

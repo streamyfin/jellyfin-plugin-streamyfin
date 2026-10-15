@@ -88,6 +88,10 @@ public class ConfigSaveResponse
 /// </para>
 /// </remarks>
 [ApiController]
+// Out of the OpenAPI document Jellyfin writes for its API and every plugin's. The document
+// names each schema after the short name of its type, so one name this plugin shares with
+// Jellyfin or another plugin answers 500 for the whole of it. ApiSurfaceTests says more.
+[ApiExplorerSettings(IgnoreApi = true)]
 [Route("streamyfin")]
 public class StreamyfinController : ControllerBase
 {
@@ -623,6 +627,13 @@ public class StreamyfinController : ControllerBase
           "Refused a device registration for {0}: it names another account than the one asking",
           deviceToken.DeviceId);
         return Forbid();
+
+      case Registration.TokenTooLong:
+        _logger.LogWarning(
+          "Refused a device registration for {0} whose push token is {1} characters long",
+          deviceToken.DeviceId,
+          deviceToken.Token.Length);
+        return BadRequest($"A push token is at most {DeviceToken.LongestToken} characters");
     }
 
     _logger.LogInformation("Posting device token for deviceId: {0}", deviceToken.DeviceId);
@@ -1463,14 +1474,23 @@ public class StreamyfinController : ControllerBase
 
     var database = StreamyfinPlugin.Instance!.Database;
 
-    var stored = database.SaveSettingsGroup(new SettingsGroup
+    SettingsGroup stored;
+    try
     {
-      Id = Guid.Empty,
-      Name = request.Name,
-      Priority = request.Priority,
-      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
-      NotificationsJson = NotificationTargeting.Write(request.Notifications)
-    });
+      stored = database.SaveSettingsGroup(new SettingsGroup
+      {
+        Id = Guid.Empty,
+        Name = request.Name,
+        Priority = request.Priority,
+        SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
+        NotificationsJson = NotificationTargeting.Write(request.Notifications)
+      });
+    }
+    catch (GroupNameTakenException taken)
+    {
+      _logger.LogWarning("Refused a group named {Name}: another group has that name", request.Name);
+      return BadRequest(taken.Message);
+    }
 
     database.SetGroupMembers(stored.Id, request.UserIds);
 
@@ -1518,14 +1538,23 @@ public class StreamyfinController : ControllerBase
       return NotFound();
     }
 
-    var stored = database.SaveSettingsGroup(new SettingsGroup
+    SettingsGroup stored;
+    try
     {
-      Id = id,
-      Name = request.Name,
-      Priority = request.Priority,
-      SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
-      NotificationsJson = NotificationTargeting.Write(request.Notifications)
-    });
+      stored = database.SaveSettingsGroup(new SettingsGroup
+      {
+        Id = id,
+        Name = request.Name,
+        Priority = request.Priority,
+        SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
+        NotificationsJson = NotificationTargeting.Write(request.Notifications)
+      });
+    }
+    catch (GroupNameTakenException taken)
+    {
+      _logger.LogWarning("Refused renaming group {Id} to {Name}: another group has that name", id, request.Name);
+      return BadRequest(taken.Message);
+    }
 
     return ToDto(stored, database.GetGroupMembers(id));
   }

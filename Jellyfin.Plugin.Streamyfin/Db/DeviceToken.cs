@@ -15,6 +15,13 @@ namespace Jellyfin.Plugin.Streamyfin.Db;
 public class DeviceToken
 {
     /// <summary>
+    /// The longest push token the server stores. An Expo token is about forty characters;
+    /// the bound leaves room for any token a push service hands out, and keeps a body of a
+    /// megabyte from going into the database whole for every device id an account posts.
+    /// </summary>
+    public const int LongestToken = 256;
+
+    /// <summary>
     /// Gets or sets the Expo push token.
     /// </summary>
     [JsonProperty(PropertyName = "token")]

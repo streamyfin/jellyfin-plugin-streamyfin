@@ -22,7 +22,7 @@ It carries an unstable number, above the 0.68.1.0 it follows and below the 0.70.
 
 ### Every setting of the app, from the dashboard
 
-The **Application** tab draws the 86 settings the app reads, grouped the way the app groups them. Each one is **Free**, **Suggested** or **Locked**: left to the user, pushed once as their starting point, or pinned so they cannot change it. Only what you set travels; everything else stays the app's own default. A legend at the top of each tab says what every state and every box means, **Reset** beside a value puts the app's own default back, and libraries are picked by name rather than typed as ids. The plugin also has its own entry in the dashboard's menu now, drawn like the menu's own icons where the File Transformation plugin is installed.
+The **Application** tab draws the 90 settings the app reads, grouped the way the app groups them. Each one is **Free**, **Suggested** or **Locked**: left to the user, pushed once as their starting point, or pinned so they cannot change it. Only what you set travels; everything else stays the app's own default. A legend at the top of each tab says what every state and every box means, **Reset** beside a value puts the app's own default back, and libraries are picked by name rather than typed as ids. The plugin also has its own entry in the dashboard's menu now, drawn like the menu's own icons where the File Transformation plugin is installed.
 
 <p align="center"><img width="800" alt="The Application tab: the legend above settings grouped into cards, one of them locked with Reset beside it" src="https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/develop/assets/screenshots/application.png"></p>
 
@@ -69,6 +69,7 @@ The plugin is built for Jellyfin 10.11 and for Jellyfin 12 from one tree, and on
 - **Seerr.** The three Seerr settings are read under their new names (`seerrServerUrl`, `seerrApiKey`, `autoLoginSeerr`) and still sent under the old ones for the apps in the field. Nothing to change.
 - **If you had set the Seerr API key, rotate it.** Earlier versions sent it to every signed-in device; 0.70 sends credentials to administrators only, but the devices that connected before kept their copy.
 - **`POST /streamyfin/notification` needs an administrator** now.
+- **The plugin's routes are no longer in Jellyfin's API documentation.** Swagger and `/api-docs/openapi.json` leave them out: with them in, one type name the plugin shares with Jellyfin or with another plugin made the whole document answer 500. The routes answer as before.
 - **The three new admin alerts are off on a server that was already running**, since its stored configuration does not mention them. A fresh install has them on.
 - **Notifications go out in batches of 100 devices.** No test server could try a send to more than 100 real devices.
 

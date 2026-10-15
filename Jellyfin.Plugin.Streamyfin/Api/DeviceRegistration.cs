@@ -16,7 +16,10 @@ public enum Registration
     NotYours,
 
     /// <summary>It carries no push token, so it could receive nothing.</summary>
-    NoToken
+    NoToken,
+
+    /// <summary>It carries a token longer than any push token, which would be stored whole.</summary>
+    TokenTooLong
 }
 
 /// <summary>
@@ -51,6 +54,11 @@ public static class DeviceRegistration
         if (string.IsNullOrWhiteSpace(registration.Token))
         {
             return Registration.NoToken;
+        }
+
+        if (registration.Token.Length > DeviceToken.LongestToken)
+        {
+            return Registration.TokenTooLong;
         }
 
         // Whatever the device said it is in, as this server will store it. A client that

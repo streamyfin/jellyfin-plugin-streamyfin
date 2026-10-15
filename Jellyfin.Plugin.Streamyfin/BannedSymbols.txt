@@ -1,0 +1,1 @@
+P:MediaBrowser.Common.Plugins.BasePlugin`1.Configuration;Jellyfin's XML configuration has not been the plugin's since P1.5: it is read once at start-up to carry the old file over, and what an administrator saves goes to the plugin's store. Read StreamyfinPlugin.Settings instead.
