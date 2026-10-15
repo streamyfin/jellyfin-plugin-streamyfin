@@ -40,6 +40,10 @@ review. What that found landed today, each with its tests and a proof on a serve
   every plugin whatever the plugin asks for (#268).
 - **The tests.** A test's cleanup emptied every SQLite pool while other classes ran, which failed
   a build now and then; it empties the pools of its own databases only (#269).
+- **Ahead of the app.** The three settings of the app's coming next episodes downloads,
+  streamyfin/streamyfin#2275, are declared before any app reads them: no default, a sentence on
+  the dashboard that no released app reads them yet, and Wi-Fi only as the network a lock without
+  a value takes (#259, from a contributor). Showing which app version reads a setting is #271.
 - **The release notes** say what reaches an administrator's app, what each app gets and what
   Jellyfin 12 changes, with the view ids measured on a server moved from 10.11.11 to 12.2 (#267).
 - **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
