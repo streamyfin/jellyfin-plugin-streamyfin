@@ -297,6 +297,7 @@ public class SettingsFormTests
     [InlineData("holdToSpeedRate", 0.25, 3, 0.25)]
     [InlineData("audioLookaheadCount", 1, 5, null)]
     [InlineData("audioMaxCacheSizeMB", 100, 2048, null)]
+    [InlineData("nextEpisodesDownloadCount", 3, 10, null)]
     [InlineData("mpvCacheSeconds", 5, 120, 5.0)]
     [InlineData("mpvDemuxerMaxBytes", 50, 500, 25.0)]
     [InlineData("mpvDemuxerMaxBackBytes", 25, 200, 25.0)]

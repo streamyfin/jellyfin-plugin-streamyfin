@@ -375,6 +375,24 @@ public class Settings
     [SettingScope("Music")]
     [Bounds(100, 2048)]
     public Lockable<int>? audioMaxCacheSizeMB { get; set; } // = 500;
+
+    // "Keep next episodes downloaded": a user turns it on per series in the app's
+    // download sheet. These are what every such series follows.
+    [NotNull]
+    [Display(Name = "Episodes to keep", Description = "How many of the next unwatched episodes a series keeps downloaded once it is turned on for it")]
+    [SettingScope("Downloads", Group = "Next episodes")]
+    [Bounds(3, 10)]
+    public Lockable<int>? nextEpisodesDownloadCount { get; set; } // = 3;
+
+    [NotNull]
+    [Display(Name = "Wi-Fi only", Description = "Download next episodes only on Wi-Fi or Ethernet, never over mobile data")]
+    [SettingScope("Downloads", Group = "Next episodes")]
+    public Lockable<bool>? nextEpisodesWifiOnly { get; set; } // = true;
+
+    [NotNull]
+    [Display(Name = "Delete any watched download", Description = "When a series deletes its watched episodes, also delete the ones downloaded by hand, not only those it downloaded itself")]
+    [SettingScope("Downloads", Group = "Next episodes")]
+    public Lockable<bool>? nextEpisodesDeleteAnyDownload { get; set; } // = false;
     // No default for either. The app leaves both null and follows what the server or the
     // media offers until the user picks one, so a value here would choose for everyone.
     [NotNull]

@@ -366,6 +366,20 @@ settings:
     locked: false
     value: 500  # Maximum disk space (MB) for audio look-ahead caching, 100 to 2048
 
+  # ==================== Downloads ====================
+  # For series a user set to keep their next episodes downloaded.
+  nextEpisodesDownloadCount:
+    locked: false
+    value: 3  # Next unwatched episodes each series keeps downloaded: 3, 5 or 10
+
+  nextEpisodesWifiOnly:
+    locked: false
+    value: true  # Never download them over mobile data
+
+  nextEpisodesDeleteAnyDownload:
+    locked: false
+    value: false  # Deleting watched episodes also takes the ones downloaded by hand
+
   # ==================== Home Screen Composition ====================
   showHomeBackdrop:
     locked: false
