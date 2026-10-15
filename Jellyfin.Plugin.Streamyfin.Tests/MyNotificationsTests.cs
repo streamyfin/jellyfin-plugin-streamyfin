@@ -68,25 +68,132 @@ public class MyNotificationsTests
     }
 
     /// <summary>
-    /// An update that leaves things out stores the defaults for them.
+    /// An update that says nothing about a part leaves it as it is: a choice stands until the
+    /// person changes it.
     /// </summary>
     [Fact]
-    public void AnUpdateThatSaysLittleKeepsTheDefaults()
+    public void AnUpdateThatSaysNothingChangesNothing()
     {
+        var muted = Guid.NewGuid();
         var mine = new NotificationPreferences
         {
-            MutedLibraries = [Guid.NewGuid()],
+            MutedLibraries = [muted],
             Follow = new FollowChoice { Favorites = false, Started = false }
         };
         mine.Events["itemAdded"] = false;
 
-        MyNotifications.Apply(new MyNotificationsUpdate(), mine);
+        Assert.Null(MyNotifications.Apply(new MyNotificationsUpdate(), mine, [Movies], [Movies, Music, muted]));
 
         Assert.Null(MyNotifications.Problem(new MyNotificationsUpdate()));
-        Assert.Empty(mine.Events);
-        Assert.Empty(mine.MutedLibraries);
-        Assert.True(mine.Follow.Favorites);
-        Assert.True(mine.Follow.Started);
+        Assert.False(mine.Keeps("itemAdded"));
+        Assert.Equal([muted], mine.MutedLibraries);
+        Assert.False(mine.Follow.Favorites);
+        Assert.False(mine.Follow.Started);
+    }
+
+    /// <summary>
+    /// The app only sends the events that reach the person now. One that stops reaching them for
+    /// a while, because an administrator turned it off for the server, keeps their choice, and does
+    /// not come back on when it reaches them again (#272).
+    /// </summary>
+    [Fact]
+    public void AnEventTheUpdateLeavesOutKeepsItsChoice()
+    {
+        var mine = new NotificationPreferences();
+        mine.Events["playbackStarted"] = false;
+
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, [], [Movies, Music]);
+
+        Assert.False(mine.Keeps("playbackStarted"));
+        Assert.False(mine.Keeps("itemAdded"));
+    }
+
+    /// <summary>
+    /// The update speaks for the libraries the person is offered: one they turned back on there
+    /// is on, and one they are not offered now stays off (#272).
+    /// </summary>
+    [Fact]
+    public void TheUpdateSpeaksForTheOfferedLibrariesOnly()
+    {
+        var mine = new NotificationPreferences { MutedLibraries = [Movies, Music] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies], [Movies, Music]);
+
+        Assert.Equal([Music], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// The update has no say over a library the person is not offered, to turn it off any more
+    /// than back on: an id sent for one is left out, whatever the client puts there.
+    /// </summary>
+    [Fact]
+    public void ALibraryNotOfferedIsNotTurnedOffByTheUpdate()
+    {
+        var mine = new NotificationPreferences();
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Music] }, mine, [Movies], [Movies, Music]);
+
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// A library the server no longer has is forgotten: no route could turn it back on, it would
+    /// count under the most a person can turn off, and a library made again under its name gets
+    /// the same id.
+    /// </summary>
+    [Fact]
+    public void ALibraryTheServerNoLongerHasIsForgotten()
+    {
+        var gone = Guid.NewGuid();
+        var mine = new NotificationPreferences { MutedLibraries = [gone, Music] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [] }, mine, [Movies], [Movies, Music]);
+
+        Assert.Equal([Music], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// Libraries the server no longer has do not count under the most either.
+    /// </summary>
+    [Fact]
+    public void LibrariesTheServerNoLongerHasDoNotCountUnderTheMost()
+    {
+        var gone = Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid()).ToList();
+        var mine = new NotificationPreferences { MutedLibraries = [.. gone] };
+
+        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies], [Movies]);
+
+        Assert.Null(problem);
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// A library sent twice, or already off, is kept off once.
+    /// </summary>
+    [Fact]
+    public void ALibraryIsTurnedOffOnce()
+    {
+        var mine = new NotificationPreferences { MutedLibraries = [Movies] };
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Movies] }, mine, [Movies], [Movies, Music]);
+
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
+    /// The libraries kept off, the ones the update speaks for and the others together, stay under
+    /// the most a person can turn off, and an update that would pass it changes nothing.
+    /// </summary>
+    [Fact]
+    public void TheLibrariesKeptOffStayUnderTheMost()
+    {
+        var notOffered = Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid()).ToList();
+        var mine = new NotificationPreferences { MutedLibraries = [.. notOffered] };
+
+        var problem = MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies] }, mine, [Movies], [Movies, .. notOffered]);
+
+        Assert.NotNull(problem);
+        Assert.Equal(notOffered, mine.MutedLibraries);
     }
 
     /// <summary>
@@ -104,7 +211,7 @@ public class MyNotificationsTests
             MutedShows = [show]
         };
 
-        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine);
+        MyNotifications.Apply(new MyNotificationsUpdate { Events = new() { ["itemAdded"] = false } }, mine, [], [Movies, Music]);
 
         Assert.NotNull(mine.Pause);
         Assert.Equal([show], mine.MutedShows);
@@ -195,15 +302,33 @@ public class MyNotificationsTests
     }
 
     /// <summary>
-    /// An update with more libraries than the most is refused: every send reads everyone's
-    /// choices, so no list in them grows without end.
+    /// An update that would leave more libraries off than the most is refused: every send reads
+    /// everyone's choices, so no list in them grows without end. What counts is what would be
+    /// kept, after the merge.
     /// </summary>
     [Fact]
     public void AnUpdateWithMoreThanTheMostIsRefused()
     {
-        var libraries = new MyNotificationsUpdate { MutedLibraries = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())] };
+        List<Guid> offered = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())];
+        var update = new MyNotificationsUpdate { MutedLibraries = offered };
 
-        Assert.NotNull(MyNotifications.Problem(libraries));
+        Assert.NotNull(MyNotifications.Apply(update, new NotificationPreferences(), offered, offered));
+    }
+
+    /// <summary>
+    /// The most is checked on what would be kept, not on what was sent: an id sent twice, or one
+    /// the person is not offered, is no reason to refuse the update before the merge.
+    /// </summary>
+    [Fact]
+    public void WhatIsSentIsNotCountedBeforeTheMerge()
+    {
+        List<Guid> offered = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid())];
+        var update = new MyNotificationsUpdate { MutedLibraries = [.. offered, offered[0], Guid.NewGuid()] };
+        var mine = new NotificationPreferences();
+
+        Assert.Null(MyNotifications.Problem(update));
+        Assert.Null(MyNotifications.Apply(update, mine, offered, offered));
+        Assert.Equal(MyNotifications.MostMutedLibraries, mine.MutedLibraries.Count);
     }
 
     /// <summary>

@@ -26,6 +26,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
@@ -1063,16 +1064,25 @@ public class StreamyfinController : ControllerBase
   /// Describes a person's choices for the app. A show's name is only read through the person's
   /// own access, so muting an id they cannot open does not tell them what it is.
   /// </summary>
-  private MyNotificationsDto DescribeFor(User user, NotificationPreferences? mine) =>
+  private MyNotificationsDto DescribeFor(
+    User user,
+    NotificationPreferences? mine,
+    IEnumerable<(Guid Id, string Name)>? offered = null) =>
     MyNotifications.Describe(
       mine,
       EventsThatReach(user),
-      MyNotifications.LibrariesFor(
-        _libraryManager.GetVirtualFolders(),
-        StreamyfinPlugin.Instance!.Settings.Current.notifications?.ItemAdded?.EnabledLibraries,
-        id => _libraryManager.GetItemById<BaseItem>(id, user) is not null),
+      offered ?? OfferedLibraries(user, _libraryManager.GetVirtualFolders()),
       mine?.MutedShows ?? [],
       id => _libraryManager.GetItemById<BaseItem>(id, user)?.Name);
+
+  /// <summary>
+  /// The libraries whose new items can reach a person, which their choices are offered for.
+  /// </summary>
+  private IEnumerable<(Guid Id, string Name)> OfferedLibraries(User user, IEnumerable<VirtualFolderInfo> folders) =>
+    MyNotifications.LibrariesFor(
+      folders,
+      StreamyfinPlugin.Instance!.Settings.Current.notifications?.ItemAdded?.EnabledLibraries,
+      id => _libraryManager.GetItemById<BaseItem>(id, user) is not null);
 
   /// <summary>
   /// The signed in person, or nobody for an API key or a call that carries no user.
@@ -1112,10 +1122,12 @@ public class StreamyfinController : ControllerBase
   }
 
   /// <summary>
-  /// Replaces the events, libraries and followed shows the caller keeps. The pause and the muted
-  /// shows have routes of their own and stay as they are.
+  /// Changes the events, libraries and followed shows the caller keeps. An event the update names
+  /// takes its value; the libraries they are not offered now keep their choice while the server
+  /// has them; what the update leaves out stays as it is, and the follow choice, when sent, is
+  /// replaced whole. The pause and the muted shows have routes of their own.
   /// </summary>
-  /// <param name="update">Their choices. What it leaves out goes back to its default.</param>
+  /// <param name="update">Their choices for what the app shows them.</param>
   /// <returns>Their choices as stored.</returns>
   [HttpPut("v1/notifications/mine")]
   [Authorize]
@@ -1134,12 +1146,14 @@ public class StreamyfinController : ControllerBase
       return BadRequest(problem);
     }
 
-    var (mine, _) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(user.Id, stored =>
-    {
-      MyNotifications.Apply(update, stored);
-      return null;
-    });
-    return DescribeFor(user, mine);
+    // Read once, for the update and for the answer: each read lists the server's libraries.
+    var folders = _libraryManager.GetVirtualFolders();
+    var offered = OfferedLibraries(user, folders).ToList();
+    var existing = folders.Select(folder => Guid.TryParse(folder.ItemId, out var id) ? id : Guid.Empty).ToList();
+    var (mine, refused) = StreamyfinPlugin.Instance!.Database.ChangeNotificationPreferences(
+      user.Id,
+      stored => MyNotifications.Apply(update, stored, offered.Select(library => library.Id), existing));
+    return refused is null ? DescribeFor(user, mine, offered) : BadRequest(refused);
   }
 
   /// <summary>

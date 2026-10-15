@@ -77,9 +77,9 @@ public sealed class MyShowDto
 }
 
 /// <summary>
-/// What the app sends to replace a person's choices from its screen. The pause and the muted
-/// shows have routes of their own and are not part of it, so an app that still sends them has
-/// them left out.
+/// What the app sends to change the choices its screen shows. It speaks for those only: what it
+/// leaves out keeps its choice. The pause and the muted shows have routes of their own and are
+/// not part of it, so an app that still sends them has them left out.
 /// </summary>
 public sealed class MyNotificationsUpdate
 {
@@ -87,11 +87,14 @@ public sealed class MyNotificationsUpdate
     [JsonPropertyName("events")]
     public Dictionary<string, bool>? Events { get; set; }
 
-    /// <summary>Gets or sets the libraries turned off.</summary>
+    /// <summary>
+    /// Gets or sets the libraries offered to the person that are turned off. Those it does not
+    /// name are on; a library the person is not offered keeps its choice.
+    /// </summary>
     [JsonPropertyName("mutedLibraries")]
     public List<Guid>? MutedLibraries { get; set; }
 
-    /// <summary>Gets or sets which shows count as followed.</summary>
+    /// <summary>Gets or sets which shows count as followed, replacing the stored choice whole when sent.</summary>
     [JsonPropertyName("follow")]
     public FollowChoice? Follow { get; set; }
 }
@@ -183,7 +186,11 @@ public static class MyNotifications
         }
     }
 
-    /// <summary>What is wrong with an update, if anything.</summary>
+    /// <summary>
+    /// What is wrong with an update, if anything. How many libraries it turns off is not counted
+    /// here: <see cref="Apply"/> counts what would be kept, after the merge, since an id sent twice
+    /// or one the person is not offered is not kept.
+    /// </summary>
     /// <param name="update">The update.</param>
     /// <returns>A sentence for the app, or <c>null</c> when it can be stored.</returns>
     public static string? Problem(MyNotificationsUpdate update)
@@ -191,12 +198,7 @@ public static class MyNotifications
         ArgumentNullException.ThrowIfNull(update);
 
         var unknown = update.Events?.Keys.FirstOrDefault(key => !NotificationEvents.All.Contains(key));
-        if (unknown is not null)
-        {
-            return $"There is no notification called {unknown}.";
-        }
-
-        return ListsProblem(0, update.MutedLibraries?.Count ?? 0);
+        return unknown is null ? null : $"There is no notification called {unknown}.";
     }
 
     /// <summary>What makes lists this long too long to keep, if anything.</summary>
@@ -231,20 +233,50 @@ public static class MyNotifications
     }
 
     /// <summary>
-    /// Writes an update into a person's choices, with the defaults for what it leaves out. The
-    /// pause and the muted shows stay as they are: their own routes change them, and a screen
-    /// opened before a notification's button was pressed would otherwise take it back.
+    /// Writes an update into a person's choices. It speaks for what the app shows them: the
+    /// events it names and the libraries they are offered. A choice about anything else stands,
+    /// since the app only shows what reaches them now, and an event or a library that does not
+    /// for a while would otherwise lose it (#272); a library the server no longer has is
+    /// forgotten, since nothing could turn it back on. What the update leaves out stays as it
+    /// is, and the follow choice, when it is sent, replaces the stored one whole. The pause and
+    /// the muted shows stay as they are too: their own routes change them, and a screen opened
+    /// before a notification's button was pressed would otherwise take it back.
     /// </summary>
     /// <param name="update">The update.</param>
-    /// <param name="mine">Their choices, changed in place.</param>
-    public static void Apply(MyNotificationsUpdate update, NotificationPreferences mine)
+    /// <param name="mine">Their choices, changed in place unless the update is refused.</param>
+    /// <param name="offered">The libraries the person is offered now, which the update speaks for.</param>
+    /// <param name="existing">The libraries the server has, whatever the person can see of them.</param>
+    /// <returns>A sentence for the app when the libraries kept off would pass the most, or <c>null</c>.</returns>
+    public static string? Apply(MyNotificationsUpdate update, NotificationPreferences mine, IEnumerable<Guid> offered, IEnumerable<Guid> existing)
     {
         ArgumentNullException.ThrowIfNull(update);
         ArgumentNullException.ThrowIfNull(mine);
+        ArgumentNullException.ThrowIfNull(offered);
+        ArgumentNullException.ThrowIfNull(existing);
 
-        mine.Events = update.Events is null ? new(StringComparer.Ordinal) : new(update.Events, StringComparer.Ordinal);
-        mine.MutedLibraries = update.MutedLibraries ?? [];
-        mine.Follow = update.Follow ?? new();
+        if (update.MutedLibraries is not null)
+        {
+            var spoken = offered.ToHashSet();
+            var kept = existing.ToHashSet();
+            List<Guid> mutedLibraries = [.. mine.MutedLibraries
+                .Where(id => !spoken.Contains(id) && kept.Contains(id))
+                .Concat(update.MutedLibraries.Where(spoken.Contains))
+                .Distinct()];
+            if (ListsProblem(0, mutedLibraries.Count) is { } problem)
+            {
+                return problem;
+            }
+
+            mine.MutedLibraries = mutedLibraries;
+        }
+
+        foreach (var (key, keep) in update.Events ?? [])
+        {
+            mine.Events[key] = keep;
+        }
+
+        mine.Follow = update.Follow ?? mine.Follow;
+        return null;
     }
 
     /// <summary>The pause a number of hours asks for.</summary>
