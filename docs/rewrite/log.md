@@ -29,7 +29,11 @@ review. What that found landed today, each with its tests and a proof on a serve
   and a document written with Seerr's block is stored as the keys alone (#261).
 - **The API.** A group name already in use answers 400 instead of 500, and a push token has a
   length bound (#243). The plugin is out of Jellyfin's API document, which three of its type
-  names broke for the whole server (#256).
+  names broke for the whole server (#256). A refused group name and the plugin a restored backup
+  names are logged on one line, every control character out, so neither writes an entry that
+  reads as the server's or hides one behind an escape sequence; the warning about a settings
+  level that cannot be read cleans its name the same way (#276, CodeQL's log forging alerts 19
+  and 20, and its review).
 - **Notifications.** The sentences an administrator rewrites are the ones sent (#239). A
   person's choice about an event or a library they are not offered for a while is kept, where
   their next switch erased it and the notifications came back once it was offered again; a
@@ -49,7 +53,9 @@ review. What that found landed today, each with its tests and a proof on a serve
   the dashboard that no released app reads them yet, and Wi-Fi only as the network a lock without
   a value takes (#259, from a contributor). Showing which app version reads a setting is #271.
 - **CI.** The build can be started by hand on a branch, `gh workflow run build.yml --ref
-  <branch>`, and a run started by hand never cancels the build of a push (#270).
+  <branch>`, and a run started by hand never cancels the build of a push (#270). On `main`, the
+  PR title check, which every pull request runs from there with a token that can write, takes
+  its two actions by commit instead of by a tag and a branch, as on `develop` (#275).
 - **The release notes** say what reaches an administrator's app, what each app gets and what
   Jellyfin 12 changes, with the view ids measured on a server moved from 10.11.11 to 12.2 (#267).
 - **Translations.** Crowdin's weekly sync brought the two sentences #233 added, in
@@ -57,8 +63,9 @@ review. What that found landed today, each with its tests and a proof on a serve
 
 Left for later, each with its issue: the views Jellyfin 12 gives new ids (#255), the two ways
 the pages save (#262), a Seerr address that differs by a space (#263), the enums the parity
-check does not compare (#265), a Yaml key written twice (#266), and the server and the user a
-notification is for, which a button needs to act on the right account (#273).
+check does not compare (#265), a Yaml key written twice (#266), the server and the user a
+notification is for, which a button needs to act on the right account (#273), and what the
+review of #276 found around group names and the titles in the log (#277).
 
 ## 2026-10-08, Crowdin's sync opens its own pull request
 
