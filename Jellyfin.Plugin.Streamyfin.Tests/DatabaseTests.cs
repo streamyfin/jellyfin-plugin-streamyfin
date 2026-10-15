@@ -492,17 +492,27 @@ internal static class TestDirectory
     /// </summary>
     /// <param name="path">The directory.</param>
     /// <remarks>
-    /// SQLite pools connections, so closing one is not enough: the pooled handle
-    /// keeps the file open. Linux unlinks an open file without complaint, Windows
-    /// throws. Drain the pool first, which is what made these tests pass off CI.
+    /// SQLite pools connections, so closing one leaves its file open, and Windows will not
+    /// delete an open file. Only this directory's pools are emptied: emptying every pool, as
+    /// this did, pulled connections from under the tests of other classes running at the same
+    /// time, which then failed on a disposed handle. A pool is found by its exact connection
+    /// string, so both the plugin's are listed: EF Core's, and the read only one the import of
+    /// the old database builds.
     /// </remarks>
     public static void Delete(string path)
     {
-        SqliteConnection.ClearAllPools();
-
-        if (Directory.Exists(path))
+        if (!Directory.Exists(path))
         {
-            Directory.Delete(path, true);
+            return;
         }
+
+        foreach (var file in Directory.EnumerateFiles(path, "*.db", SearchOption.AllDirectories))
+        {
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={file}"));
+            SqliteConnection.ClearPool(new SqliteConnection(
+                new SqliteConnectionStringBuilder { DataSource = file, Mode = SqliteOpenMode.ReadOnly }.ToString()));
+        }
+
+        Directory.Delete(path, true);
     }
 }
