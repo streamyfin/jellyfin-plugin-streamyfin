@@ -158,15 +158,25 @@ public class StreamyfinController : ControllerBase
   [ProducesResponseType(StatusCodes.Status200OK)]
   public ActionResult<ConfigSaveResponse> saveConfig(
     [FromBody, Required] ConfigYamlRes config
-  )
+  ) => SaveYaml(_serializationHelperService, config.Value, StreamyfinPlugin.Instance!.Settings);
+
+  /// <summary>
+  /// What <see cref="saveConfig"/> does with a document: stores it, or answers why not and
+  /// stores nothing.
+  /// </summary>
+  /// <param name="serialization">The plugin's serializers.</param>
+  /// <param name="yaml">The document the editor sent.</param>
+  /// <param name="store">Where the configuration is kept.</param>
+  /// <returns>The answer the editor shows.</returns>
+  internal static ConfigSaveResponse SaveYaml(SerializationHelper serialization, string yaml, GlobalConfigurationStore store)
   {
-    var (p, problem) = ToSave(_serializationHelperService, config.Value, StreamyfinPlugin.Instance!.Settings.Current.settings);
+    var (p, problem) = ToSave(serialization, yaml, store.Current.settings);
     if (p is null)
     {
       return new ConfigSaveResponse { Error = true, Message = problem! };
     }
 
-    StreamyfinPlugin.Instance!.Settings.Save(p);
+    store.Save(p);
 
     return new ConfigSaveResponse { Error = false };
   }
