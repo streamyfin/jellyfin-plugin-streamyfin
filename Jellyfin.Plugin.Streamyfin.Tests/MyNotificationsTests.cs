@@ -302,15 +302,33 @@ public class MyNotificationsTests
     }
 
     /// <summary>
-    /// An update with more libraries than the most is refused: every send reads everyone's
-    /// choices, so no list in them grows without end.
+    /// An update that would leave more libraries off than the most is refused: every send reads
+    /// everyone's choices, so no list in them grows without end. What counts is what would be
+    /// kept, after the merge.
     /// </summary>
     [Fact]
     public void AnUpdateWithMoreThanTheMostIsRefused()
     {
-        var libraries = new MyNotificationsUpdate { MutedLibraries = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())] };
+        List<Guid> offered = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries + 1).Select(_ => Guid.NewGuid())];
+        var update = new MyNotificationsUpdate { MutedLibraries = offered };
 
-        Assert.NotNull(MyNotifications.Problem(libraries));
+        Assert.NotNull(MyNotifications.Apply(update, new NotificationPreferences(), offered, offered));
+    }
+
+    /// <summary>
+    /// The most is checked on what would be kept, not on what was sent: an id sent twice, or one
+    /// the person is not offered, is no reason to refuse the update before the merge.
+    /// </summary>
+    [Fact]
+    public void WhatIsSentIsNotCountedBeforeTheMerge()
+    {
+        List<Guid> offered = [.. Enumerable.Range(0, MyNotifications.MostMutedLibraries).Select(_ => Guid.NewGuid())];
+        var update = new MyNotificationsUpdate { MutedLibraries = [.. offered, offered[0], Guid.NewGuid()] };
+        var mine = new NotificationPreferences();
+
+        Assert.Null(MyNotifications.Problem(update));
+        Assert.Null(MyNotifications.Apply(update, mine, offered, offered));
+        Assert.Equal(MyNotifications.MostMutedLibraries, mine.MutedLibraries.Count);
     }
 
     /// <summary>

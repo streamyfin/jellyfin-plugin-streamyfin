@@ -186,7 +186,11 @@ public static class MyNotifications
         }
     }
 
-    /// <summary>What is wrong with an update, if anything.</summary>
+    /// <summary>
+    /// What is wrong with an update, if anything. How many libraries it turns off is not counted
+    /// here: <see cref="Apply"/> counts what would be kept, after the merge, since an id sent twice
+    /// or one the person is not offered is not kept.
+    /// </summary>
     /// <param name="update">The update.</param>
     /// <returns>A sentence for the app, or <c>null</c> when it can be stored.</returns>
     public static string? Problem(MyNotificationsUpdate update)
@@ -194,12 +198,7 @@ public static class MyNotifications
         ArgumentNullException.ThrowIfNull(update);
 
         var unknown = update.Events?.Keys.FirstOrDefault(key => !NotificationEvents.All.Contains(key));
-        if (unknown is not null)
-        {
-            return $"There is no notification called {unknown}.";
-        }
-
-        return ListsProblem(0, update.MutedLibraries?.Count ?? 0);
+        return unknown is null ? null : $"There is no notification called {unknown}.";
     }
 
     /// <summary>What makes lists this long too long to keep, if anything.</summary>
