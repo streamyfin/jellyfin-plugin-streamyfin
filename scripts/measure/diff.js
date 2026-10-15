@@ -4,9 +4,13 @@
 
 import { ROOT } from "./settings.js";
 
-export const diffArgs = (from) => ["diff", "--unified=0", "--no-color", "--no-ext-diff", "--no-renames", from];
-
-const unquoted = (path) => (path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path);
+// The prefixes are given, since diff.noprefix and diff.mnemonicPrefix change them otherwise,
+// and quotePath is off so that a name past ASCII comes as it is, not in octal escapes.
+export const diffArgs = (from) => [
+    "-c", "core.quotePath=false",
+    "diff", "--unified=0", "--no-color", "--no-ext-diff", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/",
+    from,
+];
 
 export const parseDiff = (text) => {
     const changed = new Map();
@@ -14,8 +18,11 @@ export const parseDiff = (text) => {
 
     for (const raw of text.split(/\r?\n/)) {
         if (raw.startsWith("+++ ")) {
-            const target = unquoted(raw.slice(4));
-            file = target === "/dev/null" ? null : target.replace(/^b\//, "");
+            const target = raw.slice(4);
+            if (target.startsWith('"')) {
+                throw new Error(`cannot read the path of ${raw}: git quotes a name with a quote, a backslash or a control character`);
+            }
+            file = target === "/dev/null" ? null : target.slice("b/".length);
             if (file !== null && !changed.has(file)) changed.set(file, new Set());
         } else if (raw.startsWith("@@ ") && file !== null) {
             const [, start, count = "1"] = /\+(\d+)(?:,(\d+))? @@/.exec(raw);
