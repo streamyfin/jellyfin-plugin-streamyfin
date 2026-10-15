@@ -81,6 +81,20 @@ describe("the summary", () => {
         ].join("\n"));
     });
 
+    // A comment holds 65536 characters, and a pull request that adds a whole file can leave
+    // hundreds of mutants on it.
+    test("lists a hundred escaped mutants at most, counts the rest, and fits a comment", () => {
+        const escaped = Array.from({ length: 130 }, (_, at) => ({
+            file: "scripts/a.js", line: at + 1, text: "x".repeat(400), mutator: "M", replacement: "y".repeat(400), status: "Survived",
+        }));
+        const text = summarize({ ...passed, ok: false, escaped });
+
+        expect(text.split("\n").filter((line) => line.startsWith("| scripts/a.js |")).length).toBe(100);
+        expect(text).toContain("\nAnd 30 more.\n");
+        expect(text).toContain(`\`${"x".repeat(120)}…\``);
+        expect(text.length).toBeLessThan(65536);
+    });
+
     test("carries its marker, the verdict and every folder against its floors", () => {
         const text = summarize(passed);
 

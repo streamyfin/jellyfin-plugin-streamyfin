@@ -5,8 +5,17 @@ export const MARKER = "<!-- streamyfin-measure -->";
 
 const shown = (value) => (value === null ? "not measured" : `${value} %`);
 const cell = (value, floor) => (floor === null || floor === undefined ? shown(value) : `${shown(value)} (floor ${floor})`);
+// A comment holds 65536 characters: the table lists this many escaped mutants, and a line of
+// code this long, at most.
+const ESCAPED_ROWS = 100;
+const CODE_LENGTH = 120;
+
 // A pipe would end the table's cell, and a backtick the code span.
-const code = (text) => `\`${String(text).replaceAll("|", "\\|").replaceAll("`", "'")}\``;
+const code = (raw) => {
+    const text = String(raw);
+    const shown = text.length > CODE_LENGTH ? `${text.slice(0, CODE_LENGTH)}…` : text;
+    return `\`${shown.replaceAll("|", "\\|").replaceAll("`", "'")}\``;
+};
 
 export const summarize = (result) => {
     const failures = [
@@ -39,9 +48,10 @@ export const summarize = (result) => {
             "",
             "| File | Line | Code | Mutation | Status |",
             "| --- | --- | --- | --- | --- |",
-            ...result.escaped.map((mutant) =>
+            ...result.escaped.slice(0, ESCAPED_ROWS).map((mutant) =>
                 `| ${mutant.file} | ${mutant.line} | ${code(mutant.text)} | ${mutant.mutator}: ${code(mutant.replacement)} | ${mutant.status} |`),
         );
+        if (result.escaped.length > ESCAPED_ROWS) lines.push("", `And ${result.escaped.length - ESCAPED_ROWS} more.`);
     }
 
     if (result.stale.length > 0) {

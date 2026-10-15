@@ -1,10 +1,14 @@
 name: Measure
 
+# What reaches develop is measured. A release into main carries every line since the last
+# one, judged as changed it would fail on code older than the measure, and it was measured on
+# its way into develop.
 on:
   pull_request:
+    branches:
+      - develop
   push:
     branches:
-      - main
       - develop
 
 permissions:

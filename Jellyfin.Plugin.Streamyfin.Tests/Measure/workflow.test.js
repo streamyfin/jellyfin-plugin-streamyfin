@@ -11,6 +11,12 @@ const steps = (job) => workflow.jobs[job].steps;
 const commands = (job) => steps(job).flatMap((step) => (step.run ? [step.run.trim()] : []));
 
 describe("the measure workflow", () => {
+    // A release into main carries every line since the last one, and judged as changed lines it
+    // would fail on code older than the measure: what reaches main has been measured on develop.
+    test("measures what reaches develop, and leaves a release into main alone", () => {
+        expect(workflow.on).toEqual({ pull_request: { branches: ["develop"] }, push: { branches: ["develop"] } });
+    });
+
     test("pins every action to a commit", () => {
         const unpinned = Object.values(workflow.jobs)
             .flatMap((job) => job.steps)
