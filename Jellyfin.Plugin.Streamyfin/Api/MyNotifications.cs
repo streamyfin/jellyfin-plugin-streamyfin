@@ -251,7 +251,7 @@ public static class MyNotifications
         if (update.MutedLibraries is not null)
         {
             var spoken = offered.ToHashSet();
-            List<Guid> mutedLibraries = [.. mine.MutedLibraries.Where(id => !spoken.Contains(id)).Concat(update.MutedLibraries).Distinct()];
+            List<Guid> mutedLibraries = [.. mine.MutedLibraries.Where(id => !spoken.Contains(id)).Concat(update.MutedLibraries.Where(spoken.Contains)).Distinct()];
             if (ListsProblem(0, mutedLibraries.Count) is { } problem)
             {
                 return problem;

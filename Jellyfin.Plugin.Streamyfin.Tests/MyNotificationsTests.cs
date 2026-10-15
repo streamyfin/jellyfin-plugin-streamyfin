@@ -123,6 +123,20 @@ public class MyNotificationsTests
     }
 
     /// <summary>
+    /// The update has no say over a library the person is not offered, to turn it off any more
+    /// than back on: an id sent for one is left out, whatever the client puts there.
+    /// </summary>
+    [Fact]
+    public void ALibraryNotOfferedIsNotTurnedOffByTheUpdate()
+    {
+        var mine = new NotificationPreferences();
+
+        MyNotifications.Apply(new MyNotificationsUpdate { MutedLibraries = [Movies, Music] }, mine, [Movies]);
+
+        Assert.Equal([Movies], mine.MutedLibraries);
+    }
+
+    /// <summary>
     /// A library sent twice, or already off, is kept off once.
     /// </summary>
     [Fact]
