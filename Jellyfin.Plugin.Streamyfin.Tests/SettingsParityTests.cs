@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -77,11 +78,23 @@ public class SettingsParityTests
     /// </summary>
     /// <remarks>
     /// An entry here is a bet that the app change lands. It is safe only while the
-    /// plugin ships no default for the key, or ships one the app agrees with once it
-    /// catches up, since an unlocked default is applied whether the app understands the
-    /// key or not.
+    /// plugin ships no default for the key, since an unlocked default is applied whether
+    /// the app understands the key or not, and until the app reads the key nothing can
+    /// check that it agrees with one. <see cref="AKeyDeclaredAheadOfTheAppShipsNoDefault"/>
+    /// holds that.
     /// </remarks>
-    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
+    {
+        ["nextEpisodesDeleteAnyDownload"] = NextEpisodes,
+        ["nextEpisodesDownloadCount"] = NextEpisodes,
+        ["nextEpisodesNetwork"] = NextEpisodes,
+    };
+
+    private const string NextEpisodes =
+        "streamyfin/streamyfin#2275 adds Next episodes to the app's Downloads settings and reads it there.";
+
+    // How the dashboard tells an administrator that a setting does nothing yet.
+    private const string NotReadYet = ". No released app reads it yet";
 
     /// <summary>
     /// Keys the plugin still declares for the copies of the app in the field, which the
@@ -324,6 +337,55 @@ public class SettingsParityTests
             unknown.Length == 0,
             "Declared, but the app reads no such key. One the apps in the field still read "
             + "belongs in KeptForAppsInTheField:\n  " + string.Join("\n  ", unknown));
+    }
+
+    /// <summary>
+    /// A setting declared ahead of the app says so on the dashboard, and only that one.
+    /// </summary>
+    /// <remarks>
+    /// Locked, it changes nothing on any device until an app reads it, and a lock that looks
+    /// like it works was the mistake of pull request #109. The sentence goes with the entry
+    /// in <see cref="DeclaredAheadOfTheApp"/>, so it leaves when the app catches up.
+    /// </remarks>
+    [Fact]
+    public void ASettingDeclaredAheadOfTheAppSaysSo()
+    {
+        var wrong = typeof(Settings)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => DeclaredAheadOfTheApp.ContainsKey(property.Name)
+                != (property.GetCustomAttribute<DisplayAttribute>()?.Description?.EndsWith(NotReadYet, StringComparison.Ordinal) ?? false))
+            .Select(property => property.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            wrong.Length == 0,
+            "Declared ahead of the app without saying so, or saying so for a key the app reads:\n  "
+            + string.Join("\n  ", wrong));
+    }
+
+    /// <summary>
+    /// A key declared ahead of the app ships no default.
+    /// </summary>
+    /// <remarks>
+    /// Every app that refreshes applies an unlocked default once and keeps it as the
+    /// person's own value, the apps that do not read the key included. Once the app reads
+    /// it, the key leaves <see cref="DeclaredAheadOfTheApp"/> and
+    /// <see cref="ADeclaredDefaultEqualsTheAppsOwn"/> judges a default.
+    /// </remarks>
+    [Fact]
+    public void AKeyDeclaredAheadOfTheAppShipsNoDefault()
+    {
+        var settings = PluginConfiguration.DefaultSettings();
+
+        var defaulted = DeclaredAheadOfTheApp.Keys
+            .Where(key => typeof(Settings).GetProperty(key)?.GetValue(settings) is not null)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            defaulted.Length == 0,
+            "Declared ahead of the app, with a default:\n  " + string.Join("\n  ", defaulted));
     }
 
     /// <summary>
@@ -931,6 +993,9 @@ public class SettingsParityTests
     [InlineData(StillWatchingPreset.Default, "\"default\"")]
     [InlineData(StillWatchingPreset.Long, "\"long\"")]
     [InlineData(StillWatchingPreset.VeryLong, "\"veryLong\"")]
+    [InlineData(NextEpisodesNetwork.Any, "\"any\"")]
+    [InlineData(NextEpisodesNetwork.Wifi, "\"wifi\"")]
+    [InlineData(NextEpisodesNetwork.Home, "\"home\"")]
     // The app compares the SDK's strings for this one. It was written as a number until
     // the regenerated manifest showed it, and a locked mode did nothing.
     [InlineData(SubtitlePlaybackMode.Default, "\"Default\"")]

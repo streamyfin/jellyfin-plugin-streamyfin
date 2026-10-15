@@ -18,6 +18,7 @@ const ICONS = {
     "Audio and subtitles": [["path", "M2 10h3l3 3V3L5 6H2z"]],
     "Media segment skip": [["path", "M4 3v10l8-5z"]],
     "Music": [["circle", { cx: "5", cy: "12", r: "2" }], ["path", "M7 12V4l6-1.5V10"]],
+    "Downloads": [["path", "M8 2v8M4.5 6.5L8 10l3.5-3.5M3 13h10"]],
     "Plugins": [["path", "M6 2v3M10 2v3M3 5h10v8H3z"]],
     "Security": [["path", "M8 2l5 2v4c0 3-2 5-5 6-3-1-5-3-5-6V4z"]],
     "Advanced": [["circle", { cx: "8", cy: "8", r: "2" }], ["path", "M8 1v2M8 13v2M1 8h2M13 8h2"]],

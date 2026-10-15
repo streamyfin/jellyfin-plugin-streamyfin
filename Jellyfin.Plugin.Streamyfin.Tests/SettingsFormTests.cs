@@ -175,6 +175,9 @@ public class SettingsFormTests
     [InlineData("mpvCacheEnabled", "yes", "Enabled")]
     [InlineData("mpvVoDriver", "gpu-next", "gpu-next (Recommended)")]
     [InlineData("inactivityTimeout", "OneMinute", "1 minute")]
+    [InlineData("nextEpisodesNetwork", "any", "Any network")]
+    [InlineData("nextEpisodesNetwork", "wifi", "Wi-Fi only")]
+    [InlineData("nextEpisodesNetwork", "home", "Home network only")]
     [InlineData("defaultVideoOrientation", "Default", "Follow device orientation")]
     // #110. The app's own picker calls this "Landscape auto", and deriving from the
     // member name gives "Landscape", so the two screens named the same choice
@@ -198,6 +201,7 @@ public class SettingsFormTests
     [InlineData("subtitleMode", "Default,Smart,OnlyForced,Always,None")]
     [InlineData("skipIntro", "auto,ask,none")]
     [InlineData("defaultBitrate", ",_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
+    [InlineData("nextEpisodesNetwork", "any,wifi,home")]
     public void AChoiceListFollowsTheAppsOrder(string key, string expected)
     {
         Assert.Equal(expected, string.Join(",", Field(key).Options.Select(o => o.Value ?? "")));
@@ -297,6 +301,7 @@ public class SettingsFormTests
     [InlineData("holdToSpeedRate", 0.25, 3, 0.25)]
     [InlineData("audioLookaheadCount", 1, 5, null)]
     [InlineData("audioMaxCacheSizeMB", 100, 2048, null)]
+    [InlineData("nextEpisodesDownloadCount", 3, 10, null)]
     [InlineData("mpvCacheSeconds", 5, 120, 5.0)]
     [InlineData("mpvDemuxerMaxBytes", 50, 500, 25.0)]
     [InlineData("mpvDemuxerMaxBackBytes", 25, 200, 25.0)]
