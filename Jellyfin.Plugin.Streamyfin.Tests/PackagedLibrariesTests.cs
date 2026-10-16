@@ -19,8 +19,19 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </remarks>
 public class PackagedLibrariesTests
 {
+    /// <summary>
+    /// The name an assembly file declares, which is the name another assembly references it by.
+    /// </summary>
+    /// <param name="dll">The assembly file.</param>
+    /// <returns>Its name.</returns>
     private static string? NameOf(string dll) => AssemblyName.GetAssemblyName(dll).Name;
 
+    /// <summary>
+    /// The names of the assemblies an assembly file references, read from its metadata without
+    /// loading it.
+    /// </summary>
+    /// <param name="dll">The assembly file.</param>
+    /// <returns>The names it references.</returns>
     private static IEnumerable<string> ReferencesOf(string dll)
     {
         using var stream = File.OpenRead(dll);
