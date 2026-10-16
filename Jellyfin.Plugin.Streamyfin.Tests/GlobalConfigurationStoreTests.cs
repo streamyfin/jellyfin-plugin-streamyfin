@@ -347,6 +347,25 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
+    /// The example text in Seerr's block does not take the place of a real address beside it:
+    /// folding the block first wrote the text over the address, and taking the text out then
+    /// left no address at all.
+    /// </summary>
+    [Fact]
+    public void TheExampleTextInTheBlockDoesNotReplaceARealAddress()
+    {
+        _db.SaveGlobalConfigJson("""{"settings":{"jellyseerrServerUrl":{"value":"https://seerr.real.example"},"seerr":{"serverUrl":{"value":"Enter jellyseerr server url"}}}}""");
+
+        Assert.Equal("https://seerr.real.example", new GlobalConfigurationStore(_db, _serialization).Current.settings?.jellyseerrServerUrl?.value);
+
+        new GlobalConfigurationStore(_db, _serialization).ForgetPlaceholders();
+
+        var stored = _serialization.DeserializeJson<Config>(_db.GetGlobalConfigJson()!)!.settings!;
+        Assert.Equal("https://seerr.real.example", stored.jellyseerrServerUrl?.value);
+        Assert.Null(stored.seerr?.serverUrl);
+    }
+
+    /// <summary>
     /// The configuration in use carries none even before they are taken out of the database, so
     /// no route serves them, the ones that read it without tidying included.
     /// </summary>

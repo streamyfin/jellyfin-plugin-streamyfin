@@ -168,14 +168,16 @@ public sealed class GlobalConfigurationStore
                     return;
                 }
 
+                // Taken out before the block is folded, as Read does, so the text in the block
+                // does not write over a real address beside it.
                 var stored = _serialization.DeserializeJson<Config>(json) ?? new Config();
-                IntegrationBlocks.Fold(stored.settings);
-
                 var taken = Placeholders.TakeOut(stored.settings);
                 if (taken.Count == 0)
                 {
                     return;
                 }
+
+                IntegrationBlocks.Fold(stored.settings);
 
                 _database.SaveGlobalConfigJson(_serialization.SerializeToJson(stored));
                 _cached = stored;
@@ -422,14 +424,15 @@ public sealed class GlobalConfigurationStore
         {
             var config = _serialization.DeserializeJson<Config>(json) ?? new Config();
 
+            // Out of the configuration in use before anything reads it, the routes that read
+            // it without tidying included; ForgetPlaceholders writes it out of the database.
+            // Before the fold: folded first, the text in the block wrote over a real address.
+            Placeholders.TakeOut(config.settings);
+
             // The builds of develop since #198 stored Seerr's block beside the keys it was
             // copied onto. Served back with it, the next save that changed a key by itself
             // disagreed with the block and was refused, so it is folded as a level is.
             IntegrationBlocks.Fold(config.settings);
-
-            // Out of the configuration in use before anything reads it, the routes that read
-            // it without tidying included; ForgetPlaceholders writes it out of the database.
-            Placeholders.TakeOut(config.settings);
             return config;
         }
         catch (System.Text.Json.JsonException ex)
