@@ -17,8 +17,11 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </remarks>
 public class RoutesAwaitTests
 {
-    // A wait on a task: Wait(), Result, or GetAwaiter().GetResult().
-    private static readonly Regex Blocks = new(@"\.Wait\(\)|\.Result\b|\.GetAwaiter\(\)\.GetResult\(\)", RegexOptions.Compiled);
+    // A wait on a task, however it is spaced: Wait with or without a timeout, WaitAll and
+    // WaitAny, Result, and GetAwaiter().GetResult(). WaitAsync is awaited, so it is not one.
+    private static readonly Regex Blocks = new(
+        @"\.\s*Wait(?:All|Any)?\s*\(|\.\s*Result\b|\.\s*GetAwaiter\s*\(\s*\)\s*\.\s*GetResult\s*\(",
+        RegexOptions.Compiled);
 
     /// <summary>
     /// No route in the plugin's API waits on a task.
@@ -36,4 +39,25 @@ public class RoutesAwaitTests
 
         Assert.True(waits.Count == 0, "Waits on a task: " + string.Join(", ", waits));
     }
+
+    /// <summary>
+    /// A wait is found however it is written: with a timeout, with a space before its
+    /// parenthesis, or on several tasks at once. An await, an asynchronous wait and a name
+    /// that only starts the same are not waits.
+    /// </summary>
+    /// <param name="line">A line of a route.</param>
+    /// <param name="waits">Whether it waits on a task.</param>
+    [Theory]
+    [InlineData("task.Wait();", true)]
+    [InlineData("task.Wait(1000);", true)]
+    [InlineData("task.Wait (TimeSpan.FromSeconds(5));", true)]
+    [InlineData("Task.WaitAll(first, second);", true)]
+    [InlineData("Task.WaitAny(tasks);", true)]
+    [InlineData("var sent = send.Result;", true)]
+    [InlineData("send.GetAwaiter().GetResult();", true)]
+    [InlineData("send.GetAwaiter ( ) . GetResult ( );", true)]
+    [InlineData("await send;", false)]
+    [InlineData("await send.WaitAsync(cancellation);", false)]
+    [InlineData("var results = answer.Results;", false)]
+    public void AWaitIsFoundHoweverItIsWritten(string line, bool waits) => Assert.Equal(waits, Blocks.IsMatch(line));
 }
