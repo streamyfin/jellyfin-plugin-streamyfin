@@ -53,6 +53,7 @@ public class PluginDatabase
         ImportLegacyDeviceTokens(context);
         KeepOneRowPerToken(context);
         RemoveTokensPastTheBound(context);
+        RepairGroupNames(context);
     }
 
     /// <summary>
@@ -552,9 +553,15 @@ public class PluginDatabase
     /// </summary>
     /// <param name="group">The group. An empty id means create.</param>
     /// <returns>The stored group, with its id.</returns>
+    /// <exception cref="ArgumentException">The name is one <see cref="GroupName"/> refuses.</exception>
+    /// <exception cref="GroupNameTakenException">Another group has the name.</exception>
+    /// <exception cref="GroupGoneException">
+    /// The id is given and no group has it, or the group was deleted while this saved it.
+    /// </exception>
     public SettingsGroup SaveSettingsGroup(SettingsGroup group)
     {
         ArgumentNullException.ThrowIfNull(group);
+        group.Name = Named(group.Name);
 
         using var context = CreateContext();
 
@@ -565,23 +572,29 @@ public class PluginDatabase
         }
         else
         {
-            var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == group.Id);
-            if (existing is null)
-            {
-                context.SettingsGroups.Add(group);
-            }
-            else
-            {
-                existing.Name = group.Name;
-                existing.Priority = group.Priority;
-                existing.SettingsJson = group.SettingsJson;
-                existing.NotificationsJson = group.NotificationsJson;
-            }
+            // An id means update, never create: a group deleted since the caller looked it up
+            // stays deleted.
+            var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == group.Id)
+                ?? throw new GroupGoneException(group.Id);
+
+            existing.Name = group.Name;
+            existing.Priority = group.Priority;
+            existing.SettingsJson = group.SettingsJson;
+            existing.NotificationsJson = group.NotificationsJson;
+
+            // Written even when nothing changed. EF sends no UPDATE for unchanged values, so
+            // a delete landing after the read went unseen and the save reported success.
+            context.Entry(existing).Property(g => g.Name).IsModified = true;
         }
 
         try
         {
             context.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException gone)
+        {
+            // Deleted between the read above and this write, so the update touched no row.
+            throw new GroupGoneException(group.Id, gone);
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: raw.SQLITE_CONSTRAINT_UNIQUE } refused
             && refused.Message.Contains("SettingsGroups.Name", StringComparison.Ordinal))
@@ -606,17 +619,13 @@ public class PluginDatabase
     public void RemoveSettingsGroup(Guid id)
     {
         using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
 
-        var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == id);
-        if (existing is null)
-        {
-            return;
-        }
-
-        context.SettingsGroupMembers.RemoveRange(
-            context.SettingsGroupMembers.Where(m => m.GroupId == id));
-        context.SettingsGroups.Remove(existing);
-        context.SaveChanges();
+        // By statement, with nothing read first: two deletes of one group at once each read the
+        // row, and the second found it gone on writing, which EF threw as a concurrency error.
+        context.SettingsGroupMembers.Where(m => m.GroupId == id).ExecuteDelete();
+        context.SettingsGroups.Where(g => g.Id == id).ExecuteDelete();
+        transaction.Commit();
     }
 
     /// <summary>
@@ -638,9 +647,18 @@ public class PluginDatabase
     /// </summary>
     /// <param name="groupId">The group id.</param>
     /// <param name="userIds">Who should be in it afterwards.</param>
+    /// <exception cref="GroupGoneException">No group has the id, or it was deleted meanwhile.</exception>
     public void SetGroupMembers(Guid groupId, IEnumerable<Guid> userIds)
     {
         using var context = CreateContext();
+
+        // The group is looked for inside the write: a group deleted meanwhile got the members
+        // all the same, rows no group reads, and the route answered 200 with them.
+        using var transaction = context.Database.BeginTransaction();
+        if (!context.SettingsGroups.Any(g => g.Id == groupId))
+        {
+            throw new GroupGoneException(groupId);
+        }
 
         context.SettingsGroupMembers.RemoveRange(
             context.SettingsGroupMembers.Where(m => m.GroupId == groupId));
@@ -655,6 +673,7 @@ public class PluginDatabase
         }
 
         context.SaveChanges();
+        transaction.Commit();
     }
 
     /// <summary>
@@ -770,6 +789,8 @@ public class PluginDatabase
 
         foreach (var (group, members) in groups)
         {
+            group.Name = Named(group.Name);
+
             // The id the file carries, so restoring one onto the server it came from
             // changes nothing: groups sharing a priority are ordered by id, and a fresh
             // one would silently reorder them.
@@ -1335,6 +1356,55 @@ public class PluginDatabase
             _logger?.LogWarning(
                 ex,
                 "Could not remove the registrations whose push token is too long. This is tried again on the next start");
+        }
+    }
+
+    // The name tidied, or an exception when the rule refuses it: the routes and a restore say
+    // why before they get here, so this is for a writer that did not ask.
+    private static string Named(string? name) =>
+        GroupName.Problem(name) is { } problem ? throw new ArgumentException(problem, nameof(name)) : GroupName.Tidy(name);
+
+    /// <summary>
+    /// Gives every stored group a name the rule takes: the builds before it stored any name, and
+    /// the server's own backup was then refused on restore for one. Each is repaired to the
+    /// nearest name taken, told apart from another that came out the same by a number, and the
+    /// log names each change. Not fatal: the next start tries again.
+    /// </summary>
+    /// <param name="context">An open context on the database.</param>
+    private void RepairGroupNames(StreamyfinDbContext context)
+    {
+        try
+        {
+            var stored = context.SettingsGroups.AsNoTracking().Select(g => new { g.Id, g.Name }).ToList();
+            bool Taken(string name) => GroupName.Problem(name) is null && GroupName.Tidy(name) == name;
+
+            // The names that are fine keep them, and a repaired name never takes one of them.
+            var used = new HashSet<string>(stored.Where(g => Taken(g.Name)).Select(g => g.Name), StringComparer.Ordinal);
+            var renamed = new List<string>();
+
+            foreach (var group in stored.Where(g => !Taken(g.Name)))
+            {
+                var name = GroupName.Repaired(group.Name);
+                for (var n = 2; !used.Add(name); n++)
+                {
+                    name = GroupName.WithSuffix(GroupName.Repaired(group.Name), $" ({n})");
+                }
+
+                context.SettingsGroups.Where(g => g.Id == group.Id).ExecuteUpdate(set => set.SetProperty(g => g.Name, name));
+                renamed.Add($"{group.Id} to \"{name}\"");
+            }
+
+            if (renamed.Count > 0)
+            {
+                _logger?.LogWarning(
+                    "Renamed {Count} group(s) whose name the dashboard no longer takes: {Renamed}",
+                    renamed.Count,
+                    string.Join(", ", renamed));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not repair the names of the groups. This is tried again on the next start");
         }
     }
 

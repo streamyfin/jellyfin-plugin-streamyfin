@@ -115,7 +115,7 @@ public class AwaitedTitlesService : BaseEvent, IHostedService
         catch (Exception e)
         {
             // A library event must not fail the scan that raised it.
-            _logger.LogError(e, "Could not settle the arrival of {Title}", title.Name.Escape());
+            _logger.LogError(e, "Could not settle the arrival of {Title}", title.Name.ForLog());
         }
     }
 }

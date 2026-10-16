@@ -125,7 +125,7 @@ public class AwaitedTitleAnnouncer
         await AnnounceEach(
             told.GroupBy(row => row.ArrivedItemId!.Value),
             arrival => Announce(database, titles[arrival.Key], [.. arrival]),
-            (arrival, e) => _logger.LogError(e, "Could not announce {Title} after a pause", titles[arrival.Key].Name.Escape()))
+            (arrival, e) => _logger.LogError(e, "Could not announce {Title} after a pause", titles[arrival.Key].Name.ForLog()))
             .ConfigureAwait(false);
 
         return told.Count;
@@ -241,7 +241,7 @@ public class AwaitedTitleAnnouncer
 
         foreach (var (named, people) in MessagesFor(told))
         {
-            _logger.LogInformation("{Title} arrived for {People} person(s) waiting for it", title.Name.Escape(), people.Count);
+            _logger.LogInformation("{Title} arrived for {People} person(s) waiting for it", title.Name.ForLog(), people.Count);
 
             await _notificationHelper.SendToDevices(
                 devices.Where(device => people.Contains(device.UserId)).ToList(),

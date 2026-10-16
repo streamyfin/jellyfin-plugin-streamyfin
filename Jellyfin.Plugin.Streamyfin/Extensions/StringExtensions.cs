@@ -11,9 +11,11 @@ public static class StringExtensions
     public static bool IsNullOrNonWord(this string? value) =>
         string.IsNullOrWhiteSpace(value) || Regex.Count(value, "\\w+") == 0;
 
-    // Every control character, the line breaks among them, and the line and paragraph
-    // separators, which end a line in some readers without being control characters.
-    private static readonly Regex NotOnOneLine = new("[\\p{Cc}\\u2028\\u2029]+", RegexOptions.Compiled);
+    // Every control character, the line breaks among them, the line and paragraph separators,
+    // which end a line in some readers without being control characters, and the bidi controls:
+    // the embeddings, overrides and isolates, which turn the rest of a line around, and the
+    // direction marks, which move what is around them.
+    private static readonly Regex NotOnOneLine = new("[\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]+", RegexOptions.Compiled);
 
     /// <summary>
     /// A value from outside the server, on one line so it cannot start a log entry of

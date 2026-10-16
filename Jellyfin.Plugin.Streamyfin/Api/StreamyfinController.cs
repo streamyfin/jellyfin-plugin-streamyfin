@@ -1662,9 +1662,9 @@ public class StreamyfinController : ControllerBase
   {
     ArgumentNullException.ThrowIfNull(request);
 
-    if (string.IsNullOrWhiteSpace(request.Name))
+    if (GroupName.Problem(request.Name) is { } nameProblem)
     {
-      return BadRequest("A group needs a name");
+      return BadRequest(nameProblem);
     }
 
     var problem = SettingsValidation.Check(request.Settings)
@@ -1683,7 +1683,7 @@ public class StreamyfinController : ControllerBase
       stored = database.SaveSettingsGroup(new SettingsGroup
       {
         Id = Guid.Empty,
-        Name = request.Name,
+        Name = GroupName.Tidy(request.Name),
         Priority = request.Priority,
         SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
         NotificationsJson = NotificationTargeting.Write(request.Notifications)
@@ -1695,7 +1695,15 @@ public class StreamyfinController : ControllerBase
       return BadRequest(taken.Message);
     }
 
-    database.SetGroupMembers(stored.Id, request.UserIds);
+    try
+    {
+      database.SetGroupMembers(stored.Id, request.UserIds);
+    }
+    catch (GroupGoneException)
+    {
+      // Deleted by another administrator the moment it was created.
+      return NotFound();
+    }
 
     return ToDto(stored, database.GetGroupMembers(stored.Id));
   }
@@ -1718,27 +1726,27 @@ public class StreamyfinController : ControllerBase
   {
     ArgumentNullException.ThrowIfNull(request);
 
-    if (string.IsNullOrWhiteSpace(request.Name))
+    var database = StreamyfinPlugin.Instance!.Database;
+
+    // Looked up first, and once, so a group that is gone answers 404 whatever the body says.
+    // The settings were checked first, and an unknown group answered 400 or 404 by its body.
+    var existing = database.GetSettingsGroup(id);
+    if (existing is null)
     {
-      return BadRequest("A group needs a name");
+      return NotFound();
     }
 
-    var existing = StreamyfinPlugin.Instance!.Database.GetSettingsGroup(id);
-    var problem = SettingsValidation.Check(
-        request.Settings,
-        existing is null ? null : Resolution.ReadLevel(existing.SettingsJson, $"group {id}"))
+    if (GroupName.Problem(request.Name) is { } nameProblem)
+    {
+      return BadRequest(nameProblem);
+    }
+
+    var problem = SettingsValidation.Check(request.Settings, Resolution.ReadLevel(existing.SettingsJson, $"group {id}"))
       ?? NotificationsValidation.CheckTargeting(request.Notifications);
 
     if (problem is not null)
     {
       return BadRequest(problem);
-    }
-
-    var database = StreamyfinPlugin.Instance!.Database;
-
-    if (database.GetSettingsGroup(id) is null)
-    {
-      return NotFound();
     }
 
     SettingsGroup stored;
@@ -1747,7 +1755,7 @@ public class StreamyfinController : ControllerBase
       stored = database.SaveSettingsGroup(new SettingsGroup
       {
         Id = id,
-        Name = request.Name,
+        Name = GroupName.Tidy(request.Name),
         Priority = request.Priority,
         SettingsJson = _serializationHelperService.SerializeToJson(request.Settings ?? new Configuration.Settings.Settings()),
         NotificationsJson = NotificationTargeting.Write(request.Notifications)
@@ -1757,6 +1765,12 @@ public class StreamyfinController : ControllerBase
     {
       _logger.LogWarning("Refused renaming group {Id} to {Name}: another group has that name", id, request.Name.ForLog());
       return BadRequest(taken.Message);
+    }
+    catch (GroupGoneException)
+    {
+      // Deleted since the lookup above, by another administrator: it stays deleted.
+      _logger.LogInformation("Group {Id} was deleted while it was being updated, and stays deleted", id);
+      return NotFound();
     }
 
     return ToDto(stored, database.GetGroupMembers(id));
@@ -1802,7 +1816,16 @@ public class StreamyfinController : ControllerBase
       return NotFound();
     }
 
-    database.SetGroupMembers(id, request.UserIds);
+    try
+    {
+      database.SetGroupMembers(id, request.UserIds);
+    }
+    catch (GroupGoneException)
+    {
+      // Deleted since the lookup above: it gets no members, and stays deleted.
+      return NotFound();
+    }
+
     return ToDto(group, database.GetGroupMembers(id));
   }
 

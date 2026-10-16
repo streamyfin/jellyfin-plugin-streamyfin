@@ -271,6 +271,7 @@ public class BackupTests
     [InlineData("""{"groups":[null],"users":[]}""")]
     [InlineData("""{"groups":[],"users":[null]}""")]
     [InlineData("""{"groups":[{"name":" "}],"users":[]}""")]
+    [InlineData("""{"groups":[{"name":"Kids"},{"name":" Kids\n"}],"users":[]}""")]
     public void AFileTheRestoreCouldOnlyApplyHalfwayIsRefused(string file)
     {
         var read = _serialization.DeserializeJson<ConfigurationBackup>(file);
@@ -289,6 +290,42 @@ public class BackupTests
             """{"groups":[{"name":"Kids"},{"name":"kids"}],"users":[{"userId":"4c1ee5d4-5e8f-4f3b-9d0a-2b6a1f0e8c11"}]}""");
 
         Assert.Null(read!.TargetingProblem());
+    }
+
+    /// <summary>
+    /// A name the routes refuse is refused in a file too, with the routes' own sentence, so a
+    /// restore cannot store what the Targeting page could not save.
+    /// </summary>
+    /// <param name="name">The name in the file.</param>
+    /// <param name="problem">What the routes say about it.</param>
+    [Theory]
+    [InlineData("Kids\nClub", "A group name cannot hold a line break, a control character or one that does not show")]
+    [InlineData("Kids\u001b[2K", "A group name cannot hold a line break, a control character or one that does not show")]
+    [InlineData(" ", "A group needs a name")]
+    [InlineData("101", "A group name can be at most 100 characters long")]
+    public void AGroupNameTheRoutesRefuseIsRefusedInAFile(string name, string problem)
+    {
+        var backup = new ConfigurationBackup
+        {
+            Groups = [new SettingsGroupDto { Name = name == "101" ? new string('a', 101) : name }]
+        };
+
+        Assert.Equal($"One of the groups in this file has a name the server does not take. {problem}.", backup.TargetingProblem());
+    }
+
+    /// <summary>
+    /// The rows a restore writes carry each name without the spaces around it, as the routes
+    /// store it, so a file from before the names were tidied does not bring back a group that
+    /// counts as changed as soon as the page opens it.
+    /// </summary>
+    [Fact]
+    public void TheRowsARestoreWritesCarryTheNamesTidied()
+    {
+        var backup = new ConfigurationBackup { Groups = [new SettingsGroupDto { Name = "  Night shift \n" }] };
+
+        var rows = backup.ToRows(_serialization, new HashSet<Guid>());
+
+        Assert.Equal("Night shift", Assert.Single(rows.Groups).Group.Name);
     }
 
     /// <summary>
