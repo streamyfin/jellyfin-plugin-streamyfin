@@ -70,6 +70,30 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// The store keeps a device's language and server address the way the route does, so a
+    /// caller other than the route cannot store either at any length, or spelled two ways.
+    /// </summary>
+    [Fact]
+    public void TheStoreKeepsALanguageAndAnAddressAsTheRouteDoes()
+    {
+        var userId = Guid.NewGuid();
+        _db.AddDeviceToken(new DeviceToken
+        {
+            DeviceId = Guid.NewGuid(), Token = "ExponentPushToken[long]", UserId = userId,
+            Language = new string('b', 100_000), ServerUrl = "https://" + new string('a', 100_000),
+        });
+        _db.AddDeviceToken(new DeviceToken
+        {
+            DeviceId = Guid.NewGuid(), Token = "ExponentPushToken[plain]", UserId = userId,
+            Language = "fr-fr", ServerUrl = " https://jellyfin.example/ ",
+        });
+
+        var stored = _db.GetUserDeviceTokens(userId).OrderBy(token => token.Token, StringComparer.Ordinal).ToList();
+
+        Assert.Equal([(null, null), ("fr-FR", "https://jellyfin.example")], stored.Select(token => (token.Language, token.ServerUrl)));
+    }
+
+    /// <summary>
     /// Two registrations of the same device at the same time both succeed and leave
     /// one row.
     /// </summary>
