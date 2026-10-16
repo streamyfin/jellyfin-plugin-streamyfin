@@ -578,6 +578,10 @@ public class PluginDatabase
             existing.Priority = group.Priority;
             existing.SettingsJson = group.SettingsJson;
             existing.NotificationsJson = group.NotificationsJson;
+
+            // Written even when nothing changed. EF sends no UPDATE for unchanged values, so
+            // a delete landing after the read went unseen and the save reported success.
+            context.Entry(existing).Property(g => g.Name).IsModified = true;
         }
 
         try

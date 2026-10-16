@@ -255,7 +255,8 @@ public class ItemAddedService : BaseEvent, IHostedService
             return;
         }
         
-        var name = refreshedSeason.Series.Name.Escape();
+        // Only logged: the message writes the name for itself, per language.
+        var name = refreshedSeason.Series.Name.ForLog();
 
         _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", total, name);
 

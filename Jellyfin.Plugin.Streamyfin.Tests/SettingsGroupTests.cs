@@ -4,6 +4,7 @@ using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Jellyfin.Plugin.Streamyfin.Db;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
 
@@ -440,6 +441,29 @@ public class SettingsGroupTests : IDisposable
 
         Assert.Equal(kids.Id, gone.Id);
         Assert.Empty(_db.GetSettingsGroups());
+    }
+
+    /// <summary>
+    /// An update writes the row even when it changes nothing, so a group deleted between the
+    /// read and the write is found gone. EF sends no UPDATE for values that did not change,
+    /// and the route then answered 200 for a group that was no longer there.
+    /// </summary>
+    [Fact]
+    public void AnUpdateThatChangesNothingStillWritesTheRow()
+    {
+        var kids = _db.SaveSettingsGroup(Named("Kids"));
+
+        using (var context = _db.CreateContext())
+        {
+            context.Database.ExecuteSqlRaw(
+                "CREATE TABLE Writes (Value INTEGER NOT NULL); INSERT INTO Writes VALUES (0); "
+                + "CREATE TRIGGER CountWrites AFTER UPDATE ON SettingsGroups BEGIN UPDATE Writes SET Value = Value + 1; END;");
+        }
+
+        _db.SaveSettingsGroup(Named("Kids", kids.Id));
+
+        using var read = _db.CreateContext();
+        Assert.Equal(1, read.Database.SqlQueryRaw<int>("SELECT Value FROM Writes").AsEnumerable().Single());
     }
 
     /// <summary>

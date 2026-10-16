@@ -16,6 +16,10 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </remarks>
 public class GroupNameTests
 {
+    /// <summary>
+    /// A name of nothing, or of spaces and line breaks only, is no name.
+    /// </summary>
+    /// <param name="name">The name sent.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -26,6 +30,11 @@ public class GroupNameTests
         Assert.Equal("A group needs a name", GroupName.Problem(name));
     }
 
+    /// <summary>
+    /// A line break, the line and paragraph separators, a tab, an escape sequence, NUL or DEL
+    /// inside a name is refused, with one sentence for all of them.
+    /// </summary>
+    /// <param name="name">The name sent.</param>
     [Theory]
     [InlineData("Kids\nClub")]
     [InlineData("Kids\r\nClub")]
@@ -41,6 +50,9 @@ public class GroupNameTests
         Assert.Equal("A group name cannot hold a line break or another control character", GroupName.Problem(name));
     }
 
+    /// <summary>
+    /// A name of the longest length is taken, and one character more is refused.
+    /// </summary>
     [Fact]
     public void A_name_has_a_longest()
     {
@@ -62,6 +74,10 @@ public class GroupNameTests
         Assert.Null(GroupName.Problem(" " + new string('a', GroupName.Longest) + " "));
     }
 
+    /// <summary>
+    /// Names in other scripts, with accents, an emoji or two spaces inside are taken as they are.
+    /// </summary>
+    /// <param name="name">The name sent.</param>
     [Theory]
     [InlineData("Kids")]
     [InlineData("Équipe d'été")]
