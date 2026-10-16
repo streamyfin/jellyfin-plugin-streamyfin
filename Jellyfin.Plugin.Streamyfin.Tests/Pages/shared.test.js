@@ -882,6 +882,35 @@ describe("saving a tab's edit to the settings", () => {
         expect(getConfig().settings.forwardSkipTime.value).toBe(30);
     });
 
+    // The server writes its document without a member that is null or an empty list, which is
+    // how the form writes an empty setting: read back, the save looked unstored, and the tab kept
+    // it to save while the server held it.
+    test("a lost answer counts as stored when the server writes an empty value the form sent as none", async () => {
+        const omitted = (value) => Array.isArray(value)
+            ? value.map(omitted)
+            : value && typeof value === "object"
+                ? Object.fromEntries(Object.entries(value)
+                    .filter(([, member]) => member !== null && !(Array.isArray(member) && member.length === 0))
+                    .map(([key, member]) => [key, omitted(member)]))
+                : value;
+        server.keep = (yaml) => jsYaml.dump(omitted(jsYaml.load(yaml)));
+        setYamlConfig(jsYaml.dump({ ...FULL, settings: { ...FULL.settings, defaultBitrate: { locked: false }, hiddenLibraries: { locked: false } } }));
+        server.holds = jsYaml.dump(omitted(getConfig()));
+        server.lost = true;
+
+        const saved = await quietly(() => saveConfigWith((current) => ({
+            ...current,
+            settings: {
+                ...current.settings,
+                forwardSkipTime: { locked: false, value: 10 },
+                defaultBitrate: { value: null, locked: false },
+                hiddenLibraries: { value: [], locked: false },
+            },
+        })));
+
+        expect(saved).toBe(true);
+    });
+
     // Each refusal put back the settings as they were when it was sent, which held the other's
     // edit, still unanswered: the refused value stayed in what every tab saves.
     for (const [order, first, second] of [["the first", 0, 1], ["the second", 1, 0]]) {

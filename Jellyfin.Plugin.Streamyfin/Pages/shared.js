@@ -401,13 +401,21 @@ const notRead = () => {
     return false;
 };
 
-// Whether two values hold the same, whatever order their keys are in: the forms write a setting
-// as { value, locked }, and the server's document reads back as { locked, value }.
+// Whether two values hold the same as the server writes them back: whatever order their keys
+// are in, since the forms write a setting as { value, locked } and the server's document reads
+// back as { locked, value }, and with a member that is null or an empty list the same as one left
+// out, since the server writes its document without either (SerializationHelper's OmitNull and
+// OmitEmptyCollections) and the form writes an empty setting as one of them.
 export const same = (a, b) => {
-    const sorted = (_, value) => value && typeof value === "object" && !Array.isArray(value)
-        ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
-        : value;
-    return JSON.stringify(a, sorted) === JSON.stringify(b, sorted);
+    const written = function (key, value) {
+        const member = key !== "" && !Array.isArray(this);
+        if (value === null && !Array.isArray(this)) return undefined;
+        if (member && Array.isArray(value) && value.length === 0) return undefined;
+        return value && typeof value === "object" && !Array.isArray(value)
+            ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
+            : value;
+    };
+    return JSON.stringify(a, written) === JSON.stringify(b, written);
 };
 
 // The keys whose value differs between two `settings`, a key on one side only included.
