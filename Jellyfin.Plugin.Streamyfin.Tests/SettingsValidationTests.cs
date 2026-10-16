@@ -211,6 +211,126 @@ public class SettingsValidationTests
     }
 
     /// <summary>
+    /// The text earlier versions stored where an address goes is no address. Up to 0.68.1.0 a
+    /// server that never set Seerr stored "Enter jellyseerr server url", 0.70 served it as the
+    /// address, and the app tested it at every sign in (#279). Locked or not, and whatever
+    /// its case, it goes the way an empty address does.
+    /// </summary>
+    /// <param name="placeholder">The text, as one version or one example wrote it.</param>
+    [Theory]
+    [InlineData("Enter jellyseerr server url")]
+    [InlineData("Enter marlin server url")]
+    [InlineData("Enter Marlin server URL")]
+    [InlineData("  Enter Streamystats server URL ")]
+    public void APlaceholderAddressIsNotStoredAtAll(string placeholder)
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = placeholder },
+            marlinServerUrl = new Lockable<string> { value = placeholder, locked = true },
+            streamyStatsServerUrl = new Lockable<string> { value = placeholder }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+        Assert.Null(settings.streamyStatsServerUrl);
+    }
+
+    /// <summary>
+    /// The library id earlier versions stored as an example is no library: the tabs listed it
+    /// as Other. A real id beside it stays, with its lock.
+    /// </summary>
+    [Fact]
+    public void APlaceholderHiddenLibraryIsNoLibrary()
+    {
+        var alone = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] } };
+        var beside = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true }
+        };
+
+        SettingsValidation.Tidy(alone);
+        SettingsValidation.Tidy(beside);
+
+        Assert.Null(alone.hiddenLibraries);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, beside.hiddenLibraries!.value);
+        Assert.True(beside.hiddenLibraries.locked);
+    }
+
+    /// <summary>
+    /// A lock an administrator put on the hidden libraries while they held only the example
+    /// text kept everyone from hiding any: it stays, on an empty list.
+    /// </summary>
+    [Fact]
+    public void ALockedHiddenLibraryPlaceholderKeepsItsLock()
+    {
+        var settings = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"], locked = true } };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.True(settings.hiddenLibraries!.locked);
+        Assert.Empty(settings.hiddenLibraries.value);
+    }
+
+    /// <summary>
+    /// Only what was taken out is named: a real hidden library beside the example text stays, a
+    /// setting the tidying does not read keeps whatever it holds, and neither is reported.
+    /// </summary>
+    [Fact]
+    public void OnlyTheSettingsTakenOutAreNamed()
+    {
+        var settings = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true },
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            subtitleFont = new Lockable<string> { value = "Enter library id(s)" }
+        };
+
+        Assert.Equal(new[] { "hiddenLibraries", "jellyseerrServerUrl" }, Placeholders.TakeOut(settings));
+        Assert.Equal("Enter library id(s)", settings.subtitleFont!.value);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, settings.hiddenLibraries!.value);
+    }
+
+    /// <summary>
+    /// A document sent with the example text still in it is refused, by the setting's name: it
+    /// replaces the whole configuration, so taking the text out would also take the server's
+    /// real address away without a word. Reading stored text takes it out; sending it is a
+    /// template nobody filled.
+    /// </summary>
+    [Fact]
+    public void ADocumentStillHoldingTheExampleTextIsRefused()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] }
+        };
+
+        Assert.Equal(
+            "Hidden libraries still holds the example text \"Enter library id(s)\": write a value, or leave the setting out. "
+            + "Seerr server URL still holds the example text \"Enter jellyseerr server url\": write a value, or leave the setting out.",
+            SettingsValidation.Check(settings));
+    }
+
+    /// <summary>
+    /// The example text beside Seerr's block is refused for what it is, rather than as the block
+    /// and the key disagreeing.
+    /// </summary>
+    [Fact]
+    public void TheExampleTextBesideTheBlockIsRefusedForWhatItIs()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = "http://seerr.example" } }
+        };
+
+        Assert.StartsWith("Seerr server URL still holds the example text", SettingsValidation.Check(settings), System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A home with no sections is stored as no list, which is what emptying the Home tab
     /// means: the app's own home screen. Stored as an empty list, the app draws a home
     /// screen with nothing on it.

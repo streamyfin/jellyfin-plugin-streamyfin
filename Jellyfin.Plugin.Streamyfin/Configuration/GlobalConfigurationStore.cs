@@ -114,28 +114,104 @@ public sealed class GlobalConfigurationStore
     /// </remarks>
     public void SwitchOnAwaitedTitles()
     {
-        if (_database.HasMarker(ImportMarker.AwaitedTitlesOn))
+        // Not fatal, like the clean up below: it runs in the plugin's constructor.
+        try
         {
-            return;
-        }
-
-        lock (_gate)
-        {
-            var config = _cached ??= Read();
-            config.notifications ??= new Notifications.Notifications();
-
-            if (config.notifications.AwaitedTitle is null)
+            if (_database.HasMarker(ImportMarker.AwaitedTitlesOn))
             {
-                config.notifications.AwaitedTitle = new NotificationConfiguration { Enabled = true };
-                _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
-                _cached = config;
-                _logger?.LogInformation("Turned on the awaited titles notification, which this server had never mentioned");
+                return;
+            }
+
+            lock (_gate)
+            {
+                var config = _cached ??= Read();
+                config.notifications ??= new Notifications.Notifications();
+
+                if (config.notifications.AwaitedTitle is null)
+                {
+                    config.notifications.AwaitedTitle = new NotificationConfiguration { Enabled = true };
+                    _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
+                    _cached = config;
+                    _logger?.LogInformation("Turned on the awaited titles notification, which this server had never mentioned");
+                }
+            }
+
+            // After the configuration: a failure in between runs this again rather than leaving
+            // the event off.
+            _database.Mark(ImportMarker.AwaitedTitlesOn);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not turn on the awaited titles notification. This is tried again on the next start");
+        }
+    }
+
+    /// <summary>
+    /// Takes the example text earlier versions stored where a value goes out of the stored
+    /// configuration, and names the settings it was in (#279).
+    /// </summary>
+    /// <remarks>
+    /// The configuration in use is already without it, from <see cref="Read"/>; this writes it
+    /// out of the database too, and says so once, since the next start finds none. Not fatal:
+    /// an exception out of the plugin's constructor leaves the plugin Malfunctioned, so a
+    /// failure is logged and the next start tries again.
+    /// </remarks>
+    public void ForgetPlaceholders()
+    {
+        try
+        {
+            lock (_gate)
+            {
+                var json = _database.GetGlobalConfigJson();
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    return;
+                }
+
+                // Taken out before the block is folded, as Read does, so the text in the block
+                // does not write over a real address beside it.
+                var stored = _serialization.DeserializeJson<Config>(json) ?? new Config();
+                var taken = Placeholders.TakeOut(stored.settings);
+                if (taken.Count == 0)
+                {
+                    return;
+                }
+
+                IntegrationBlocks.Fold(stored.settings);
+
+                _database.SaveGlobalConfigJson(_serialization.SerializeToJson(stored));
+                _cached = stored;
+                _logger?.LogInformation(
+                    "Took out the placeholder text an earlier version of the plugin stored in {Settings}",
+                    string.Join(", ", taken));
             }
         }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not take the placeholder text out of the stored configuration. This is tried again on the next start");
+        }
+    }
 
-        // After the configuration: a failure in between runs this again rather than leaving
-        // the event off.
-        _database.Mark(ImportMarker.AwaitedTitlesOn);
+    /// <summary>
+    /// What the plugin does with its configuration as it starts, in this order: the old XML
+    /// carried over, the example text taken out of the database and named, then the awaited
+    /// titles switched on.
+    /// </summary>
+    /// <param name="legacy">The configuration as Jellyfin deserialized it.</param>
+    /// <param name="pluginConfigurationsPath">
+    /// Where Jellyfin keeps plugin configuration files, used only to report the keys it
+    /// dropped. Pass <c>null</c> to skip that.
+    /// </param>
+    /// <remarks>
+    /// The switch saves the configuration in use, which holds no example text, so after it the
+    /// clean up found nothing left to name: on a server moved from 0.68.1.0 the log never said
+    /// which settings were taken out.
+    /// </remarks>
+    public void Open(Config? legacy, string? pluginConfigurationsPath)
+    {
+        Import(legacy, pluginConfigurationsPath);
+        ForgetPlaceholders();
+        SwitchOnAwaitedTitles();
     }
 
     /// <summary>
@@ -347,6 +423,11 @@ public sealed class GlobalConfigurationStore
         try
         {
             var config = _serialization.DeserializeJson<Config>(json) ?? new Config();
+
+            // Out of the configuration in use before anything reads it, the routes that read
+            // it without tidying included; ForgetPlaceholders writes it out of the database.
+            // Before the fold: folded first, the text in the block wrote over a real address.
+            Placeholders.TakeOut(config.settings);
 
             // The builds of develop since #198 stored Seerr's block beside the keys it was
             // copied onto. Served back with it, the next save that changed a key by itself

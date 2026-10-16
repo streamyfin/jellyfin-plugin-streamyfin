@@ -59,6 +59,9 @@ public class SerializationHelper
             // well, which is how seerrServerUrl stopped being ignored in silence, and the
             // document still comes back written under one name per setting.
             .WithTypeInspector(inner => new AliasingTypeInspector(inner))
+            // Yaml allows a key once per mapping. Without the check the last one won and the
+            // first was dropped in silence, so a block pasted twice undid itself (#266).
+            .WithDuplicateKeyChecking()
             .Build();
 
         _jsonSerializer = NewtonsoftJsonSerializer.CreateDefault();

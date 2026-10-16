@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Microsoft.Data.Sqlite;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -286,6 +288,154 @@ public class GlobalConfigurationStoreTests : IDisposable
         _store.SwitchOnAwaitedTitles();
 
         Assert.False(_store.Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
+    // What a server that installed 0.68.1.0 and never set these stored by default, beside one
+    // setting an administrator chose.
+    private static Config FromADefault068() => new()
+    {
+        settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            marlinServerUrl = new Lockable<string> { value = "Enter Marlin server URL" },
+            hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] },
+            forwardSkipTime = new Lockable<int> { value = 45, locked = true }
+        }
+    };
+
+    /// <summary>
+    /// The placeholders a default configuration of 0.66 to 0.68.1.0 carried are taken out of
+    /// the stored configuration, and the log names the settings the app decides again (#279).
+    /// What an administrator set beside them stays.
+    /// </summary>
+    [Fact]
+    public void ThePlaceholdersAnEarlierVersionStoredAreTakenOut()
+    {
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+        store.Import(FromADefault068(), null);
+
+        store.ForgetPlaceholders();
+
+        var stored = _serialization.DeserializeJson<Config>(_db.GetGlobalConfigJson()!)!.settings!;
+        Assert.Null(stored.jellyseerrServerUrl);
+        Assert.Null(stored.marlinServerUrl);
+        Assert.Null(stored.hiddenLibraries);
+        Assert.Equal(45, stored.forwardSkipTime!.value);
+        Assert.True(stored.forwardSkipTime.locked);
+
+        var said = Assert.Single(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
+        Assert.Equal("Took out the placeholder text an earlier version of the plugin stored in hiddenLibraries, jellyseerrServerUrl, marlinServerUrl", said);
+    }
+
+    /// <summary>
+    /// The plugin's start names what it takes out on a server moved from 0.68.1.0, whose stored
+    /// configuration never mentioned the awaited titles. Switching them on saved the
+    /// configuration in use, which holds no example text, before the clean up looked, and the
+    /// clean up then found none to name.
+    /// </summary>
+    [Fact]
+    public void TheStartNamesTheExampleTextItTakesOut()
+    {
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+
+        store.Open(FromADefault068(), null);
+
+        Assert.Contains(logger.Messages, message => message.StartsWith("Took out the placeholder text", StringComparison.Ordinal));
+        Assert.True(new GlobalConfigurationStore(_db, _serialization).Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
+    /// <summary>
+    /// The example text in Seerr's block does not take the place of a real address beside it:
+    /// folding the block first wrote the text over the address, and taking the text out then
+    /// left no address at all.
+    /// </summary>
+    [Fact]
+    public void TheExampleTextInTheBlockDoesNotReplaceARealAddress()
+    {
+        _db.SaveGlobalConfigJson("""{"settings":{"jellyseerrServerUrl":{"value":"https://seerr.real.example"},"seerr":{"serverUrl":{"value":"Enter jellyseerr server url"}}}}""");
+
+        Assert.Equal("https://seerr.real.example", new GlobalConfigurationStore(_db, _serialization).Current.settings?.jellyseerrServerUrl?.value);
+
+        new GlobalConfigurationStore(_db, _serialization).ForgetPlaceholders();
+
+        var stored = _serialization.DeserializeJson<Config>(_db.GetGlobalConfigJson()!)!.settings!;
+        Assert.Equal("https://seerr.real.example", stored.jellyseerrServerUrl?.value);
+        Assert.Null(stored.seerr?.serverUrl);
+    }
+
+    /// <summary>
+    /// The configuration in use carries none even before they are taken out of the database, so
+    /// no route serves them, the ones that read it without tidying included.
+    /// </summary>
+    [Fact]
+    public void TheConfigurationInUseCarriesNoPlaceholderBeforeTheyAreTakenOut()
+    {
+        _store.Import(FromADefault068(), null);
+
+        var settings = new GlobalConfigurationStore(_db, _serialization).Current.settings!;
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+        Assert.Null(settings.hiddenLibraries);
+        Assert.Equal(45, settings.forwardSkipTime!.value);
+    }
+
+    /// <summary>
+    /// A database that cannot be written at start-up costs the clean up and the switch, which the
+    /// next start tries again, and not the plugin: an exception out of the plugin's constructor
+    /// leaves it Malfunctioned until an administrator turns it on again.
+    /// </summary>
+    [Fact]
+    public void ADatabaseThatCannotBeWrittenDoesNotStopTheStart()
+    {
+        _store.Import(FromADefault068(), null);
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+        SqliteConnection.ClearAllPools();
+        System.IO.File.WriteAllText(_db.DbFilePath, "not a database");
+
+        var thrown = Record.Exception(() =>
+        {
+            store.ForgetPlaceholders();
+            store.SwitchOnAwaitedTitles();
+        });
+
+        Assert.Null(thrown);
+        Assert.Equal(2, logger.Messages.Count(message => message.Contains("tried again on the next start", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// They are taken out for good: the next start finds none and says nothing.
+    /// </summary>
+    [Fact]
+    public void ThePlaceholdersAreTakenOutForGood()
+    {
+        _store.Import(FromADefault068(), null);
+        _store.ForgetPlaceholders();
+
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var later = new GlobalConfigurationStore(_db, _serialization, logger);
+        later.ForgetPlaceholders();
+
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A server without any says nothing, and its configuration is not written.
+    /// </summary>
+    [Fact]
+    public void AServerWithoutPlaceholdersSaysNothing()
+    {
+        _store.Save(new Config { settings = new Settings { forwardSkipTime = new Lockable<int> { value = 30 } } });
+        var before = _db.GetGlobalConfigJson();
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+
+        new GlobalConfigurationStore(_db, _serialization, logger).ForgetPlaceholders();
+
+        Assert.Equal(before, _db.GetGlobalConfigJson());
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
     }
 
     public void Dispose()

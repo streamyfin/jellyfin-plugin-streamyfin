@@ -78,8 +78,7 @@ settings:
   # ==================== Library Management ====================
   hiddenLibraries:
     locked: false
-    value:
-      - "Enter library id(s)"  # Array of library IDs to hide from users
+    value: []  # Library ids to hide from users
   
   libraryOptions:
     locked: false
@@ -95,7 +94,7 @@ settings:
   # Jellyseerr (Media Request Management)
   jellyseerrServerUrl:
     locked: false
-    value: "Enter jellyseerr server url"  # e.g., https://jellyseerr.example.com
+    value: ""  # e.g., https://jellyseerr.example.com
   
   # Marlin (Enhanced Search)
   searchEngine:
@@ -104,12 +103,12 @@ settings:
   
   marlinServerUrl:
     locked: false
-    value: "Enter Marlin server URL"  # e.g., https://marlin.example.com
+    value: ""  # e.g., https://marlin.example.com
   
   # Streamystats (Recommendations & Analytics)
   streamyStatsServerUrl:
     locked: false
-    value: "Enter Streamystats server URL"  # e.g., https://stats.example.com
+    value: ""  # e.g., https://stats.example.com
   
   streamyStatsMovieRecommendations:
     locked: false
