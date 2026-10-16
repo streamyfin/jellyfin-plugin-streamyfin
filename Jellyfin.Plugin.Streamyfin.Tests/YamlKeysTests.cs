@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.Streamyfin.Api;
 using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -12,8 +13,9 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </summary>
 /// <remarks>
 /// Yaml does not allow it, and the deserializer kept the last value and dropped the first
-/// without a word. The editor sends the whole configuration, so a second block pasted under
-/// the first quietly undid what the first one set (#266).
+/// without a word, so a second block sent under the first quietly undid what the first one set
+/// (#266). The dashboard's own parser refuses such a document before sending it; this is for a
+/// document sent to the route by anything else.
 /// </remarks>
 public class YamlKeysTests
 {
@@ -46,6 +48,16 @@ public class YamlKeysTests
     public void ABrokenDocumentSaysWhere()
     {
         Assert.StartsWith("Line 2, column ", Problem("settings:\n  forwardSkipTime: [\n") ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A mistake on the first line says where too: YamlDotNet's empty position is also the
+    /// position of the document's first character, so a misspelt first key lost it.
+    /// </summary>
+    [Fact]
+    public void AMistakeOnTheFirstLineSaysWhere()
+    {
+        Assert.StartsWith("Line 1, column 1: ", Problem("setings:\n  forwardSkipTime:\n    value: 30\n") ?? string.Empty, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -84,6 +96,20 @@ public class YamlKeysTests
         {
             var read = Record.Exception(() => _serialization.Deserialize<Config>(File.ReadAllText(example)));
             Assert.True(read is null, $"{Path.GetFileName(example)}: {read?.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The examples write an empty address, not the example text earlier versions stored as one,
+    /// which a document is refused for (#279).
+    /// </summary>
+    [Fact]
+    public void TheExamplesHoldNoExampleText()
+    {
+        foreach (var example in Directory.EnumerateFiles(Path.Combine(SourceTree.Root(), "examples")))
+        {
+            var settings = _serialization.Deserialize<Config>(File.ReadAllText(example)).settings;
+            Assert.True(Placeholders.Problem(settings) is null, $"{Path.GetFileName(example)}: {Placeholders.Problem(settings)}");
         }
     }
 }

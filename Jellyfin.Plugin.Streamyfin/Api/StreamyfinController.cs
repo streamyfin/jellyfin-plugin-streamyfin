@@ -1398,7 +1398,9 @@ public class StreamyfinController : ControllerBase
 
       // YamlDotNet keeps where it gave up beside its message, not in it, so the banner said
       // what was wrong and never where.
-      if (where is null && one is YamlException { Start: var start } && !start.Equals(Mark.Empty))
+      // Mark.Empty is also the document's first character, so a position is only missing when
+      // both ends are empty: a misspelt first key lost it.
+      if (where is null && one is YamlException { Start: var start, End: var end } && !(start.Equals(Mark.Empty) && end.Equals(Mark.Empty)))
       {
         where = start;
       }

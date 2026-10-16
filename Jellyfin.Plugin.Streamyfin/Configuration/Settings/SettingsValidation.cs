@@ -127,6 +127,14 @@ public static class SettingsValidation
     /// </remarks>
     public static string? Check(Settings? settings, Settings? before = null)
     {
+        // A document sent with the example text earlier versions stored is a template nobody
+        // filled, and it replaces the whole configuration: taking the text out would take the
+        // server's real value away without a word, so it is refused by name (#279).
+        if (Placeholders.Problem(settings) is { } example)
+        {
+            return example;
+        }
+
         // Before anything else: a document that writes one setting twice and disagrees
         // with itself is refused rather than resolved by precedence, since an
         // administrator who wrote both meant one of them.
@@ -146,7 +154,7 @@ public static class SettingsValidation
 
     /// <summary>
     /// Trims the settings that are addresses, writes an empty home as none, and takes out
-    /// the placeholders earlier versions stored, in place.
+    /// the example text earlier versions stored, in place.
     /// </summary>
     /// <param name="settings">The settings, which may be null.</param>
     /// <remarks>
@@ -162,6 +170,9 @@ public static class SettingsValidation
         }
 
         Sections.EmptyAsNone(settings);
+
+        // Stored by a version up to 0.68.1.0 where a value goes, and served as one (#279).
+        Placeholders.TakeOut(settings);
 
         foreach (var descriptor in SettingsSchema.Descriptors)
         {
@@ -181,9 +192,8 @@ public static class SettingsValidation
             // "the server suggests you use no server", which the form then refuses as
             // empty, so an administrator who never touched Seerr arrived on a page with
             // two problems to fix and a save button that would not move. The key goes
-            // back to being absent, which is what "the app decides" is spelled as. Nor is
-            // the text an earlier version stored where the address goes (#279).
-            if (trimmed.Length == 0 || Placeholders.Has(trimmed))
+            // back to being absent, which is what "the app decides" is spelled as.
+            if (trimmed.Length == 0)
             {
                 descriptor.Property.SetValue(settings, null);
                 continue;
@@ -192,22 +202,6 @@ public static class SettingsValidation
             if (!string.Equals(trimmed, address, StringComparison.Ordinal))
             {
                 descriptor.Write(settings, trimmed);
-            }
-        }
-
-        // Up to 0.68.1.0 a server that never chose any stored "Enter library id(s)" as its one
-        // hidden library, which the tabs listed as Other.
-        if (settings.hiddenLibraries?.value is { } hidden && hidden.Any(Placeholders.Has))
-        {
-            var kept = hidden.Where(id => !Placeholders.Has(id)).ToArray();
-
-            if (kept.Length == 0)
-            {
-                settings.hiddenLibraries = null;
-            }
-            else
-            {
-                settings.hiddenLibraries.value = kept;
             }
         }
     }

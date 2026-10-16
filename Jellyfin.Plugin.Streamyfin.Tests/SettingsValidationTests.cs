@@ -260,22 +260,74 @@ public class SettingsValidationTests
     }
 
     /// <summary>
-    /// A document that carries a placeholder, as one written from this repository's examples
-    /// does, is stored without it, where the address check refused it.
+    /// A lock an administrator put on the hidden libraries while they held only the example
+    /// text kept everyone from hiding any: it stays, on an empty list.
     /// </summary>
     [Fact]
-    public void ADocumentWithAPlaceholderAddressIsStoredWithoutIt()
+    public void ALockedHiddenLibraryPlaceholderKeepsItsLock()
+    {
+        var settings = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"], locked = true } };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.True(settings.hiddenLibraries!.locked);
+        Assert.Empty(settings.hiddenLibraries.value);
+    }
+
+    /// <summary>
+    /// Only what was taken out is named: a real hidden library beside the example text stays, a
+    /// setting the tidying does not read keeps whatever it holds, and neither is reported.
+    /// </summary>
+    [Fact]
+    public void OnlyTheSettingsTakenOutAreNamed()
+    {
+        var settings = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true },
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            subtitleFont = new Lockable<string> { value = "Enter library id(s)" }
+        };
+
+        Assert.Equal(new[] { "hiddenLibraries", "jellyseerrServerUrl" }, Placeholders.TakeOut(settings));
+        Assert.Equal("Enter library id(s)", settings.subtitleFont!.value);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, settings.hiddenLibraries!.value);
+    }
+
+    /// <summary>
+    /// A document sent with the example text still in it is refused, by the setting's name: it
+    /// replaces the whole configuration, so taking the text out would also take the server's
+    /// real address away without a word. Reading stored text takes it out; sending it is a
+    /// template nobody filled.
+    /// </summary>
+    [Fact]
+    public void ADocumentStillHoldingTheExampleTextIsRefused()
     {
         var settings = new Settings
         {
             jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
-            forwardSkipTime = new Lockable<int> { value = 30 }
+            hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] }
         };
 
-        Assert.Null(SettingsValidation.Check(settings));
+        Assert.Equal(
+            "Hidden libraries still holds the example text \"Enter library id(s)\": write a value, or leave the setting out. "
+            + "Seerr server URL still holds the example text \"Enter jellyseerr server url\": write a value, or leave the setting out.",
+            SettingsValidation.Check(settings));
+    }
 
-        Assert.Null(settings.jellyseerrServerUrl);
-        Assert.Equal(30, settings.forwardSkipTime!.value);
+    /// <summary>
+    /// The example text beside Seerr's block is refused for what it is, rather than as the block
+    /// and the key disagreeing.
+    /// </summary>
+    [Fact]
+    public void TheExampleTextBesideTheBlockIsRefusedForWhatItIs()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = "http://seerr.example" } }
+        };
+
+        Assert.StartsWith("Seerr server URL still holds the example text", SettingsValidation.Check(settings), System.StringComparison.Ordinal);
     }
 
     /// <summary>

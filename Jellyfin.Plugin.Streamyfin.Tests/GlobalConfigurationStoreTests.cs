@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Microsoft.Data.Sqlite;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
@@ -323,14 +325,73 @@ public class GlobalConfigurationStoreTests : IDisposable
         Assert.True(stored.forwardSkipTime.locked);
 
         var said = Assert.Single(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
-        Assert.Contains("hiddenLibraries, jellyseerrServerUrl, marlinServerUrl", said, StringComparison.Ordinal);
+        Assert.Equal("Took out the placeholder text an earlier version of the plugin stored in hiddenLibraries, jellyseerrServerUrl, marlinServerUrl", said);
     }
 
     /// <summary>
-    /// They are looked for once: a later start says nothing.
+    /// The plugin's start names what it takes out on a server moved from 0.68.1.0, whose stored
+    /// configuration never mentioned the awaited titles. Switching them on saved the
+    /// configuration in use, which holds no example text, before the clean up looked, and the
+    /// clean up then found none to name.
     /// </summary>
     [Fact]
-    public void ThePlaceholdersAreLookedForOnce()
+    public void TheStartNamesTheExampleTextItTakesOut()
+    {
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+
+        store.Open(FromADefault068(), null);
+
+        Assert.Contains(logger.Messages, message => message.StartsWith("Took out the placeholder text", StringComparison.Ordinal));
+        Assert.True(new GlobalConfigurationStore(_db, _serialization).Current.notifications?.AwaitedTitle?.Enabled);
+    }
+
+    /// <summary>
+    /// The configuration in use carries none even before they are taken out of the database, so
+    /// no route serves them, the ones that read it without tidying included.
+    /// </summary>
+    [Fact]
+    public void TheConfigurationInUseCarriesNoPlaceholderBeforeTheyAreTakenOut()
+    {
+        _store.Import(FromADefault068(), null);
+
+        var settings = new GlobalConfigurationStore(_db, _serialization).Current.settings!;
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+        Assert.Null(settings.hiddenLibraries);
+        Assert.Equal(45, settings.forwardSkipTime!.value);
+    }
+
+    /// <summary>
+    /// A database that cannot be written at start-up costs the clean up and the switch, which the
+    /// next start tries again, and not the plugin: an exception out of the plugin's constructor
+    /// leaves it Malfunctioned until an administrator turns it on again.
+    /// </summary>
+    [Fact]
+    public void ADatabaseThatCannotBeWrittenDoesNotStopTheStart()
+    {
+        _store.Import(FromADefault068(), null);
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+        SqliteConnection.ClearAllPools();
+        System.IO.File.WriteAllText(_db.DbFilePath, "not a database");
+
+        var thrown = Record.Exception(() =>
+        {
+            store.ForgetPlaceholders();
+            store.SwitchOnAwaitedTitles();
+        });
+
+        Assert.Null(thrown);
+        Assert.Equal(2, logger.Messages.Count(message => message.Contains("tried again on the next start", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// They are taken out for good: the next start finds none and says nothing.
+    /// </summary>
+    [Fact]
+    public void ThePlaceholdersAreTakenOutForGood()
     {
         _store.Import(FromADefault068(), null);
         _store.ForgetPlaceholders();
