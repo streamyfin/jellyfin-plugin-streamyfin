@@ -8,6 +8,15 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-16, the last bugs before the release
+
+The release notes say what each person chooses about their own notifications, and that a server
+moved to Jellyfin 12 keeps the build for 10.11 until the next release, a build that runs there
+(#278). CodeQL's alert 18, a cache poisoning warning on the unstable build's version step, was
+dismissed as a false positive: only people who can write may start that workflow, the step
+before it refuses a ref that is not already on `develop`, the job's token only reads, and no
+step restores or saves a cache.
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
