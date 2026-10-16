@@ -422,6 +422,17 @@ const withKeys = (settings, keys, from) => {
     return out;
 };
 
+// The settings each save on its way changed, and still answers for. A newer edit of a setting,
+// or a Yaml document stored meanwhile, takes it from them: their refusal or lost answer then
+// leaves it as the newer one wrote it, the same value included, rather than putting back what
+// was there before them.
+const onTheirWay = new Set();
+const supersede = (keys) => {
+    for (const save of onTheirWay) {
+        for (const key of keys ?? [...save.changed]) save.changed.delete(key);
+    }
+};
+
 // The Application and Home tabs' save. The edit goes into the configuration every tab shares
 // at once, as the other tabs keep theirs there until they save, so a tab shown meanwhile shows
 // it. A refusal puts back the settings the edit changed, and only those: the whole
@@ -433,23 +444,25 @@ export const saveConfigWith = (edit) => {
 
     const before = structuredClone(config.settings ?? {});
     setConfig(edit(config));
-    const changed = changedKeys(before, config.settings ?? {});
+    const save = { changed: new Set(changedKeys(before, config.settings ?? {})) };
+    supersede(save.changed);
+    onTheirWay.add(save);
 
     return store(config).then(async (outcome) => {
         if (outcome === STORED) return true;
 
         if (outcome === REFUSED) {
-            setConfig({ ...config, settings: withKeys(config.settings ?? {}, changed, before) });
+            setConfig({ ...config, settings: withKeys(config.settings ?? {}, save.changed, before) });
             return false;
         }
 
         const held = await readStored();
         if (held !== undefined) {
-            config = { ...config, settings: withKeys(config.settings ?? {}, changed, held?.settings ?? {}) };
+            config = { ...config, settings: withKeys(config.settings ?? {}, save.changed, held?.settings ?? {}) };
             triggerConfigListeners(config, undefined, REREAD);
         }
         return false;
-    });
+    }).finally(() => onTheirWay.delete(save));
 };
 
 // What the tabs share once the Yaml tab's document was answered: what the server holds, but for
@@ -487,6 +500,8 @@ export const saveYamlConfig = (text) => {
         // and the old spellings into the keys, so the document as written is not what the
         // other tabs should save next. And a request that failed on its way back may have
         // been stored, which the next save from another tab would otherwise undo.
+        // The document wrote every setting, and may have been stored when its answer was lost.
+        supersede();
         const held = await readStored();
         if (outcome === STORED) {
             config = settledOn(held ?? value, sentFrom);
