@@ -213,23 +213,57 @@ jobs:
             exit 1
           fi
 
+          # Read once, and assigned, so that gh failing, or answering anything but a list,
+          # fails the step instead of passing for no release. Drafts are listed: gh creates a
+          # release as one, uploads, then publishes, and an attempt cancelled or killed in
+          # between leaves the draft, which only a published release's download URL serves.
+          releases=$(gh release list --json tagName,isDraft --limit 100)
+          count=$(jq -e --arg t "$tag" 'if type == "array" then map(select(.tagName == $t)) | length else error("gh release list did not answer a list") end' <<<"$releases")
+
           if [ -z "$existing" ]; then
+            # Before anything is public. With no tag yet only a draft can carry it, one somebody
+            # prepared, and it is not this build's to fill.
+            if [ "$count" -gt 0 ]; then
+              echo "::error::A release for $tag exists already, a draft this workflow did not make. Nothing was pushed. Delete it, then start the workflow again." >&2
+              exit 1
+            fi
             git tag "$tag" "$SHA"
             git push origin "refs/tags/$tag"
           else
             echo "$tag already points at $SHA, so a previous run got this far. Carrying on."
           fi
 
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "The release exists already. Replacing its assets rather than creating it."
-            gh release upload "$tag" dist/*.zip --clobber
-          else
+          if [ "$count" -eq 0 ]; then
             gh release create "$tag" dist/*.zip \
               --title "Unstable ${VERSION}" \
               --prerelease \
               --verify-tag \
               --notes "Built from \`${REF}\` at \`${SHA}\`. This is not a release: it is a build of work in progress, published so it can be tested on a real server. The stable channel is unaffected." \
               --target "$SHA"
+          elif [ "$count" -gt 1 ]; then
+            # gh names a release by its tag, and with two it picks one.
+            echo "::error::$count releases carry $tag, drafts included, and this run leaves them all as they are. Delete the ones the workflow did not make, then rerun the failed job." >&2
+            exit 1
+          else
+            # The one there has to be the workflow's, made with GITHUB_TOKEN, as in release.yml:
+            # a draft somebody prepared is found the same way, and was filled and left a draft.
+            release=$(gh release view "$tag" --json assets,isDraft,author)
+            author=$(jq -r .author.login <<<"$release")
+            if [ "$author" != "github-actions[bot]" ]; then
+              echo "::error::The release for $tag was made by $author, not by this workflow, and is left as it is. Delete it, then rerun the failed job." >&2
+              exit 1
+            fi
+            echo "The release exists already. Replacing the assets that differ and publishing it if it is a draft."
+            for zip in dist/*.zip; do
+              digest="sha256:$(shasum -a 256 "$zip" | cut -d' ' -f1)"
+              if ! jq -e --arg n "$(basename "$zip")" --arg d "$digest" \
+                'any(.assets[]; .name == $n and .digest == $d and .state == "uploaded")' <<<"$release" >/dev/null; then
+                gh release upload "$tag" "$zip" --clobber
+              fi
+            done
+            if [ "$(jq -r .isDraft <<<"$release")" = "true" ]; then
+              gh release edit "$tag" --draft=false
+            fi
           fi
 
       # The manifest is served from `main`, so that the URL a tester configures does not
