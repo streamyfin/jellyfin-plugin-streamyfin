@@ -33,6 +33,13 @@ library. A document still holding it is refused by name, a key written twice in 
 refused with the place of the second, and Seerr's block and its key a space apart agree (#281,
 closes #279, #263 and #266 with #121).
 
+The notification routes await the send to Expo, so a slow Expo no longer holds the threads the
+whole server shares, and the build refuses every way of waiting on a task (BannedSymbols.txt). A
+disabled or deleted account is told nothing on that route either, as on every other; a send
+Expo took nothing of answers 502 instead of 200 with nothing in it; and the store holds a device's
+token, language and server address to the route's rules (#285, closes #246 with #121, and part of
+#242).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
