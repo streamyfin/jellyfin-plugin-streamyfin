@@ -116,6 +116,14 @@ public class PluginDatabase
     {
         ArgumentNullException.ThrowIfNull(token);
 
+        // The route's bound, held here too, so a caller other than the route cannot store a
+        // token of any length whole (#242), and its language and server address as the route
+        // keeps them: as .NET names the language, and an address only when it is one to fetch
+        // from, each within its own bound.
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(token.Token?.Length ?? 0, DeviceToken.LongestToken, nameof(token));
+        token.Language = DeviceLanguage.Stored(token.Language);
+        token.ServerUrl = DeviceServer.Stored(token.ServerUrl);
+
         using var context = CreateContext();
 
         // A token is one installation of the app, so it has one owner: the device that

@@ -883,7 +883,8 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
-  public ActionResult PostNotifications([FromBody, Required] List<Notification?> notifications)
+  [ProducesResponseType(StatusCodes.Status502BadGateway)]
+  public async Task<ActionResult> PostNotifications([FromBody, Required] List<Notification?> notifications)
   {
     var db = StreamyfinPlugin.Instance?.Database;
 
@@ -944,9 +945,11 @@ public class StreamyfinController : ControllerBase
           tokens.AddRange(_userManager.GetAdminDeviceTokens());
         }
 
-        // A notification relayed for an event, Seerr's, skips who turned that event off. One
+        // A disabled or deleted account is told nothing, as on every other path. A
+        // notification relayed for an event, Seerr's, skips who turned that event off. One
         // message per kind of device, so a channel only goes to a device that created it.
-        var kept = NotificationHelper.KeptBy(tokens, notification.EventKey, preferences, now);
+        var reachable = NotificationHelper.Reachable(tokens, id => _userManager.GetUserById(id));
+        var kept = NotificationHelper.KeptBy(reachable, notification.EventKey, preferences, now);
         var subject = notification.EventKey is { } key ? new NotificationSubject(key) : null;
 
         return kept
@@ -974,10 +977,32 @@ public class StreamyfinController : ControllerBase
     }
 
     _logger.LogInformation("Posting notifications...");
-    var task = _notificationHelper.Send(validNotifications);
-    task.Wait();
-    return new JsonResult(_serializationHelperService.ToJson(task.Result));
+
+    // Awaited rather than waited on: the send to Expo, its retries included, held one of the
+    // threads the whole server shares for as long as it took (#246). No token is passed, so a
+    // caller that stops waiting does not stop the send between two batches: it goes on until
+    // every batch is answered, or one is refused or times out.
+    var answer = await _notificationHelper.Send(validNotifications).ConfigureAwait(false);
+    return (ActionResult?)Unsent(answer) ?? new JsonResult(_serializationHelperService.ToJson(answer));
   }
+
+  /// <summary>
+  /// What the notifications route answers when Expo took none of the notifications.
+  /// </summary>
+  /// <param name="answer">
+  /// What the send returned: <c>null</c> when Expo refused, or did not answer, the first batch.
+  /// </param>
+  /// <returns>A 502 that says so, or <c>null</c> when Expo took them.</returns>
+  /// <remarks>
+  /// It answered 200 with the body "null", so Seerr and the integrations took a send that
+  /// reached nobody for a delivered one.
+  /// </remarks>
+  internal static ObjectResult? Unsent(ExpoNotificationResponse? answer) => answer is null
+    ? new ObjectResult("Expo did not take the notifications, so nobody was told. The server log has its answer.")
+    {
+      StatusCode = StatusCodes.Status502BadGateway
+    }
+    : null;
 
   /// <summary>
   /// Receive a Seerr webhook and turn it into a notification.
@@ -1008,7 +1033,7 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
-  public ActionResult PostSeerrNotification([FromBody, Required] SeerrWebhookPayload payload)
+  public async Task<ActionResult> PostSeerrNotification([FromBody, Required] SeerrWebhookPayload payload)
   {
     var notification = _seerr.Map(payload);
 
@@ -1017,7 +1042,7 @@ public class StreamyfinController : ControllerBase
       return new AcceptedResult();
     }
 
-    return PostNotifications([notification]);
+    return await PostNotifications([notification]).ConfigureAwait(false);
   }
 
   // region A person's own notifications (P4.5)

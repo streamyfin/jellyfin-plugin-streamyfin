@@ -405,6 +405,30 @@ public class NotificationHelper
     }
 
     /// <summary>
+    /// The devices whose account may still be told anything: it exists and is not disabled.
+    /// </summary>
+    /// <param name="tokens">The devices a notification is aimed at.</param>
+    /// <param name="userById">The account an id names, or <c>null</c> when there is none.</param>
+    /// <returns>The devices of accounts that may be told, in order.</returns>
+    /// <remarks>
+    /// The notifications route took every registered device, or a named account's, as it found
+    /// them: a disabled account, or a deleted one whose devices nothing removed, went on hearing
+    /// what integrations and Seerr relayed, where every other path tells it nothing. Each
+    /// account is looked up once.
+    /// </remarks>
+    internal static List<DeviceToken> Reachable(IEnumerable<DeviceToken> tokens, Func<Guid, User?> userById)
+    {
+        ArgumentNullException.ThrowIfNull(tokens);
+        ArgumentNullException.ThrowIfNull(userById);
+
+        var told = new Dictionary<Guid, bool>();
+        return tokens
+            .Where(token => token.UserId != Guid.Empty
+                && (told.TryGetValue(token.UserId, out var may) ? may : told[token.UserId] = MayBeTold(userById(token.UserId), _ => true)))
+            .ToList();
+    }
+
+    /// <summary>
     /// Whether a user may be told about every one of these items.
     /// </summary>
     /// <param name="items">Everything the message describes.</param>
@@ -475,8 +499,9 @@ public class NotificationHelper
             // answering is not removed by what it says about the installation before it.
             var sentAt = DateTime.UtcNow;
 
-            // No token to pass: a send happens inside a synchronous Jellyfin event handler,
-            // which has none to give. The client timeout is what bounds it.
+            // No token: the event handlers that send have none to give, and the route leaves
+            // its own out so that a caller that stops waiting does not stop the send between
+            // two batches. The client timeout is what bounds it.
             var response = await PostToExpo<ExpoNotificationResponse>(
                 SendUri,
                 _serializationHelper.ToJson(batch),
@@ -487,9 +512,9 @@ public class NotificationHelper
 
             // Expo refusing one batch after its retries is Expo refusing this send. The
             // rest would be nine more batches of the same request, each with its own
-            // waits, and PostNotifications blocks on this: a thousand recipients against
-            // a server answering 429 would hold an event handler for twenty minutes to
-            // reach nobody.
+            // waits: a thousand recipients against a server answering 429 would keep an
+            // event handler, or the caller of the route, waiting twenty minutes to reach
+            // nobody.
             if (response is null)
             {
                 _logger?.LogWarning(
