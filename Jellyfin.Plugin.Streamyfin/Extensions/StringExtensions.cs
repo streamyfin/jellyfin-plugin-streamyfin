@@ -27,4 +27,10 @@ public static class StringExtensions
     /// </remarks>
     public static string? ForLog(this string? input) =>
         input is null ? null : NotOnOneLine.Replace(input, " ");
+
+    /// <summary>
+    /// Whether <paramref name="input"/> holds none of the characters <see cref="ForLog"/>
+    /// takes out, so it shows on one line as it is.
+    /// </summary>
+    public static bool FitsOnOneLine(this string input) => !NotOnOneLine.IsMatch(input);
 }

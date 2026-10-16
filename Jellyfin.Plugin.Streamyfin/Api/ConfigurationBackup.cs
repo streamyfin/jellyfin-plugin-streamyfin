@@ -133,6 +133,12 @@ public class ConfigurationBackup
             return "Every group in a backup needs a name, and one of these has none.";
         }
 
+        // The routes' own check, so a restore stores no name the Targeting page could not save.
+        if (Groups.Select(group => GroupName.Problem(group.Name)).FirstOrDefault(problem => problem is not null) is { } nameProblem)
+        {
+            return $"One of the groups in this file has a name the server does not take. {nameProblem}.";
+        }
+
         // A group without an id is given a new one, so only an id the file repeats clashes.
         if (Groups
             .Where(group => group.Id != Guid.Empty)
@@ -142,9 +148,10 @@ public class ConfigurationBackup
             return $"This file has two groups with the id {sameId.Key}.";
         }
 
-        // Compared the way the database compares them, where "Kids" and "kids" are two names.
+        // Compared the way the database compares them, where "Kids" and "kids" are two names,
+        // and as the rows store them, without the spaces around them.
         if (Groups
-            .GroupBy(group => group.Name, StringComparer.Ordinal)
+            .GroupBy(group => GroupName.Tidy(group.Name), StringComparer.Ordinal)
             .FirstOrDefault(same => same.Count() > 1) is { } sameName)
         {
             return $"This file has two groups named \"{sameName.Key}\".";
@@ -217,7 +224,7 @@ public class ConfigurationBackup
                 new SettingsGroup
                 {
                     Id = group.Id,
-                    Name = group.Name,
+                    Name = GroupName.Tidy(group.Name),
                     Priority = group.Priority,
                     SettingsJson = serialization.SerializeToJson(group.Settings ?? new Configuration.Settings.Settings()),
                     NotificationsJson = NotificationTargeting.Write(group.Notifications)

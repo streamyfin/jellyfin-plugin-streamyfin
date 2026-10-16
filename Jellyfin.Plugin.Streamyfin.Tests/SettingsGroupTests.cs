@@ -425,6 +425,42 @@ public class SettingsGroupTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// An update of a group another administrator deleted meanwhile does not bring it back.
+    /// The save added a group whose id it could not find, with the name and settings of the
+    /// update and none of its members, and the route answered 200 (#248).
+    /// </summary>
+    [Fact]
+    public void AnUpdateOfADeletedGroupDoesNotBringItBack()
+    {
+        var kids = _db.SaveSettingsGroup(Named("Kids"));
+        _db.RemoveSettingsGroup(kids.Id);
+
+        var gone = Assert.Throws<GroupGoneException>(() => _db.SaveSettingsGroup(Named("Children", kids.Id)));
+
+        Assert.Equal(kids.Id, gone.Id);
+        Assert.Empty(_db.GetSettingsGroups());
+    }
+
+    /// <summary>
+    /// An update and a delete of one group at the same moment leave no group, whichever lands
+    /// first, including a delete that lands between the update reading the group and writing it.
+    /// </summary>
+    [Fact]
+    public void AnUpdateRacingADeleteNeverLeavesTheGroup()
+    {
+        for (var round = 0; round < 100; round++)
+        {
+            var group = _db.SaveSettingsGroup(Named($"Racing {round}"));
+
+            System.Threading.Tasks.Parallel.Invoke(
+                () => { try { _db.SaveSettingsGroup(Named($"Renamed {round}", group.Id)); } catch (GroupGoneException) { } },
+                () => _db.RemoveSettingsGroup(group.Id));
+
+            Assert.Null(_db.GetSettingsGroup(group.Id));
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

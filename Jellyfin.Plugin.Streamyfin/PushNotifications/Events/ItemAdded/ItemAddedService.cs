@@ -191,12 +191,12 @@ public class ItemAddedService : BaseEvent, IHostedService
         {
             _logger.LogInformation(
                 "Failed to notify about item {0} - {1}. Library {2} currently not enabled for notifications.",
-                item.GetType().Name, item.Name.Escape(), virtualFolder.Name
+                item.GetType().Name, item.Name.ForLog(), virtualFolder.Name.ForLog()
             );
             return;
         }
 
-        _logger.LogInformation("Item added is {0} - {1}",  item.GetType().Name, item.Name.Escape());
+        _logger.LogInformation("Item added is {0} - {1}",  item.GetType().Name, item.Name.ForLog());
 
         // Which library it went into, for the people who turned that library off.
         Guid? library = Guid.TryParse(virtualFolder?.ItemId, out var found) ? found : null;

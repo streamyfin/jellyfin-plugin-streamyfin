@@ -552,6 +552,10 @@ public class PluginDatabase
     /// </summary>
     /// <param name="group">The group. An empty id means create.</param>
     /// <returns>The stored group, with its id.</returns>
+    /// <exception cref="GroupNameTakenException">Another group has the name.</exception>
+    /// <exception cref="GroupGoneException">
+    /// The id is given and no group has it, or the group was deleted while this saved it.
+    /// </exception>
     public SettingsGroup SaveSettingsGroup(SettingsGroup group)
     {
         ArgumentNullException.ThrowIfNull(group);
@@ -565,23 +569,25 @@ public class PluginDatabase
         }
         else
         {
-            var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == group.Id);
-            if (existing is null)
-            {
-                context.SettingsGroups.Add(group);
-            }
-            else
-            {
-                existing.Name = group.Name;
-                existing.Priority = group.Priority;
-                existing.SettingsJson = group.SettingsJson;
-                existing.NotificationsJson = group.NotificationsJson;
-            }
+            // An id means update, never create: a group deleted since the caller looked it up
+            // stays deleted.
+            var existing = context.SettingsGroups.FirstOrDefault(g => g.Id == group.Id)
+                ?? throw new GroupGoneException(group.Id);
+
+            existing.Name = group.Name;
+            existing.Priority = group.Priority;
+            existing.SettingsJson = group.SettingsJson;
+            existing.NotificationsJson = group.NotificationsJson;
         }
 
         try
         {
             context.SaveChanges();
+        }
+        catch (DbUpdateConcurrencyException gone)
+        {
+            // Deleted between the read above and this write, so the update touched no row.
+            throw new GroupGoneException(group.Id, gone);
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: raw.SQLITE_CONSTRAINT_UNIQUE } refused
             && refused.Message.Contains("SettingsGroups.Name", StringComparison.Ordinal))
