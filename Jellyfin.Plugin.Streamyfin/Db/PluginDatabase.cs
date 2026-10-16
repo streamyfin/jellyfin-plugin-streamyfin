@@ -47,13 +47,15 @@ public class PluginDatabase
         DbFilePath = Path.Combine(path, FileName);
         LegacyDbFilePath = Path.Combine(path, LegacyFileName);
 
-        using var context = CreateContext();
-        context.Database.Migrate();
+        using (var context = CreateContext())
+        {
+            context.Database.Migrate();
+        }
 
-        ImportLegacyDeviceTokens(context);
-        KeepOneRowPerToken(context);
-        RemoveTokensPastTheBound(context);
-        RepairGroupNames();
+        Step(ImportLegacyDeviceTokens, "import the device tokens of the previous database");
+        Step(KeepOneRowPerToken, "keep one registration per push token");
+        Step(RemoveTokensPastTheBound, "remove the registrations whose push token is too long");
+        Step(RepairGroupNames, "repair the names of the groups");
     }
 
     /// <summary>
@@ -65,6 +67,32 @@ public class PluginDatabase
     /// Gets the full path of the database this one replaced.
     /// </summary>
     internal string LegacyDbFilePath { get; }
+
+    /// <summary>
+    /// Runs one start-up step on a context of its own, and logs a failure rather than stopping
+    /// the plugin: the next start tries again.
+    /// </summary>
+    /// <remarks>
+    /// Each step catches its own failures, inside its body. A step the host cannot compile fails
+    /// before that, on the call: the build for 10.11 could not compile the repair of the group
+    /// names on Jellyfin 12, and Jellyfin marked the plugin Malfunctioned. The context is the
+    /// step's own, so that what an earlier step added and could not save, which a failed save
+    /// leaves tracked, is not saved by the next one.
+    /// </remarks>
+    /// <param name="step">The step.</param>
+    /// <param name="what">What it does, for the log.</param>
+    private void Step(Action<StreamyfinDbContext> step, string what)
+    {
+        try
+        {
+            using var context = CreateContext();
+            step(context);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not {What} at start-up. This is tried again on the next start", what);
+        }
+    }
 
     /// <summary>
     /// Creates a context against this database.
@@ -1336,7 +1364,7 @@ public class PluginDatabase
             // which counts characters where the route counts UTF-16 units and stops at the
             // first NUL: a token the route refuses could have stayed. Read without tracking
             // and removed by statement, like the step above, so that this writes nothing but
-            // the removals, whatever an earlier step left in the context.
+            // the removals.
             var past = context.DeviceTokens
                 .AsNoTracking()
                 .Select(t => new { t.DeviceId, t.Token })
@@ -1381,23 +1409,21 @@ public class PluginDatabase
     /// <remarks>
     /// The groups are loaded and saved rather than updated in place: the build for 10.11 runs on
     /// Jellyfin 12 as well, whose EF Core changed <c>ExecuteUpdate</c>, and on 12 the plugin did
-    /// not start; BannedSymbols.txt refuses it now. The save goes through a context of its own,
-    /// since an earlier step that failed leaves what it added on the shared one, which a save
-    /// there would store.
+    /// not start; BannedSymbols.txt refuses it now.
     /// </remarks>
-    private void RepairGroupNames()
+    /// <param name="context">A context of its own, from <see cref="Step"/>.</param>
+    private void RepairGroupNames(StreamyfinDbContext context)
     {
         try
         {
-            using var context = CreateContext();
-            var stored = context.SettingsGroups.AsNoTracking().Select(g => new { g.Id, g.Name }).ToList();
+            var groups = context.SettingsGroups.ToList();
             bool Taken(string name) => GroupName.Problem(name) is null && GroupName.Tidy(name) == name;
 
             // The names that are fine keep them, and a repaired name never takes one of them.
-            var used = new HashSet<string>(stored.Where(g => Taken(g.Name)).Select(g => g.Name), StringComparer.Ordinal);
+            var used = new HashSet<string>(groups.Where(g => Taken(g.Name)).Select(g => g.Name), StringComparer.Ordinal);
             var renamed = new List<string>();
 
-            foreach (var group in stored.Where(g => !Taken(g.Name)))
+            foreach (var group in groups.Where(g => !Taken(g.Name)).ToList())
             {
                 var name = GroupName.Repaired(group.Name);
                 for (var n = 2; !used.Add(name); n++)
@@ -1405,7 +1431,7 @@ public class PluginDatabase
                     name = GroupName.WithSuffix(GroupName.Repaired(group.Name), $" ({n})");
                 }
 
-                context.SettingsGroups.Single(g => g.Id == group.Id).Name = name;
+                group.Name = name;
                 renamed.Add($"{group.Id} to \"{name}\"");
             }
 

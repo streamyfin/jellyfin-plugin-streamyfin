@@ -1,5 +1,7 @@
-using System.IO;
+using System;
 using System.Linq;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -13,26 +15,62 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 /// </summary>
 /// <remarks>
 /// The build refuses <c>ExecuteUpdate</c> in the plugin, through <c>BannedSymbols.txt</c>
-/// (RS0030), in both of its forms, since each build sees only its own EF Core's. Loading the
+/// (RS0030), in both of its shapes, since each build sees only its own EF Core's. Loading the
 /// entities and saving the changes compiles to the same calls on both.
 /// </remarks>
 public class EfCoreAcrossLinesTests
 {
     /// <summary>
-    /// The banned list names <c>ExecuteUpdate</c> and <c>ExecuteUpdateAsync</c> as EF Core 9 and
-    /// EF Core 10 declare them.
+    /// Every <c>ExecuteUpdate</c> and <c>ExecuteUpdateAsync</c> of the EF Core this build runs
+    /// against has its entry in the banned list, under the documentation id RS0030 matches: an
+    /// entry naming no method of it is ignored without a word, so a mistyped one, or a shape a
+    /// later EF Core adds, would let a call through.
     /// </summary>
-    /// <param name="symbol">The documentation id of one of them.</param>
-    [Theory]
-    [InlineData("M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdate``1(System.Linq.IQueryable{``0},System.Linq.Expressions.Expression{System.Func{Microsoft.EntityFrameworkCore.Query.SetPropertyCalls{``0},Microsoft.EntityFrameworkCore.Query.SetPropertyCalls{``0}}})")]
-    [InlineData("M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdateAsync``1(System.Linq.IQueryable{``0},System.Linq.Expressions.Expression{System.Func{Microsoft.EntityFrameworkCore.Query.SetPropertyCalls{``0},Microsoft.EntityFrameworkCore.Query.SetPropertyCalls{``0}}},System.Threading.CancellationToken)")]
-    [InlineData("M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdate``1(System.Linq.IQueryable{``0},System.Action{Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder{``0}})")]
-    [InlineData("M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdateAsync``1(System.Linq.IQueryable{``0},System.Action{Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder{``0}},System.Threading.CancellationToken)")]
-    public void TheBuildRefusesWhatEfCoreTenChanged(string symbol)
+    [Fact]
+    public void TheBuildRefusesEveryExecuteUpdateOfItsEfCore()
     {
-        var banned = File.ReadAllLines(Path.Combine(SourceTree.Root(), "Jellyfin.Plugin.Streamyfin", "BannedSymbols.txt"))
-            .Select(line => line.Split(';', 2)[0].Trim());
+        var methods = typeof(EntityFrameworkQueryableExtensions)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.Name is nameof(EntityFrameworkQueryableExtensions.ExecuteUpdate)
+                or nameof(EntityFrameworkQueryableExtensions.ExecuteUpdateAsync))
+            .ToList();
+        var banned = SourceTree.BannedSymbols();
 
-        Assert.Contains(symbol, banned);
+        Assert.NotEmpty(methods);
+        Assert.All(methods, method => Assert.Contains(DocumentationId(method), banned));
+    }
+
+    /// <summary>
+    /// The documentation id of a method, as the compiler writes it and RS0030 reads it.
+    /// </summary>
+    /// <param name="method">The method.</param>
+    /// <returns>Its id, <c>M:</c> and all.</returns>
+    private static string DocumentationId(MethodInfo method)
+    {
+        var arity = method.IsGenericMethodDefinition ? $"``{method.GetGenericArguments().Length}" : string.Empty;
+        var parameters = string.Join(",", method.GetParameters().Select(parameter => TypeId(parameter.ParameterType)));
+        return $"M:{method.DeclaringType!.FullName}.{method.Name}{arity}({parameters})";
+    }
+
+    private static string TypeId(Type type)
+    {
+        if (type.IsGenericMethodParameter)
+        {
+            return $"``{type.GenericParameterPosition}";
+        }
+
+        if (type.IsGenericTypeParameter)
+        {
+            return $"`{type.GenericParameterPosition}";
+        }
+
+        if (!type.IsGenericType)
+        {
+            return type.FullName!.Replace('+', '.');
+        }
+
+        var definition = type.GetGenericTypeDefinition().FullName!;
+        var name = definition[..definition.IndexOf('`', StringComparison.Ordinal)].Replace('+', '.');
+        return $"{name}{{{string.Join(",", type.GetGenericArguments().Select(TypeId))}}}";
     }
 }
