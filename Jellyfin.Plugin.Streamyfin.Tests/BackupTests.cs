@@ -299,8 +299,9 @@ public class BackupTests
     /// <param name="name">The name in the file.</param>
     /// <param name="problem">What the routes say about it.</param>
     [Theory]
-    [InlineData("Kids\nClub", "A group name cannot hold a line break or another control character")]
-    [InlineData("Kids\u001b[2K", "A group name cannot hold a line break or another control character")]
+    [InlineData("Kids\nClub", "A group name cannot hold a line break, a control character or one that does not show")]
+    [InlineData("Kids\u001b[2K", "A group name cannot hold a line break, a control character or one that does not show")]
+    [InlineData(" ", "A group needs a name")]
     [InlineData("101", "A group name can be at most 100 characters long")]
     public void AGroupNameTheRoutesRefuseIsRefusedInAFile(string name, string problem)
     {

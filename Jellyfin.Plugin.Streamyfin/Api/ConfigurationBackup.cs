@@ -128,11 +128,6 @@ public class ConfigurationBackup
             return "One of the user settings in this file is empty.";
         }
 
-        if (Groups.Any(group => string.IsNullOrWhiteSpace(group.Name)))
-        {
-            return "Every group in a backup needs a name, and one of these has none.";
-        }
-
         // The routes' own check, so a restore stores no name the Targeting page could not save.
         if (Groups.Select(group => GroupName.Problem(group.Name)).FirstOrDefault(problem => problem is not null) is { } nameProblem)
         {

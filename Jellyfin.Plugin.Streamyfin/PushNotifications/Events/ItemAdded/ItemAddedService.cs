@@ -228,7 +228,9 @@ public class ItemAddedService : BaseEvent, IHostedService
 
                 var countdown = _countdown ?? new EpisodeTimer(
                     episodes: [],
-                    callback: _ => OnEpisodeAddedTimerCallback(seasonId)
+                    callback: _ => OnEpisodeAddedTimerCallback(seasonId),
+                    // On the timer's thread, where an exception nobody catches stops the server.
+                    failed: e => _logger.LogError(e, "Could not announce the episodes added to season {Season}", seasonId)
                 );
 
                 countdown.Add(episode);
@@ -243,20 +245,26 @@ public class ItemAddedService : BaseEvent, IHostedService
     private void OnEpisodeAddedTimerCallback(Guid seasonId)
     {
         _seasonItems.TryRemove(seasonId, out var countdown);
-        var total = countdown?.Episodes.Count ?? 0;
 
-        if (countdown == null || countdown.Episodes.Count == 0) return;
-        
-        var episode = countdown.Episodes.First();
+        // A copy, since the scan may still be adding to the countdown while this reads it.
+        var episodes = countdown?.Snapshot() ?? [];
+        var total = episodes.Count;
+
+        if (total == 0) return;
+
+        var episode = episodes[0];
         var refreshedSeason = _libraryManager.GetItemById(seasonId) as Season;
 
-        if (refreshedSeason is null)
+        // A season whose series no longer resolves, deleted or identified again within the
+        // minute, has nothing to name.
+        if (refreshedSeason?.Series is not { } series)
         {
+            _logger.LogInformation("The season {Season} has no series any more, so nothing was sent for its {Count} episode(s)", seasonId, total);
             return;
         }
-        
+
         // Only logged: the message writes the name for itself, per language.
-        var name = refreshedSeason.Series.Name.ForLog();
+        var name = series.Name.ForLog();
 
         _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", total, name);
 
@@ -279,7 +287,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         // one, its number and its id.
         var named = EverythingNamed(
             refreshedSeason,
-            countdown.Episodes.Select(added => added.Id),
+            episodes.Select(added => added.Id),
             id => _libraryManager.GetItemById(id));
 
         if (named is null)
@@ -293,7 +301,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
         // The library for those who turned it off, the show for those who follow or muted it.
         var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), episode.Path);
-        var subject = new NotificationSubject("itemAdded", library, refreshedSeason.Series.Id);
+        var subject = new NotificationSubject("itemAdded", library, series.Id);
 
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
         SendDetached(

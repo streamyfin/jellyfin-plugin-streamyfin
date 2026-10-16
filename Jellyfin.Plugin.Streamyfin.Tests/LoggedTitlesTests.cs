@@ -19,8 +19,23 @@ public class LoggedTitlesTests
 {
     // A logger call, from its opening parenthesis to the one that closes it.
     private static readonly Regex LogCall = new(
-        @"_logger\.Log\w+\((?<arguments>.*?)\);",
+        @"\b_?logger\??\.Log\w+\((?<arguments>.*?)\);",
         RegexOptions.Compiled | RegexOptions.Singleline);
+
+    /// <summary>
+    /// The pattern the two guards read logger calls with sees every way the plugin calls a
+    /// logger: through a field or a parameter, and through <c>?.</c> where it may be null.
+    /// </summary>
+    /// <param name="call">A logger call as the plugin writes them.</param>
+    [Theory]
+    [InlineData("_logger.LogInformation(\"{Title}\", title.Name.ForLog());")]
+    [InlineData("_logger?.LogWarning(\"{Title}\", title.Name.ForLog());")]
+    [InlineData("logger?.LogDebug(\"{Count}\", count);")]
+    [InlineData("logger.LogError(e, \"Could not send\");")]
+    public void ThePatternSeesEveryWayALoggerIsCalled(string call)
+    {
+        Assert.Matches(LogCall, call);
+    }
 
     /// <summary>
     /// No logger call in the plugin passes a value through <c>Escape()</c>.

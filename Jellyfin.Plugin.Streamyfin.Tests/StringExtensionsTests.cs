@@ -42,6 +42,18 @@ public class StringExtensionsTests
         Assert.Equal(logged, sent.ForLog());
     }
 
+    /// <summary>
+    /// A bidi embedding, override or isolate turns the rest of the line around in a terminal or
+    /// a viewer, so the entry shows other than it was written.
+    /// </summary>
+    [Theory]
+    [InlineData("Kids\u202E[FTL] forged", "Kids [FTL] forged")]
+    [InlineData("a\u202Ab\u202Cc\u2066d\u2069", "a b c d ")]
+    public void A_bidi_control_cannot_turn_the_line_around(string sent, string logged)
+    {
+        Assert.Equal(logged, sent.ForLog());
+    }
+
     [Fact]
     public void A_value_on_one_line_is_logged_as_sent()
     {

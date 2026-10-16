@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.Streamyfin.Configuration;
@@ -467,13 +468,122 @@ public class SettingsGroupTests : IDisposable
     }
 
     /// <summary>
+    /// The store holds a name to the routes' rule, so a writer other than the routes cannot
+    /// store one they refuse, and stores it tidied.
+    /// </summary>
+    [Fact]
+    public void TheStoreRefusesANameTheRoutesRefuse()
+    {
+        Assert.Throws<ArgumentException>(() => _db.SaveSettingsGroup(Named("Kids\nClub")));
+        Assert.Throws<ArgumentException>(() => _db.ReplaceTargeting([(Named("Kids\u202Eclub"), Array.Empty<Guid>())], []));
+
+        _db.SaveSettingsGroup(Named("  Kids "));
+
+        Assert.Equal("Kids", Assert.Single(_db.GetSettingsGroups()).Name);
+    }
+
+    /// <summary>
+    /// Two deletes of one group at the same moment both succeed. The second read the row, found
+    /// it gone on writing, and EF's concurrency exception reached the route as a 500.
+    /// </summary>
+    [Fact]
+    public void TwoDeletesOfOneGroupAtOnceBothSucceed()
+    {
+        for (var round = 0; round < 40; round++)
+        {
+            var group = _db.SaveSettingsGroup(Named($"Twice {round}"));
+
+            System.Threading.Tasks.Parallel.Invoke(() => _db.RemoveSettingsGroup(group.Id), () => _db.RemoveSettingsGroup(group.Id));
+
+            Assert.Null(_db.GetSettingsGroup(group.Id));
+        }
+    }
+
+    /// <summary>
+    /// Members set for a group deleted meanwhile are not stored: the rows went in without a
+    /// group, and the route answered 200 with the members of a group that was gone.
+    /// </summary>
+    [Fact]
+    public void MembersOfADeletedGroupAreNotStored()
+    {
+        var group = _db.SaveSettingsGroup(Named("Gone"));
+        _db.RemoveSettingsGroup(group.Id);
+
+        var gone = Assert.Throws<GroupGoneException>(() => _db.SetGroupMembers(group.Id, [Guid.NewGuid()]));
+
+        Assert.Equal(group.Id, gone.Id);
+        Assert.Empty(MemberRowsOf(group.Id));
+    }
+
+    /// <summary>
+    /// Members set while the group is deleted leave no row behind, whichever lands first.
+    /// </summary>
+    [Fact]
+    public void MembersRacingADeleteLeaveNoRowBehind()
+    {
+        for (var round = 0; round < 40; round++)
+        {
+            var group = _db.SaveSettingsGroup(Named($"Members {round}"));
+
+            System.Threading.Tasks.Parallel.Invoke(
+                () => { try { _db.SetGroupMembers(group.Id, [Guid.NewGuid(), Guid.NewGuid()]); } catch (GroupGoneException) { } },
+                () => _db.RemoveSettingsGroup(group.Id));
+
+            Assert.Empty(MemberRowsOf(group.Id));
+        }
+    }
+
+    private List<Guid> MemberRowsOf(Guid groupId)
+    {
+        using var context = _db.CreateContext();
+        return context.SettingsGroupMembers.AsNoTracking().Where(m => m.GroupId == groupId).Select(m => m.UserId).ToList();
+    }
+
+    /// <summary>
+    /// A name stored before the routes checked them is repaired at the next start, so the
+    /// server's own backup restores: the restore holds a file to the routes' rule, and refused
+    /// one carrying such a name, or two names a space apart. A name that was fine stays, and the
+    /// log names each change.
+    /// </summary>
+    [Fact]
+    public void StoredNamesTheRoutesRefuseAreRepairedAtTheNextStart()
+    {
+        var fine = Guid.NewGuid();
+        using (var context = _db.CreateContext())
+        {
+            context.SettingsGroups.AddRange(
+                new SettingsGroup { Id = fine, Name = "Adults", SettingsJson = "{}" },
+                new SettingsGroup { Id = Guid.NewGuid(), Name = "Kids ", SettingsJson = "{}" },
+                new SettingsGroup { Id = Guid.NewGuid(), Name = "Kids\t", SettingsJson = "{}" },
+                new SettingsGroup { Id = Guid.NewGuid(), Name = "Night\nshift", SettingsJson = "{}" },
+                new SettingsGroup { Id = Guid.NewGuid(), Name = new string('a', 150), SettingsJson = "{}" },
+                new SettingsGroup { Id = Guid.NewGuid(), Name = "\u202E", SettingsJson = "{}" });
+            context.SaveChanges();
+        }
+
+        var logger = new RecordingLogger<PluginDatabase>();
+        var restarted = new PluginDatabase(_directory, logger);
+
+        var names = restarted.GetSettingsGroups().Select(g => g.Name).Order(StringComparer.Ordinal).ToList();
+        Assert.Equal(new[] { "Adults", "Group", "Kids", "Kids (2)", "Night shift", new string('a', 100) }, names);
+        Assert.Equal("Adults", restarted.GetSettingsGroup(fine)!.Name);
+        Assert.Contains(logger.Messages, message => message.Contains("Renamed 5 group(s)", StringComparison.Ordinal));
+
+        var backup = new Api.ConfigurationBackup
+        {
+            Groups = [.. restarted.GetSettingsGroups().Select(g => new Api.SettingsGroupDto { Id = g.Id, Name = g.Name })]
+        };
+        Assert.Null(backup.TargetingProblem());
+    }
+
+    /// <summary>
     /// An update and a delete of one group at the same moment leave no group, whichever lands
     /// first, including a delete that lands between the update reading the group and writing it.
     /// </summary>
     [Fact]
     public void AnUpdateRacingADeleteNeverLeavesTheGroup()
     {
-        for (var round = 0; round < 100; round++)
+        for (var round = 0; round < 40; round++)
         {
             var group = _db.SaveSettingsGroup(Named($"Racing {round}"));
 

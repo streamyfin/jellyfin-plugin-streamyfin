@@ -1695,7 +1695,15 @@ public class StreamyfinController : ControllerBase
       return BadRequest(taken.Message);
     }
 
-    database.SetGroupMembers(stored.Id, request.UserIds);
+    try
+    {
+      database.SetGroupMembers(stored.Id, request.UserIds);
+    }
+    catch (GroupGoneException)
+    {
+      // Deleted by another administrator the moment it was created.
+      return NotFound();
+    }
 
     return ToDto(stored, database.GetGroupMembers(stored.Id));
   }
@@ -1808,7 +1816,16 @@ public class StreamyfinController : ControllerBase
       return NotFound();
     }
 
-    database.SetGroupMembers(id, request.UserIds);
+    try
+    {
+      database.SetGroupMembers(id, request.UserIds);
+    }
+    catch (GroupGoneException)
+    {
+      // Deleted since the lookup above: it gets no members, and stays deleted.
+      return NotFound();
+    }
+
     return ToDto(group, database.GetGroupMembers(id));
   }
 
