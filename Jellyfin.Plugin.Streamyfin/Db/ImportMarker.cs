@@ -27,6 +27,11 @@ public class ImportMarker
     public const string AwaitedTitlesOn = "awaited-titles-on";
 
     /// <summary>
+    /// The placeholders earlier versions stored where a value goes were looked for, once (#279).
+    /// </summary>
+    public const string PlaceholdersForgotten = "placeholders-forgotten";
+
+    /// <summary>
     /// Gets or sets the name of the import.
     /// </summary>
     public string Name { get; set; } = string.Empty;

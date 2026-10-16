@@ -43,6 +43,7 @@ public class StreamyfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         Settings.Import(Configuration?.Config, applicationPaths.PluginConfigurationsPath);
 #pragma warning restore RS0030
         Settings.SwitchOnAwaitedTitles();
+        Settings.ForgetPlaceholders();
     }
 
     /// <summary>

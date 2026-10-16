@@ -139,6 +139,42 @@ public sealed class GlobalConfigurationStore
     }
 
     /// <summary>
+    /// Takes out of the stored configuration, once, the placeholders earlier versions stored
+    /// where a value goes, and says which settings the app decides again (#279).
+    /// </summary>
+    /// <remarks>
+    /// Every read already tidies them away, so nothing serves them. They are written out once
+    /// all the same, since a read never rewrites the database, and an administrator who
+    /// upgraded from a default configuration should hear which settings changed hands.
+    /// </remarks>
+    public void ForgetPlaceholders()
+    {
+        if (_database.HasMarker(ImportMarker.PlaceholdersForgotten))
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            var config = _cached ??= Read();
+            var held = Placeholders.HeldBy(config.settings);
+
+            if (held.Count > 0)
+            {
+                SettingsValidation.Tidy(config.settings);
+                _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
+                _cached = config;
+                _logger?.LogInformation(
+                    "Took out the placeholder text an earlier version of the plugin stored as {Settings}: the app decides them again",
+                    string.Join(", ", held));
+            }
+        }
+
+        // After the configuration, as for the awaited titles: a failure in between looks again.
+        _database.Mark(ImportMarker.PlaceholdersForgotten);
+    }
+
+    /// <summary>
     /// Carries the configuration over from Jellyfin's plugin XML, once, and on every
     /// later start names what an earlier version of the plugin changed in it.
     /// </summary>

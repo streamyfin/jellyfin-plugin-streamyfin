@@ -216,9 +216,9 @@ public class StreamyfinController : ControllerBase
     }
     catch (Exception e)
     {
-      // The message and what caused it, not the stack. YamlDotNet says where in the
-      // document it gave up, which is the useful half, and this string is shown to an
-      // administrator in a banner above the editor.
+      // The message and what caused it, not the stack, with where in the document YamlDotNet
+      // gave up, which is the useful half. This string is shown to an administrator in a
+      // banner above the editor.
       return (null, Because(e));
     }
   }
@@ -1387,13 +1387,24 @@ public class StreamyfinController : ControllerBase
   private static string Because(Exception thrown)
   {
     var said = thrown.Message;
+    Mark? where = null;
 
-    for (var inner = thrown.InnerException; inner is not null; inner = inner.InnerException)
+    for (var one = thrown; one is not null; one = one.InnerException)
     {
-      said += " " + inner.Message;
+      if (!ReferenceEquals(one, thrown))
+      {
+        said += " " + one.Message;
+      }
+
+      // YamlDotNet keeps where it gave up beside its message, not in it, so the banner said
+      // what was wrong and never where.
+      if (where is null && one is YamlException { Start: var start } && !start.Equals(Mark.Empty))
+      {
+        where = start;
+      }
     }
 
-    return said;
+    return where is { } mark ? $"Line {mark.Line}, column {mark.Column}: {said}" : said;
   }
 
   /// <summary>

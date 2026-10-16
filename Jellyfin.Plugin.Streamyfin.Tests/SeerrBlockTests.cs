@@ -111,6 +111,40 @@ public class SeerrBlockTests
     }
 
     /// <summary>
+    /// The two shapes are compared as the addresses are stored, trimmed, so an address written
+    /// with a space beside the same address without one is not a disagreement with itself: it
+    /// was refused, though the check trims the address right after (#263).
+    /// </summary>
+    [Fact]
+    public void ShapesApartBySpacesAgree()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example" },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = "http://seerr.example " } }
+        };
+
+        Assert.Null(SettingsValidation.Check(settings));
+        Assert.Equal("http://seerr.example", settings.jellyseerrServerUrl!.value);
+    }
+
+    /// <summary>
+    /// Spaces alone are not the address beside them: one shape says nothing there and the
+    /// other says where Seerr is.
+    /// </summary>
+    [Fact]
+    public void SpacesAloneAreNotTheAddress()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "http://seerr.example" },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = "   " } }
+        };
+
+        Assert.NotNull(IntegrationBlocks.Disagreement(settings));
+    }
+
+    /// <summary>
     /// What is served carries both shapes, so an app reading either finds Seerr.
     /// </summary>
     [Fact]

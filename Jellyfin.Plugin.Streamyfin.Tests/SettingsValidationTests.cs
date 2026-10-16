@@ -211,6 +211,74 @@ public class SettingsValidationTests
     }
 
     /// <summary>
+    /// The text earlier versions stored where an address goes is no address. Up to 0.68.1.0 a
+    /// server that never set Seerr stored "Enter jellyseerr server url", 0.70 served it as the
+    /// address, and the app tested it at every sign in (#279). Locked or not, and whatever
+    /// its case, it goes the way an empty address does.
+    /// </summary>
+    /// <param name="placeholder">The text, as one version or one example wrote it.</param>
+    [Theory]
+    [InlineData("Enter jellyseerr server url")]
+    [InlineData("Enter marlin server url")]
+    [InlineData("Enter Marlin server URL")]
+    [InlineData("  Enter Streamystats server URL ")]
+    public void APlaceholderAddressIsNotStoredAtAll(string placeholder)
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = placeholder },
+            marlinServerUrl = new Lockable<string> { value = placeholder, locked = true },
+            streamyStatsServerUrl = new Lockable<string> { value = placeholder }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+        Assert.Null(settings.streamyStatsServerUrl);
+    }
+
+    /// <summary>
+    /// The library id earlier versions stored as an example is no library: the tabs listed it
+    /// as Other. A real id beside it stays, with its lock.
+    /// </summary>
+    [Fact]
+    public void APlaceholderHiddenLibraryIsNoLibrary()
+    {
+        var alone = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] } };
+        var beside = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true }
+        };
+
+        SettingsValidation.Tidy(alone);
+        SettingsValidation.Tidy(beside);
+
+        Assert.Null(alone.hiddenLibraries);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, beside.hiddenLibraries!.value);
+        Assert.True(beside.hiddenLibraries.locked);
+    }
+
+    /// <summary>
+    /// A document that carries a placeholder, as one written from this repository's examples
+    /// does, is stored without it, where the address check refused it.
+    /// </summary>
+    [Fact]
+    public void ADocumentWithAPlaceholderAddressIsStoredWithoutIt()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            forwardSkipTime = new Lockable<int> { value = 30 }
+        };
+
+        Assert.Null(SettingsValidation.Check(settings));
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Equal(30, settings.forwardSkipTime!.value);
+    }
+
+    /// <summary>
     /// A home with no sections is stored as no list, which is what emptying the Home tab
     /// means: the app's own home screen. Stored as an empty list, the app draws a home
     /// screen with nothing on it.

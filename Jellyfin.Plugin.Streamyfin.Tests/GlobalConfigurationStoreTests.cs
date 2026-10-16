@@ -288,6 +288,76 @@ public class GlobalConfigurationStoreTests : IDisposable
         Assert.False(_store.Current.notifications?.AwaitedTitle?.Enabled);
     }
 
+    // What a server that installed 0.68.1.0 and never set these stored by default, beside one
+    // setting an administrator chose.
+    private static Config FromADefault068() => new()
+    {
+        settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            marlinServerUrl = new Lockable<string> { value = "Enter Marlin server URL" },
+            hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] },
+            forwardSkipTime = new Lockable<int> { value = 45, locked = true }
+        }
+    };
+
+    /// <summary>
+    /// The placeholders a default configuration of 0.66 to 0.68.1.0 carried are taken out of
+    /// the stored configuration, and the log names the settings the app decides again (#279).
+    /// What an administrator set beside them stays.
+    /// </summary>
+    [Fact]
+    public void ThePlaceholdersAnEarlierVersionStoredAreTakenOut()
+    {
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var store = new GlobalConfigurationStore(_db, _serialization, logger);
+        store.Import(FromADefault068(), null);
+
+        store.ForgetPlaceholders();
+
+        var stored = _serialization.DeserializeJson<Config>(_db.GetGlobalConfigJson()!)!.settings!;
+        Assert.Null(stored.jellyseerrServerUrl);
+        Assert.Null(stored.marlinServerUrl);
+        Assert.Null(stored.hiddenLibraries);
+        Assert.Equal(45, stored.forwardSkipTime!.value);
+        Assert.True(stored.forwardSkipTime.locked);
+
+        var said = Assert.Single(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
+        Assert.Contains("hiddenLibraries, jellyseerrServerUrl, marlinServerUrl", said, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// They are looked for once: a later start says nothing.
+    /// </summary>
+    [Fact]
+    public void ThePlaceholdersAreLookedForOnce()
+    {
+        _store.Import(FromADefault068(), null);
+        _store.ForgetPlaceholders();
+
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+        var later = new GlobalConfigurationStore(_db, _serialization, logger);
+        later.ForgetPlaceholders();
+
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A server without any says nothing, and its configuration is not written.
+    /// </summary>
+    [Fact]
+    public void AServerWithoutPlaceholdersSaysNothing()
+    {
+        _store.Save(new Config { settings = new Settings { forwardSkipTime = new Lockable<int> { value = 30 } } });
+        var before = _db.GetGlobalConfigJson();
+        var logger = new RecordingLogger<GlobalConfigurationStore>();
+
+        new GlobalConfigurationStore(_db, _serialization, logger).ForgetPlaceholders();
+
+        Assert.Equal(before, _db.GetGlobalConfigJson());
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("placeholder", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         TestDirectory.Delete(_directory);

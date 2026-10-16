@@ -50,7 +50,7 @@ public static class IntegrationBlocks
 {
     private static readonly (string Block, string Flat, Func<SeerrSettings, object?> FromBlock, Func<Settings, object?> FromFlat)[] _seerr =
     [
-        ("seerr.serverUrl", "jellyseerrServerUrl", block => block.serverUrl, settings => settings.jellyseerrServerUrl),
+        ("seerr.serverUrl", "jellyseerrServerUrl", block => Trimmed(block.serverUrl), settings => Trimmed(settings.jellyseerrServerUrl)),
         ("seerr.apiKey", "jellyseerrApiKey", block => block.apiKey, settings => settings.jellyseerrApiKey),
         ("seerr.autoLogin", "autoLoginJellyseerr", block => block.autoLogin, settings => settings.autoLoginJellyseerr)
     ];
@@ -165,6 +165,12 @@ public static class IntegrationBlocks
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
+
+    // The address as the check stores it, trimmed, so one written with a space beside the same
+    // address without one does not disagree with itself (#263). Nothing and an empty address
+    // stay apart, as they do when the check tidies them.
+    private static Lockable<string>? Trimmed(Lockable<string>? address) =>
+        address is null ? null : new Lockable<string> { value = address.value?.Trim()!, locked = address.locked };
 
     private static Lockable<T>? Copy<T>(Lockable<T>? one) =>
         one is null ? null : new Lockable<T> { value = one.value, locked = one.locked };
