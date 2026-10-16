@@ -49,6 +49,7 @@ public class StringExtensionsTests
     [Theory]
     [InlineData("Kids\u202E[FTL] forged", "Kids [FTL] forged")]
     [InlineData("a\u202Ab\u202Cc\u2066d\u2069", "a b c d ")]
+    [InlineData("a\u061Cb\u200Ec\u200Fd", "a b c d")]
     public void A_bidi_control_cannot_turn_the_line_around(string sent, string logged)
     {
         Assert.Equal(logged, sent.ForLog());

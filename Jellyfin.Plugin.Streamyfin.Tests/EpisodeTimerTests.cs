@@ -38,7 +38,7 @@ public class EpisodeTimerTests
     /// Episodes added while the callback reads them are neither lost nor read half written.
     /// </summary>
     [Fact]
-    public void EpisodesAddedWhileTheCallbackReadsThemAreKept()
+    public async Task EpisodesAddedWhileTheCallbackReadsThemAreKept()
     {
         var timer = new EpisodeTimer([], _ => { }, _ => { });
         var adding = 0;
@@ -60,7 +60,7 @@ public class EpisodeTimerTests
 
             Interlocked.Increment(ref adding);
         });
-        readers.Wait();
+        await readers;
 
         Assert.Equal(2000, timer.Snapshot().Count);
     }
