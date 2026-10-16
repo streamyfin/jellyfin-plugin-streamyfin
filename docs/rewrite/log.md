@@ -40,6 +40,12 @@ Expo took nothing of answers 502 instead of 200 with nothing in it; and the stor
 token, language and server address to the route's rules (#285, closes #246 with #121, and part of
 #242).
 
+A rerun of the unstable build finds the draft its earlier attempt left, uploads the zips that
+differ and publishes it, and leaves a draft somebody else made, or two releases on one tag, as
+they are; the zip no longer ships Json.NET Schema, which nothing in the plugin calls, and a check
+holds `packages/` to the libraries the plugin uses, at the versions it references (#286, the
+first point of #250 and of #244).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
