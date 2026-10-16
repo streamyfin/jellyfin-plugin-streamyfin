@@ -538,6 +538,22 @@ describe("saving the Yaml tab", () => {
         expect(getConfig()).toEqual({ settings: { forwardSkipTime: { value: 10 } }, other: { homePage: "Home" } });
     });
 
+    // A tab that writes its part again with the same values, its keys in another order, did not
+    // change it, and the document's version of that part is what the server stored.
+    test("a part another tab only wrote again, its keys in another order, takes what the server stored", async () => {
+        setConfig({ ...getConfig(), other: { homePage: "Application", lastTab: "Other" } });
+        let release;
+        server.gate = new Promise((resolve) => { release = resolve; });
+
+        const saving = saveYamlConfig("other:\n  homePage: Home\n  lastTab: Other\n");
+        setConfig({ ...getConfig(), other: { lastTab: "Other", homePage: "Application" } });
+        server.gate = null;
+        release();
+
+        expect(await saving).toBe(true);
+        expect(getConfig().other).toEqual({ homePage: "Home", lastTab: "Other" });
+    });
+
     test("a document read back after a failed request keeps what another tab changed meanwhile", async () => {
         server.lost = true;
         let release;
@@ -754,6 +770,30 @@ describe("saving a tab's edit to the settings", () => {
         expect(server.held).toBe(1);
         expect(getConfig()).toEqual({ ...FULL, notifications: ANOTHER_TAB });
         expect(alerts).toEqual(["Forward skip time accepts 0 to 60, and this is 100."]);
+    });
+
+    // The form writes a setting as { value, locked } and the server's document reads back as
+    // { locked, value }: compared as text, every setting the form wrote counted as changed, and
+    // a refusal put back one the Yaml tab had stored meanwhile.
+    test("a refusal leaves alone a setting the edit only wrote with its keys in another order", async () => {
+        server.answers = [{ Error: true, Message: "No." }];
+        const release = hold();
+
+        const saving = saveConfigWith((current) => ({
+            ...current,
+            settings: {
+                forwardSkipTime: { locked: false, value: 100 },
+                enableDoubleTapToSeek: { value: true, locked: true },
+            },
+        }));
+        setConfig({ ...getConfig(), settings: { ...getConfig().settings, enableDoubleTapToSeek: { locked: true, value: false } } });
+        release();
+
+        expect(await saving).toBe(false);
+        expect(getConfig().settings).toEqual({
+            forwardSkipTime: { locked: false, value: 30 },
+            enableDoubleTapToSeek: { locked: true, value: false },
+        });
     });
 
     test("a refusal puts back a setting the edit took out, and takes out one it added", async () => {

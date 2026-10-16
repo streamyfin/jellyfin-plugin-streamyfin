@@ -399,9 +399,18 @@ export const saveConfig = () => config
     ? store(config).then((outcome) => outcome === STORED)
     : Promise.resolve(notRead());
 
+// Whether two values hold the same, whatever order their keys are in: the forms write a setting
+// as { value, locked }, and the server's document reads back as { locked, value }.
+const same = (a, b) => {
+    const sorted = (_, value) => value && typeof value === "object" && !Array.isArray(value)
+        ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
+        : value;
+    return JSON.stringify(a, sorted) === JSON.stringify(b, sorted);
+};
+
 // The keys whose value differs between two `settings`, a key on one side only included.
 const changedKeys = (before, after) => [...new Set([...Object.keys(before), ...Object.keys(after)])]
-    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+    .filter((key) => !same(before[key], after[key]));
 
 // `settings` with each of `keys` as `from` has it, and without the ones `from` has none of.
 const withKeys = (settings, keys, from) => {
@@ -450,7 +459,7 @@ const settledOn = (held, sentFrom) => {
     const now = config ?? {};
     const out = {};
     for (const part of new Set([...Object.keys(held ?? {}), ...Object.keys(now)])) {
-        const changedMeanwhile = JSON.stringify(now[part]) !== JSON.stringify(sentFrom?.[part]);
+        const changedMeanwhile = !same(now[part], sentFrom?.[part]);
         const value = changedMeanwhile ? now[part] : held?.[part];
         if (value !== undefined) out[part] = value;
     }
