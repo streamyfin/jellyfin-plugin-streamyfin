@@ -12,7 +12,8 @@ lives only in a comment thread is a decision nobody will find.
 
 The release notes say what each person chooses about their own notifications, and that a server
 moved to Jellyfin 12 keeps the build for 10.11 until the next release, a build that runs there
-(#278). CodeQL's alert 18, a cache poisoning warning on the unstable build's version step, was
+(#278), and that the notification route answers 502 when Expo took none of the notifications
+(#287). CodeQL's alert 18, a cache poisoning warning on the unstable build's version step, was
 dismissed as a false positive: only people who can write may start that workflow, the step
 before it refuses a ref that is not already on `develop`, the job's token only reads, and no
 step restores or saves a cache.
