@@ -17,6 +17,14 @@ dismissed as a false positive: only people who can write may start that workflow
 before it refuses a ref that is not already on `develop`, the job's token only reads, and no
 step restores or saves a cache.
 
+A group name stays on one line and within 100 characters a person sees, its spaces trimmed as
+the page trims them, and names stored before that are repaired at start-up and logged; the store
+itself refuses a name the routes refuse, so a restored backup stores the same names. A group
+deleted twice at once answers 204 both times, and members sent for a group deleted meanwhile are
+not stored. The countdown that gathers a season's episodes no longer ends the server's process
+when the series is gone, nor reads its list while the scan adds to it (#280, closes #277 and #248
+with #121, and part of #242).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
