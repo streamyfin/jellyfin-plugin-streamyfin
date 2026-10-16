@@ -25,6 +25,14 @@ not stored. The countdown that gathers a season's episodes no longer ends the se
 when the series is gone, nor reads its list while the scan adds to it (#280, closes #277 and #248
 with #121, and part of #242).
 
+The example text earlier versions stored where a value goes, `Enter jellyseerr server url` and
+its kind since 0.38, is taken out of the stored configuration at start-up and named once in the
+log, before the block Seerr's settings were once stored in is folded, so the text in the block
+no longer writes over a real address beside it; the app no longer receives it as an address or a
+library. A document still holding it is refused by name, a key written twice in one mapping is
+refused with the place of the second, and Seerr's block and its key a space apart agree (#281,
+closes #279, #263 and #266 with #121).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
