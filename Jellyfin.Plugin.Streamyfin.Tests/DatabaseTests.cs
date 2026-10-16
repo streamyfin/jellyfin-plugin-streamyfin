@@ -54,6 +54,22 @@ public class DatabaseTests : IDisposable
     }
 
     /// <summary>
+    /// The store holds a token to the same bound as the route, so a caller other than the
+    /// route cannot store one longer than any push token whole (#242).
+    /// </summary>
+    [Fact]
+    public void TheStoreRefusesATokenLongerThanAnyPushToken()
+    {
+        var userId = Guid.NewGuid();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => _db.AddDeviceToken(
+            new DeviceToken { DeviceId = Guid.NewGuid(), Token = new string('x', DeviceToken.LongestToken + 1), UserId = userId }));
+        _db.AddDeviceToken(new DeviceToken { DeviceId = Guid.NewGuid(), Token = new string('x', DeviceToken.LongestToken), UserId = userId });
+
+        Assert.Single(_db.GetUserDeviceTokens(userId));
+    }
+
+    /// <summary>
     /// Two registrations of the same device at the same time both succeed and leave
     /// one row.
     /// </summary>
@@ -420,7 +436,7 @@ public class DatabaseTests : IDisposable
         var atTheBound = Guid.NewGuid();
         var pastIt = Guid.NewGuid();
         _db.AddDeviceToken(new DeviceToken { DeviceId = atTheBound, Token = new string('x', DeviceToken.LongestToken), UserId = Guid.NewGuid() });
-        _db.AddDeviceToken(new DeviceToken { DeviceId = pastIt, Token = new string('x', DeviceToken.LongestToken + 1), UserId = Guid.NewGuid() });
+        Store(new DeviceToken { DeviceId = pastIt, Token = new string('x', DeviceToken.LongestToken + 1), UserId = Guid.NewGuid() });
 
         var restarted = new PluginDatabase(_directory);
 
@@ -438,8 +454,9 @@ public class DatabaseTests : IDisposable
     {
         var wide = Guid.NewGuid();
         var cut = Guid.NewGuid();
-        _db.AddDeviceToken(new DeviceToken { DeviceId = wide, Token = string.Concat(Enumerable.Repeat("\U0001F600", (DeviceToken.LongestToken / 2) + 1)), UserId = Guid.NewGuid() });
-        _db.AddDeviceToken(new DeviceToken { DeviceId = cut, Token = "x\0" + new string('x', DeviceToken.LongestToken), UserId = Guid.NewGuid() });
+        Store(
+            new DeviceToken { DeviceId = wide, Token = string.Concat(Enumerable.Repeat("\U0001F600", (DeviceToken.LongestToken / 2) + 1)), UserId = Guid.NewGuid() },
+            new DeviceToken { DeviceId = cut, Token = "x\0" + new string('x', DeviceToken.LongestToken), UserId = Guid.NewGuid() });
 
         // Stored whole, or the start below would have nothing to measure.
         Assert.Equal(DeviceToken.LongestToken + 2, _db.GetDeviceTokenForDeviceId(wide)!.Token.Length);

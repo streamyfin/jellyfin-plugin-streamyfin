@@ -883,7 +883,7 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
-  public ActionResult PostNotifications([FromBody, Required] List<Notification?> notifications)
+  public async Task<ActionResult> PostNotifications([FromBody, Required] List<Notification?> notifications)
   {
     var db = StreamyfinPlugin.Instance?.Database;
 
@@ -974,9 +974,12 @@ public class StreamyfinController : ControllerBase
     }
 
     _logger.LogInformation("Posting notifications...");
-    var task = _notificationHelper.Send(validNotifications);
-    task.Wait();
-    return new JsonResult(_serializationHelperService.ToJson(task.Result));
+
+    // Awaited rather than waited on: the send to Expo, its retries included, held one of the
+    // threads the whole server shares for as long as it took (#246). No token is passed, so a
+    // send the caller stops waiting for still reaches every device it was meant for.
+    var answer = await _notificationHelper.Send(validNotifications).ConfigureAwait(false);
+    return new JsonResult(_serializationHelperService.ToJson(answer));
   }
 
   /// <summary>
@@ -1008,7 +1011,7 @@ public class StreamyfinController : ControllerBase
   [Authorize(Policy = Policies.RequiresElevation)]
   [ProducesResponseType(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status202Accepted)]
-  public ActionResult PostSeerrNotification([FromBody, Required] SeerrWebhookPayload payload)
+  public async Task<ActionResult> PostSeerrNotification([FromBody, Required] SeerrWebhookPayload payload)
   {
     var notification = _seerr.Map(payload);
 
@@ -1017,7 +1020,7 @@ public class StreamyfinController : ControllerBase
       return new AcceptedResult();
     }
 
-    return PostNotifications([notification]);
+    return await PostNotifications([notification]).ConfigureAwait(false);
   }
 
   // region A person's own notifications (P4.5)
