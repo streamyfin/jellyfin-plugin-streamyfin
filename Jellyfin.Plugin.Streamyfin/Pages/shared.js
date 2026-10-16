@@ -401,21 +401,35 @@ const notRead = () => {
     return false;
 };
 
-// Whether two values hold the same as the server writes them back: whatever order their keys
-// are in, since the forms write a setting as { value, locked } and the server's document reads
-// back as { locked, value }, and with a member that is null or an empty list the same as one left
-// out, since the server writes its document without either (SerializationHelper's OmitNull and
-// OmitEmptyCollections) and the form writes an empty setting as one of them.
+// A value as the server writes it back, for comparing two of them: its keys in order, since the
+// forms write a setting as { value, locked } and the server's document reads back as
+// { locked, value }; without a member that is null or empty, an empty string, list or map, since
+// YamlDotNet writes the document without them (SerializationHelper's OmitNull and
+// OmitEmptyCollections) and the forms write an empty setting as one; and a number or a boolean as
+// its text, since a string such as 5.1 or true is written without quotes and read back as one.
+// Members first, so a map left empty by its members is left out too.
+const empty = (value) => value === undefined || value === null || value === ""
+    || (typeof value === "object" && Object.keys(value).length === 0);
+const written = (value) => {
+    if (Array.isArray(value)) return value.map(written);
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (!value || typeof value !== "object") return value;
+
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+        const member = written(value[key]);
+        if (!empty(member)) out[key] = member;
+    }
+    return out;
+};
+
+// Whether two values hold the same as the server writes them back.
 export const same = (a, b) => {
-    const written = function (key, value) {
-        const member = key !== "" && !Array.isArray(this);
-        if (value === null && !Array.isArray(this)) return undefined;
-        if (member && Array.isArray(value) && value.length === 0) return undefined;
-        return value && typeof value === "object" && !Array.isArray(value)
-            ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
-            : value;
+    const text = (value) => {
+        const shown = written(value);
+        return JSON.stringify(empty(shown) && !Array.isArray(shown) ? null : shown);
     };
-    return JSON.stringify(a, written) === JSON.stringify(b, written);
+    return text(a) === text(b);
 };
 
 // The keys whose value differs between two `settings`, a key on one side only included.
@@ -482,24 +496,22 @@ export const saveConfigWith = (edit) => {
             return true;
         }
 
-        if (outcome === REFUSED) {
-            settle(posted, changed, onServer);
-            triggerConfigListeners(config);
-            return false;
-        }
-
-        const held = await readStored();
+        const held = outcome === REFUSED ? undefined : await readStored();
         if (held === undefined) {
             settle(posted, changed, onServer);
             triggerConfigListeners(config);
             return false;
         }
 
+        // Told as any change is: the Yaml editor keeps its own text after a read back of its own
+        // document, and one it drew while hidden kept an edit the server never stored.
         const settings = held?.settings ?? {};
         settle(posted, changed, settings);
         rebase(settings);
-        triggerConfigListeners(config, undefined, REREAD);
-        return changed.every((key) => same(settings[key], posted[key]));
+        triggerConfigListeners(config);
+        // A save that changed nothing of its own, sent again while the same edit was on its way,
+        // cannot tell from the read back whether that edit was stored.
+        return changed.length > 0 && changed.every((key) => same(settings[key], posted[key]));
     });
 };
 

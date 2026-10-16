@@ -89,8 +89,8 @@ const show = async (view) => {
     }
 };
 
-const open = async () => {
-    stored = STORED();
+const open = async (from = STORED()) => {
+    stored = from;
     alerts = [];
     saved = [];
     answerSave = async () => ({ Error: false });
@@ -184,6 +184,38 @@ describe("saving the Application tab", () => {
 
         expect(stored.settings.forwardSkipTime.locked).toBe(true);
         expect(summary(view)).toBe("Nothing to save");
+    });
+
+    // Save stayed enabled while the save was on its way, and a second click sent the same edit
+    // again, which the answers then had to reconcile with itself.
+    test("Save is held while its answer is on its way, and given back after it", async () => {
+        const view = await open();
+        const release = held();
+
+        state(view, "forwardSkipTime", "locked");
+        view.querySelector("#sf-save").click();
+        state(view, "enableDoubleTapToSeek", "locked");
+        const whileOnItsWay = view.querySelector("#sf-save").disabled;
+        release();
+        await settle();
+
+        expect(whileOnItsWay).toBe(true);
+        expect(saved).toHaveLength(1);
+        expect(view.querySelector("#sf-save").disabled).toBe(false);
+    });
+
+    // The form sends every setting, the ones it does not draw as they were when it was drawn:
+    // one another tab changed since, its save then refused and put back, was sent again.
+    test("a setting the tab does not draw is sent as the tabs hold it when Save is clicked", async () => {
+        stored = { ...STORED(), settings: { ...STORED().settings, notDrawn: { locked: false, value: 1 } } };
+        const view = await open(stored);
+        shared.setConfig({ ...shared.getConfig(), settings: { ...shared.getConfig().settings, notDrawn: { locked: false, value: 2 } } });
+
+        state(view, "forwardSkipTime", "locked");
+        view.querySelector("#sf-save").click();
+        await settle();
+
+        expect(jsYaml.load(saved[0]).settings.notDrawn).toEqual({ locked: false, value: 2 });
     });
 
     // The answer marked the form the page held then, and a tab left meanwhile holds none: the

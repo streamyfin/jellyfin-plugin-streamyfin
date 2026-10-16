@@ -112,3 +112,49 @@ describe("saving with no configuration read", () => {
     });
 });
 
+// The answer marked the start page saved whatever the select said by then, and Save stayed
+// enabled while the save was on its way.
+describe("saving the start page", () => {
+    test("one changed while its save is on its way is still to save, and Save is held meanwhile", async () => {
+        const jsYaml = await import(`${PAGES}Libraries/js-yaml.min.js`);
+        const served = { ajax: window.ApiClient.ajax, Dashboard: window.Dashboard, jsYaml: shared.tools.jsYaml };
+        let release;
+        const gate = new Promise((resolve) => { release = resolve; });
+        const posted = [];
+        shared.tools.jsYaml = jsYaml;
+        window.ApiClient.ajax = async ({ type = "GET", data }) => {
+            if (type === "POST") {
+                posted.push(JSON.parse(data).Value);
+                await gate;
+            }
+            return { json: async () => ({ Error: false }) };
+        };
+        window.Dashboard = { showLoadingMsg() {}, hideLoadingMsg() {}, processPluginConfigurationUpdateResult() {}, alert() {} };
+
+        let whileOnItsWay;
+        let view;
+        try {
+            shared.setYamlConfig(jsYaml.dump({ settings: {}, other: { homePage: "Application" } }));
+            view = await open();
+            const select = view.querySelector("#home-page");
+            select.value = "Home";
+            select.dispatchEvent(new Event("change"));
+            view.querySelector("#save-other-btn").click();
+            select.value = "Targeting";
+            select.dispatchEvent(new Event("change"));
+            whileOnItsWay = view.querySelector("#save-other-btn").disabled;
+            release();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        } finally {
+            window.ApiClient.ajax = served.ajax;
+            window.Dashboard = served.Dashboard;
+            shared.tools.jsYaml = served.jsYaml;
+        }
+
+        expect(posted).toHaveLength(1);
+        expect(jsYaml.load(posted[0]).other.homePage).toBe("Home");
+        expect(whileOnItsWay).toBe(true);
+        expect(view.querySelector("#sf-dock-summary").textContent).toBe("Start page changed");
+        expect(view.querySelector("#save-other-btn").disabled).toBe(false);
+    });
+});

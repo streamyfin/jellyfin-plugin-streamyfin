@@ -23,6 +23,7 @@ const {
     paintDisplaySwitches,
     readKept,
     REREAD,
+    same,
     saveConfig,
     saveConfigWith,
     saveYamlConfig,
@@ -628,6 +629,30 @@ describe("saving the Yaml tab", () => {
     });
 });
 
+// The server writes its document back through YamlDotNet without a member that is null or empty,
+// an empty string or map included, and writes a string such as 5.1 or true without quotes, which
+// js-yaml then reads as a number or a boolean. The page compares a setting as it is written back.
+describe("comparing a setting as the server writes it back", () => {
+    test("a member that is null, an empty list, an empty string or an empty map is one left out", () => {
+        expect(same({ locked: false, value: null }, { locked: false })).toBe(true);
+        expect(same({ value: [], locked: false }, { locked: false })).toBe(true);
+        expect(same({ value: { custom: { endpoint: "" } } }, { value: { custom: {} } })).toBe(true);
+        expect(same({ value: { custom: {} } }, {})).toBe(true);
+        expect(same({ locked: false, value: "x" }, { locked: false })).toBe(false);
+    });
+
+    test("a string the server writes without quotes is the number or the boolean read back", () => {
+        expect(same({ value: "5.1" }, { value: 5.1 })).toBe(true);
+        expect(same({ value: "true" }, { value: true })).toBe(true);
+        expect(same({ value: "5.1" }, { value: 5 })).toBe(false);
+    });
+
+    test("a list keeps its empty and null items, which are not members", () => {
+        expect(same(["", null], [])).toBe(false);
+        expect(same({ locked: true, value: { b: 1, a: 2 } }, { value: { a: 2, b: 1 }, locked: true })).toBe(true);
+    });
+});
+
 describe("saving a tab's edit to the settings", () => {
     const FULL = {
         settings: { forwardSkipTime: { locked: false, value: 30 }, enableDoubleTapToSeek: { locked: true, value: true } },
@@ -856,8 +881,21 @@ describe("saving a tab's edit to the settings", () => {
             settings: { ...FULL.settings, forwardSkipTime: { locked: false, value: 10 } },
             notifications: ANOTHER_TAB,
         });
-        // Told that it was read back, so the Yaml editor keeps what the administrator wrote.
-        expect(heard.at(-1).cause).toBe(REREAD);
+        // Told as any change is, not as a read back: the Yaml editor keeps its own text after a
+        // read back, so one it drew while hidden kept an edit the server never stored.
+        expect(heard.at(-1).cause).toBeUndefined();
+    });
+
+    // A second Save of the same edit, sent before the first was answered, changed nothing the
+    // tabs held, and with no setting of its own to find in the read back it counted as stored.
+    test("a save of an edit already on its way, its answer lost and nothing stored, is not counted as stored", async () => {
+        server.keep = () => server.holds;
+        server.lost = true;
+        const first = saveConfigWith(forward(10));
+        const second = saveConfigWith(forward(10));
+
+        expect([await quietly(() => first), await quietly(() => second)]).toEqual([false, false]);
+        expect(jsYaml.load(server.holds).settings.forwardSkipTime.value).toBe(30);
     });
 
     test("a request that fails before the server stored anything puts back what the server holds", async () => {

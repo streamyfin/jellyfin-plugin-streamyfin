@@ -63,6 +63,9 @@ export const keptVersion = (shared) => shared.remembered("version", readVersion)
 export default function (view) {
     let form = null;
     let renderer = null;
+    // Whether this tab's save is on its way: Save is held until the answer, since a second click
+    // sent the same edit again and the answers then had to be reconciled with each other.
+    let onItsWay = false;
     // The dashboard keeps the page's DOM between tab switches and fires viewshow again,
     // so every listener added here is tied to one showing and dropped on viewhide.
     // Without that a second showing would save twice.
@@ -95,7 +98,7 @@ export default function (view) {
         // Nothing to say while nothing changed: the dock appears with the first edit.
         dock.hidden = dirty === 0 && invalid === 0;
         el("sf-discard").disabled = dirty === 0;
-        el("sf-save").disabled = dirty === 0 || invalid > 0;
+        el("sf-save").disabled = dirty === 0 || invalid > 0 || onItsWay;
         refreshPillCounts();
     };
 
@@ -233,7 +236,13 @@ export default function (view) {
         });
     };
 
-    const wireDock = (shared) => {
+    const wireDock = (shared, fields) => {
+        // The settings this tab draws. The form sends the others as they were when it was drawn,
+        // and one another tab changed since, its save then refused and put back, went out again:
+        // they are sent as the tabs hold them when Save is clicked.
+        const drawn = new Set(fields.map((field) => field.key));
+        const only = (settings, keep) => Object.fromEntries(Object.entries(settings).filter(([key]) => keep(key)));
+
         listen("sf-discard", "click", () => form.reset());
         listen("sf-save", "click", async () => {
             if (form.invalid().length) return;
@@ -242,10 +251,20 @@ export default function (view) {
             // comes, and only what was sent is saved.
             const shown = form;
             const sent = shown.saving();
-            const settings = shown.toSettings();
+            const settings = only(shown.toSettings(), (key) => drawn.has(key));
 
-            if (await shared.saveConfigWith((current) => ({ ...current, settings }))) {
-                shown.markSaved(sent);
+            onItsWay = true;
+            el("sf-save").disabled = true;
+            try {
+                const stored = await shared.saveConfigWith((current) => ({
+                    ...current,
+                    settings: { ...only(current.settings ?? {}, (key) => !drawn.has(key)), ...settings },
+                }));
+                if (stored) shown.markSaved(sent);
+            } finally {
+                onItsWay = false;
+                // The tab left meanwhile has no form to draw the dock from.
+                if (form) updateDock();
             }
         });
     };
@@ -290,7 +309,7 @@ export default function (view) {
             form?.setTerse(!descriptions);
             form?.setKeys(keys);
         });
-        wireDock(shared);
+        wireDock(shared, fields);
         shared.wireFindProblem(el("sf-find-problem"), () => form, showing.signal, (found) => {
             goTo?.(found.category);
             form.reveal(found.key);

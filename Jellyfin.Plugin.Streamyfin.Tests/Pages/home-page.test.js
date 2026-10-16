@@ -375,6 +375,24 @@ describe("saving the layout", () => {
         expect(alerts).toEqual(["No."]);
     });
 
+    // Save stayed enabled while the layout was on its way, and a second click sent it again.
+    test("Save is held while the layout is on its way, and given back after it", async () => {
+        read(layout(structuredClone(three)));
+        const view = await open(structuredClone(three));
+        const release = held({ Error: false });
+
+        view.querySelector("#sf-add").click();
+        view.querySelector("#sf-save").click();
+        view.querySelector("#sf-add").click();
+        const whileOnItsWay = view.querySelector("#sf-save").disabled;
+        release();
+        await settle();
+
+        expect(whileOnItsWay).toBe(true);
+        expect(saved).toHaveLength(1);
+        expect(view.querySelector("#sf-save").disabled).toBe(false);
+    });
+
     test("a layout stored while it was changed again keeps the later change to save", async () => {
         read(layout(structuredClone(three)));
         const view = await open(structuredClone(three));
