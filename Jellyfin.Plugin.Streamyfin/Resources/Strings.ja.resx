@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Required headers -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <!-- region MediaTypes -->
+  <data name="MovieMediaType" xml:space="preserve">
+        <value>映画</value>
+    </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
+  <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>再生が開始されました</value>
+    </data>
+  <data name="UserWatching" xml:space="preserve">
+        <value>{0}が視聴中</value>
+        <comment>0 = Username</comment>
+    </data>
+  <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <value>{0}、S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
+    </data>
+  <data name="SeriesSeason" xml:space="preserve">
+        <value>{0}、シーズン{1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
+    </data>
+  <data name="Series Episode" xml:space="preserve">
+        <value>{0}、エピソード{1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
+    </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
+  <data name="SessionStartTitle" xml:space="preserve">
+        <value>セッションが開始されました</value>
+    </data>
+  <data name="UserNowOnline" xml:space="preserve">
+        <value>{0}がオンラインになりました</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
+  <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>ユーザーはロックされています</value>
+    </data>
+  <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <value>ユーザー {0} はロックされています</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
+  <data name="ItemAddedTitle" xml:space="preserve">
+        <value>{0}が追加されました</value>
+        <comment>0 = Media type</comment>
+    </data>
+  <data name="EpisodeAddedTitle" xml:space="preserve">
+        <value>エピソードが追加されました</value>
+    </data>
+  <data name="EpisodesAddedTitle" xml:space="preserve">
+        <value>エピソードが追加されました</value>
+    </data>
+  <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <value>{0} - シーズン{2}にエピソード{1}が追加されました</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
+    </data>
+  <data name="EpisodeAdded" xml:space="preserve">
+        <value>{0} - エピソード{1}が追加されました</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
+    </data>
+  <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <value>{0} - シーズン{1}にエピソードが追加されました</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
+    </data>
+  <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <value>{0} - シーズン{2}にエピソードが{1}件追加されました</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
+    </data>
+  <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <value>{0} - エピソードが{1}件追加されました</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
+    </data>
+  <!-- endregion ItemAddedEvent -->
+  <data name="NameAndYear" xml:space="preserve">
+        <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
+    </data>
+  <!-- region Seerr webhook -->
+  <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>不明なメディア</value>
+    </data>
+  <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>誰か</value>
+    </data>
+  <data name="SeerrTestTitle" xml:space="preserve">
+        <value>Seerrに接続しました</value>
+    </data>
+  <data name="SeerrTestBody" xml:space="preserve">
+        <value>Seerrサーバーからのテスト通知です</value>
+    </data>
+  <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>新しいメディアリクエスト</value>
+    </data>
+  <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>{0}が「{1}」をリクエストしました</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>リクエストが自動承認されました</value>
+    </data>
+  <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>{0}が「{1}」をリクエストし、自動的に承認されました</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>リクエストに失敗しました</value>
+    </data>
+  <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>{0}がリクエストした「{1}」を処理できませんでした</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>リクエストが承認されました</value>
+    </data>
+  <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>「{1}」のリクエストが承認されました</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>リクエストが却下されました</value>
+    </data>
+  <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>「{1}」のリクエストが却下されました</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>視聴可能になりました</value>
+    </data>
+  <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>「{1}」を今すぐ視聴できます</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
+  <data name="TaskFailedTitle" xml:space="preserve">
+        <value>スケジュールされていたタスクの失敗</value>
+    </data>
+  <data name="TaskFailed" xml:space="preserve">
+        <value>{0} が失敗しました</value>
+        <comment>0 = Task name</comment>
+    </data>
+  <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>{0} が失敗しました: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+  <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>プラグインをインストールしました</value>
+    </data>
+  <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>プラグインのアップデートをインストールしました</value>
+    </data>
+  <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>プラグインをアンインストールしました</value>
+    </data>
+  <data name="PluginInstalled" xml:space="preserve">
+        <value>{0} をインストールしました</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>{0} {1} をインストールしました</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUpdated" xml:space="preserve">
+        <value>{0} を更新しました</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>{0} を {1} に更新しました</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUninstalled" xml:space="preserve">
+        <value>{0} をアンインストールしました</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>{0} {1} をアンインストールしました</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="SignInFailedTitle" xml:space="preserve">
+        <value>ログインに失敗しました</value>
+    </data>
+  <data name="SignInFailed" xml:space="preserve">
+        <value>{0}としてログインできませんでした</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+  <data name="SignInFailedFrom" xml:space="preserve">
+        <value>{1}から{0}としてログインできませんでした</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+  <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>ログインが拒否されました</value>
+    </data>
+  <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>{0}からのログインが拒否されました</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+  <!-- endregion Admin events -->
+</root>

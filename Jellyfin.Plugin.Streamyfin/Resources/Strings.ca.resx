@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Required headers -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <!-- region MediaTypes -->
+  <data name="MovieMediaType" xml:space="preserve">
+        <value>Pel·lícula</value>
+    </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
+  <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>Reproducció iniciada</value>
+    </data>
+  <data name="UserWatching" xml:space="preserve">
+        <value>{0} està veient</value>
+        <comment>0 = Username</comment>
+    </data>
+  <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <value>{0}, S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
+    </data>
+  <data name="SeriesSeason" xml:space="preserve">
+        <value>{0}, temporada {1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
+    </data>
+  <data name="Series Episode" xml:space="preserve">
+        <value>{0}, episodi {1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
+    </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
+  <data name="SessionStartTitle" xml:space="preserve">
+        <value>Sessió iniciada</value>
+    </data>
+  <data name="UserNowOnline" xml:space="preserve">
+        <value>{0} s'ha connectat</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
+  <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>Usuari expulsat</value>
+    </data>
+  <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <value>S'ha expulsat a l'usuari {0}</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
+  <data name="ItemAddedTitle" xml:space="preserve">
+        <value>{0} afegida</value>
+        <comment>0 = Media type</comment>
+    </data>
+  <data name="EpisodeAddedTitle" xml:space="preserve">
+        <value>Episodi afegit</value>
+    </data>
+  <data name="EpisodesAddedTitle" xml:space="preserve">
+        <value>Episodis afegits</value>
+    </data>
+  <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <value>{0} - Episodi {1} afegit a la temporada {2}</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
+    </data>
+  <data name="EpisodeAdded" xml:space="preserve">
+        <value>{0} - Episodi {1} afegit</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
+    </data>
+  <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <value>{0} - Episodi afegit a la temporada {1}</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
+    </data>
+  <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <value>{0} - {1} episodis afegits a la temporada {2}</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
+    </data>
+  <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <value>{0} - {1} episodis afegits</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
+    </data>
+  <!-- endregion ItemAddedEvent -->
+  <data name="NameAndYear" xml:space="preserve">
+        <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
+    </data>
+  <!-- region Seerr webhook -->
+  <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>Contingut desconegut</value>
+    </data>
+  <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>Algú</value>
+    </data>
+  <data name="SeerrTestTitle" xml:space="preserve">
+        <value>Seerr està connectat</value>
+    </data>
+  <data name="SeerrTestBody" xml:space="preserve">
+        <value>Aquesta és la notificació de prova del teu servidor Seerr</value>
+    </data>
+  <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>Nova sol·licitud de contingut</value>
+    </data>
+  <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>{0} ha sol·licitat {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Sol·licitud aprovada automàticament</value>
+    </data>
+  <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>{0} ha sol·licitat {1} i s'ha aprovat automàticament</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>Ha fallat la sol·licitud</value>
+    </data>
+  <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>No s'ha pogut processar {1}, sol·licitat per {0}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>Sol·licitud aprovada</value>
+    </data>
+  <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>S'ha aprovat la teva sol·licitud: {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Sol·licitud rebutjada</value>
+    </data>
+  <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>S'ha rebutjat la teva sol·licitud: {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>A punt per veure</value>
+    </data>
+  <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>{1} ja està disponible</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
+  <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Tasca programada fallida</value>
+    </data>
+  <data name="TaskFailed" xml:space="preserve">
+        <value>{0} ha fallat</value>
+        <comment>0 = Task name</comment>
+    </data>
+  <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>{0} ha fallat: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+  <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Complement instal·lat</value>
+    </data>
+  <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Actualització del complement instal·lada</value>
+    </data>
+  <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Complement desinstal·lat</value>
+    </data>
+  <data name="PluginInstalled" xml:space="preserve">
+        <value>S'ha instal·lat {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>S'ha instal·lat {0} {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUpdated" xml:space="preserve">
+        <value>S'ha actualitzat {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>S'ha actualitzat {0} a la versió {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUninstalled" xml:space="preserve">
+        <value>S'ha desinstal·lat {0}</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>S'ha desinstal·lat {0} {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Ha fallat l'inici de sessió</value>
+    </data>
+  <data name="SignInFailed" xml:space="preserve">
+        <value>{0} no ha pogut iniciar la sessió</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+  <data name="SignInFailedFrom" xml:space="preserve">
+        <value>{0} no ha pogut iniciar la sessió des de l'adreça {1}</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+  <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>S'ha rebutjat un inici de sessió</value>
+    </data>
+  <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>S'ha rebutjat un inici de sessió des de l'adreça {0}</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+  <!-- endregion Admin events -->
+</root>

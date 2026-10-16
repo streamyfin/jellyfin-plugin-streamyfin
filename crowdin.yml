@@ -1,0 +1,58 @@
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+base_path: .
+preserve_hierarchy: 1
+files:
+  # The plugin shares the app's Crowdin project, https://crowdin.com/project/streamyfin,
+  # under a folder of its own.
+  - source: Jellyfin.Plugin.Streamyfin/Resources/Strings.resx
+    dest: /jellyfin-plugin-streamyfin/Strings.resx
+    # %locale% keeps every language apart on Crowdin's side: %two_letters_code% gives zh-CN
+    # and zh-TW the same file there, and pt-PT and pt-BR too. The mapping below then names
+    # each file after the .NET culture it serves. A neutral culture (fr, es) also covers
+    # fr-CA or es-MX, since the resource manager falls back from a culture to its parent,
+    # and it is what a device sending a bare "fr" or "es" reaches.
+    translation: Jellyfin.Plugin.Streamyfin/Resources/Strings.%locale%.resx
+    languages_mapping:
+      locale:
+        ar: ar
+        ca: ca
+        cs: cs
+        da: da
+        de: de
+        el: el
+        es-ES: es
+        fi: fi
+        fr: fr
+        he: he
+        hu: hu
+        it: it
+        ja: ja
+        ko: ko
+        lb: lb
+        nl: nl
+        # Crowdin's Norwegian is Bokmål. .NET resolves "no" and "nb" to nb-NO, whose parent is nb.
+        "no": nb
+        pl: pl
+        pt-BR: pt-BR
+        # The app reads a bare "pt" as European Portuguese, and so does this file.
+        pt-PT: pt
+        ro: ro
+        ru: ru
+        sv-SE: sv
+        th: th
+        tr: tr
+        uk: uk
+        vi: vi
+        # The app reads a bare "zh" as Simplified Chinese: zh-CN and zh-SG reach zh through
+        # zh-Hans, while zh-TW and zh-HK stop at zh-Hant first.
+        zh-CN: zh
+        zh-TW: zh-Hant
+    # .NET has no Klingon culture: a Strings.tlh-AA.resx would not build as a satellite.
+    excluded_target_languages:
+      - tlh-AA
+    # A sentence not translated yet is left out of the language's file, and the resource
+    # manager falls back to the English one for that sentence alone.
+    skip_untranslated_strings: true
+    skip_untranslated_files: false
+    export_only_approved: false

@@ -1,0 +1,57 @@
+# Analyser policy for the plugin.
+#
+# The csproj sets AnalysisMode=AllEnabledByDefault, which subscribes to every
+# rule Microsoft ships. That was done years ago and then never acted on, so the
+# build carried dozens of warnings nobody read. The rules below are the ones
+# that are wrong for this codebase rather than ones we have not got to yet, each
+# with the reason written down. Everything not listed here is expected to be
+# fixed, and TreatWarningsAsErrors keeps it that way.
+
+root = true
+
+[*.cs]
+
+# CA1002: do not expose List<T>
+# CA1819: properties should not return arrays
+# CA2227: collection properties should be read only
+#
+# The configuration and the API payloads are deserialization targets. YamlDotNet,
+# System.Text.Json and Newtonsoft all need a settable property and a concrete
+# mutable collection to bind into. Collection<T> and read only properties would
+# mean writing converters for every one of them to satisfy a rule about library
+# API design that does not apply to a wire format. PluginConfiguration.cs already
+# carried a file level pragma for CA2227, which says someone hit this and worked
+# around it locally.
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA2227.severity = none
+
+# CA1707: identifiers should not contain underscores
+#
+# The Bitrate members are _250KB through _8MB. A leading digit is not a legal
+# identifier, the underscore is what makes them legal, and the names are part of
+# the YAML an admin writes. Renaming them would break every configuration.
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1051: do not declare visible instance fields
+#
+# The protected readonly fields on BaseEvent and LocalizationHelper are injected
+# dependencies shared with subclasses. Wrapping each one in a protected property
+# adds a line per dependency and changes nothing a caller can observe.
+dotnet_diagnostic.CA1051.severity = none
+
+# CA1034: do not nest types
+#
+# SerializationHelper.Options is the option bag for the type that contains it and
+# has no meaning outside it. Nesting is the point.
+dotnet_diagnostic.CA1034.severity = none
+
+# CA1873: avoid evaluating an argument that may be expensive when logging is off
+#
+# Added by .NET 10, so it fires on the jf12 target only. Twenty call sites, and
+# almost all of them pass a value that already exists: a session key, a count, a
+# threshold. Guarding those behind IsEnabled would add a branch around a log line
+# to save nothing. Kept as a suggestion rather than silenced, because the handful
+# that call Escape() on a media name do allocate, and the notification pipeline
+# they live in is rebuilt in P4. Fix them there, with the code around them.
+dotnet_diagnostic.CA1873.severity = suggestion

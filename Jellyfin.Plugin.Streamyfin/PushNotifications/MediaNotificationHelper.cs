@@ -15,8 +15,9 @@ static class MediaNotificationHelper
     public static ExpoNotificationRequest? CreateMediaNotification(
         LocalizationHelper localization,
         string title,
-        List<string> body, 
-        BaseItem item)
+        List<string> body,
+        BaseItem item,
+        CultureInfo? culture = null)
     {
         string? name = null;
         var data = new Dictionary<string, object?>();
@@ -30,6 +31,7 @@ static class MediaNotificationHelper
 
                 name = localization.GetFormatted(
                     key: "NameAndYear",
+                    cultureInfo: culture,
                     args: [movieName, movie.ProductionYear]
                 );
                 break;
@@ -38,6 +40,7 @@ static class MediaNotificationHelper
                 {
                     name = localization.GetFormatted(
                         key: "NameAndYear",
+                        cultureInfo: culture,
                         args: [season.Series.Name.Escape(), season.Series.ProductionYear]
                     );
                 }
@@ -61,6 +64,7 @@ static class MediaNotificationHelper
                     true when episode.Season?.IndexNumber is not null && episode.IndexNumber is not null =>
                         localization.GetFormatted(
                             key: "SeriesSeasonAndEpisode",
+                            cultureInfo: culture,
                             args:
                             [
                                 episode.Series.Name.Escape(),
@@ -72,6 +76,7 @@ static class MediaNotificationHelper
                     true when episode.Season?.IndexNumber is not null =>
                         localization.GetFormatted(
                             key: "SeriesSeason",
+                            cultureInfo: culture,
                             args:
                             [
                                 episode.Series.Name.Escape(),
@@ -81,11 +86,12 @@ static class MediaNotificationHelper
                     // Name + Episode
                     true when episode.IndexNumber is not null =>
                         localization.GetFormatted(
-                            key: "SeriesEpisode",
+                            key: "Series Episode",
+                            cultureInfo: culture,
                             args:
                             [
                                 episode.Series.Name.Escape(),
-                                episode.IndexNumber?.ToString("00", CultureInfo.InvariantCulture) ?? string.Empty
+                                episode.IndexNumber.Value.ToString("00", CultureInfo.InvariantCulture)
                             ]
                         ),
                     _ => episode.Series?.Name.Escape()
