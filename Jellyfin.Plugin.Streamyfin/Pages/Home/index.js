@@ -471,10 +471,11 @@ export default function (view, params) {
             });
 
             saveBtn.addEventListener("click", () => {
+                // What is sent, since a change made while it is on its way was not. On a
+                // refusal, what is on screen is still what the administrator wrote, so it
+                // stays for them to correct.
                 const saving = structuredClone(sections);
 
-                // A refusal changes nothing, and what is on screen is still what the
-                // administrator wrote, so it stays for them to correct.
                 shared.saveConfigWith((config) => {
                     const settings = config.settings ?? {};
                     return {
@@ -484,11 +485,13 @@ export default function (view, params) {
                             home: { ...(settings.home ?? { locked: false }), value: { sections: saving } },
                         },
                     };
-                }, ["settings"]).then((saved) => {
-                    if (saved) {
-                        baseline = saving;
-                        settled();
-                    }
+                }).then((saved) => {
+                    if (!saved) return;
+
+                    baseline = saving;
+                    // A change made while the save was on its way is still to save.
+                    if (JSON.stringify(sections) === JSON.stringify(saving)) settled();
+                    else touched();
                 });
             });
 

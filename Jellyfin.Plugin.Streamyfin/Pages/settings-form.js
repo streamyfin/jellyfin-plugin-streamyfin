@@ -1101,8 +1101,11 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             if (overridesOnly) applyVisibility();
             notify();
         },
-        markSaved: () => {
-            for (const row of rows.values()) row.baseline = snapshot(row);
+        // The rows as they are, taken when a save is sent: its answer comes later, and the
+        // rows changed meanwhile were not sent.
+        saving: () => new Map([...rows].map(([key, row]) => [key, snapshot(row)])),
+        markSaved: (sent) => {
+            for (const [key, row] of rows) row.baseline = sent?.get(key) ?? snapshot(row);
             notify();
         },
         search: (text) => {

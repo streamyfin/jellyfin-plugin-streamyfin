@@ -2,7 +2,7 @@
 // computes the cascade but lays nothing out, so what is held here is what the rules say
 // about the page, not where a browser ends up drawing it.
 
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 const read = (path) => Bun.file(new URL(`../../Jellyfin.Plugin.Streamyfin/Pages/${path}`, import.meta.url)).text();
 
@@ -57,6 +57,9 @@ const FOLDERS = [
 ];
 let folders = async () => FOLDERS;
 let examples = async () => [];
+// What a save of the layout is answered with, and the documents it sent.
+let answerSave = async () => ({ Error: false });
+let saved = [];
 
 window.Streamyfin = { shared: true };
 globalThis.LibraryMenu = { setTabs() {} };
@@ -65,7 +68,12 @@ window.ApiClient = {
         const page = /configurationpage\?name=(.+)$/.exec(path);
         return page ? `${PAGES}${page[1]}` : `http://server/${path}`;
     },
-    ajax: async ({ url }) => {
+    ajax: async ({ type = "GET", url, data }) => {
+        if (type === "POST" && String(url).includes("config/yaml")) {
+            saved.push(JSON.parse(data).Value);
+            const answer = await answerSave();
+            return { json: async () => answer };
+        }
         if (String(url).includes("Library/VirtualFolders")) return { json: folders };
         if (String(url).includes("home-examples.json")) return { json: examples };
         return { json: async () => SCHEMA };
@@ -74,10 +82,13 @@ window.ApiClient = {
 
 const shared = await import(`${PAGES}shared.js`);
 const { default: homeTab } = await import(`${PAGES}Home/index.js`);
+const jsYaml = await import(`${PAGES}Libraries/js-yaml.min.js`);
 
 afterEach(() => {
     folders = async () => FOLDERS;
     examples = async () => [];
+    answerSave = async () => ({ Error: false });
+    saved = [];
     shared.forgetKept();
 });
 
@@ -85,8 +96,8 @@ const serveExamples = (answer) => {
     examples = async () => (await answer()).json();
 };
 
-const open = async (sections) => {
-    shared.setConfig({ settings: { home: { locked: false, value: { sections } } } });
+const open = async (sections, config = { settings: { home: { locked: false, value: { sections } } } }) => {
+    shared.setConfig(config);
     const host = await mount();
     const view = host.querySelector(".sf-page") ?? host;
     homeTab(view);
@@ -299,5 +310,93 @@ describe("the examples", () => {
         } finally {
             console.error = quiet;
         }
+    });
+});
+
+// The tab put its layout into the configuration every tab shares, and on a refusal put back a
+// copy of the whole configuration from before: a change another tab made while the save was
+// on its way went with it (#262).
+describe("saving the layout", () => {
+    let alerts;
+    let before;
+
+    beforeEach(() => {
+        before = shared.tools.jsYaml;
+        shared.tools.jsYaml = jsYaml;
+        alerts = [];
+        window.Dashboard = {
+            showLoadingMsg() {},
+            hideLoadingMsg() {},
+            processPluginConfigurationUpdateResult() {},
+            alert: (message) => alerts.push(message),
+        };
+        serveExamples(async () => new Response("[]"));
+    });
+
+    afterEach(() => {
+        shared.tools.jsYaml = before;
+        shared.setConfig(undefined);
+    });
+
+    // An answer held back until the test lets it go.
+    const held = (answer) => {
+        let release;
+        const gate = new Promise((resolve) => { release = resolve; });
+        answerSave = async () => {
+            await gate;
+            return answer;
+        };
+        return release;
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+    test("a refused layout comes out of what the tabs share, and another tab's change made meanwhile stays", async () => {
+        const view = await open(structuredClone(three), {
+            settings: { home: { locked: false, value: { sections: structuredClone(three) } } },
+            other: { homePage: "Application" },
+        });
+        const release = held({ Error: true, Message: "No." });
+
+        view.querySelector("#sf-add").click();
+        view.querySelector("#sf-save").click();
+        shared.setConfig({ ...shared.getConfig(), other: { homePage: "Home" } });
+        release();
+        await settle();
+
+        expect(saved).toHaveLength(1);
+        expect(shared.getConfig().settings.home.value.sections).toEqual(three);
+        expect(shared.getConfig().other).toEqual({ homePage: "Home" });
+        // What the administrator wrote stays on screen, still to save.
+        expect(cards(view)).toHaveLength(4);
+        expect(view.querySelector("#sf-save").disabled).toBe(false);
+        expect(alerts).toEqual(["No."]);
+    });
+
+    test("a layout stored while it was changed again keeps the later change to save", async () => {
+        const view = await open(structuredClone(three));
+        const release = held({ Error: false });
+
+        view.querySelector("#sf-add").click();
+        view.querySelector("#sf-save").click();
+        view.querySelector("#sf-add").click();
+        release();
+        await settle();
+
+        expect(jsYaml.load(saved[0]).settings.home.value.sections).toHaveLength(4);
+        expect(cards(view)).toHaveLength(5);
+        expect(view.querySelector("#sf-save").disabled).toBe(false);
+    });
+
+    // Drawn without the configuration, the tab starts from an empty layout, and its save posted
+    // a document holding only that layout, which the server stored over every other setting.
+    test("with no configuration read from the server, Save sends nothing and says why", async () => {
+        const view = await open([], null);
+
+        view.querySelector("#sf-add").click();
+        view.querySelector("#sf-save").click();
+        await settle();
+
+        expect(saved).toEqual([]);
+        expect(alerts).toEqual(["Nothing was saved: the configuration could not be read from the server. Reload the page to try again."]);
     });
 });

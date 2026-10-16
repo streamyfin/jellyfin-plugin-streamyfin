@@ -386,48 +386,76 @@ const STORED = "stored";
 const REFUSED = "refused";
 const FAILED = "failed";
 
-// One save at a time, each from the configuration the one before it left. Two at once each
-// sent what they read before either answered, so the second could send an edit the first
-// was refused for, or undo one it had stored.
-let saving = Promise.resolve();
-const inTurn = (task) => {
-    const turn = saving.then(task);
-    saving = turn.catch(() => undefined);
-    return turn;
+// A tab drawn without the configuration starts from nothing, and a save from it would post a
+// document holding only that tab's edit, which the server stores over everything else.
+const notRead = () => {
+    Dashboard.alert("Nothing was saved: the configuration could not be read from the server. Reload the page to try again.");
+    return false;
 };
 
-// Sends `value`, and changes the configuration every tab shares only once the server has
-// answered (#262). The parts of it the save speaks for, `owns`, become what the server holds,
-// read back since it folds Seerr's block and the old spellings into the keys; the others stay
-// what the tabs hold, so an unsaved change in another tab is not lost to this one's answer.
-// Without `owns` the save speaks for everything. A refusal changes nothing, and a request
-// whose answer never came reads what the server holds, since it may have stored it.
-const commit = (value, owns, raw) => store(value).then(async (outcome) => {
-    if (outcome === REFUSED) return false;
-
-    const held = await readStored();
-    if (outcome !== STORED && held === undefined) return false;
-
-    const from = held ?? value;
-    const now = config ?? {};
-    config = owns ? { ...now, ...Object.fromEntries(owns.map((part) => [part, from?.[part]])) } : from;
-    if (outcome === STORED) {
-        triggerConfigListeners(config, raw);
-    } else {
-        triggerConfigListeners(config, undefined, REREAD);
-    }
-    return outcome === STORED;
-});
-
-// Saves the configuration every tab shares as it is, the way the Notifications and Other tabs
-// keep their edits in it. Resolves to true once the server has stored it, and to false when it
+// Resolves to true once the server has stored the configuration, and to false when it
 // refused it or the request failed, so a page can keep its unsaved state on a refusal.
-export const saveConfig = (owns) => inTurn(() => config ? commit(config, owns) : false);
+export const saveConfig = () => config
+    ? store(config).then((outcome) => outcome === STORED)
+    : Promise.resolve(notRead());
 
-// Saves a tab's edit on top of the configuration as it is when its turn comes, without putting
-// the edit in first: the Application and Home tabs did, and put the previous configuration
-// back on a refusal, taking along what another tab had changed meanwhile.
-export const saveConfigWith = (edit, owns) => inTurn(() => commit(edit(config ?? {}), owns));
+// The keys whose value differs between two `settings`, a key on one side only included.
+const changedKeys = (before, after) => [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+
+// `settings` with each of `keys` as `from` has it, and without the ones `from` has none of.
+const withKeys = (settings, keys, from) => {
+    const out = { ...settings };
+    for (const key of keys) {
+        if (from[key] === undefined) delete out[key];
+        else out[key] = structuredClone(from[key]);
+    }
+    return out;
+};
+
+// The Application and Home tabs' save. The edit goes into the configuration every tab shares
+// at once, as the other tabs keep theirs there until they save, so a tab shown meanwhile shows
+// it. A refusal puts back the settings the edit changed, and only those: the whole
+// configuration from before took along what another tab changed meanwhile (#262). A request
+// whose answer never came may have been stored, so those settings become what the server
+// holds, and stay as written when it cannot be asked either.
+export const saveConfigWith = (edit) => {
+    if (!config) return Promise.resolve(notRead());
+
+    const before = structuredClone(config.settings ?? {});
+    setConfig(edit(config));
+    const changed = changedKeys(before, config.settings ?? {});
+
+    return store(config).then(async (outcome) => {
+        if (outcome === STORED) return true;
+
+        if (outcome === REFUSED) {
+            setConfig({ ...config, settings: withKeys(config.settings ?? {}, changed, before) });
+            return false;
+        }
+
+        const held = await readStored();
+        if (held !== undefined) {
+            config = { ...config, settings: withKeys(config.settings ?? {}, changed, held?.settings ?? {}) };
+            triggerConfigListeners(config, undefined, REREAD);
+        }
+        return false;
+    });
+};
+
+// What the tabs share once the Yaml tab's document was answered: what the server holds, but for
+// a part another tab changed while the document was on its way, which keeps that change until
+// the tab saves it. Replaced whole, the change went with the stored document (#262).
+const settledOn = (held, sentFrom) => {
+    const now = config ?? {};
+    const out = {};
+    for (const part of new Set([...Object.keys(held ?? {}), ...Object.keys(now)])) {
+        const changedMeanwhile = JSON.stringify(now[part]) !== JSON.stringify(sentFrom?.[part]);
+        const value = changedMeanwhile ? now[part] : held?.[part];
+        if (value !== undefined) out[part] = value;
+    }
+    return out;
+};
 
 // The Yaml tab's save. The configuration every tab saves changes only once the server has
 // stored the document: set before, a refused document stayed there, and the next save from
@@ -442,8 +470,24 @@ export const saveYamlConfig = (text) => {
         return Promise.resolve(false);
     }
 
-    // The document is the whole configuration, so it speaks for every part of it.
-    return inTurn(() => commit(value, undefined, text));
+    const sentFrom = structuredClone(config ?? {});
+    return store(value).then(async (outcome) => {
+        if (outcome === REFUSED) return false;
+
+        // What the server holds is read back rather than assumed. It folds Seerr's block
+        // and the old spellings into the keys, so the document as written is not what the
+        // other tabs should save next. And a request that failed on its way back may have
+        // been stored, which the next save from another tab would otherwise undo.
+        const held = await readStored();
+        if (outcome === STORED) {
+            config = settledOn(held ?? value, sentFrom);
+            triggerConfigListeners(config, text);
+        } else if (held !== undefined) {
+            config = settledOn(held, sentFrom);
+            triggerConfigListeners(config, undefined, REREAD);
+        }
+        return outcome === STORED;
+    });
 }
 
 // The configuration the server holds, or undefined when it cannot be asked.
@@ -459,6 +503,11 @@ const unreadable = (error) => error?.mark
     ? `Nothing was saved: the Yaml cannot be read at line ${error.mark.line + 1}, column ${error.mark.column + 1} (${error.reason}).`
     : `Nothing was saved: the Yaml cannot be read (${error?.message ?? error}).`;
 
+// The server says where a document it refuses goes wrong, counted in the document the page
+// wrote from the configuration, which nobody sees: even the Yaml tab's text is read and written
+// again before it is sent. The sentence after it is what can be acted on.
+const withoutPlace = (message) => String(message ?? "").replace(/^Line \d+, column \d+: /, "");
+
 const store = (value) => {
     Dashboard.showLoadingMsg();
 
@@ -473,7 +522,7 @@ const store = (value) => {
             const {Error, Message} = await response.json();
 
             if (Error) {
-                Dashboard.alert(Message);
+                Dashboard.alert(withoutPlace(Message));
                 return REFUSED;
             } 
 
@@ -530,7 +579,6 @@ export const setDomValues = (dom, obj) => {
     })
 }
 
-// prevent duplicate listeners from being created everytime a tab is switched
 // Once per element and event: a tab wires its controls each time it is shown. Kept per id, a
 // view Jellyfin drew again, new elements under the same ids, was never wired, and its controls
 // did nothing until the page was reloaded.
@@ -627,7 +675,6 @@ if (!window.Streamyfin?.shared) {
             getConfig,
             setConfig,
             StreamyfinTabs,
-            registeredEventListeners,
             keyedEventListener,
             getElValue,
             setDomValues,

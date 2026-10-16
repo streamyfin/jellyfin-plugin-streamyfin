@@ -304,6 +304,22 @@ describe("createForm", () => {
         expect(form.dirtyCount()).toBe(1);
     });
 
+    // The page marks the form saved when the server answers, and a change made while the
+    // save was on its way was marked saved with it, though nothing had sent it.
+    test("markSaved with what was sent keeps a change made since unsaved", () => {
+        const { mount, form } = mountForm();
+
+        stateButton(mount, "forwardSkipTime", "locked").click();
+        const sent = form.saving();
+        change(control(mount, "enableDoubleTapToSeek"), (el) => { el.checked = true; });
+        form.markSaved(sent);
+
+        expect(form.dirtyCount()).toBe(1);
+        form.reset();
+        expect(pressed(mount, "forwardSkipTime")).toBe("locked");
+        expect(pressed(mount, "enableDoubleTapToSeek")).toBe("free");
+    });
+
     test("search keeps the rows whose title, key or description match, and hides empty cards", () => {
         const { mount, form } = mountForm();
 

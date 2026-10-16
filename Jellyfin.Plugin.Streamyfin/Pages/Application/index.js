@@ -238,12 +238,14 @@ export default function (view) {
         listen("sf-save", "click", async () => {
             if (form.invalid().length) return;
 
-            // The edit reaches the configuration the tabs share once the server stored it, so a
-            // refusal leaves nothing to put back.
-            const settings = form.toSettings();
+            // The form as it is sent: the tab may be shown again, or changed, before the answer
+            // comes, and only what was sent is saved.
+            const shown = form;
+            const sent = shown.saving();
+            const settings = shown.toSettings();
 
-            if (await shared.saveConfigWith((current) => ({ ...current, settings }), ["settings"])) {
-                form.markSaved();
+            if (await shared.saveConfigWith((current) => ({ ...current, settings }))) {
+                shown.markSaved(sent);
             }
         });
     };
