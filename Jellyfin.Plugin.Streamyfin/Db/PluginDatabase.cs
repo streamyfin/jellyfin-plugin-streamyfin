@@ -53,7 +53,7 @@ public class PluginDatabase
         ImportLegacyDeviceTokens(context);
         KeepOneRowPerToken(context);
         RemoveTokensPastTheBound(context);
-        RepairGroupNames(context);
+        RepairGroupNames();
     }
 
     /// <summary>
@@ -1378,11 +1378,18 @@ public class PluginDatabase
     /// nearest name taken, told apart from another that came out the same by a number, and the
     /// log names each change. Not fatal: the next start tries again.
     /// </summary>
-    /// <param name="context">An open context on the database.</param>
-    private void RepairGroupNames(StreamyfinDbContext context)
+    /// <remarks>
+    /// The groups are loaded and saved rather than updated in place: the build for 10.11 runs on
+    /// Jellyfin 12 as well, whose EF Core changed <c>ExecuteUpdate</c>, and on 12 the plugin did
+    /// not start; BannedSymbols.txt refuses it now. The save goes through a context of its own,
+    /// since an earlier step that failed leaves what it added on the shared one, which a save
+    /// there would store.
+    /// </remarks>
+    private void RepairGroupNames()
     {
         try
         {
+            using var context = CreateContext();
             var stored = context.SettingsGroups.AsNoTracking().Select(g => new { g.Id, g.Name }).ToList();
             bool Taken(string name) => GroupName.Problem(name) is null && GroupName.Tidy(name) == name;
 
@@ -1398,12 +1405,13 @@ public class PluginDatabase
                     name = GroupName.WithSuffix(GroupName.Repaired(group.Name), $" ({n})");
                 }
 
-                context.SettingsGroups.Where(g => g.Id == group.Id).ExecuteUpdate(set => set.SetProperty(g => g.Name, name));
+                context.SettingsGroups.Single(g => g.Id == group.Id).Name = name;
                 renamed.Add($"{group.Id} to \"{name}\"");
             }
 
             if (renamed.Count > 0)
             {
+                context.SaveChanges();
                 _logger?.LogWarning(
                     "Renamed {Count} group(s) whose name the dashboard no longer takes: {Renamed}",
                     renamed.Count,
