@@ -28,6 +28,7 @@ const {
     saveYamlConfig,
     setConfig,
     setOnConfigUpdatedListener,
+    setYamlConfig,
     tools,
     warmKept,
     wireDisplaySwitches,
@@ -378,8 +379,8 @@ describe("answers kept between tabs", () => {
 
     test("a save forgets them, so nothing read before it is shown after", async () => {
         window.Dashboard = { showLoadingMsg() {}, hideLoadingMsg() {}, processPluginConfigurationUpdateResult() {}, alert() {} };
-        tools.jsYaml = { dump: (value) => JSON.stringify(value) };
-        setConfig({ settings: {} });
+        tools.jsYaml = { dump: (value) => JSON.stringify(value), load: (text) => JSON.parse(text) };
+        setYamlConfig(JSON.stringify({ settings: {} }));
         await readKept("streamyfin/v1/settings/form");
 
         expect(await saveConfig()).toBe(true);
@@ -453,7 +454,7 @@ describe("saving the Yaml tab", () => {
             alert: (message) => alerts.push(message),
         };
         serve();
-        setConfig(structuredClone(FULL));
+        setYamlConfig(jsYaml.dump(FULL));
         setOnConfigUpdatedListener("yaml-save-test", (config, raw, cause) => heard.push({ config, raw, cause }));
     });
 
@@ -522,58 +523,20 @@ describe("saving the Yaml tab", () => {
         expect(heard).toEqual([{ config: held, raw: undefined, cause: REREAD }]);
     });
 
-    // The document replaced the whole configuration once stored, and a change another tab
-    // keeps there until it saves, made while the document was on its way, went with it (#262).
-    test("a stored document keeps what another tab changed while it was on its way", async () => {
+    // Kept as the tab held it, the part left the server's, and the next save of that tab posted it
+    // over what the document stored. A change made while a document is on its way is lost to it,
+    // as on develop; #284 tracks saves that would say so.
+    test("a stored document is what the tabs hold of every part but the settings changed meanwhile", async () => {
         let release;
         server.gate = new Promise((resolve) => { release = resolve; });
 
-        const saving = saveYamlConfig("settings:\n  forwardSkipTime:\n    value: 10\n");
-        setConfig({ ...getConfig(), other: { homePage: "Home" } });
+        const saving = saveYamlConfig(jsYaml.dump({ ...FULL, notifications: { itemAdded: { enabled: false } } }));
+        setConfig({ ...getConfig(), notifications: { itemAdded: { enabled: true }, sessionStarted: { enabled: true } } });
         server.gate = null;
         release();
 
         expect(await saving).toBe(true);
-        expect(server.held).toBe(1);
-        expect(getConfig()).toEqual({ settings: { forwardSkipTime: { value: 10 } }, other: { homePage: "Home" } });
-    });
-
-    // A tab that writes its part again with the same values, its keys in another order, did not
-    // change it, and the document's version of that part is what the server stored.
-    test("a part another tab only wrote again, its keys in another order, takes what the server stored", async () => {
-        setConfig({ ...getConfig(), other: { homePage: "Application", lastTab: "Other" } });
-        let release;
-        server.gate = new Promise((resolve) => { release = resolve; });
-
-        const saving = saveYamlConfig("other:\n  homePage: Home\n  lastTab: Other\n");
-        setConfig({ ...getConfig(), other: { lastTab: "Other", homePage: "Application" } });
-        server.gate = null;
-        release();
-
-        expect(await saving).toBe(true);
-        expect(getConfig().other).toEqual({ homePage: "Home", lastTab: "Other" });
-    });
-
-    test("a document read back after a failed request keeps what another tab changed meanwhile", async () => {
-        server.lost = true;
-        let release;
-        server.gate = new Promise((resolve) => { release = resolve; });
-        const logged = spyOn(console, "error").mockImplementation(() => {});
-
-        let saved;
-        try {
-            const saving = saveYamlConfig("settings:\n  forwardSkipTime:\n    value: 10\n");
-            setConfig({ ...getConfig(), other: { homePage: "Home" } });
-            server.gate = null;
-            release();
-            saved = await saving;
-        } finally {
-            logged.mockRestore();
-        }
-
-        expect(saved).toBe(false);
-        expect(getConfig()).toEqual({ settings: { forwardSkipTime: { value: 10 } }, other: { homePage: "Home" } });
-        expect(heard.at(-1)).toEqual({ config: getConfig(), raw: undefined, cause: REREAD });
+        expect(getConfig().notifications).toEqual({ itemAdded: { enabled: false } });
     });
 
     test("a request that fails before the server stored anything leaves the configuration as it was", async () => {
@@ -730,7 +693,7 @@ describe("saving a tab's edit to the settings", () => {
             alert: (message) => alerts.push(message),
         };
         serve();
-        setConfig(structuredClone(FULL));
+        setYamlConfig(jsYaml.dump(FULL));
         setOnConfigUpdatedListener("edit-save-test", (config, raw, cause) => heard.push({ config: structuredClone(config), raw, cause }));
     });
 
@@ -855,7 +818,7 @@ describe("saving a tab's edit to the settings", () => {
         const second = saveConfigWith(forward(20));
 
         releaseFirst();
-        expect(await quietly(() => first)).toBe(false);
+        expect(await quietly(() => first)).toBe(true);
         expect(getConfig().settings.forwardSkipTime.value).toBe(20);
         releaseSecond();
 
@@ -879,11 +842,14 @@ describe("saving a tab's edit to the settings", () => {
     // A proxy that times out, or a connection dropped on the way back, after the server stored
     // the edit: the tabs held the configuration from before, and the next save from any tab
     // undid the edit without a word (#262).
-    test("a request that fails after the server stored the edit keeps it, as the server holds it", async () => {
+    // Read back holding the edit, the save counts as stored: the tab marks it saved, where it
+    // stayed to save while the server and the other tabs held it, and Discard then showed the
+    // old values without putting them back.
+    test("a request that fails after the server stored the edit keeps it, and counts as stored", async () => {
         server.lost = true;
         setConfig({ ...getConfig(), notifications: ANOTHER_TAB });
 
-        expect(await quietly(() => saveConfigWith(forward(10)))).toBe(false);
+        expect(await quietly(() => saveConfigWith(forward(10)))).toBe(true);
 
         expect(getConfig()).toEqual({
             ...FULL,
@@ -904,14 +870,104 @@ describe("saving a tab's edit to the settings", () => {
         expect(getConfig()).toEqual({ ...FULL, notifications: ANOTHER_TAB });
     });
 
-    test("a server that cannot be read after a failed request leaves the edit as written", async () => {
+    // Left as written, an edit that may never have been stored rode along with the next save of
+    // another tab, after the tab had discarded it.
+    test("a server that cannot be read after a failed request puts back what it was known to hold", async () => {
         server.keep = () => server.holds;
         server.lost = true;
         server.unread = true;
 
         expect(await quietly(() => saveConfigWith(forward(10)))).toBe(false);
 
-        expect(getConfig().settings.forwardSkipTime.value).toBe(10);
+        expect(getConfig().settings.forwardSkipTime.value).toBe(30);
+    });
+
+    // Each refusal put back the settings as they were when it was sent, which held the other's
+    // edit, still unanswered: the refused value stayed in what every tab saves.
+    for (const [order, first, second] of [["the first", 0, 1], ["the second", 1, 0]]) {
+        test(`two refused saves of one setting put back what the server holds, ${order} answered first`, async () => {
+            server.answers = [{ Error: true, Message: "No." }, { Error: true, Message: "No." }];
+            const releases = [];
+            const saves = [];
+            for (const value of [100, 200]) {
+                releases.push(hold());
+                saves.push(saveConfigWith(forward(value)));
+            }
+
+            releases[first]();
+            expect(await saves[first]).toBe(false);
+            releases[second]();
+            expect(await saves[second]).toBe(false);
+
+            expect(getConfig().settings.forwardSkipTime.value).toBe(30);
+        });
+    }
+
+    // The second save carried the first one's edit, still unanswered, and the server stored it
+    // with its own: the first one's refusal then put back a value the server no longer holds.
+    for (const [order, first, second] of [["refusal", 0, 1], ["stored save", 1, 0]]) {
+        test(`a refused edit another stored save carried stays as the server holds it, the ${order} answered first`, async () => {
+            server.answers = [{ Error: true, Message: "No." }, { Error: false }];
+            const releases = [];
+            const saves = [];
+            releases.push(hold());
+            saves.push(saveConfigWith(forward(10)));
+            releases.push(hold());
+            saves.push(saveConfigWith((current) => ({ ...current, settings: { ...current.settings, enableDoubleTapToSeek: { locked: false, value: false } } })));
+
+            releases[first]();
+            await saves[first];
+            releases[second]();
+            await saves[second];
+
+            const held = jsYaml.load(server.holds).settings;
+            expect(held.forwardSkipTime.value).toBe(10);
+            expect(getConfig().settings).toEqual(held);
+        });
+    }
+
+    // The Yaml tab's document, sent first, was stored while an Application save sent after it was
+    // on its way, and that save was then refused: what the tabs held left the server's.
+    test("a document stored while an edit is on its way, the edit then refused, leaves what the server holds", async () => {
+        server.answers = [{ Error: false }, { Error: true, Message: "No." }];
+        const releaseDocument = hold();
+        const document = saveYamlConfig(jsYaml.dump({ ...FULL, settings: { ...FULL.settings, enableDoubleTapToSeek: { locked: false, value: false } } }));
+        const releaseEdit = hold();
+        const edit = saveConfigWith(forward(100));
+
+        releaseDocument();
+        expect(await document).toBe(true);
+        releaseEdit();
+        expect(await edit).toBe(false);
+
+        expect(getConfig().settings).toEqual(jsYaml.load(server.holds).settings);
+    });
+
+    test("an edit refused while a document sent after it is on its way, then stored, leaves what the server holds", async () => {
+        server.answers = [{ Error: true, Message: "No." }, { Error: false }];
+        const releaseEdit = hold();
+        const edit = saveConfigWith(forward(100));
+        const releaseDocument = hold();
+        const document = saveYamlConfig(jsYaml.dump({ ...FULL, settings: { ...FULL.settings, enableDoubleTapToSeek: { locked: false, value: false } } }));
+
+        releaseEdit();
+        expect(await edit).toBe(false);
+        releaseDocument();
+        expect(await document).toBe(true);
+
+        expect(getConfig().settings).toEqual(jsYaml.load(server.holds).settings);
+    });
+
+    // The Notifications and Other tabs make the configuration from nothing on their first change
+    // when it could not be read, and their save posted a document holding only their part.
+    test("a configuration a tab made from nothing, none read from the server, is not sent", async () => {
+        setConfig(undefined);
+        setConfig({ other: { homePage: "Home" } });
+
+        expect(await saveConfig()).toBe(false);
+
+        expect(posted).toEqual([]);
+        expect(alerts).toEqual(["Nothing was saved: the configuration could not be read from the server. Reload the page to try again."]);
     });
 
     // The Home tab draws without the configuration, from an empty layout, and its save posted

@@ -74,3 +74,41 @@ describe("a configuration without the Other section", () => {
         expect(view.querySelector("#home-page").value).toBe("");
     });
 });
+
+// The tab makes the configuration from nothing on its first change when the dashboard could not
+// read it, and its Save posted a document holding only the start page, which the server stored
+// over every other setting.
+describe("saving with no configuration read", () => {
+    test("sends nothing, and says why", async () => {
+        const posted = [];
+        const alerts = [];
+        const served = { ajax: window.ApiClient.ajax, Dashboard: window.Dashboard };
+        window.ApiClient.ajax = async ({ type = "GET", data }) => {
+            if (type === "POST") posted.push(data);
+            return { json: async () => ({ Error: false }) };
+        };
+        window.Dashboard = {
+            showLoadingMsg() {},
+            hideLoadingMsg() {},
+            processPluginConfigurationUpdateResult() {},
+            alert: (message) => alerts.push(message),
+        };
+
+        try {
+            shared.setConfig(undefined);
+            const view = await open();
+            const select = view.querySelector("#home-page");
+            select.value = "Home";
+            select.dispatchEvent(new Event("change"));
+            view.querySelector("#save-other-btn").click();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        } finally {
+            window.ApiClient.ajax = served.ajax;
+            window.Dashboard = served.Dashboard;
+        }
+
+        expect(posted).toEqual([]);
+        expect(alerts).toEqual(["Nothing was saved: the configuration could not be read from the server. Reload the page to try again."]);
+    });
+});
+

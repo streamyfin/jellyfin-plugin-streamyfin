@@ -40,6 +40,8 @@ const ajax = async ({ type = "GET", url, data }) => {
         saved.push(sent);
         const answer = await answerSave();
         if (!answer.Error) stored = jsYaml.load(sent);
+        // A proxy that gives up once the server stored it: the answer never reaches the page.
+        if (answer.lost) throw new Error("504 Gateway Timeout");
         return { json: async () => answer };
     }
     if (path.endsWith("streamyfin/config/default")) return { json: async () => ({ Value: jsYaml.dump(DEFAULTS) }) };
@@ -98,7 +100,8 @@ const open = async () => {
         processPluginConfigurationUpdateResult() {},
         alert: (message) => alerts.push(message),
     };
-    shared.setConfig(structuredClone(stored));
+    // As the dashboard does, from what the server sent.
+    shared.setYamlConfig(jsYaml.dump(stored));
     const host = document.createElement("div");
     host.innerHTML = await Bun.file(`${PAGES}Application/index.html`).text();
     document.body.appendChild(host);
@@ -162,6 +165,25 @@ describe("saving the Application tab", () => {
 
         expect(jsYaml.load(saved[1]).settings.forwardSkipTime.locked).toBe(true);
         expect(stored.settings.forwardSkipTime.locked).toBe(true);
+    });
+
+    // A proxy that answers 504 once the server stored the save: the tab kept the change to save,
+    // and Discard then showed the old value while the server held the new one.
+    test("a save whose answer is lost, which the server stored, is marked saved", async () => {
+        const view = await open();
+        answerSave = async () => ({ Error: false, lost: true });
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            state(view, "forwardSkipTime", "locked");
+            view.querySelector("#sf-save").click();
+            await settle();
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(stored.settings.forwardSkipTime.locked).toBe(true);
+        expect(summary(view)).toBe("Nothing to save");
     });
 
     // The answer marked the form the page held then, and a tab left meanwhile holds none: the

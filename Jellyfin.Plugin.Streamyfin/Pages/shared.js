@@ -315,6 +315,9 @@ export const probeIntegration = (kind, address) =>
 let schema = undefined;
 let config = undefined;
 let defaultConfig = undefined;
+// The settings the server is known to hold: read with the configuration, then what each answer
+// shows it stored. None until the configuration is read.
+let onServer = undefined;
 // endregion private variables
 
 // region listeners
@@ -357,11 +360,14 @@ export const getDefaultConfig = () => defaultConfig;
 export const getConfig = () => config;
 export const setConfig = (value) => {
     config = value
+    // Set to nothing, nothing is known of what the server holds either.
+    if (value == null) onServer = undefined;
     triggerConfigListeners(config)
 }
 
 export const setYamlConfig = (value) => {
     config = tools.jsYaml.load(value)
+    onServer = structuredClone(config?.settings ?? {});
     triggerConfigListeners(config, value)
 }
 // endregion getters/setters
@@ -386,22 +392,18 @@ const STORED = "stored";
 const REFUSED = "refused";
 const FAILED = "failed";
 
-// A tab drawn without the configuration starts from nothing, and a save from it would post a
-// document holding only that tab's edit, which the server stores over everything else.
+// Nothing is saved until the configuration was read from the server: a tab drawn without it
+// starts from nothing, the Notifications and Other tabs make one from their first change, and a
+// save from either would post a document holding only that tab's part, which the server stores
+// over everything else.
 const notRead = () => {
     Dashboard.alert("Nothing was saved: the configuration could not be read from the server. Reload the page to try again.");
     return false;
 };
 
-// Resolves to true once the server has stored the configuration, and to false when it
-// refused it or the request failed, so a page can keep its unsaved state on a refusal.
-export const saveConfig = () => config
-    ? store(config).then((outcome) => outcome === STORED)
-    : Promise.resolve(notRead());
-
 // Whether two values hold the same, whatever order their keys are in: the forms write a setting
 // as { value, locked }, and the server's document reads back as { locked, value }.
-const same = (a, b) => {
+export const same = (a, b) => {
     const sorted = (_, value) => value && typeof value === "object" && !Array.isArray(value)
         ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
         : value;
@@ -422,61 +424,75 @@ const withKeys = (settings, keys, from) => {
     return out;
 };
 
-// The settings each save on its way changed, and still answers for. A newer edit of a setting,
-// or a Yaml document stored meanwhile, takes it from them: their refusal or lost answer then
-// leaves it as the newer one wrote it, the same value included, rather than putting back what
-// was there before them.
-const onTheirWay = new Set();
-const supersede = (keys) => {
-    for (const save of onTheirWay) {
-        for (const key of keys ?? [...save.changed]) save.changed.delete(key);
-    }
+// The server now holds `next`. A setting the tabs still hold as the server had it becomes what
+// it holds now; one changed in a tab and not answered yet stays, for its own answer to settle.
+const rebase = (next) => {
+    const now = config?.settings ?? {};
+    const keys = [...new Set([...Object.keys(now), ...Object.keys(onServer ?? {}), ...Object.keys(next)])];
+    config = { ...config, settings: withKeys(now, keys.filter((key) => same(now[key], onServer?.[key])), next) };
+    onServer = structuredClone(next);
+};
+
+// A save answered without storing, or whose answer was lost: each setting it changed becomes what
+// the server holds of it, `held`, unless an edit made since changed it again.
+const settle = (posted, changed, held) => {
+    const now = config?.settings ?? {};
+    config = { ...config, settings: withKeys(now, changed.filter((key) => same(now[key], posted[key])), held) };
+};
+
+// The Notifications and Other tabs' save, which keep their edits in the shared configuration as
+// they are made. Resolves to true once the server has stored the configuration, and to false
+// when it refused it or the request failed, so a page can keep its unsaved state on a refusal.
+export const saveConfig = () => {
+    if (!config || onServer === undefined) return Promise.resolve(notRead());
+
+    const posted = structuredClone(config.settings ?? {});
+    return store(config).then((outcome) => {
+        if (outcome === STORED) rebase(posted);
+        return outcome === STORED;
+    });
 };
 
 // The Application and Home tabs' save. The edit goes into the configuration every tab shares
 // at once, as the other tabs keep theirs there until they save, so a tab shown meanwhile shows
-// it. A refusal puts back the settings the edit changed, and only those: the whole
-// configuration from before took along what another tab changed meanwhile (#262). A request
-// whose answer never came may have been stored, so those settings become what the server
-// holds, and stay as written when it cannot be asked either.
+// it. A refusal puts back what the server holds of the settings the edit changed, and only
+// those: the whole configuration from before took along what another tab changed meanwhile
+// (#262). A request whose answer never came may have been stored, so the server is read: the
+// settings take what it holds, and the save counts as stored when that is the edit. When it
+// cannot be read either, they go back to what it was last known to hold.
 export const saveConfigWith = (edit) => {
-    if (!config) return Promise.resolve(notRead());
+    if (!config || onServer === undefined) return Promise.resolve(notRead());
 
-    const before = structuredClone(config.settings ?? {});
+    const before = config.settings ?? {};
     setConfig(edit(config));
-    const save = { changed: new Set(changedKeys(before, config.settings ?? {})) };
-    supersede(save.changed);
-    onTheirWay.add(save);
+    const posted = structuredClone(config.settings ?? {});
+    const changed = changedKeys(before, posted);
 
     return store(config).then(async (outcome) => {
-        if (outcome === STORED) return true;
+        if (outcome === STORED) {
+            rebase(posted);
+            return true;
+        }
 
         if (outcome === REFUSED) {
-            setConfig({ ...config, settings: withKeys(config.settings ?? {}, save.changed, before) });
+            settle(posted, changed, onServer);
+            triggerConfigListeners(config);
             return false;
         }
 
         const held = await readStored();
-        if (held !== undefined) {
-            config = { ...config, settings: withKeys(config.settings ?? {}, save.changed, held?.settings ?? {}) };
-            triggerConfigListeners(config, undefined, REREAD);
+        if (held === undefined) {
+            settle(posted, changed, onServer);
+            triggerConfigListeners(config);
+            return false;
         }
-        return false;
-    }).finally(() => onTheirWay.delete(save));
-};
 
-// What the tabs share once the Yaml tab's document was answered: what the server holds, but for
-// a part another tab changed while the document was on its way, which keeps that change until
-// the tab saves it. Replaced whole, the change went with the stored document (#262).
-const settledOn = (held, sentFrom) => {
-    const now = config ?? {};
-    const out = {};
-    for (const part of new Set([...Object.keys(held ?? {}), ...Object.keys(now)])) {
-        const changedMeanwhile = !same(now[part], sentFrom?.[part]);
-        const value = changedMeanwhile ? now[part] : held?.[part];
-        if (value !== undefined) out[part] = value;
-    }
-    return out;
+        const settings = held?.settings ?? {};
+        settle(posted, changed, settings);
+        rebase(settings);
+        triggerConfigListeners(config, undefined, REREAD);
+        return changed.every((key) => same(settings[key], posted[key]));
+    });
 };
 
 // The Yaml tab's save. The configuration every tab saves changes only once the server has
@@ -492,7 +508,6 @@ export const saveYamlConfig = (text) => {
         return Promise.resolve(false);
     }
 
-    const sentFrom = structuredClone(config ?? {});
     return store(value).then(async (outcome) => {
         if (outcome === REFUSED) return false;
 
@@ -500,14 +515,20 @@ export const saveYamlConfig = (text) => {
         // and the old spellings into the keys, so the document as written is not what the
         // other tabs should save next. And a request that failed on its way back may have
         // been stored, which the next save from another tab would otherwise undo.
-        // The document wrote every setting, and may have been stored when its answer was lost.
-        supersede();
         const held = await readStored();
+        const now = outcome === STORED ? held ?? value : held;
+        if (now === undefined) return false;
+
+        // The settings an edit still on its way changed stay for its answer to settle; the
+        // rest of what the tabs share is what the server holds.
+        rebase(now?.settings ?? {});
+        const { settings } = config;
+        config = { ...(now ?? {}) };
+        if (now?.settings !== undefined || Object.keys(settings).length) config.settings = settings;
+
         if (outcome === STORED) {
-            config = settledOn(held ?? value, sentFrom);
             triggerConfigListeners(config, text);
-        } else if (held !== undefined) {
-            config = settledOn(held, sentFrom);
+        } else {
             triggerConfigListeners(config, undefined, REREAD);
         }
         return outcome === STORED;

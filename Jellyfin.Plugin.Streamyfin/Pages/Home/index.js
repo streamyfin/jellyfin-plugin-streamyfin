@@ -489,8 +489,9 @@ export default function (view, params) {
                     if (!saved) return;
 
                     baseline = saving;
-                    // A change made while the save was on its way is still to save.
-                    if (JSON.stringify(sections) === JSON.stringify(saving)) settled();
+                    // A change made while the save was on its way is still to save. Compared by
+                    // what it holds: a field emptied and filled again puts its key last.
+                    if (shared.same(sections, saving)) settled();
                     else touched();
                 });
             });

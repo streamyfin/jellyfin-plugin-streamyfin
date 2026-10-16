@@ -350,11 +350,14 @@ describe("saving the layout", () => {
     };
     const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+    // As the dashboard does, from what the server sent.
+    const read = (config) => shared.setYamlConfig(jsYaml.dump(config));
+    const layout = (sections) => ({ settings: { home: { locked: false, value: { sections } } } });
+
     test("a refused layout comes out of what the tabs share, and another tab's change made meanwhile stays", async () => {
-        const view = await open(structuredClone(three), {
-            settings: { home: { locked: false, value: { sections: structuredClone(three) } } },
-            other: { homePage: "Application" },
-        });
+        const config = { ...layout(structuredClone(three)), other: { homePage: "Application" } };
+        read(config);
+        const view = await open(structuredClone(three), structuredClone(config));
         const release = held({ Error: true, Message: "No." });
 
         view.querySelector("#sf-add").click();
@@ -373,6 +376,7 @@ describe("saving the layout", () => {
     });
 
     test("a layout stored while it was changed again keeps the later change to save", async () => {
+        read(layout(structuredClone(three)));
         const view = await open(structuredClone(three));
         const release = held({ Error: false });
 
@@ -385,6 +389,27 @@ describe("saving the layout", () => {
         expect(jsYaml.load(saved[0]).settings.home.value.sections).toHaveLength(4);
         expect(cards(view)).toHaveLength(5);
         expect(view.querySelector("#sf-save").disabled).toBe(false);
+    });
+
+    // A field emptied and filled again while the save was on its way puts its key last: the same
+    // layout, which the tab compared as text and called not saved.
+    test("a layout changed and changed back while it is on its way reads as saved", async () => {
+        const sections = [{ title: "A", kind: "latest", orientation: "horizontal", latest: { limit: 5, parentId: "f137a2dd21bbc1b99aa5c0f6bf02a805" } }];
+        read(layout(structuredClone(sections)));
+        const view = await open(structuredClone(sections));
+        const release = held({ Error: false });
+        const limit = cards(view)[0].querySelector("input.sf-number");
+
+        view.querySelector("#sf-add").click();
+        view.querySelector("#sf-save").click();
+        for (const value of ["", "5"]) {
+            limit.value = value;
+            limit.dispatchEvent(new Event("change"));
+        }
+        release();
+        await settle();
+
+        expect(view.querySelector("#sf-save").disabled).toBe(true);
     });
 
     // Drawn without the configuration, the tab starts from an empty layout, and its save posted
