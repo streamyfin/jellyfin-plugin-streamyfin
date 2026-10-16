@@ -57,6 +57,15 @@ and Other tabs stored their part alone over every other setting. A tab's control
 visit to Jellyfin's home screen, and the settings form reads a refusal's sentence as JSON (#282,
 closes #262 with #121, whose Yaml half is #284, and part of #242).
 
+The build for 10.11 starts on Jellyfin 12 again. The repair of the group names called
+`ExecuteUpdate`, whose argument EF Core 10 changed, and a server moved from 10.11 to 12 keeps
+that build until the next release: on 12 Jellyfin marked the plugin Malfunctioned. The repair
+loads and saves the groups, the build refuses `ExecuteUpdate` in both of its shapes, and each
+start-up step runs on a context of its own, behind a try around its call, so a step the host
+cannot compile costs a warning rather than the plugin (#288, found by the scenario that moves a
+server from 10.11.11 to 12.2 on the final release candidate; #247 holds the check in CI that
+would catch the next one).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
