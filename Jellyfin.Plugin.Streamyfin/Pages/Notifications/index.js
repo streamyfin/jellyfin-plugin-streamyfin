@@ -426,7 +426,7 @@ export default function (view, params) {
 
             shared.keyedEventListener(saveBtn, "click", (event) => {
                 event.preventDefault();
-                shared.saveConfig().then((stored) => {
+                shared.saveConfig(["notifications"]).then((stored) => {
                     if (stored) saved();
                 });
             });

@@ -164,11 +164,13 @@ const formatBound = (n) => String(n);
 
 // A refusal the route itself wrote says which of several things to do. Anything else,
 // including losing the session, is the one sentence.
+// ASP.NET writes the sentence as JSON, so it is read as JSON, as the Targeting page reads its
+// own: taking the quotes off left an escaped quote or letter on screen as its escape (#242).
 export const askingFailed = (error) => {
-    const said = typeof error?.body === "string" ? error.body.trim() : "";
-    const plain = said.startsWith("\"") && said.endsWith("\"") ? said.slice(1, -1) : said;
+    let said = null;
+    try { said = JSON.parse(typeof error?.body === "string" ? error.body : ""); } catch { /* not a sentence */ }
 
-    return plain && plain.length < 200 && !plain.startsWith("{") ? plain : "The server could not be asked.";
+    return typeof said === "string" && said.trim() ? said.trim() : "The server could not be asked.";
 };
 
 // What a probe answer reads as. The server says what it found and why; this only

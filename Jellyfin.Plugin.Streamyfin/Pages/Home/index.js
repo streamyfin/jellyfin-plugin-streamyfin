@@ -471,29 +471,24 @@ export default function (view, params) {
             });
 
             saveBtn.addEventListener("click", () => {
-                const config = shared.getConfig() ?? {};
-                const settings = config.settings ?? {};
-                const before = structuredClone(config);
+                const saving = structuredClone(sections);
 
-                shared.setConfig({
-                    ...config,
-                    settings: {
-                        ...settings,
-                        home: { ...(settings.home ?? { locked: false }), value: { sections } },
-                    },
-                });
-
-                shared.saveConfig().then((saved) => {
+                // A refusal changes nothing, and what is on screen is still what the
+                // administrator wrote, so it stays for them to correct.
+                shared.saveConfigWith((config) => {
+                    const settings = config.settings ?? {};
+                    return {
+                        ...config,
+                        settings: {
+                            ...settings,
+                            home: { ...(settings.home ?? { locked: false }), value: { sections: saving } },
+                        },
+                    };
+                }, ["settings"]).then((saved) => {
                     if (saved) {
-                        baseline = structuredClone(sections);
+                        baseline = saving;
                         settled();
-                        return;
                     }
-
-                    // The server refused it. What is on screen is still what the
-                    // administrator wrote, so it stays, but the shared configuration goes
-                    // back to what is stored: it is what every other tab reads.
-                    shared.setConfig(before);
                 });
             });
 

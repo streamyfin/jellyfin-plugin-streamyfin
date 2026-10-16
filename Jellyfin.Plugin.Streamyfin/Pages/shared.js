@@ -318,7 +318,6 @@ let defaultConfig = undefined;
 // endregion private variables
 
 // region listeners
-const registeredEventListeners = {}
 const onSchemaLoadedListeners = {};
 const onConfigLoadedListeners = {};
 
@@ -387,11 +386,48 @@ const STORED = "stored";
 const REFUSED = "refused";
 const FAILED = "failed";
 
-// Resolves to true once the server has stored the configuration, and to false when it
+// One save at a time, each from the configuration the one before it left. Two at once each
+// sent what they read before either answered, so the second could send an edit the first
+// was refused for, or undo one it had stored.
+let saving = Promise.resolve();
+const inTurn = (task) => {
+    const turn = saving.then(task);
+    saving = turn.catch(() => undefined);
+    return turn;
+};
+
+// Sends `value`, and changes the configuration every tab shares only once the server has
+// answered (#262). The parts of it the save speaks for, `owns`, become what the server holds,
+// read back since it folds Seerr's block and the old spellings into the keys; the others stay
+// what the tabs hold, so an unsaved change in another tab is not lost to this one's answer.
+// Without `owns` the save speaks for everything. A refusal changes nothing, and a request
+// whose answer never came reads what the server holds, since it may have stored it.
+const commit = (value, owns, raw) => store(value).then(async (outcome) => {
+    if (outcome === REFUSED) return false;
+
+    const held = await readStored();
+    if (outcome !== STORED && held === undefined) return false;
+
+    const from = held ?? value;
+    const now = config ?? {};
+    config = owns ? { ...now, ...Object.fromEntries(owns.map((part) => [part, from?.[part]])) } : from;
+    if (outcome === STORED) {
+        triggerConfigListeners(config, raw);
+    } else {
+        triggerConfigListeners(config, undefined, REREAD);
+    }
+    return outcome === STORED;
+});
+
+// Saves the configuration every tab shares as it is, the way the Notifications and Other tabs
+// keep their edits in it. Resolves to true once the server has stored it, and to false when it
 // refused it or the request failed, so a page can keep its unsaved state on a refusal.
-export const saveConfig = () => config
-    ? store(config).then((outcome) => outcome === STORED)
-    : Promise.resolve(false);
+export const saveConfig = (owns) => inTurn(() => config ? commit(config, owns) : false);
+
+// Saves a tab's edit on top of the configuration as it is when its turn comes, without putting
+// the edit in first: the Application and Home tabs did, and put the previous configuration
+// back on a refusal, taking along what another tab had changed meanwhile.
+export const saveConfigWith = (edit, owns) => inTurn(() => commit(edit(config ?? {}), owns));
 
 // The Yaml tab's save. The configuration every tab saves changes only once the server has
 // stored the document: set before, a refused document stayed there, and the next save from
@@ -406,23 +442,8 @@ export const saveYamlConfig = (text) => {
         return Promise.resolve(false);
     }
 
-    return store(value).then(async (outcome) => {
-        if (outcome === REFUSED) return false;
-
-        // What the server holds is read back rather than assumed. It folds Seerr's block
-        // and the old spellings into the keys, so the document as written is not what the
-        // other tabs should save next. And a request that failed on its way back may have
-        // been stored, which the next save from another tab would otherwise undo.
-        const held = await readStored();
-        if (outcome === STORED) {
-            config = held ?? value;
-            triggerConfigListeners(config, text);
-        } else if (held !== undefined) {
-            config = held;
-            triggerConfigListeners(config, undefined, REREAD);
-        }
-        return outcome === STORED;
-    });
+    // The document is the whole configuration, so it speaks for every part of it.
+    return inTurn(() => commit(value, undefined, text));
 }
 
 // The configuration the server holds, or undefined when it cannot be asked.
@@ -510,16 +531,17 @@ export const setDomValues = (dom, obj) => {
 }
 
 // prevent duplicate listeners from being created everytime a tab is switched
-export const keyedEventListener = (el, type, listener) =>{
-    const elId = el.getAttribute("id");
-    
-    if (!registeredEventListeners[elId]) {
-        registeredEventListeners[elId] = {
-            type,
-            listener,
-        };
-        el.addEventListener(type, listener);
-    }
+// Once per element and event: a tab wires its controls each time it is shown. Kept per id, a
+// view Jellyfin drew again, new elements under the same ids, was never wired, and its controls
+// did nothing until the page was reloaded.
+const registeredEventListeners = new WeakMap();
+export const keyedEventListener = (el, type, listener) => {
+    const types = registeredEventListeners.get(el) ?? new Set();
+    if (types.has(type)) return;
+
+    types.add(type);
+    registeredEventListeners.set(el, types);
+    el.addEventListener(type, listener);
 }
 // endregion helpers
 
@@ -597,6 +619,7 @@ if (!window.Streamyfin?.shared) {
             setYamlConfig,
             setPage,
             saveConfig,
+            saveConfigWith,
             saveYamlConfig,
             REREAD,
             getJsonSchema,

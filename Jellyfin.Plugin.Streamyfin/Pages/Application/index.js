@@ -238,16 +238,12 @@ export default function (view) {
         listen("sf-save", "click", async () => {
             if (form.invalid().length) return;
 
-            // saveConfig posts what shared holds, so the edit goes in first. A refusal puts
-            // the previous config back: otherwise the next showing of the tab would seed
-            // the form from an edit the server never accepted, and read it as saved.
-            const previous = shared.getConfig() ?? {};
-            shared.setConfig({ ...previous, settings: form.toSettings() });
+            // The edit reaches the configuration the tabs share once the server stored it, so a
+            // refusal leaves nothing to put back.
+            const settings = form.toSettings();
 
-            if (await shared.saveConfig()) {
+            if (await shared.saveConfigWith((current) => ({ ...current, settings }), ["settings"])) {
                 form.markSaved();
-            } else {
-                shared.setConfig(previous);
             }
         });
     };

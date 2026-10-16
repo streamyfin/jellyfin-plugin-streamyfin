@@ -122,7 +122,7 @@ export default function (view, params) {
 
             shared.keyedEventListener(saveBtn(), 'click', function (e) {
                 e.preventDefault();
-                shared.saveConfig().then((stored) => {
+                shared.saveConfig(["other"]).then((stored) => {
                     if (stored) saved();
                 })
             })

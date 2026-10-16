@@ -19,10 +19,12 @@ const {
     forgetKept,
     getConfig,
     KEPT_DESCRIPTIONS,
+    keyedEventListener,
     paintDisplaySwitches,
     readKept,
     REREAD,
     saveConfig,
+    saveConfigWith,
     saveYamlConfig,
     setConfig,
     setOnConfigUpdatedListener,
@@ -383,7 +385,13 @@ describe("answers kept between tabs", () => {
         expect(await saveConfig()).toBe(true);
         await readKept("streamyfin/v1/settings/form");
 
-        expect(asked).toEqual(["GET streamyfin/v1/settings/form", "POST streamyfin/config/yaml", "GET streamyfin/v1/settings/form"]);
+        // The save reads back what the server stored, which is what every tab saves next.
+        expect(asked).toEqual([
+            "GET streamyfin/v1/settings/form",
+            "POST streamyfin/config/yaml",
+            "GET streamyfin/config/yaml",
+            "GET streamyfin/v1/settings/form",
+        ]);
     });
 
     test("warming asks once for what each other tab starts with", async () => {
@@ -600,5 +608,176 @@ describe("saving the Yaml tab", () => {
             "Nothing was saved: the Yaml cannot be read (expected a single document in the stream, but found more).",
         ]);
         expect(getConfig()).toEqual(FULL);
+    });
+});
+
+describe("saving one tab's part of the configuration", () => {
+    const FULL = {
+        settings: { forwardSkipTime: { locked: false, value: 30 } },
+        notifications: { itemAdded: { enabled: true } },
+        other: { homePage: "Application" },
+    };
+    let posted;
+    let alerts;
+    let heard;
+    let server;
+    let before;
+
+    // A server that stores what it is sent unless it refuses it, and answers a read with what
+    // it holds. `answers` are its answers in turn, `keep` what it makes of a document it stores,
+    // `lost` throws the answer away after storing, and `gate`, while set, holds every answer
+    // back until the test releases it.
+    const serve = () => {
+        server = { holds: jsYaml.dump(FULL), keep: (yaml) => yaml, lost: false, answers: [], gate: null };
+        window.ApiClient.ajax = async ({ type = "GET", data }) => {
+            if (type === "GET") return { json: async () => ({ Value: server.holds }) };
+            const sent = JSON.parse(data).Value;
+            posted.push(sent);
+            const answer = server.answers.shift() ?? { Error: false };
+            if (server.gate) await server.gate;
+            if (!answer.Error) server.holds = server.keep(sent);
+            if (server.lost) throw new Error("the answer was lost");
+            return { json: async () => answer };
+        };
+    };
+    const hold = () => {
+        let release;
+        server.gate = new Promise((resolve) => { release = resolve; });
+        return () => { server.gate = null; release(); };
+    };
+    const forward = (value) => (current) => ({ ...current, settings: { ...current.settings, forwardSkipTime: { locked: false, value } } });
+
+    beforeEach(() => {
+        before = { jsYaml: tools.jsYaml, config: getConfig() };
+        posted = [];
+        alerts = [];
+        heard = [];
+        tools.jsYaml = jsYaml;
+        window.Dashboard = {
+            showLoadingMsg() {},
+            hideLoadingMsg() {},
+            processPluginConfigurationUpdateResult() {},
+            alert: (message) => alerts.push(message),
+        };
+        serve();
+        setConfig(structuredClone(FULL));
+        setOnConfigUpdatedListener("part-save-test", (config, raw, cause) => heard.push({ config, raw, cause }));
+    });
+
+    afterEach(() => {
+        setOnConfigUpdatedListener("part-save-test", undefined);
+        delete window.ApiClient.ajax;
+        tools.jsYaml = before.jsYaml;
+        setConfig(before.config);
+    });
+
+    // The Application tab put its edit into the configuration every tab shares, and on a
+    // refusal put back a copy of what was there before: a change the Notifications tab made
+    // meanwhile went with it (#262).
+    test("a refused edit changes nothing, and what another tab changed meanwhile stays", async () => {
+        server.answers = [{ Error: true, Message: "Forward skip time accepts 0 to 60, and this is 100." }];
+        const release = hold();
+
+        const saving = saveConfigWith(forward(100), ["settings"]);
+        setConfig({ ...getConfig(), notifications: { itemAdded: { enabled: false } } });
+        release();
+
+        expect(await saving).toBe(false);
+        expect(getConfig()).toEqual({ ...FULL, notifications: { itemAdded: { enabled: false } } });
+        expect(alerts).toEqual(["Forward skip time accepts 0 to 60, and this is 100."]);
+    });
+
+    // A refused edit stayed in the configuration until its answer came, so a save made
+    // meanwhile from another tab sent it again.
+    test("a save made while a refused one is on its way does not send the refused edit", async () => {
+        server.answers = [{ Error: true, Message: "No." }, { Error: false }];
+        const release = hold();
+
+        const first = saveConfigWith(forward(100), ["settings"]);
+        const second = saveConfigWith((current) => ({ ...current, other: { homePage: "Home" } }), ["other"]);
+        release();
+
+        expect(await first).toBe(false);
+        expect(await second).toBe(true);
+        expect(jsYaml.load(posted[1])).toEqual({ ...FULL, other: { homePage: "Home" } });
+        expect(getConfig()).toEqual({ ...FULL, other: { homePage: "Home" } });
+    });
+
+    // The server folds Seerr's block into its key. Kept as sent, the tabs would save the block
+    // again beside a key that changed later, which the server refuses as two values.
+    test("a stored edit leaves its part as the server holds it", async () => {
+        server.keep = (yaml) => jsYaml.dump({ ...jsYaml.load(yaml), settings: { jellyseerrServerUrl: { value: "http://seerr.example" } } });
+
+        const saved = await saveConfigWith(
+            (current) => ({ ...current, settings: { seerr: { serverUrl: { value: "http://seerr.example" } } } }),
+            ["settings"]);
+
+        expect(saved).toBe(true);
+        expect(getConfig().settings).toEqual({ jellyseerrServerUrl: { value: "http://seerr.example" } });
+    });
+
+    // A proxy that times out, or a connection dropped on the way back, after the server stored
+    // the edit: the tab put the configuration from before back, and the next save from any
+    // tab undid the edit without a word (#262).
+    test("a request that fails after the server stored the edit takes what the server holds", async () => {
+        server.lost = true;
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(await saveConfigWith(forward(10), ["settings"])).toBe(false);
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(getConfig()).toEqual({ ...FULL, settings: { forwardSkipTime: { locked: false, value: 10 } } });
+        expect(heard.at(-1)).toEqual({ config: getConfig(), raw: undefined, cause: REREAD });
+    });
+
+    test("a request that fails before the server stored anything keeps another tab's unsaved part", async () => {
+        server.keep = () => server.holds;
+        server.lost = true;
+        setConfig({ ...getConfig(), notifications: { itemAdded: { enabled: false } } });
+        const logged = spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(await saveConfigWith(forward(10), ["settings"])).toBe(false);
+        } finally {
+            logged.mockRestore();
+        }
+
+        expect(getConfig()).toEqual({ ...FULL, notifications: { itemAdded: { enabled: false } } });
+    });
+});
+
+// A tab wires its controls every time it is shown, through keyedEventListener, which kept one
+// listener per id for as long as the dashboard ran. Jellyfin keeps a view while the person moves
+// between the plugin's tabs, but draws it again, as new elements under the same ids, after they
+// leave for its home screen: the Other tab's select, Save, backup and restore, and the
+// Notifications tab's Save, then did nothing until the page was reloaded.
+describe("listening to a tab's controls", () => {
+    test("a view drawn again listens with its own elements, under the same ids", () => {
+        const heard = [];
+        const first = document.createElement("button");
+        const second = document.createElement("button");
+        first.id = "sf-keyed-drawn-again";
+        second.id = "sf-keyed-drawn-again";
+
+        keyedEventListener(first, "click", () => heard.push("first"));
+        keyedEventListener(second, "click", () => heard.push("second"));
+        second.click();
+
+        expect(heard).toEqual(["second"]);
+    });
+
+    test("a tab shown twice still listens once", () => {
+        const heard = [];
+        const button = document.createElement("button");
+        button.id = "sf-keyed-shown-twice";
+
+        keyedEventListener(button, "click", () => heard.push("once"));
+        keyedEventListener(button, "click", () => heard.push("twice"));
+        button.click();
+
+        expect(heard).toEqual(["once"]);
     });
 });

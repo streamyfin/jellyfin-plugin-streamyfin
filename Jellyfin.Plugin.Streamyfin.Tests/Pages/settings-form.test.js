@@ -1481,6 +1481,14 @@ describe("testing an address", () => {
         expect(askingFailed(new Error("network"))).toBe("The server could not be asked.");
     });
 
+    // ASP.NET writes the sentence as JSON, escaping what it likes. Taking the quotes off only
+    // left the escapes on screen, where the Targeting page reads the same sentence whole (#242).
+    test("a refusal with characters the server escaped reads as written", () => {
+        expect(askingFailed({ body: '"It\\u2019s \\"Marlin\\" at\\u00a0that address."' }))
+            .toBe("It\u2019s \"Marlin\" at\u00a0that address.");
+        expect(askingFailed({ body: "Bad Gateway" })).toBe("The server could not be asked.");
+    });
+
     test("a version is shown whole, since the server is what bounds it", () => {
         expect(probeText({ outcome: "Ok", version: "develop-68c5bc8c7d85" }))
             .toBe("Answered, running develop-68c5bc8c7d85.");
