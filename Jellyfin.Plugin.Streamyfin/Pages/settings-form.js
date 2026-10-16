@@ -164,11 +164,13 @@ const formatBound = (n) => String(n);
 
 // A refusal the route itself wrote says which of several things to do. Anything else,
 // including losing the session, is the one sentence.
+// ASP.NET writes the sentence as JSON, so it is read as JSON, as the Targeting page reads its
+// own: taking the quotes off left an escaped quote or letter on screen as its escape (#242).
 export const askingFailed = (error) => {
-    const said = typeof error?.body === "string" ? error.body.trim() : "";
-    const plain = said.startsWith("\"") && said.endsWith("\"") ? said.slice(1, -1) : said;
+    let said = null;
+    try { said = JSON.parse(typeof error?.body === "string" ? error.body : ""); } catch { /* not a sentence */ }
 
-    return plain && plain.length < 200 && !plain.startsWith("{") ? plain : "The server could not be asked.";
+    return typeof said === "string" && said.trim() ? said.trim() : "The server could not be asked.";
 };
 
 // What a probe answer reads as. The server says what it found and why; this only
@@ -1099,8 +1101,11 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
             if (overridesOnly) applyVisibility();
             notify();
         },
-        markSaved: () => {
-            for (const row of rows.values()) row.baseline = snapshot(row);
+        // The rows as they are, taken when a save is sent: its answer comes later, and the
+        // rows changed meanwhile were not sent.
+        saving: () => new Map([...rows].map(([key, row]) => [key, snapshot(row)])),
+        markSaved: (sent) => {
+            for (const [key, row] of rows) row.baseline = sent?.get(key) ?? snapshot(row);
             notify();
         },
         search: (text) => {

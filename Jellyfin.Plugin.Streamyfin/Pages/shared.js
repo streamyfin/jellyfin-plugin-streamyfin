@@ -315,10 +315,12 @@ export const probeIntegration = (kind, address) =>
 let schema = undefined;
 let config = undefined;
 let defaultConfig = undefined;
+// The settings the server is known to hold: read with the configuration, then what each answer
+// shows it stored. None until the configuration is read.
+let onServer = undefined;
 // endregion private variables
 
 // region listeners
-const registeredEventListeners = {}
 const onSchemaLoadedListeners = {};
 const onConfigLoadedListeners = {};
 
@@ -358,11 +360,14 @@ export const getDefaultConfig = () => defaultConfig;
 export const getConfig = () => config;
 export const setConfig = (value) => {
     config = value
+    // Set to nothing, nothing is known of what the server holds either.
+    if (value == null) onServer = undefined;
     triggerConfigListeners(config)
 }
 
 export const setYamlConfig = (value) => {
     config = tools.jsYaml.load(value)
+    onServer = structuredClone(config?.settings ?? {});
     triggerConfigListeners(config, value)
 }
 // endregion getters/setters
@@ -387,11 +392,128 @@ const STORED = "stored";
 const REFUSED = "refused";
 const FAILED = "failed";
 
-// Resolves to true once the server has stored the configuration, and to false when it
-// refused it or the request failed, so a page can keep its unsaved state on a refusal.
-export const saveConfig = () => config
-    ? store(config).then((outcome) => outcome === STORED)
-    : Promise.resolve(false);
+// Nothing is saved until the configuration was read from the server: a tab drawn without it
+// starts from nothing, the Notifications and Other tabs make one from their first change, and a
+// save from either would post a document holding only that tab's part, which the server stores
+// over everything else.
+const notRead = () => {
+    Dashboard.alert("Nothing was saved: the configuration could not be read from the server. Reload the page to try again.");
+    return false;
+};
+
+// A value as the server writes it back, for comparing two of them: its keys in order, since the
+// forms write a setting as { value, locked } and the server's document reads back as
+// { locked, value }; without a member that is null or empty, an empty string, list or map, since
+// YamlDotNet writes the document without them (SerializationHelper's OmitNull and
+// OmitEmptyCollections) and the forms write an empty setting as one; and a number or a boolean as
+// its text, since a string such as 5.1 or true is written without quotes and read back as one.
+// Members first, so a map left empty by its members is left out too.
+const empty = (value) => value === undefined || value === null || value === ""
+    || (typeof value === "object" && Object.keys(value).length === 0);
+const written = (value) => {
+    if (Array.isArray(value)) return value.map(written);
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (!value || typeof value !== "object") return value;
+
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+        const member = written(value[key]);
+        if (!empty(member)) out[key] = member;
+    }
+    return out;
+};
+
+// Whether two values hold the same as the server writes them back.
+export const same = (a, b) => {
+    const text = (value) => {
+        const shown = written(value);
+        return JSON.stringify(empty(shown) && !Array.isArray(shown) ? null : shown);
+    };
+    return text(a) === text(b);
+};
+
+// The keys whose value differs between two `settings`, a key on one side only included.
+const changedKeys = (before, after) => [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => !same(before[key], after[key]));
+
+// `settings` with each of `keys` as `from` has it, and without the ones `from` has none of.
+const withKeys = (settings, keys, from) => {
+    const out = { ...settings };
+    for (const key of keys) {
+        if (from[key] === undefined) delete out[key];
+        else out[key] = structuredClone(from[key]);
+    }
+    return out;
+};
+
+// The server now holds `next`. A setting the tabs still hold as the server had it becomes what
+// it holds now; one changed in a tab and not answered yet stays, for its own answer to settle.
+const rebase = (next) => {
+    const now = config?.settings ?? {};
+    const keys = [...new Set([...Object.keys(now), ...Object.keys(onServer ?? {}), ...Object.keys(next)])];
+    config = { ...config, settings: withKeys(now, keys.filter((key) => same(now[key], onServer?.[key])), next) };
+    onServer = structuredClone(next);
+};
+
+// A save answered without storing, or whose answer was lost: each setting it changed becomes what
+// the server holds of it, `held`, unless an edit made since changed it again.
+const settle = (posted, changed, held) => {
+    const now = config?.settings ?? {};
+    config = { ...config, settings: withKeys(now, changed.filter((key) => same(now[key], posted[key])), held) };
+};
+
+// The Notifications and Other tabs' save, which keep their edits in the shared configuration as
+// they are made. Resolves to true once the server has stored the configuration, and to false
+// when it refused it or the request failed, so a page can keep its unsaved state on a refusal.
+export const saveConfig = () => {
+    if (!config || onServer === undefined) return Promise.resolve(notRead());
+
+    const posted = structuredClone(config.settings ?? {});
+    return store(config).then((outcome) => {
+        if (outcome === STORED) rebase(posted);
+        return outcome === STORED;
+    });
+};
+
+// The Application and Home tabs' save. The edit goes into the configuration every tab shares
+// at once, as the other tabs keep theirs there until they save, so a tab shown meanwhile shows
+// it. A refusal puts back what the server holds of the settings the edit changed, and only
+// those: the whole configuration from before took along what another tab changed meanwhile
+// (#262). A request whose answer never came may have been stored, so the server is read: the
+// settings take what it holds, and the save counts as stored when that is the edit. When it
+// cannot be read either, they go back to what it was last known to hold.
+export const saveConfigWith = (edit) => {
+    if (!config || onServer === undefined) return Promise.resolve(notRead());
+
+    const before = config.settings ?? {};
+    setConfig(edit(config));
+    const posted = structuredClone(config.settings ?? {});
+    const changed = changedKeys(before, posted);
+
+    return store(config).then(async (outcome) => {
+        if (outcome === STORED) {
+            rebase(posted);
+            return true;
+        }
+
+        const held = outcome === REFUSED ? undefined : await readStored();
+        if (held === undefined) {
+            settle(posted, changed, onServer);
+            triggerConfigListeners(config);
+            return false;
+        }
+
+        // Told as any change is: the Yaml editor keeps its own text after a read back of its own
+        // document, and one it drew while hidden kept an edit the server never stored.
+        const settings = held?.settings ?? {};
+        settle(posted, changed, settings);
+        rebase(settings);
+        triggerConfigListeners(config);
+        // A save that changed nothing of its own, sent again while the same edit was on its way,
+        // cannot tell from the read back whether that edit was stored.
+        return changed.length > 0 && changed.every((key) => same(settings[key], posted[key]));
+    });
+};
 
 // The Yaml tab's save. The configuration every tab saves changes only once the server has
 // stored the document: set before, a refused document stayed there, and the next save from
@@ -414,11 +536,19 @@ export const saveYamlConfig = (text) => {
         // other tabs should save next. And a request that failed on its way back may have
         // been stored, which the next save from another tab would otherwise undo.
         const held = await readStored();
+        const now = outcome === STORED ? held ?? value : held;
+        if (now === undefined) return false;
+
+        // The settings an edit still on its way changed stay for its answer to settle; the
+        // rest of what the tabs share is what the server holds.
+        rebase(now?.settings ?? {});
+        const { settings } = config;
+        config = { ...(now ?? {}) };
+        if (now?.settings !== undefined || Object.keys(settings).length) config.settings = settings;
+
         if (outcome === STORED) {
-            config = held ?? value;
             triggerConfigListeners(config, text);
-        } else if (held !== undefined) {
-            config = held;
+        } else {
             triggerConfigListeners(config, undefined, REREAD);
         }
         return outcome === STORED;
@@ -438,6 +568,11 @@ const unreadable = (error) => error?.mark
     ? `Nothing was saved: the Yaml cannot be read at line ${error.mark.line + 1}, column ${error.mark.column + 1} (${error.reason}).`
     : `Nothing was saved: the Yaml cannot be read (${error?.message ?? error}).`;
 
+// The server says where a document it refuses goes wrong, counted in the document the page
+// wrote from the configuration, which nobody sees: even the Yaml tab's text is read and written
+// again before it is sent. The sentence after it is what can be acted on.
+const withoutPlace = (message) => String(message ?? "").replace(/^Line \d+, column \d+: /, "");
+
 const store = (value) => {
     Dashboard.showLoadingMsg();
 
@@ -452,7 +587,7 @@ const store = (value) => {
             const {Error, Message} = await response.json();
 
             if (Error) {
-                Dashboard.alert(Message);
+                Dashboard.alert(withoutPlace(Message));
                 return REFUSED;
             } 
 
@@ -509,17 +644,17 @@ export const setDomValues = (dom, obj) => {
     })
 }
 
-// prevent duplicate listeners from being created everytime a tab is switched
-export const keyedEventListener = (el, type, listener) =>{
-    const elId = el.getAttribute("id");
-    
-    if (!registeredEventListeners[elId]) {
-        registeredEventListeners[elId] = {
-            type,
-            listener,
-        };
-        el.addEventListener(type, listener);
-    }
+// Once per element and event: a tab wires its controls each time it is shown. Kept per id, a
+// view Jellyfin drew again, new elements under the same ids, was never wired, and its controls
+// did nothing until the page was reloaded.
+const registeredEventListeners = new WeakMap();
+export const keyedEventListener = (el, type, listener) => {
+    const types = registeredEventListeners.get(el) ?? new Set();
+    if (types.has(type)) return;
+
+    types.add(type);
+    registeredEventListeners.set(el, types);
+    el.addEventListener(type, listener);
 }
 // endregion helpers
 
@@ -597,6 +732,7 @@ if (!window.Streamyfin?.shared) {
             setYamlConfig,
             setPage,
             saveConfig,
+            saveConfigWith,
             saveYamlConfig,
             REREAD,
             getJsonSchema,
@@ -604,7 +740,6 @@ if (!window.Streamyfin?.shared) {
             getConfig,
             setConfig,
             StreamyfinTabs,
-            registeredEventListeners,
             keyedEventListener,
             getElValue,
             setDomValues,

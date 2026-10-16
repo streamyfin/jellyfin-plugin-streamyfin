@@ -9,11 +9,15 @@ const restoreBtn = () => page.querySelector('#restore-btn');
 const restoreFile = () => page.querySelector('#restore-file');
 const said = () => page.querySelector('#backup-said');
 
+// Whether the save is on its way: Save is held until the answer, since a second click sent the
+// same configuration again.
+let onItsWay = false;
+
 // The dock only has one thing to save here, so it says so rather than counting.
 const edited = () => {
     page.querySelector('#sf-dot').hidden = false;
     page.querySelector('#sf-dock-summary').textContent = 'Start page changed';
-    saveBtn().disabled = false;
+    saveBtn().disabled = onItsWay;
 };
 
 const saved = () => {
@@ -122,8 +126,14 @@ export default function (view, params) {
 
             shared.keyedEventListener(saveBtn(), 'click', function (e) {
                 e.preventDefault();
+                // What is sent: a start page chosen while it is on its way is still to save.
+                const sent = homePage().value;
+                onItsWay = true;
+                saveBtn().disabled = true;
                 shared.saveConfig().then((stored) => {
-                    if (stored) saved();
+                    onItsWay = false;
+                    if (stored && homePage().value === sent) saved();
+                    else edited();
                 })
             })
 

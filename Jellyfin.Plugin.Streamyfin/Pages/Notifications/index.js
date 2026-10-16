@@ -297,11 +297,14 @@ export default function (view, params) {
             switchesWired = true;
 
             let edits = 0;
+            // Whether the save is on its way: Save is held until the answer, since a second
+            // click sent the same configuration again.
+            let onItsWay = false;
             const edited = () => {
                 edits += 1;
                 dot.hidden = false;
                 summary.textContent = edits === 1 ? "1 change to save" : `${edits} changes to save`;
-                saveBtn.disabled = false;
+                saveBtn.disabled = onItsWay;
             };
             const saved = () => {
                 edits = 0;
@@ -426,8 +429,14 @@ export default function (view, params) {
 
             shared.keyedEventListener(saveBtn, "click", (event) => {
                 event.preventDefault();
+                // What is sent: a change made while it is on its way is still to save.
+                const sent = structuredClone(shared.getConfig()?.notifications ?? null);
+                onItsWay = true;
+                saveBtn.disabled = true;
                 shared.saveConfig().then((stored) => {
-                    if (stored) saved();
+                    onItsWay = false;
+                    if (stored && shared.same(shared.getConfig()?.notifications, sent)) saved();
+                    else saveBtn.disabled = edits === 0;
                 });
             });
         });

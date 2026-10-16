@@ -104,6 +104,9 @@ export default function (view, params) {
             let baseline = asDrawn();
             let sections = structuredClone(baseline);
             let dirty = false;
+            // Whether the layout's save is on its way: Save is held until the answer, since a
+            // second click sent the same layout again.
+            let onItsWay = false;
 
             const said = () => {
                 const count = sections.length;
@@ -138,7 +141,7 @@ export default function (view, params) {
                 dirty = true;
                 dot.hidden = false;
                 summary.textContent = `${said()}, not saved`;
-                saveBtn.disabled = false;
+                saveBtn.disabled = onItsWay;
                 discardBtn.disabled = false;
             };
 
@@ -471,29 +474,30 @@ export default function (view, params) {
             });
 
             saveBtn.addEventListener("click", () => {
-                const config = shared.getConfig() ?? {};
-                const settings = config.settings ?? {};
-                const before = structuredClone(config);
+                // What is sent, since a change made while it is on its way was not. On a
+                // refusal, what is on screen is still what the administrator wrote, so it
+                // stays for them to correct.
+                const saving = structuredClone(sections);
+                onItsWay = true;
+                saveBtn.disabled = true;
 
-                shared.setConfig({
-                    ...config,
-                    settings: {
-                        ...settings,
-                        home: { ...(settings.home ?? { locked: false }), value: { sections } },
-                    },
-                });
+                shared.saveConfigWith((config) => {
+                    const settings = config.settings ?? {};
+                    return {
+                        ...config,
+                        settings: {
+                            ...settings,
+                            home: { ...(settings.home ?? { locked: false }), value: { sections: saving } },
+                        },
+                    };
+                }).then((saved) => {
+                    onItsWay = false;
+                    if (saved) baseline = saving;
 
-                shared.saveConfig().then((saved) => {
-                    if (saved) {
-                        baseline = structuredClone(sections);
-                        settled();
-                        return;
-                    }
-
-                    // The server refused it. What is on screen is still what the
-                    // administrator wrote, so it stays, but the shared configuration goes
-                    // back to what is stored: it is what every other tab reads.
-                    shared.setConfig(before);
+                    // A change made while the save was on its way is still to save. Compared by
+                    // what it holds: a field emptied and filled again puts its key last.
+                    if (saved && shared.same(sections, saving)) settled();
+                    else touched();
                 });
             });
 

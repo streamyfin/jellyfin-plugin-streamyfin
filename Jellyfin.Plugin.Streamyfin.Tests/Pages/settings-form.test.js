@@ -304,6 +304,22 @@ describe("createForm", () => {
         expect(form.dirtyCount()).toBe(1);
     });
 
+    // The page marks the form saved when the server answers, and a change made while the
+    // save was on its way was marked saved with it, though nothing had sent it.
+    test("markSaved with what was sent keeps a change made since unsaved", () => {
+        const { mount, form } = mountForm();
+
+        stateButton(mount, "forwardSkipTime", "locked").click();
+        const sent = form.saving();
+        change(control(mount, "enableDoubleTapToSeek"), (el) => { el.checked = true; });
+        form.markSaved(sent);
+
+        expect(form.dirtyCount()).toBe(1);
+        form.reset();
+        expect(pressed(mount, "forwardSkipTime")).toBe("locked");
+        expect(pressed(mount, "enableDoubleTapToSeek")).toBe("free");
+    });
+
     test("search keeps the rows whose title, key or description match, and hides empty cards", () => {
         const { mount, form } = mountForm();
 
@@ -1479,6 +1495,14 @@ describe("testing an address", () => {
         expect(askingFailed({ body: '{"title":"One or more validation errors occurred."}' }))
             .toBe("The server could not be asked.");
         expect(askingFailed(new Error("network"))).toBe("The server could not be asked.");
+    });
+
+    // ASP.NET writes the sentence as JSON, escaping what it likes. Taking the quotes off only
+    // left the escapes on screen, where the Targeting page reads the same sentence whole (#242).
+    test("a refusal with characters the server escaped reads as written", () => {
+        expect(askingFailed({ body: '"It\\u2019s \\"Marlin\\" at\\u00a0that address."' }))
+            .toBe("It\u2019s \"Marlin\" at\u00a0that address.");
+        expect(askingFailed({ body: "Bad Gateway" })).toBe("The server could not be asked.");
     });
 
     test("a version is shown whole, since the server is what bounds it", () => {
