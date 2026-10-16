@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -39,9 +36,6 @@ public class RoutesAwaitTests
     [InlineData("M:System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1.ConfiguredTaskAwaiter.GetResult")]
     public void TheBuildRefusesAWaitOnATask(string symbol)
     {
-        var banned = File.ReadAllLines(Path.Combine(SourceTree.Root(), "Jellyfin.Plugin.Streamyfin", "BannedSymbols.txt"))
-            .Select(line => line.Split(';', 2)[0].Trim());
-
-        Assert.Contains(symbol, banned);
+        Assert.Contains(symbol, SourceTree.BannedSymbols());
     }
 }

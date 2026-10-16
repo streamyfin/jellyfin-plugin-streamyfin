@@ -137,8 +137,8 @@ holds the writer to it, from both publishing orders.
 The consequence for a new line: it needs no new file, and it will be preferred on a
 server that can run it for the same reason `jf12` is today.
 
-Two things that are worth checking before assuming a target is only a version
-number, because both bit this plugin on the 10.11 to 12 move:
+Three things that are worth checking before assuming a target is only a version
+number, because each bit this plugin on the 10.11 to 12 move:
 
 - **The EF Core version the host provides.** The plugin references it but the
   server loads it, so a plugin ahead of its host fails to load. Read
@@ -146,3 +146,10 @@ number, because both bit this plugin on the 10.11 to 12 move:
   newest.
 - **A breaking change inside a patch line.** `IUserManager.Users` disappeared in
   10.11.9, which is why no single artifact covers 10.11.0 through 10.11.11.
+- **A library whose shape changed under the build for 10.11.** A server moved to 12
+  keeps that build until the next release (#241), so it runs against 12's EF Core 10.
+  EF Core 10 changed the argument of `ExecuteUpdate`: the repair of the group names
+  was compiled against EF Core 9's, and on 12 the plugin did not start. `BannedSymbols.txt`
+  refuses `ExecuteUpdate` in both builds, and `EfCoreAcrossLinesTests` holds the list to
+  both shapes. A difference of this kind that has to be called lives here, behind a check
+  of what the running host has, as `Dtos.cs` does for `GetBaseItemDtos`.

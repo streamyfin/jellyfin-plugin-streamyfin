@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Jellyfin.Plugin.Streamyfin.Db;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -132,6 +133,62 @@ public class LegacyImportTests : IDisposable
 
         using var context = db.CreateContext();
         Assert.Single(context.ImportMarkers);
+    }
+
+    /// <summary>
+    /// A start-up step that fails before its own try leaves the plugin starting and the steps
+    /// after it running. A step the host cannot compile fails that way, on the call itself:
+    /// the build for 10.11 could not compile the repair of the group names on Jellyfin 12,
+    /// and Jellyfin marked the plugin Malfunctioned.
+    /// </summary>
+    [Fact]
+    public void AStepThatFailsBeforeItsOwnTryLeavesTheOthersRunning()
+    {
+        var first = new PluginDatabase(_directory);
+        using (var context = first.CreateContext())
+        {
+            context.SettingsGroups.Add(new SettingsGroup { Id = Guid.NewGuid(), Name = "Kids ", SettingsJson = "{}" });
+            context.SaveChanges();
+
+            // The import asks this table whether it already ran, before its try.
+            context.Database.ExecuteSqlRaw("DROP TABLE ImportMarkers");
+        }
+
+        var logger = new RecordingLogger<PluginDatabase>();
+        var restarted = new PluginDatabase(_directory, logger);
+
+        Assert.Equal("Kids", Assert.Single(restarted.GetSettingsGroups()).Name);
+        Assert.Contains(logger.Messages, message => message.Contains("import the device tokens", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// An import that fails once it has added its rows leaves them to nobody: the repair of
+    /// the group names, which runs after it, saves its own change and nothing of the import's,
+    /// and the import stays pending for the next start.
+    /// </summary>
+    [Fact]
+    public void AnImportThatFailsLeavesNothingForALaterStepToSave()
+    {
+        var first = new PluginDatabase(_directory);
+        using (var context = first.CreateContext())
+        {
+            context.SettingsGroups.Add(new SettingsGroup { Id = Guid.NewGuid(), Name = "Kids ", SettingsJson = "{}" });
+            context.ImportMarkers.RemoveRange(context.ImportMarkers);
+            context.SaveChanges();
+
+            // The import's save fails after it has added the old file's rows.
+            context.Database.ExecuteSqlRaw(
+                "CREATE TRIGGER refuse_tokens BEFORE INSERT ON DeviceTokens BEGIN SELECT RAISE(ABORT, 'refused by the test'); END");
+        }
+
+        WriteLegacyDatabase([(Guid.NewGuid(), "legacy-token", Guid.NewGuid(), 1L)]);
+
+        var restarted = new PluginDatabase(_directory);
+
+        Assert.Equal("Kids", Assert.Single(restarted.GetSettingsGroups()).Name);
+        Assert.Equal(0, restarted.TotalDevicesCount());
+        using var check = restarted.CreateContext();
+        Assert.Empty(check.ImportMarkers);
     }
 
     /// <inheritdoc/>

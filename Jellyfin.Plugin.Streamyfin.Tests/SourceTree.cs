@@ -27,6 +27,14 @@ internal static class SourceTree
     }
 
     /// <summary>
+    /// The documentation ids <c>BannedSymbols.txt</c> refuses, each line's message left out.
+    /// </summary>
+    public static IReadOnlyList<string> BannedSymbols() =>
+        File.ReadAllLines(Path.Combine(Root(), "Jellyfin.Plugin.Streamyfin", "BannedSymbols.txt"))
+            .Select(line => line.Split(';', 2)[0].Trim())
+            .ToList();
+
+    /// <summary>
     /// Every C# source under <paramref name="folder"/>, build output left out.
     /// </summary>
     /// <param name="folder">A folder under the repository root.</param>
