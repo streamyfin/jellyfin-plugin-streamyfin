@@ -217,14 +217,15 @@ jobs:
           # fails the step instead of passing for no release. Drafts are listed: gh creates a
           # release as one, uploads, then publishes, and an attempt cancelled or killed in
           # between leaves the draft, which only a published release's download URL serves.
-          releases=$(gh release list --json tagName,isDraft --limit 100)
+          releases=$(gh release list --json tagName --limit 100)
           count=$(jq -e --arg t "$tag" 'if type == "array" then map(select(.tagName == $t)) | length else error("gh release list did not answer a list") end' <<<"$releases")
 
           if [ -z "$existing" ]; then
             # Before anything is public. With no tag yet only a draft can carry it, one somebody
-            # prepared, and it is not this build's to fill.
+            # prepared or one an attempt left before its tag was deleted, and it is not this
+            # build's to fill.
             if [ "$count" -gt 0 ]; then
-              echo "::error::A release for $tag exists already, a draft this workflow did not make. Nothing was pushed. Delete it, then start the workflow again." >&2
+              echo "::error::A draft release already carries $tag, while the tag is not on origin. Nothing was pushed. Look at it and delete it, then start the workflow again." >&2
               exit 1
             fi
             git tag "$tag" "$SHA"
@@ -242,7 +243,7 @@ jobs:
               --target "$SHA"
           elif [ "$count" -gt 1 ]; then
             # gh names a release by its tag, and with two it picks one.
-            echo "::error::$count releases carry $tag, drafts included, and this run leaves them all as they are. Delete the ones the workflow did not make, then rerun the failed job." >&2
+            echo "::error::$count releases carry $tag, drafts included, and this run leaves them all as they are. Keep the one this build should finish, delete the others, then rerun the failed job." >&2
             exit 1
           else
             # The one there has to be the workflow's, made with GITHUB_TOKEN, as in release.yml:

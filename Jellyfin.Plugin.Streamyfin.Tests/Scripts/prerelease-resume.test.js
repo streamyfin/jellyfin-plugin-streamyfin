@@ -1,9 +1,10 @@
 // The "Tag and release" step of prerelease.yml, run for real against a throwaway origin. gh
 // creates a release as a draft, uploads, then publishes, so an attempt cancelled or killed in
 // between leaves the draft; the rerun found it with `gh release view`, which a draft answers,
-// uploaded into it and stopped, and the manifest then pointed testers at a download only a
-// published release serves (#250). It also took any draft carrying the tag for its own. git is
-// real; gh is a stand-in that records what it is asked, as in release-resume.test.js.
+// uploaded into it and stopped, and the manifest step then failed its checksum on a download a
+// draft does not serve, every rerun the same way (#250). It also took any draft carrying the tag
+// for its own. git is real; gh is a stand-in that records what it is asked, as in
+// release-resume.test.js.
 
 import { afterAll, describe, expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -34,12 +35,16 @@ const git = (cwd, ...args) => {
 // several, as GitHub allows for drafts. create makes the release published and a prerelease when
 // asked, reading the values of --title, --notes and --target as values; view prints the fields
 // --json asks for and, with several releases on a tag, takes the published one, else the first
-// draft; list includes drafts; edit --draft=false publishes.
+// draft; list includes drafts, fails while $STATE/fail-list exists and answers something else
+// than a list while $STATE/odd-list does; upload refuses a name the release has without
+// --clobber, as gh 2.98 does; edit --draft=false publishes. Each change is written to $STATE/log.
 const GH = `#!/usr/bin/env bash
 set -eu
 verb="$2"
 mkdir -p "$STATE/releases"
 if [ "$verb" = list ]; then
+  [ ! -f "$STATE/fail-list" ] || { echo "HTTP 502: Bad Gateway" >&2; exit 1; }
+  [ ! -f "$STATE/odd-list" ] || { echo '{"message":"Bad credentials"}'; exit 0; }
   printf '['; first=1
   for r in "$STATE"/releases/*; do
     [ -d "$r" ] || continue
@@ -99,8 +104,12 @@ case "$verb" in
     echo "create $tag" >> "$STATE/log" ;;
   upload)
     [ -n "$release" ] || exit 1
+    clobber=0; for f in "$@"; do [ "$f" = --clobber ] && clobber=1; done
     for f in "$@"; do
       case "$f" in -*) continue ;; esac
+      if [ -e "$release/assets/$(basename "$f")" ] && [ $clobber = 0 ]; then
+        echo "asset under the same name already exists: [$(basename "$f")]" >&2; exit 1
+      fi
       cp "$f" "$release/assets/"; echo "upload $(basename "$f") to $(basename "$release")" >> "$STATE/log"
     done ;;
   edit)
@@ -151,9 +160,10 @@ const run = (box) =>
         STATE: box.state,
     });
 
-// What an earlier attempt or a person left: the tag on origin, and a release made by `author`.
+// What an earlier attempt or a person left: the tag on origin, and a release made by `author`,
+// whose assets hold `contents`, by default bytes no build of this commit makes.
 const tagged = (box) => git(box.work, "push", "-q", "origin", `${box.sha}:refs/tags/${TAG}`);
-const leave = (box, { author, draft, assets }) => {
+const leave = (box, { author, draft, prerelease = false, assets, contents = () => "an earlier upload" }) => {
     const root = join(box.state, "releases");
     mkdirSync(root, { recursive: true });
     const last = readdirSync(root).sort().at(-1);
@@ -162,7 +172,8 @@ const leave = (box, { author, draft, assets }) => {
     writeFileSync(join(dir, "tag"), `${TAG}\n`);
     writeFileSync(join(dir, "author"), `${author}\n`);
     if (draft) writeFileSync(join(dir, "draft"), "");
-    for (const asset of assets) writeFileSync(join(dir, "assets", asset), "an earlier upload");
+    if (prerelease) writeFileSync(join(dir, "prerelease"), "");
+    for (const asset of assets) writeFileSync(join(dir, "assets", asset), contents(asset));
 };
 const releases = (box) => {
     const root = join(box.state, "releases");
@@ -170,9 +181,18 @@ const releases = (box) => {
     return readdirSync(root).sort().map((name) => join(root, name)).map((dir) => ({
         author: readFileSync(join(dir, "author"), "utf8").trim(),
         draft: existsSync(join(dir, "draft")),
+        prerelease: existsSync(join(dir, "prerelease")),
         assets: readdirSync(join(dir, "assets")).sort(),
     }));
 };
+// What each asset of the first release holds, and what the step asked gh to change.
+const held = (box) => {
+    const dir = join(box.state, "releases", "001", "assets");
+    return Object.fromEntries(readdirSync(dir).sort().map((name) => [name, readFileSync(join(dir, name), "utf8")]));
+};
+const changes = (box) => (existsSync(join(box.state, "log")) ? readFileSync(join(box.state, "log"), "utf8").trim().split("\n") : []);
+// The bytes this build's zip for an asset holds.
+const built = (asset) => `${asset.includes("jf11") ? "jf11" : "jf12"} build`;
 const tagOnOrigin = (box) => {
     const result = sh(box.root, ["git", "--git-dir", box.origin, "rev-parse", "--verify", "--quiet", `refs/tags/${TAG}^{commit}`]);
     return result.code === 0 ? result.output.trim() : null;
@@ -185,19 +205,56 @@ describe("an unstable build's release", () => {
         expect(run(box).code).toBe(0);
 
         expect(tagOnOrigin(box)).toBe(box.sha);
-        expect(releases(box)).toEqual([{ author: "github-actions[bot]", draft: false, assets: BOTH }]);
+        // A prerelease: published as a full release, the unstable build would become the
+        // repository's latest in place of the stable one.
+        expect(releases(box)).toEqual([{ author: "github-actions[bot]", draft: false, prerelease: true, assets: BOTH }]);
+        expect(changes(box)).toEqual([`create ${TAG}`]);
     });
 
+    // gh uploads one zip after the other: the one it finished is this build's, and only the other
+    // is sent before the draft is published.
     test("the draft an attempt killed between gh's uploads left is finished and published", () => {
         const box = sandbox();
         tagged(box);
-        leave(box, { author: "github-actions[bot]", draft: true, assets: [BOTH[0]] });
+        leave(box, { author: "github-actions[bot]", draft: true, prerelease: true, assets: [BOTH[0]], contents: built });
 
         const result = run(box);
 
         expect(result.code).toBe(0);
-        expect(releases(box)).toEqual([{ author: "github-actions[bot]", draft: false, assets: BOTH }]);
+        expect(releases(box)).toEqual([{ author: "github-actions[bot]", draft: false, prerelease: true, assets: BOTH }]);
+        expect(changes(box)).toEqual([`upload ${BOTH[1]} to 001`, `publish ${TAG}`]);
     });
+
+    // "Re-run all jobs" builds the zips again, and a zip is not built byte for byte the same
+    // twice: the release keeps its names, so the assets are compared by their digest and
+    // replaced, which gh does only with --clobber.
+    test("a release holding another build of the commit gets this build's zips", () => {
+        const box = sandbox();
+        tagged(box);
+        leave(box, { author: "github-actions[bot]", draft: false, prerelease: true, assets: BOTH });
+
+        const result = run(box);
+
+        expect(result.code).toBe(0);
+        expect(changes(box)).toEqual([`upload ${BOTH[0]} to 001`, `upload ${BOTH[1]} to 001`]);
+        expect(held(box)).toEqual({ [BOTH[0]]: "jf11 build", [BOTH[1]]: "jf12 build" });
+    });
+
+    // Read as no release, a list gh failed to give left the tag pushed and a second release
+    // created beside the workflow's own draft.
+    for (const [reason, file] of [["gh cannot give", "fail-list"], ["that is not a list", "odd-list"]]) {
+        test(`a release list ${reason} stops the build before anything is pushed`, () => {
+            const box = sandbox();
+            writeFileSync(join(box.state, file), "");
+
+            const result = run(box);
+
+            expect(result.code).not.toBe(0);
+            expect(tagOnOrigin(box)).toBeNull();
+            expect(releases(box)).toEqual([]);
+            expect(changes(box)).toEqual([]);
+        });
+    }
 
     test("a draft somebody made for the tag is left as it is", () => {
         const box = sandbox();
@@ -208,7 +265,7 @@ describe("an unstable build's release", () => {
 
         expect(result.code).not.toBe(0);
         expect(result.output).toContain("was made by a-maintainer, not by this workflow");
-        expect(releases(box)).toEqual([{ author: "a-maintainer", draft: true, assets: [] }]);
+        expect(releases(box)).toEqual([{ author: "a-maintainer", draft: true, prerelease: false, assets: [] }]);
     });
 
     test("two releases on the tag stop the rerun before either is touched", () => {
@@ -236,6 +293,6 @@ describe("an unstable build's release", () => {
         expect(result.code).not.toBe(0);
         expect(result.output).toContain("Nothing was pushed");
         expect(tagOnOrigin(box)).toBeNull();
-        expect(releases(box)).toEqual([{ author: "a-maintainer", draft: true, assets: [] }]);
+        expect(releases(box)).toEqual([{ author: "a-maintainer", draft: true, prerelease: false, assets: [] }]);
     });
 });
