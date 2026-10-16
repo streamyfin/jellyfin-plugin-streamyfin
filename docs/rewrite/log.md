@@ -46,6 +46,16 @@ they are; the zip no longer ships Json.NET Schema, which nothing in the plugin c
 holds `packages/` to the libraries the plugin uses, at the versions it references (#286, the
 first point of #250 and of #244).
 
+A refused save on the Application or Home tab puts back only the settings its edit changed, so a
+change another tab made meanwhile stays, and a save the server stored whose answer was lost, a
+proxy giving up on the way back, is read back from the server instead of being undone by the next
+save from any tab. Every answer is settled against what the server is known to hold, each setting
+compared the way the server writes it back. Save waits for the answer, only what was sent is marked
+saved, and nothing is sent while the configuration could not be read, where the Home, Notifications
+and Other tabs stored their part alone over every other setting. A tab's controls answer after a
+visit to Jellyfin's home screen, and the settings form reads a refusal's sentence as JSON (#282,
+closes #262 with #121, whose Yaml half is #284, and part of #242).
+
 ## 2026-10-15, what rehearsing the release found
 
 Before 0.70.0.0 (#121), the release was rehearsed on throwaway servers, 10.11.11 and 12.2 among
