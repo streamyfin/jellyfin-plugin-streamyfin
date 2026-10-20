@@ -94,6 +94,51 @@ public class IdentifiedTitlesTests
     }
 
     /// <summary>
+    /// An id that comes while the message is being held still sends it at once, whichever
+    /// thread gets there first.
+    /// </summary>
+    /// <remarks>
+    /// Found by CodeRabbit on #294. The id was looked at before the lock was taken: an update in
+    /// between found nothing held, and the message then waited the whole ten minutes.
+    /// </remarks>
+    [Fact]
+    public void AnIdThatComesWhileTheMessageIsHeldStillSendsIt()
+    {
+        var late = 0;
+        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+
+        for (var i = 0; i < 3000; i++)
+        {
+            var movie = Movie();
+            var sent = 0;
+            using var start = new Barrier(2);
+            var sending = new Thread(() =>
+            {
+                start.SignalAndWait();
+                held.Send(movie, () => Interlocked.Increment(ref sent));
+            });
+            var updating = new Thread(() =>
+            {
+                start.SignalAndWait();
+                movie.ProviderIds[nameof(MetadataProvider.Tmdb)] = "603";
+                held.Updated(movie);
+            });
+
+            sending.Start();
+            updating.Start();
+            sending.Join();
+            updating.Join();
+
+            if (Volatile.Read(ref sent) != 1)
+            {
+                late++;
+            }
+        }
+
+        Assert.Equal(0, late);
+    }
+
+    /// <summary>
     /// A title that never gets an id is sent once the longest wait is over.
     /// </summary>
     [Fact]

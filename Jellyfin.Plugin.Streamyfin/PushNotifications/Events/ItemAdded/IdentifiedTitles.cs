@@ -45,25 +45,27 @@ internal sealed class IdentifiedTitles : IDisposable
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(send);
 
-        if (HasId(title))
-        {
-            Run(send);
-            return;
-        }
-
-        var held = new Held(send);
+        // Looked at under the lock only: an update that brought the id between a look outside
+        // it and the lock found nothing held, and the message waited the whole longest wait.
         lock (_gate)
         {
-            if (!_held.TryGetValue(title.Id, out var waiting))
+            if (!HasId(title))
             {
-                waiting = [];
-                _held[title.Id] = waiting;
-            }
+                var held = new Held(send);
+                if (!_held.TryGetValue(title.Id, out var waiting))
+                {
+                    waiting = [];
+                    _held[title.Id] = waiting;
+                }
 
-            waiting.Add(held);
-            // Its callback takes the lock too, so it cannot run before the timer is kept.
-            held.Timer = new Timer(_ => Expire(title.Id, held), null, _longest, Timeout.InfiniteTimeSpan);
+                waiting.Add(held);
+                // Its callback takes the lock too, so it cannot run before the timer is kept.
+                held.Timer = new Timer(_ => Expire(title.Id, held), null, _longest, Timeout.InfiniteTimeSpan);
+                return;
+            }
         }
+
+        Run(send);
     }
 
     /// <summary>
