@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { refusal, waitInput } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
+import { eventSaid, refusal, waitInput } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
 
 // ApiClient rejects a failed request with the response itself, so this is what the page
 // is handed when the server refuses a save.
@@ -41,5 +41,39 @@ describe("the wait a level sets", () => {
         const box = waitInput({ key: "signInFailed", title: "Failed sign in", wait: 300 }, { recentEventThreshold: 60 });
 
         expect([box.type, box.min, box.value]).toEqual(["number", "0", "60"]);
+    });
+});
+
+describe("what a level says about an event", () => {
+    const rowWith = ({ state = "", wait, keptWait } = {}) => {
+        const row = document.createElement("div");
+        const select = document.createElement("select");
+        select.className = "sf-event-state";
+        for (const value of ["", "on", "off"]) {
+            const option = document.createElement("option");
+            option.value = value;
+            select.appendChild(option);
+        }
+        select.value = state;
+        row.appendChild(select);
+        if (wait !== undefined) {
+            const box = document.createElement("input");
+            box.className = "sf-wait";
+            box.value = wait;
+            row.appendChild(box);
+        }
+        if (keptWait !== undefined) row.dataset.keptWait = keptWait;
+        return row;
+    };
+
+    // A wait stored on an event that never waits does nothing, but saving something else on
+    // the level must not drop it: the page has no box for it, so it keeps what was stored.
+    test("keeps a wait stored on an event that never waits", () => {
+        expect(eventSaid(rowWith({ state: "on", keptWait: "30" }))).toEqual({ enabled: true, recentEventThreshold: 30 });
+    });
+
+    test("reads the wait box where there is one", () => {
+        expect(eventSaid(rowWith({ wait: "60" }))).toEqual({ recentEventThreshold: 60 });
+        expect(eventSaid(rowWith({ state: "off", wait: "" }))).toEqual({ enabled: false });
     });
 });

@@ -34,6 +34,18 @@ export const waitInput = (one, theirs) => {
     return wait;
 };
 
+// What one event row says for its level: its state, and its wait, from the box where the
+// event waits, or as it was stored where it does not. An empty row says nothing.
+export const eventSaid = (row) => {
+    const enabled = row.querySelector(".sf-event-state").value;
+    const wait = row.querySelector(".sf-wait")?.value ?? row.dataset.keptWait ?? "";
+    const one = {};
+
+    if (enabled) one.enabled = enabled === "on";
+    if (wait !== "") one.recentEventThreshold = Number(wait);
+    return one;
+};
+
 export const refusal = async (error) => {
     const fallback = error?.message ?? "Streamyfin could not save that. The server log has the reason.";
     const response = typeof error?.text === "function" ? error : error?.response;
@@ -122,15 +134,8 @@ export default function (view) {
         const said = {};
 
         for (const row of el("sf-events").children) {
-            const key = row.dataset.event;
-            const enabled = row.querySelector(".sf-event-state").value;
-            // An event that never waits has no box, and says nothing about a wait.
-            const wait = row.querySelector(".sf-wait")?.value ?? "";
-            const one = {};
-
-            if (enabled) one.enabled = enabled === "on";
-            if (wait !== "") one.recentEventThreshold = Number(wait);
-            if (Object.keys(one).length > 0) said[key] = one;
+            const one = eventSaid(row);
+            if (Object.keys(one).length > 0) said[row.dataset.event] = one;
         }
 
         return said;
@@ -164,6 +169,11 @@ export default function (view) {
             const state = document.createElement("select");
             const theirs = said?.[one.key] ?? {};
             const wait = waitInput(one, theirs);
+            // A wait stored on an event that never waits does nothing, and has no box. It is
+            // kept as it was, so saving something else on this level does not drop it.
+            if (!wait && theirs.recentEventThreshold !== undefined && theirs.recentEventThreshold !== null) {
+                row.dataset.keptWait = String(theirs.recentEventThreshold);
+            }
 
             row.className = "sf-event";
             row.dataset.event = one.key;
