@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Model.Entities;
 using Xunit;
@@ -9,14 +11,16 @@ using Xunit;
 namespace Jellyfin.Plugin.Streamyfin.Tests;
 
 /// <summary>
-/// A new item message held until Jellyfin knows the title's TMDB or TVDB id, ten minutes at
+/// A new item message held until Jellyfin knows the title's TMDB or TVDB id, for a while at
 /// most, so it can leave out the people the awaited title message tells (#289).
 /// </summary>
 public class IdentifiedTitlesTests
 {
-    private static Movie Movie(string? tmdb = null)
+    private static readonly TimeSpan TenMinutes = TimeSpan.FromMinutes(10);
+
+    private static Movie Movie(string? tmdb = null, Guid? id = null)
     {
-        var movie = new Movie { Id = Guid.NewGuid() };
+        var movie = new Movie { Id = id ?? Guid.NewGuid() };
         if (tmdb is not null)
         {
             movie.ProviderIds[nameof(MetadataProvider.Tmdb)] = tmdb;
@@ -25,6 +29,12 @@ public class IdentifiedTitlesTests
         return movie;
     }
 
+    private static Func<BaseItem, Task> Counting(Action<BaseItem> sent) => title =>
+    {
+        sent(title);
+        return Task.CompletedTask;
+    };
+
     /// <summary>
     /// A title Jellyfin already knows by its id is sent at once.
     /// </summary>
@@ -32,11 +42,30 @@ public class IdentifiedTitlesTests
     public void ATitleWithItsIdIsSentAtOnce()
     {
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
 
-        held.Send(Movie("603"), () => sent++);
+        held.Send(Movie("603"), TenMinutes, Counting(_ => sent++));
 
         Assert.Equal(1, sent);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
+    /// Without a wait, a title without its id is sent at once too: nobody waits for one of
+    /// its kind, or the administrator turned the wait off.
+    /// </summary>
+    [Fact]
+    public void WithoutAWaitATitleWithoutItsIdIsSentAtOnce()
+    {
+        var sent = 0;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+
+        held.Send(Movie(), TimeSpan.Zero, Counting(_ => sent++));
+
+        Assert.Equal(1, sent);
+        Assert.Equal(0, clock.Armed);
     }
 
     /// <summary>
@@ -46,10 +75,10 @@ public class IdentifiedTitlesTests
     public void ATitleWithoutItsIdWaitsForTheUpdateThatBringsIt()
     {
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
         var movie = Movie();
 
-        held.Send(movie, () => sent++);
+        held.Send(movie, TenMinutes, Counting(_ => sent++));
         held.Updated(movie);
         Assert.Equal(0, sent);
 
@@ -61,15 +90,40 @@ public class IdentifiedTitlesTests
     }
 
     /// <summary>
+    /// The message is about the title the update brought, which carries the id, and not the
+    /// one that was added.
+    /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. Jellyfin keeps a few hundred items per processor in memory
+    /// and reads the others back from its database. A scan adding several shows can push one
+    /// out between its last episode and its refresh, so the show a batch was held with is a
+    /// copy without the id, while the update brings the scan's own, with it. Settled on the
+    /// copy, the arrival found nobody to leave out.
+    /// </remarks>
+    [Fact]
+    public void TheMessageIsAboutTheTitleTheUpdateBrought()
+    {
+        BaseItem? about = null;
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
+        var added = Movie();
+        var updated = Movie("603", added.Id);
+
+        held.Send(added, TenMinutes, Counting(title => about = title));
+        held.Updated(updated);
+
+        Assert.Same(updated, about);
+    }
+
+    /// <summary>
     /// An update of another item sends nothing.
     /// </summary>
     [Fact]
     public void AnUpdateOfAnotherItemSendsNothing()
     {
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
 
-        held.Send(Movie(), () => sent++);
+        held.Send(Movie(), TenMinutes, Counting(_ => sent++));
         held.Updated(Movie("603"));
 
         Assert.Equal(0, sent);
@@ -82,11 +136,11 @@ public class IdentifiedTitlesTests
     public void TwoMessagesHeldForOneTitleBothGo()
     {
         var sent = new List<string>();
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
         var movie = Movie();
 
-        held.Send(movie, () => sent.Add("first"));
-        held.Send(movie, () => sent.Add("second"));
+        held.Send(movie, TenMinutes, Counting(_ => sent.Add("first")));
+        held.Send(movie, TenMinutes, Counting(_ => sent.Add("second")));
         movie.ProviderIds[nameof(MetadataProvider.Tmdb)] = "603";
         held.Updated(movie);
 
@@ -105,7 +159,7 @@ public class IdentifiedTitlesTests
     public void AnIdThatComesWhileTheMessageIsHeldStillSendsIt()
     {
         var late = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), _ => { });
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
 
         for (var i = 0; i < 3000; i++)
         {
@@ -115,7 +169,11 @@ public class IdentifiedTitlesTests
             var sending = new Thread(() =>
             {
                 start.SignalAndWait();
-                held.Send(movie, () => Interlocked.Increment(ref sent));
+                held.Send(movie, TenMinutes, _ =>
+                {
+                    Interlocked.Increment(ref sent);
+                    return Task.CompletedTask;
+                });
             });
             var updating = new Thread(() =>
             {
@@ -139,35 +197,86 @@ public class IdentifiedTitlesTests
     }
 
     /// <summary>
-    /// A title that never gets an id is sent once the longest wait is over.
+    /// A title that never gets an id is sent once its wait is over, and not a moment before.
     /// </summary>
     [Fact]
-    public void ATitleThatNeverGetsAnIdIsSentAfterTheLongestWait()
+    public void ATitleThatNeverGetsAnIdIsSentWhenItsWaitIsOver()
     {
-        using var done = new ManualResetEventSlim();
-        using var held = new IdentifiedTitles(TimeSpan.FromMilliseconds(50), _ => { });
+        var sent = 0;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+        var movie = Movie();
 
-        held.Send(Movie(), done.Set);
+        held.Send(movie, TenMinutes, Counting(_ => sent++));
+        clock.Advance(TenMinutes - TimeSpan.FromSeconds(1));
+        Assert.Equal(0, sent);
 
-        Assert.True(done.Wait(TimeSpan.FromSeconds(5)));
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(1, sent);
     }
 
     /// <summary>
-    /// A title sent when its id came is not sent again when the longest wait ends.
+    /// Sent when its wait is over, a message is about the title as it was added: nothing
+    /// newer came.
+    /// </summary>
+    [Fact]
+    public void AMessageWhoseWaitIsOverIsAboutTheTitleAdded()
+    {
+        BaseItem? about = null;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+        var movie = Movie();
+
+        held.Send(movie, TenMinutes, Counting(title => about = title));
+        clock.Advance(TenMinutes);
+
+        Assert.Same(movie, about);
+    }
+
+    /// <summary>
+    /// Every held message goes off one timer, in the order their waits end, so titles added
+    /// together are sent one after the other rather than all at once.
+    /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. A timer per title fired two thousand callbacks on the
+    /// thread pool the server answers requests with, when a scan added two thousand movies
+    /// without an id in their folder names.
+    /// </remarks>
+    [Fact]
+    public void HeldMessagesGoOffOneTimerInTheOrderTheirWaitsEnd()
+    {
+        var sent = new List<string>();
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+
+        held.Send(Movie(), TenMinutes, Counting(_ => sent.Add("ten minutes")));
+        held.Send(Movie(), TimeSpan.FromMinutes(2), Counting(_ => sent.Add("two minutes")));
+        held.Send(Movie(), TimeSpan.FromMinutes(5), Counting(_ => sent.Add("five minutes")));
+
+        Assert.Equal(1, clock.Armed);
+        clock.Advance(TenMinutes);
+
+        Assert.Equal(["two minutes", "five minutes", "ten minutes"], sent);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
+    /// A title sent when its id came is not sent again when its wait ends.
     /// </summary>
     [Fact]
     public void ATitleSentWhenItsIdCameIsNotSentAgainLater()
     {
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMilliseconds(100), _ => { });
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
         var movie = Movie();
 
-        held.Send(movie, () => Interlocked.Increment(ref sent));
+        held.Send(movie, TenMinutes, Counting(_ => sent++));
         movie.ProviderIds[nameof(MetadataProvider.Tmdb)] = "603";
         held.Updated(movie);
-        Thread.Sleep(400);
+        clock.Advance(TenMinutes * 2);
 
-        Assert.Equal(1, Volatile.Read(ref sent));
+        Assert.Equal(1, sent);
     }
 
     /// <summary>
@@ -178,28 +287,79 @@ public class IdentifiedTitlesTests
     {
         var failures = new List<Exception>();
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMinutes(10), failures.Add);
+        using var held = new IdentifiedTitles(new TestClock(), failures.Add);
 
-        held.Send(Movie("603"), () => throw new InvalidOperationException("the movie is gone"));
-        held.Send(Movie("604"), () => sent++);
+        held.Send(Movie("603"), TenMinutes, _ => throw new InvalidOperationException("the movie is gone"));
+        held.Send(Movie("604"), TenMinutes, _ => Task.FromException(new InvalidOperationException("Expo is down")));
+        held.Send(Movie("605"), TenMinutes, Counting(_ => sent++));
 
-        Assert.Single(failures);
+        Assert.Equal(2, failures.Count);
         Assert.Equal(1, sent);
     }
 
     /// <summary>
-    /// Clearing drops what was held: nothing is sent for it afterwards.
+    /// When the server stops, everything held is sent at once, about the title as it was
+    /// added, and nothing is sent for it afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. What is held lives in memory: dropped as the server stopped,
+    /// a movie added within the wait before a restart was announced to nobody, since Jellyfin
+    /// does not add it again.
+    /// </remarks>
+    [Fact]
+    public async Task StoppingSendsWhatWasHeld()
+    {
+        var sent = new List<BaseItem>();
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+        var first = Movie();
+        var second = Movie();
+
+        held.Send(first, TenMinutes, Counting(sent.Add));
+        held.Send(second, TenMinutes, Counting(sent.Add));
+        await held.SendAll();
+        clock.Advance(TenMinutes * 2);
+        held.Updated(Movie("603", first.Id));
+
+        Assert.Equal([first, second], sent);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
+    /// Stopping waits for the messages it sends, so the server does not go before they do,
+    /// and a send that fails does not keep the server from stopping.
     /// </summary>
     [Fact]
-    public void ClearingDropsWhatWasHeld()
+    public async Task StoppingWaitsForWhatItSends()
+    {
+        var failures = new List<Exception>();
+        var going = new TaskCompletionSource();
+        using var held = new IdentifiedTitles(new TestClock(), failures.Add);
+
+        held.Send(Movie(), TenMinutes, _ => going.Task);
+        held.Send(Movie(), TenMinutes, _ => Task.FromException(new InvalidOperationException("Expo is down")));
+        var stopping = held.SendAll();
+
+        Assert.False(stopping.IsCompleted);
+        going.SetResult();
+        await stopping;
+        Assert.Single(failures);
+    }
+
+    /// <summary>
+    /// Disposed, nothing held is sent any more.
+    /// </summary>
+    [Fact]
+    public void DisposedNothingIsSent()
     {
         var sent = 0;
-        using var held = new IdentifiedTitles(TimeSpan.FromMilliseconds(50), _ => { });
+        var clock = new TestClock();
+        var held = new IdentifiedTitles(clock, _ => { });
 
-        held.Send(Movie(), () => Interlocked.Increment(ref sent));
-        held.Clear();
-        Thread.Sleep(300);
+        held.Send(Movie(), TenMinutes, Counting(_ => sent++));
+        held.Dispose();
+        clock.Advance(TenMinutes * 2);
 
-        Assert.Equal(0, Volatile.Read(ref sent));
+        Assert.Equal(0, sent);
     }
 }

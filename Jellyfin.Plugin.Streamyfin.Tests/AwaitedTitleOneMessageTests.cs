@@ -43,32 +43,53 @@ public class AwaitedTitleOneMessageTests
     }
 
     /// <summary>
-    /// A batch of episodes knows when its first episode came, which says which awaited title
-    /// messages were about this arrival.
+    /// A batch of episodes knows when the run its episodes came in began, which says which
+    /// awaited title messages were about this arrival.
     /// </summary>
     [Fact]
-    public void ABatchKnowsWhenItsFirstEpisodeCame()
+    public void ABatchKnowsWhenItsArrivalBegan()
     {
-        var before = DateTime.UtcNow;
+        var began = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
 
-        var batch = new EpisodeTimer([], _ => { }, _ => { });
+        var batch = new EpisodeTimer([], _ => { }, _ => { }) { Began = began };
 
-        Assert.InRange(batch.Opened, before, DateTime.UtcNow);
+        Assert.Equal(began, batch.Began);
     }
 
     /// <summary>
-    /// A batch counts the awaited title messages sent a little before its first episode, since
-    /// the two notice that episode in no set order, and none from a batch before it, which closed
-    /// a minute before this one opened.
+    /// A new item message counts the awaited title messages sent a little before its arrival
+    /// began, since the two notice the title in no set order, and none from an arrival before
+    /// it, which ended a minute before this one began.
     /// </summary>
     [Fact]
-    public void ABatchCountsTheMessagesOfItsOwnArrival()
+    public void AMessageCountsTheTellingsOfItsOwnArrival()
     {
-        var opened = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+        var began = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
 
-        var since = ItemAddedService.ToldSinceBatch(opened);
+        var since = ItemAddedService.ToldSince(began);
 
-        Assert.True(since < opened);
-        Assert.True(since > opened - TimeSpan.FromMinutes(1));
+        Assert.True(since < began);
+        Assert.True(since > began - TimeSpan.FromMinutes(1));
+    }
+
+    /// <summary>
+    /// The wait for a title's id is what the administrator set, ten minutes when they set
+    /// nothing, and nothing the server could not count: a value the page refuses, stored by
+    /// a build before it did, falls back to the usual wait rather than failing the event.
+    /// </summary>
+    /// <param name="seconds">What the configuration says.</param>
+    /// <param name="expected">The wait, in seconds.</param>
+    [Theory]
+    [InlineData(null, 600)]
+    [InlineData(0d, 0)]
+    [InlineData(90d, 90)]
+    [InlineData(3600d, 3600)]
+    [InlineData(-5d, 600)]
+    [InlineData(double.NaN, 600)]
+    [InlineData(double.PositiveInfinity, 600)]
+    [InlineData(1e12, 3600)]
+    public void TheWaitForATitlesIdIsWhatTheAdministratorSet(double? seconds, double expected)
+    {
+        Assert.Equal(TimeSpan.FromSeconds(expected), ItemAddedService.WaitForTitleId(seconds));
     }
 }

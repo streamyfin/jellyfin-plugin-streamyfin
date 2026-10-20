@@ -81,6 +81,7 @@ public static class NotificationsForm
 
                 var fieldDisplay = field.GetCustomAttribute<DisplayAttribute>();
                 var described = fieldDisplay?.GetDescription();
+                var bounds = field.GetCustomAttribute<BoundsAttribute>();
 
                 fields.Add(new SettingsFormField(
                     Key: $"{eventKey}.{JsonNameOf(field)}",
@@ -99,15 +100,15 @@ public static class NotificationsForm
                     // The three states belong to the settings, and saying so here keeps
                     // the page from drawing a control that would write nowhere.
                     Lockable: false,
-                    Minimum: control == SettingsControl.Number ? 0 : null,
-                    Maximum: null,
+                    Minimum: bounds?.Minimum ?? (control == SettingsControl.Number ? 0 : null),
+                    Maximum: bounds?.Maximum,
                     Step: null,
                     Options: OptionsFor(field, libraries),
                     DependsOn: DependsOn(field, eventKey),
                     Integer: false,
                     Probe: null,
                     Address: false,
-                    ServerDefault: isWait ? wait!.Seconds : null));
+                    ServerDefault: isWait ? wait!.Seconds : ServerDefaultOf(field)));
             }
         }
 
@@ -237,5 +238,9 @@ public static class NotificationsForm
     // A wait matters with the server's switch off too: a group or a user can turn the event
     // on, and the event still waits what the server says.
     private static string? DependsOn(PropertyInfo field, string eventKey) =>
-        JsonNameOf(field) is "enabled" or "recentEventThreshold" ? null : $"{eventKey}.enabled";
+        JsonNameOf(field) is "enabled" or "recentEventThreshold" or "waitForTitleId" ? null : $"{eventKey}.enabled";
+
+    // What an empty field means, so the page can say it rather than leave it to guess.
+    private static double? ServerDefaultOf(PropertyInfo field) =>
+        JsonNameOf(field) == "waitForTitleId" ? ItemAddedNotificationConfiguration.UsualWaitForTitleId : null;
 }

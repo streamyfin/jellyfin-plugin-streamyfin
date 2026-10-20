@@ -36,6 +36,11 @@ public class AwaitedTitlesStorageTests : IDisposable
         AddedAt = addedAt ?? Now
     };
 
+    // Who the new item message about the Matrix, this item, leaves out: copies of it count for
+    // the hour before, the same item since the moment given.
+    private System.Collections.Generic.HashSet<Guid> LeftOutOfMatrix(Guid item, DateTime since) =>
+        _db.WhoWaitedFor(AwaitedTitles.Movie, 603, null, item, since, DateTime.UtcNow.AddHours(-1));
+
     private static AwaitedTitle Thrones(Guid userId) => new()
     {
         UserId = userId,
@@ -234,41 +239,168 @@ public class AwaitedTitlesStorageTests : IDisposable
 
         _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
 
-        Assert.Equal(new[] { _alice, _bob }.Order(), _db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)).Order());
-        Assert.Empty(_db.ToldAbout(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Equal(new[] { _alice, _bob }.Order(), LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(-1)).Order());
+        Assert.Empty(_db.WhoWaitedFor(AwaitedTitles.Movie, 604, null, Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddHours(-1)));
         Assert.Empty(_db.GetAwaitedTitles(_alice));
         Assert.Empty(_db.AllAwaitedTitles());
         Assert.Empty(_db.SettleHeld(_ => AwaitedOutcome.Announce));
     }
 
     /// <summary>
-    /// Who was told before a moment is not told since it.
+    /// Told about a show before a batch of its episodes began, a person gets that batch: it is
+    /// more of the show, which reaches them like anyone.
     /// </summary>
     [Fact]
-    public void ToldAboutCountsOnlyWhatWasToldSince()
+    public void ATellingBeforeTheBatchBeganDoesNotCount()
     {
         _db.AddAwaitedTitle(Thrones(_alice));
         var show = Guid.NewGuid();
         _db.SettleArrival(AwaitedTitles.Tv, 1399, 121361, show, _ => AwaitedOutcome.Announce);
 
-        Assert.Empty(_db.ToldAbout(show, DateTime.UtcNow.AddMinutes(1)));
+        Assert.Empty(_db.WhoWaitedFor(AwaitedTitles.Tv, 1399, 121361, show, DateTime.UtcNow.AddMinutes(1), DateTime.UtcNow.AddHours(-1)));
     }
 
     /// <summary>
-    /// An arrival held by a pause is recorded as told once the pause is over.
+    /// A person a pause holds the arrival back from is left out too: the task tells them once
+    /// the pause is over, and that is their one message, even when the pause ends before the
+    /// batch of episodes goes.
     /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. Only the people already told were left out, so a pause
+    /// that ended within the batch's minute let the batch through, and the task then sent the
+    /// awaited title message as well.
+    /// </remarks>
     [Fact]
-    public void AHeldArrivalToldAfterThePauseIsRecorded()
+    public void AnArrivalAPauseHoldsIsLeftOutUntilItIsTold()
     {
         _db.AddAwaitedTitle(Matrix(_alice));
         var item = Guid.NewGuid();
         _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Hold);
 
-        Assert.Empty(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Equal(_alice, Assert.Single(LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(1))));
 
         _db.SettleHeld(_ => AwaitedOutcome.Announce);
 
-        Assert.Equal(_alice, Assert.Single(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1))));
+        Assert.Equal(_alice, Assert.Single(LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(-1))));
+    }
+
+    /// <summary>
+    /// Told about one copy of a title, a person is left out of the new item message about
+    /// another copy, a 4K library beside the main one, within the hour.
+    /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. Who was told was matched by the item, and each copy is an
+    /// item of its own: the second copy sent "Movie added" to the person "Now on the server"
+    /// had just told.
+    /// </remarks>
+    [Fact]
+    public void ACopyOfATitleToldAboutWithinTheHourIsLeftOut()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var first = Guid.NewGuid();
+        var copy = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, first, _ => AwaitedOutcome.Announce);
+
+        Assert.Empty(_db.SettleArrival(AwaitedTitles.Movie, 603, null, copy, _ => AwaitedOutcome.Announce));
+        Assert.Equal(_alice, Assert.Single(_db.WhoWaitedFor(AwaitedTitles.Movie, 603, null, copy, DateTime.UtcNow.AddMinutes(1), DateTime.UtcNow.AddHours(-1))));
+        Assert.Empty(_db.WhoWaitedFor(AwaitedTitles.Movie, 603, null, copy, DateTime.UtcNow.AddMinutes(1), DateTime.UtcNow.AddMinutes(1)));
+    }
+
+    /// <summary>
+    /// A show is matched by its TVDB id alone, the one many shows in Jellyfin carry, and a
+    /// movie is never matched by a show's ids.
+    /// </summary>
+    [Fact]
+    public void WhoWaitedIsMatchedByTheTitlesKindAndIds()
+    {
+        _db.AddAwaitedTitle(Thrones(_alice));
+        var show = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Tv, 1399, 121361, show, _ => AwaitedOutcome.Announce);
+        var since = DateTime.UtcNow.AddMinutes(-1);
+        var copies = DateTime.UtcNow.AddHours(-1);
+
+        Assert.Equal(_alice, Assert.Single(_db.WhoWaitedFor(AwaitedTitles.Tv, null, 121361, show, since, copies)));
+        Assert.Empty(_db.WhoWaitedFor(AwaitedTitles.Movie, 1399, null, show, since, copies));
+        Assert.Empty(_db.WhoWaitedFor(AwaitedTitles.Tv, null, null, show, since, copies));
+    }
+
+    /// <summary>
+    /// Whether anybody waits for a title of a kind: only a wait counts, not an arrival held
+    /// or told already.
+    /// </summary>
+    [Fact]
+    public void AnybodyAwaitsOnlyWhileATitleOfThatKindIsWaitedFor()
+    {
+        Assert.False(_db.AnybodyAwaits(AwaitedTitles.Movie));
+
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Matrix(_bob));
+
+        Assert.True(_db.AnybodyAwaits(AwaitedTitles.Movie));
+        Assert.False(_db.AnybodyAwaits(AwaitedTitles.Tv));
+
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, row => row.UserId == _alice ? AwaitedOutcome.Announce : AwaitedOutcome.Hold);
+
+        Assert.False(_db.AnybodyAwaits(AwaitedTitles.Movie));
+    }
+
+    /// <summary>
+    /// When the message telling them never left, the arrival is put back as held: the task
+    /// tells them at its next run, and the new item message, which left them out, does not
+    /// leave them with nothing.
+    /// </summary>
+    /// <remarks>
+    /// Found by the review of #294. The row was kept as told before the message went, so a send
+    /// Expo refused or never answered told the person nothing, while the new item message left
+    /// them out.
+    /// </remarks>
+    [Fact]
+    public void AMessageThatNeverLeftPutsTheArrivalBackAsHeld()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var item = Guid.NewGuid();
+        var told = _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        Assert.Equal(1, _db.Untell(told));
+
+        Assert.Equal(_alice, Assert.Single(LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(1))));
+        var again = Assert.Single(_db.SettleHeld(_ => AwaitedOutcome.Announce));
+        Assert.Equal(item, again.ArrivedItemId);
+    }
+
+    /// <summary>
+    /// Putting an arrival back as held leaves a later telling alone: only the one whose message
+    /// never left is undone.
+    /// </summary>
+    [Fact]
+    public void PuttingBackLeavesALaterTellingAlone()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var item = Guid.NewGuid();
+        var first = _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+        _db.Untell(first);
+        // Told again a moment later, by the task's next run: a telling of its own.
+        System.Threading.Thread.Sleep(20);
+        _db.SettleHeld(_ => AwaitedOutcome.Announce);
+
+        Assert.Equal(0, _db.Untell(first));
+        Assert.Empty(_db.SettleHeld(_ => AwaitedOutcome.Announce));
+    }
+
+    /// <summary>
+    /// Putting an arrival back as held leaves a fresh wait for the same title alone.
+    /// </summary>
+    [Fact]
+    public void PuttingBackLeavesAFreshWaitAlone()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var told = _db.SettleArrival(AwaitedTitles.Movie, 603, null, Guid.NewGuid(), _ => AwaitedOutcome.Announce);
+        _db.AddAwaitedTitle(Matrix(_alice, Now.AddDays(1)));
+
+        Assert.Equal(0, _db.Untell(told));
+        Assert.Null(Assert.Single(_db.GetAwaitedTitles(_alice)).ArrivedItemId);
+        Assert.True(_db.AnybodyAwaits(AwaitedTitles.Movie));
     }
 
     /// <summary>
@@ -287,7 +419,7 @@ public class AwaitedTitlesStorageTests : IDisposable
         var again = Assert.Single(_db.GetAwaitedTitles(_alice));
         Assert.Null(again.ArrivedItemId);
         Assert.Null(again.AnnouncedAt);
-        Assert.Empty(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Empty(LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(-1)));
     }
 
     /// <summary>
@@ -317,7 +449,7 @@ public class AwaitedTitlesStorageTests : IDisposable
         _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
 
         Assert.False(_db.RemoveAwaitedTitle(_alice, AwaitedTitles.Movie, 603));
-        Assert.Single(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Single(LeftOutOfMatrix(item, DateTime.UtcNow.AddMinutes(-1)));
     }
 
     /// <summary>
@@ -332,10 +464,10 @@ public class AwaitedTitlesStorageTests : IDisposable
         _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
 
         Assert.Equal(0, _db.ForgetAnnouncedBefore(DateTime.UtcNow.AddMinutes(-1)));
-        Assert.Single(_db.ToldAbout(item, DateTime.MinValue));
+        Assert.Single(LeftOutOfMatrix(item, DateTime.MinValue));
 
         Assert.Equal(1, _db.ForgetAnnouncedBefore(DateTime.UtcNow.AddMinutes(1)));
-        Assert.Empty(_db.ToldAbout(item, DateTime.MinValue));
+        Assert.Empty(LeftOutOfMatrix(item, DateTime.MinValue));
         Assert.Single(_db.GetAwaitedTitles(_alice));
     }
 
@@ -353,7 +485,7 @@ public class AwaitedTitlesStorageTests : IDisposable
 
         _db.ReplaceAwaitedTitles([Thrones(_bob), Matrix(_bob)]);
 
-        Assert.Equal(_alice, Assert.Single(_db.ToldAbout(item, DateTime.MinValue)));
+        Assert.Equal(_alice, Assert.Single(LeftOutOfMatrix(item, DateTime.MinValue)));
         Assert.Equal(2, _db.GetAwaitedTitles(_bob).Count);
     }
 

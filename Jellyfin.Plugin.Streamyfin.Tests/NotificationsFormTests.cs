@@ -155,6 +155,24 @@ public class NotificationsFormTests
     }
 
     /// <summary>
+    /// The wait for a title's id is a number of seconds on the item added card, from nothing to
+    /// an hour, ten minutes when left empty, and offered with the server's switch off too: a
+    /// group can turn new items on, and their messages wait what the server says (#289).
+    /// </summary>
+    [Fact]
+    public void TheWaitForATitlesIdIsOfferedOnTheItemAddedCard()
+    {
+        var wait = Field("itemAdded.waitForTitleId");
+
+        Assert.Equal("Item added", wait.Category);
+        Assert.Equal(SettingsControl.Number, wait.Control);
+        Assert.Equal(0, wait.Minimum);
+        Assert.Equal(3600, wait.Maximum);
+        Assert.Equal(600, wait.ServerDefault);
+        Assert.Null(wait.DependsOn);
+    }
+
+    /// <summary>
     /// The Yaml tab's schema offers the wait on every event, since every event's block can
     /// hold one, so it says which events read it.
     /// </summary>
@@ -200,7 +218,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleId" },
             itemAdded);
     }
 

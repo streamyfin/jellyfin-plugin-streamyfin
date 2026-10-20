@@ -197,10 +197,17 @@ Jellyfin, through Seerr or added by hand, notifies everyone who waited for it an
 it, then takes it off their list. It needs no webhook: it watches Jellyfin's own library.
 
 That is their one message about the title. The new item message about it, the movie added or
-the batch of episodes the show arrived with, leaves them out, and everyone else gets it as
-before; a later batch of episodes reaches them like anyone. A new movie's message waits until
-Jellyfin knows the movie's TMDB or TVDB id, which is what tells who waited for it, ten minutes
-at most, and a batch of episodes waits for its show's id the same way.
+the batches of episodes the show arrived with, leaves them out, and so does the message about a
+copy of the title in another library, a 4K one beside the main one, within the hour. Everyone
+else gets it as before, and a later batch of episodes reaches them like anyone.
+
+While somebody waits for a title of its kind, a new movie's message waits until Jellyfin knows
+the movie's TMDB or TVDB id, which is what tells who waited for it, and a batch of episodes waits
+for its show's id the same way. It goes as soon as the id comes, ten minutes at most: "Wait for
+the title's id" on the Item added card sets another wait, up to an hour, and 0 sends at once. A
+message still waiting when the server stops goes out as it stops. If Expo does not take an
+awaited title message, the scheduled task "Streamyfin awaited titles" sends it again at its next
+run, every 15 minutes.
 
 A person who paused their notifications hears about it once the pause is over. The event is
 "Awaited title" on the Notifications tab, on by default.

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -22,9 +23,25 @@ public class NotificationConfiguration
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
+    /// <summary>
+    /// How long, in seconds, a new item message waits for its title's id when nothing says
+    /// otherwise (#289).
+    /// </summary>
+    public const double UsualWaitForTitleId = 600;
+
+    /// <summary>
+    /// The longest wait for a title's id, in seconds: a message held longer is not news any more.
+    /// </summary>
+    public const double LongestWaitForTitleId = 3600;
+
     [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
+
+    [Display(Name = "Wait for the title's id", Description = "While somebody waits for a title, how long, in seconds, a new movie or batch of episodes waits for Jellyfin to find its TMDB or TVDB id, so the people who waited for it get only the awaited title message. It goes as soon as the id comes. 0 sends at once. Ten minutes when left empty, an hour at most.")]
+    [Bounds(0, LongestWaitForTitleId)]
+    [JsonPropertyName(name: "waitForTitleId")]
+    public double? WaitForTitleId { get; set; }
 }
 
 public class Notifications

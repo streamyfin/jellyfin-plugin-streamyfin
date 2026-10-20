@@ -65,6 +65,13 @@ public static class AwaitedTitles
     /// </summary>
     public static readonly TimeSpan ToldKeptFor = TimeSpan.FromDays(1);
 
+    /// <summary>
+    /// How long a person told about one copy of a title is left out of the new item message
+    /// about another, a 4K library beside the main one: copies of one title come within the
+    /// hour of each other, and one that comes later is news to everyone (#289).
+    /// </summary>
+    public static readonly TimeSpan CopiesWithin = TimeSpan.FromHours(1);
+
     /// <summary>The longest name a title may have.</summary>
     public const int LongestTitle = 300;
 

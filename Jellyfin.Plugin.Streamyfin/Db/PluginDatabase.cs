@@ -1187,18 +1187,91 @@ public class PluginDatabase
     }
 
     /// <summary>
-    /// Who was told that an item arrived, since a moment (#289).
+    /// Who the new item message about a title leaves out: the people who waited for it and
+    /// whose arrival is settled (#289).
     /// </summary>
-    /// <param name="itemId">The movie or the show that arrived.</param>
-    /// <param name="since">The earliest telling that counts.</param>
-    /// <returns>The people told, by their Jellyfin user id.</returns>
-    public HashSet<Guid> ToldAbout(Guid itemId, DateTime since)
+    /// <param name="mediaType">The kind of title.</param>
+    /// <param name="tmdbId">Its TMDB id, when Jellyfin knows it.</param>
+    /// <param name="tvdbId">Its TVDB id, when Jellyfin knows it.</param>
+    /// <param name="itemId">The item the message is about.</param>
+    /// <param name="since">The earliest telling about this item that belongs to the message.</param>
+    /// <param name="copiesSince">The earliest telling about another copy of the title that counts.</param>
+    /// <returns>The people, by their Jellyfin user id.</returns>
+    /// <remarks>
+    /// Told about this item since the message's arrival began; told about another copy of the
+    /// title, a 4K library beside the main one, since the second moment; or held by a pause,
+    /// which the task tells once it ends. Matched by the title's ids rather than by the item,
+    /// since each copy is an item of its own.
+    /// </remarks>
+    public HashSet<Guid> WhoWaitedFor(string mediaType, int? tmdbId, int? tvdbId, Guid itemId, DateTime since, DateTime copiesSince)
     {
+        if (tmdbId is null && tvdbId is null)
+        {
+            return [];
+        }
+
+        // Ids are positive, so -1 matches nothing.
+        var tmdb = tmdbId ?? -1;
+        var tvdb = tvdbId ?? -1;
+
         using var context = CreateContext();
         return [.. context.AwaitedTitles
             .AsNoTracking()
-            .Where(a => a.ArrivedItemId == itemId && a.AnnouncedAt != null && a.AnnouncedAt >= since)
+            .Where(a => a.MediaType == mediaType
+                && (a.TmdbId == tmdb || a.TvdbId == tvdb)
+                && a.ArrivedItemId != null
+                && (a.AnnouncedAt == null
+                    || (a.ArrivedItemId == itemId && a.AnnouncedAt >= since)
+                    || (a.ArrivedItemId != itemId && a.AnnouncedAt >= copiesSince)))
             .Select(a => a.UserId)];
+    }
+
+    /// <summary>
+    /// Whether anybody waits for a title of a kind, which is when a new item message without
+    /// its title's id has somebody to wait for it for (#289).
+    /// </summary>
+    /// <param name="mediaType">The kind of title.</param>
+    /// <returns><c>true</c> while somebody does.</returns>
+    public bool AnybodyAwaits(string mediaType)
+    {
+        using var context = CreateContext();
+        return context.AwaitedTitles.Any(a => a.MediaType == mediaType && a.ArrivedItemId == null);
+    }
+
+    /// <summary>
+    /// Puts arrivals back as held, when the message telling them never left: the awaited
+    /// titles task tells them at its next run (#289).
+    /// </summary>
+    /// <param name="told">The rows, as they were settled.</param>
+    /// <returns>How many were put back.</returns>
+    /// <remarks>
+    /// Loaded and saved rather than updated in place: the build for 10.11 runs on Jellyfin 12,
+    /// whose EF Core changed <c>ExecuteUpdate</c>.
+    /// </remarks>
+    public int Untell(IEnumerable<AwaitedTitle> told)
+    {
+        ArgumentNullException.ThrowIfNull(told);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+        var changed = 0;
+
+        foreach (var sent in told)
+        {
+            var row = context.AwaitedTitles.SingleOrDefault(a => a.UserId == sent.UserId && a.MediaType == sent.MediaType && a.TmdbId == sent.TmdbId);
+
+            // Only the telling that failed: a row told again since, or waited for afresh, is
+            // left as it is.
+            if (row is { AnnouncedAt: { } announced } && announced == sent.AnnouncedAt)
+            {
+                row.AnnouncedAt = null;
+                changed++;
+            }
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+        return changed;
     }
 
     /// <summary>

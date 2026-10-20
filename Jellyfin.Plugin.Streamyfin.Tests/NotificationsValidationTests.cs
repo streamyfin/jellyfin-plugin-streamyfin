@@ -41,6 +41,49 @@ public class NotificationsValidationTests
     }
 
     /// <summary>
+    /// The wait for a title's id is accepted from nothing to an hour, and left empty.
+    /// </summary>
+    /// <param name="seconds">The wait.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0d)]
+    [InlineData(600d)]
+    [InlineData(3600d)]
+    public void AWaitForATitlesIdWithinAnHourIsAccepted(double? seconds)
+    {
+        var notifications = new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { WaitForTitleId = seconds }
+        };
+
+        Assert.Null(NotificationsValidation.Check(notifications));
+    }
+
+    /// <summary>
+    /// The wait for a title's id is refused below nothing, past an hour, and when it is not a
+    /// number, named by its key: a server timer cannot count some of those, and a message held
+    /// longer than an hour is not news any more.
+    /// </summary>
+    /// <param name="seconds">The wait.</param>
+    [Theory]
+    [InlineData(-1d)]
+    [InlineData(3601d)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void AWaitForATitlesIdOutsideAnHourIsRefused(double seconds)
+    {
+        var notifications = new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { WaitForTitleId = seconds }
+        };
+
+        var problem = NotificationsValidation.Check(notifications);
+
+        Assert.NotNull(problem);
+        Assert.Contains("itemAdded.waitForTitleId", problem, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A negative wait is refused, and the message names the key so an administrator can
     /// find it in the file they wrote it in.
     /// </summary>
