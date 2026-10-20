@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { refusal } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
+import { refusal, waitInput } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
 
 // ApiClient rejects a failed request with the response itself, so this is what the page
 // is handed when the server refuses a save.
@@ -26,5 +26,20 @@ describe("what the page says when a save is refused", () => {
 
     test("an error thrown in the page keeps its own message", async () => {
         expect(await refusal(new Error("The group has no name."))).toBe("The group has no name.");
+    });
+});
+
+describe("the wait a level sets", () => {
+    // Only the events that keep two of the same apart read a wait: one set on a new item,
+    // an awaited title or a locked account changed nothing.
+    test("is not offered on an event that never waits", () => {
+        expect(waitInput({ key: "itemAdded", title: "Item added", wait: null }, {})).toBeNull();
+        expect(waitInput({ key: "awaitedTitle", title: "Awaited title" }, {})).toBeNull();
+    });
+
+    test("is offered on an event that waits, holding what the level said", () => {
+        const box = waitInput({ key: "signInFailed", title: "Failed sign in", wait: 300 }, { recentEventThreshold: 60 });
+
+        expect([box.type, box.min, box.value]).toEqual(["number", "0", "60"]);
     });
 });

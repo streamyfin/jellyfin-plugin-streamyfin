@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.Streamyfin.Extensions;
@@ -50,15 +49,5 @@ public class UserLockedOutEvent(
                         args: eventArgs.Argument.Username.Escape())
                 }
             ]).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold()
-    {
-        if (Config?.notifications?.UserLockedOut is { RecentEventThreshold: null })
-            return base.GetRecentEventThreshold();
-
-        var definedThreshold = (double) Config?.notifications?.UserLockedOut?.RecentEventThreshold!;
-        return TimeSpan.FromSeconds(double.Abs(definedThreshold));
     }
 }

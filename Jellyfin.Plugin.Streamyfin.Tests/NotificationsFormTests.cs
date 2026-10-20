@@ -42,7 +42,7 @@ public class NotificationsFormTests
         var keys = NotificationsForm.Describe().Select(field => field.Key).ToArray();
 
         Assert.Contains("itemAdded.enabled", keys);
-        Assert.Contains("itemAdded.recentEventThreshold", keys);
+        Assert.Contains("sessionStarted.recentEventThreshold", keys);
         Assert.Contains("itemAdded.enabledLibraries", keys);
         Assert.Contains("sessionStarted.enabled", keys);
     }
@@ -52,7 +52,7 @@ public class NotificationsFormTests
     /// </summary>
     [Theory]
     [InlineData("itemAdded.enabled", SettingsControl.Toggle)]
-    [InlineData("itemAdded.recentEventThreshold", SettingsControl.Number)]
+    [InlineData("sessionStarted.recentEventThreshold", SettingsControl.Number)]
     [InlineData("itemAdded.enabledLibraries", SettingsControl.List)]
     public void TheControlComesFromTheType(string key, SettingsControl expected)
     {
@@ -95,7 +95,7 @@ public class NotificationsFormTests
     public void EveryFieldOfAnEventDependsOnItBeingOn()
     {
         Assert.Null(Field("itemAdded.enabled").DependsOn);
-        Assert.Equal("itemAdded.enabled", Field("itemAdded.recentEventThreshold").DependsOn);
+        Assert.Equal("sessionStarted.enabled", Field("sessionStarted.recentEventThreshold").DependsOn);
         Assert.Equal("itemAdded.enabledLibraries", Field("itemAdded.enabledLibraries").Key);
         Assert.Equal("itemAdded.enabled", Field("itemAdded.enabledLibraries").DependsOn);
     }
@@ -108,6 +108,63 @@ public class NotificationsFormTests
     public void NoEventFieldIsLockable()
     {
         Assert.All(NotificationsForm.Describe(), field => Assert.False(field.Lockable));
+    }
+
+    /// <summary>
+    /// The wait is offered on the events that keep two of the same apart, and only there:
+    /// a new item, an awaited title and a locked account never read it, so a wait set on
+    /// them changed nothing.
+    /// </summary>
+    [Fact]
+    public void AWaitIsOfferedOnlyWhereTheEventWaits()
+    {
+        var waits = NotificationsForm.Describe()
+            .Select(field => field.Key)
+            .Where(key => key.EndsWith(".recentEventThreshold", System.StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                "sessionStarted.recentEventThreshold", "playbackStarted.recentEventThreshold",
+                "taskFailed.recentEventThreshold", "pluginChanged.recentEventThreshold",
+                "signInFailed.recentEventThreshold"
+            },
+            waits);
+    }
+
+    /// <summary>
+    /// A wait left empty is the event's own, and the field says which rather than leaving
+    /// the administrator to guess: five seconds, and five minutes for a refused sign in.
+    /// </summary>
+    [Theory]
+    [InlineData("sessionStarted", 5)]
+    [InlineData("playbackStarted", 5)]
+    [InlineData("taskFailed", 5)]
+    [InlineData("pluginChanged", 5)]
+    [InlineData("signInFailed", 300)]
+    public void AWaitSaysTheEventsOwn(string eventKey, double seconds)
+    {
+        Assert.Equal(seconds, Field($"{eventKey}.recentEventThreshold").ServerDefault);
+    }
+
+    /// <summary>
+    /// The events the Targeting tab lists say the same, so a level is offered a wait only
+    /// where it changes something.
+    /// </summary>
+    [Fact]
+    public void TheEventsSayWhichOnesWaitAndHowLong()
+    {
+        var waits = NotificationsForm.Events().ToDictionary(one => one.Key, one => one.Wait);
+
+        Assert.Equal(5, waits["sessionStarted"]);
+        Assert.Equal(5, waits["playbackStarted"]);
+        Assert.Null(waits["userLockedOut"]);
+        Assert.Null(waits["itemAdded"]);
+        Assert.Null(waits["awaitedTitle"]);
+        Assert.Equal(5, waits["taskFailed"]);
+        Assert.Equal(5, waits["pluginChanged"]);
+        Assert.Equal(300, waits["signInFailed"]);
     }
 
     /// <summary>
@@ -144,7 +201,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.recentEventThreshold", "itemAdded.enabledLibraries" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries" },
             itemAdded);
     }
 

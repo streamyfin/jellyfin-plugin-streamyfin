@@ -86,6 +86,10 @@ public sealed record SettingsChoice(
 /// The app's own value for the setting, which Reset puts back where the plugin declares no
 /// default of its own. Left out when the app has none; a null here is a real value.
 /// </param>
+/// <param name="ServerDefault">
+/// What the server does with the field left empty, said in the empty field. Left out when
+/// an empty field has nothing to say.
+/// </param>
 public sealed record SettingsFormField(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("category")] string? Category,
@@ -103,7 +107,8 @@ public sealed record SettingsFormField(
     [property: JsonPropertyName("probe")] string? Probe,
     [property: JsonPropertyName("address")] bool Address,
     [property: JsonPropertyName("parts")] IReadOnlyList<SettingsFormField>? Parts = null,
-    [property: JsonPropertyName("appDefault"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? AppDefault = null);
+    [property: JsonPropertyName("appDefault"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? AppDefault = null,
+    [property: JsonPropertyName("serverDefault"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? ServerDefault = null);
 
 /// <summary>
 /// The admin form, described in C# rather than inferred from a schema in the browser.

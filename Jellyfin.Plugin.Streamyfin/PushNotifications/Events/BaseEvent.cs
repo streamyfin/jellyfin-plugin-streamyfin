@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using MediaBrowser.Controller;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +13,8 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 public abstract class BaseEvent
 {
     private static readonly ConcurrentDictionary<string, DateTime> RecentEvents = new();
-    private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(5);
+    // The same length the tabs say, read from where they read it.
+    private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(RecentEventWaitAttribute.Usual);
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
 
     protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;

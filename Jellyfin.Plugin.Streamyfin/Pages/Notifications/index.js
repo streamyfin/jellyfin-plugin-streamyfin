@@ -35,7 +35,7 @@ const write = (notifications, key, value) => {
     };
 };
 
-const control = (field) => {
+export const control = (field) => {
     switch (field.control) {
         case "Toggle": {
             const box = el("input", "sf-check");
@@ -47,6 +47,8 @@ const control = (field) => {
             number.type = "number";
             if (field.minimum !== null && field.minimum !== undefined) number.min = String(field.minimum);
             if (field.maximum !== null && field.maximum !== undefined) number.max = String(field.maximum);
+            // Left empty, the field is what the server does by itself, so it says what that is.
+            if (field.serverDefault !== null && field.serverDefault !== undefined) number.placeholder = `${field.serverDefault} by default`;
             return number;
         }
         case "Text": {

@@ -18,6 +18,22 @@ const readJson = (path) =>
 // whose body is the route's sentence written as a JSON string, so the page used to show its
 // fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
 // sentence still reads as the fallback.
+// The box for how long a level makes an event wait, or null for an event that never waits:
+// a wait set on a new item, an awaited title or a locked account changed nothing.
+export const waitInput = (one, theirs) => {
+    if (one.wait === null || one.wait === undefined) return null;
+    const wait = document.createElement("input");
+    wait.type = "number";
+    wait.min = "0";
+    wait.step = "1";
+    wait.className = "sf-number sf-wait";
+    wait.placeholder = "wait";
+    wait.title = "How long two of the same event wait, in seconds. Empty follows the level above.";
+    wait.setAttribute("aria-label", `How long two of ${one.title} wait, in seconds`);
+    wait.value = theirs.recentEventThreshold ?? "";
+    return wait;
+};
+
 export const refusal = async (error) => {
     const fallback = error?.message ?? "Streamyfin could not save that. The server log has the reason.";
     const response = typeof error?.text === "function" ? error : error?.response;
@@ -108,7 +124,8 @@ export default function (view) {
         for (const row of el("sf-events").children) {
             const key = row.dataset.event;
             const enabled = row.querySelector(".sf-event-state").value;
-            const wait = row.querySelector(".sf-wait").value;
+            // An event that never waits has no box, and says nothing about a wait.
+            const wait = row.querySelector(".sf-wait")?.value ?? "";
             const one = {};
 
             if (enabled) one.enabled = enabled === "on";
@@ -145,8 +162,8 @@ export default function (view) {
             const title = document.createElement("div");
             const controls = document.createElement("div");
             const state = document.createElement("select");
-            const wait = document.createElement("input");
             const theirs = said?.[one.key] ?? {};
+            const wait = waitInput(one, theirs);
 
             row.className = "sf-event";
             row.dataset.event = one.key;
@@ -181,16 +198,7 @@ export default function (view) {
             }
             state.value = theirs.enabled === undefined ? "" : (theirs.enabled ? "on" : "off");
 
-            wait.type = "number";
-            wait.min = "0";
-            wait.step = "1";
-            wait.className = "sf-number sf-wait";
-            wait.placeholder = "wait";
-            wait.title = "How long two of the same event wait, in seconds. Empty follows the level above.";
-            wait.setAttribute("aria-label", `How long two of ${one.title} wait, in seconds`);
-            wait.value = theirs.recentEventThreshold ?? "";
-
-            const mark = () => row.classList.toggle("is-set", Boolean(state.value) || wait.value !== "");
+            const mark = () => row.classList.toggle("is-set", Boolean(state.value) || (wait?.value ?? "") !== "");
 
             state.addEventListener("change", async () => {
                 // Asked once, when it is turned on, and only for the events that carry
@@ -213,13 +221,13 @@ export default function (view) {
                 updateDock();
             }, { signal: showing.signal });
 
-            wait.addEventListener("input", () => {
+            wait?.addEventListener("input", () => {
                 mark();
                 updateDock();
             }, { signal: showing.signal });
 
             controls.className = "sf-event-controls";
-            controls.append(state, wait);
+            controls.append(...[state, wait].filter(Boolean));
             row.append(text, controls);
             mark();
             host.appendChild(row);

@@ -36,12 +36,14 @@ public class Notifications
     [NotNull]
     [Display(Name = "Session started", Description = "Admins get notified when a Jellyfin user comes online.")]
     [AboutSomebodyElse]
+    [RecentEventWait(RecentEventWaitAttribute.Usual)]
     [JsonPropertyName(name: "sessionStarted")]
     public NotificationConfiguration? SessionStarted { get; set; }
 
     [NotNull]
     [Display(Name = "Playback started", Description = "Admins get notified when a Jellyfin user starts playing something.")]
     [AboutSomebodyElse]
+    [RecentEventWait(RecentEventWaitAttribute.Usual)]
     [JsonPropertyName(name: "playbackStarted")]
     public NotificationConfiguration? PlaybackStarted { get; set; }
 
@@ -63,17 +65,20 @@ public class Notifications
 
     [NotNull]
     [Display(Name = "Scheduled task failed", Description = "Admins get notified when one of the server's scheduled tasks fails, with the reason it gave.")]
+    [RecentEventWait(RecentEventWaitAttribute.Usual)]
     [JsonPropertyName(name: "taskFailed")]
     public NotificationConfiguration? TaskFailed { get; set; }
 
     [NotNull]
     [Display(Name = "Plugin changed", Description = "Admins get notified when a plugin is installed, updated or uninstalled.")]
+    [RecentEventWait(RecentEventWaitAttribute.Usual)]
     [JsonPropertyName(name: "pluginChanged")]
     public NotificationConfiguration? PluginChanged { get; set; }
 
     [NotNull]
     [Display(Name = "Failed sign in", Description = "Admins get notified when a sign in is refused, with the name that was tried and where it came from. Notifications about the same address wait five minutes by default.")]
     [AboutSomebodyElse]
+    [RecentEventWait(RecentEventWaitAttribute.SignInFailed)]
     [JsonPropertyName(name: "signInFailed")]
     public NotificationConfiguration? SignInFailed { get; set; }
 }
