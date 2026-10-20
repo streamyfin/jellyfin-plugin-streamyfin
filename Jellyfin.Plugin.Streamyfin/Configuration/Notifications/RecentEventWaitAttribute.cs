@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -26,6 +30,27 @@ public sealed class RecentEventWaitAttribute : Attribute
     /// to turn the whole thing off.
     /// </summary>
     public const double SignInFailed = 300;
+
+    // Read once: the declarations do not change while the server runs.
+    private static readonly Lazy<IReadOnlyDictionary<string, double>> _byEvent = new(() =>
+        typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => (
+                Key: property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? property.Name,
+                Wait: property.GetCustomAttribute<RecentEventWaitAttribute>()))
+            .Where(one => one.Wait is not null)
+            .ToDictionary(one => one.Key, one => one.Wait!.Seconds));
+
+    /// <summary>
+    /// What an event waits when nothing sets a wait, read from its declaration, so the events
+    /// wait what the Notifications tab says.
+    /// </summary>
+    /// <param name="eventKey">The event, by the key the configuration uses.</param>
+    /// <returns>The wait in seconds.</returns>
+    /// <exception cref="ArgumentException">The event declares no wait.</exception>
+    public static double SecondsFor(string eventKey) =>
+        _byEvent.Value.TryGetValue(eventKey, out var seconds)
+            ? seconds
+            : throw new ArgumentException($"{eventKey} declares no wait.", nameof(eventKey));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecentEventWaitAttribute"/> class.

@@ -13,10 +13,13 @@ Events:
 - Plugin changed (admins), when one is installed, updated or uninstalled
 - Failed sign in (admins), with the name that was tried and where it came from
 
-These can be enabled or disabled inside the plugin settings page, and each has a wait
-between two of the same event so a server that keeps failing does not keep notifying.
-Failed sign ins wait five minutes per address by default, since a server anyone can reach
-is tried by machines that never stop.
+These can be enabled or disabled inside the plugin settings page. Five of them wait between
+two of the same event, so a server that keeps failing does not keep notifying: a session
+started, a playback started, a failed task and a changed plugin wait five seconds unless you
+set another wait, and failed sign ins wait five minutes per address, since a server anyone can
+reach is tried by machines that never stop. The wait is set for the whole server, on the
+Notifications tab, which offers it only on those five. A new item, an awaited title and a
+locked account never wait, and a wait set on a group or a user is not read.
 
 A server that was already running when these three arrived has them off, since its stored
 configuration does not mention them. A fresh install has them on.

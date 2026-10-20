@@ -75,7 +75,7 @@ public class PluginChangedEvent(
 
     /// <inheritdoc />
     protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFrom(Config?.notifications?.PluginChanged, base.GetRecentEventThreshold());
+        WaitFor(Config?.notifications?.PluginChanged, "pluginChanged");
 
     private Task Tell(PluginChange change, string? name, string? version)
     {

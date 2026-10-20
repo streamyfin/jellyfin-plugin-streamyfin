@@ -149,25 +149,6 @@ public class NotificationsFormTests
     }
 
     /// <summary>
-    /// The events the Targeting tab lists say the same, so a level is offered a wait only
-    /// where it changes something.
-    /// </summary>
-    [Fact]
-    public void TheEventsSayWhichOnesWaitAndHowLong()
-    {
-        var waits = NotificationsForm.Events().ToDictionary(one => one.Key, one => one.Wait);
-
-        Assert.Equal(5, waits["sessionStarted"]);
-        Assert.Equal(5, waits["playbackStarted"]);
-        Assert.Null(waits["userLockedOut"]);
-        Assert.Null(waits["itemAdded"]);
-        Assert.Null(waits["awaitedTitle"]);
-        Assert.Equal(5, waits["taskFailed"]);
-        Assert.Equal(5, waits["pluginChanged"]);
-        Assert.Equal(300, waits["signInFailed"]);
-    }
-
-    /// <summary>
     /// A wait in seconds cannot be negative, and the page refuses one before the server
     /// has to.
     /// </summary>

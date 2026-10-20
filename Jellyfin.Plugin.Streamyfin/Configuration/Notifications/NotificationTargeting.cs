@@ -22,8 +22,8 @@ public class NotificationTargeting
     public bool? Enabled { get; set; }
 
     /// <summary>
-    /// Gets or sets how long two of the same event wait, in seconds, or <c>null</c> to
-    /// leave the level below to decide.
+    /// Gets or sets a wait in seconds, kept as stored. Nothing reads it: an event waits what
+    /// the server's configuration says, and the Targeting tab no longer offers it.
     /// </summary>
     [JsonPropertyName(name: "recentEventThreshold")]
     public double? RecentEventThreshold { get; set; }
@@ -60,31 +60,6 @@ public class NotificationTargeting
         }
 
         return reaches;
-    }
-
-    /// <summary>
-    /// How long two of the same event wait for someone.
-    /// </summary>
-    /// <param name="eventKey">The event, by the key the configuration and the page use.</param>
-    /// <param name="serverWait">What the server says, which may be nothing.</param>
-    /// <param name="levels">What each level says, least specific first.</param>
-    /// <returns>The wait in seconds, or <c>null</c> when nobody said.</returns>
-    public static double? WaitOf(
-        string eventKey,
-        double? serverWait,
-        IEnumerable<IReadOnlyDictionary<string, NotificationTargeting>?> levels)
-    {
-        var wait = serverWait;
-
-        foreach (var said in Said(eventKey, levels))
-        {
-            if (said.RecentEventThreshold is { } seconds)
-            {
-                wait = seconds;
-            }
-        }
-
-        return wait;
     }
 
     /// <summary>

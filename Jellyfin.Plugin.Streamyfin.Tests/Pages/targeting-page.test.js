@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { eventSaid, refusal, waitInput } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
+import { eventSaid, refusal } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
 
 // ApiClient rejects a failed request with the response itself, so this is what the page
 // is handed when the server refuses a save.
@@ -29,23 +29,8 @@ describe("what the page says when a save is refused", () => {
     });
 });
 
-describe("the wait a level sets", () => {
-    // Only the events that keep two of the same apart read a wait: one set on a new item,
-    // an awaited title or a locked account changed nothing.
-    test("is not offered on an event that never waits", () => {
-        expect(waitInput({ key: "itemAdded", title: "Item added", wait: null }, {})).toBeNull();
-        expect(waitInput({ key: "awaitedTitle", title: "Awaited title" }, {})).toBeNull();
-    });
-
-    test("is offered on an event that waits, holding what the level said", () => {
-        const box = waitInput({ key: "signInFailed", title: "Failed sign in", wait: 300 }, { recentEventThreshold: 60 });
-
-        expect([box.type, box.min, box.value]).toEqual(["number", "0", "60"]);
-    });
-});
-
 describe("what a level says about an event", () => {
-    const rowWith = ({ state = "", wait, keptWait } = {}) => {
+    const rowWith = ({ state = "", keptWait } = {}) => {
         const row = document.createElement("div");
         const select = document.createElement("select");
         select.className = "sf-event-state";
@@ -56,24 +41,19 @@ describe("what a level says about an event", () => {
         }
         select.value = state;
         row.appendChild(select);
-        if (wait !== undefined) {
-            const box = document.createElement("input");
-            box.className = "sf-wait";
-            box.value = wait;
-            row.appendChild(box);
-        }
         if (keptWait !== undefined) row.dataset.keptWait = keptWait;
         return row;
     };
 
-    // A wait stored on an event that never waits does nothing, but saving something else on
-    // the level must not drop it: the page has no box for it, so it keeps what was stored.
-    test("keeps a wait stored on an event that never waits", () => {
+    // A wait on a level is read by nothing, so the tab offers no box for it. One a level
+    // stored before is kept as it was, so saving something else does not drop it.
+    test("keeps a wait the level stored, with no box for it", () => {
         expect(eventSaid(rowWith({ state: "on", keptWait: "30" }))).toEqual({ enabled: true, recentEventThreshold: 30 });
+        expect(eventSaid(rowWith({ keptWait: "0" }))).toEqual({ recentEventThreshold: 0 });
     });
 
-    test("reads the wait box where there is one", () => {
-        expect(eventSaid(rowWith({ wait: "60" }))).toEqual({ recentEventThreshold: 60 });
-        expect(eventSaid(rowWith({ state: "off", wait: "" }))).toEqual({ enabled: false });
+    test("says only its state where no wait was stored", () => {
+        expect(eventSaid(rowWith({ state: "off" }))).toEqual({ enabled: false });
+        expect(eventSaid(rowWith())).toEqual({});
     });
 });

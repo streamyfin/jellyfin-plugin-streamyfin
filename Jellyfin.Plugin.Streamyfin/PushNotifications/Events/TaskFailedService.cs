@@ -72,7 +72,7 @@ public class TaskFailedService : BaseEvent, IHostedService
 
     /// <inheritdoc />
     protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFrom(Config?.notifications?.TaskFailed, base.GetRecentEventThreshold());
+        WaitFor(Config?.notifications?.TaskFailed, "taskFailed");
 
     // Jellyfin raises this event straight from the worker that ran the task, so anything
     // thrown here would land in the server's own task pipeline rather than in a consumer it

@@ -91,12 +91,7 @@ public class PlaybackStartEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold()
-    {
-        if (Config?.notifications?.PlaybackStarted is { RecentEventThreshold: null })
-            return base.GetRecentEventThreshold();
-
-        var definedThreshold = (double) Config?.notifications?.PlaybackStarted?.RecentEventThreshold!;
-        return TimeSpan.FromSeconds(double.Abs(definedThreshold));
-    }
+    // A configuration with no block for the event threw here and lost the notification.
+    protected override TimeSpan GetRecentEventThreshold() =>
+        WaitFor(Config?.notifications?.PlaybackStarted, "playbackStarted");
 }

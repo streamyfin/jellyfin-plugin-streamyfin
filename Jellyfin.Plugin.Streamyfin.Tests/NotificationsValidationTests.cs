@@ -59,17 +59,33 @@ public class NotificationsValidationTests
     }
 
     /// <summary>
-    /// Every event is checked, not the first one that happens to be declared.
+    /// Every event that waits is checked, not the first one that happens to be declared.
     /// </summary>
     [Fact]
-    public void EveryEventIsChecked()
+    public void EveryEventThatWaitsIsChecked()
     {
         var notifications = new Notifications
         {
-            ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = -5 }
+            SignInFailed = new NotificationConfiguration { RecentEventThreshold = -5 }
         };
 
-        Assert.Contains("itemAdded.recentEventThreshold", NotificationsValidation.Check(notifications)!, System.StringComparison.Ordinal);
+        Assert.Contains("signInFailed.recentEventThreshold", NotificationsValidation.Check(notifications)!, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A wait on an event that never waits is read by nothing, and the Notifications tab no
+    /// longer draws it, so a bad one restored from a backup must not refuse every save.
+    /// </summary>
+    [Fact]
+    public void AWaitOnAnEventThatNeverWaitsIsNotChecked()
+    {
+        var notifications = new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = -5 },
+            UserLockedOut = new NotificationConfiguration { RecentEventThreshold = double.NaN }
+        };
+
+        Assert.Null(NotificationsValidation.Check(notifications));
     }
 
     /// <summary>

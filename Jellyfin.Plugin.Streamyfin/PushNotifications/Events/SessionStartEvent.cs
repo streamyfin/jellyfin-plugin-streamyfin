@@ -63,12 +63,7 @@ public class SessionStartEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold()
-    {
-        if (Config?.notifications?.SessionStarted is { RecentEventThreshold: null })
-            return base.GetRecentEventThreshold();
-
-        var definedThreshold = (double) Config?.notifications?.SessionStarted?.RecentEventThreshold!;
-        return TimeSpan.FromSeconds(double.Abs(definedThreshold));
-    }
+    // A configuration with no block for the event threw here and lost the notification.
+    protected override TimeSpan GetRecentEventThreshold() =>
+        WaitFor(Config?.notifications?.SessionStarted, "sessionStarted");
 }

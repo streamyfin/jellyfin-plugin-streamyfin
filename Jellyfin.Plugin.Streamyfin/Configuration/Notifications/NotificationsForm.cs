@@ -56,6 +56,7 @@ public static class NotificationsForm
             var display = eventProperty.GetCustomAttribute<DisplayAttribute>();
             var category = display?.GetName() ?? eventProperty.Name;
             var eventKey = JsonNameOf(eventProperty);
+            var wait = eventProperty.GetCustomAttribute<RecentEventWaitAttribute>();
 
 
             foreach (var field in InDeclaredOrder(blockType))
@@ -69,7 +70,6 @@ public static class NotificationsForm
                 // A wait only matters to an event that keeps two of the same apart. Offered on
                 // the others it changed nothing, and an empty one did not say what it meant.
                 var isWait = JsonNameOf(field) == "recentEventThreshold";
-                var wait = eventProperty.GetCustomAttribute<RecentEventWaitAttribute>();
                 if (isWait && wait is null)
                 {
                     continue;
@@ -146,16 +146,11 @@ public static class NotificationsForm
     /// who does not administer the server tells them about other people, so the page says
     /// so and asks before it does.
     /// </param>
-    /// <param name="Wait">
-    /// How long the event keeps two of the same apart when nothing sets a wait, in seconds,
-    /// or <c>null</c> for an event that never waits, where a level has no wait to set.
-    /// </param>
     public sealed record NotificationEvent(
         [property: JsonPropertyName("key")] string Key,
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("description")] string? Description,
-        [property: JsonPropertyName("aboutSomebodyElse")] bool AboutSomebodyElse,
-        [property: JsonPropertyName("wait")] double? Wait);
+        [property: JsonPropertyName("aboutSomebodyElse")] bool AboutSomebodyElse);
 
     /// <summary>
     /// Every event this server has, in the order they are declared.
@@ -177,8 +172,7 @@ public static class NotificationsForm
                     Key: JsonNameOf(eventProperty),
                     Title: display?.GetName() ?? eventProperty.Name,
                     Description: display?.GetDescription(),
-                    AboutSomebodyElse: eventProperty.GetCustomAttribute<AboutSomebodyElseAttribute>() is not null,
-                    Wait: eventProperty.GetCustomAttribute<RecentEventWaitAttribute>()?.Seconds);
+                    AboutSomebodyElse: eventProperty.GetCustomAttribute<AboutSomebodyElseAttribute>() is not null);
             })
     ];
 

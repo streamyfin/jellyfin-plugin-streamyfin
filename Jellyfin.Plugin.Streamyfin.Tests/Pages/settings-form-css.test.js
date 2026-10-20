@@ -63,13 +63,3 @@ describe("the legend's close button", () => {
         expect(-Number.parseFloat(inlineEnd)).toBeLessThan(Number.parseFloat(banner?.getPropertyValue("padding-right")));
     });
 });
-
-describe("an event row on the Targeting tab", () => {
-    // Only the events that wait have a wait box. The row keeps its column all the same,
-    // so the choices line up whether the box is there or not.
-    test("keeps a column for the wait, so the choices line up without one", () => {
-        const controls = rule(".sf-page .sf-event .sf-event-controls")?.style;
-        expect([controls?.getPropertyValue("display"), controls?.getPropertyValue("grid-template-columns")])
-            .toEqual(["grid", "auto 6.5rem"]);
-    });
-});

@@ -42,6 +42,13 @@ public static class NotificationsValidation
                 continue;
             }
 
+            // Only an event that waits reads its wait. The others are not drawn any more, so a
+            // bad value restored from a backup would refuse every save with nowhere to fix it.
+            if (eventProperty.GetCustomAttribute<RecentEventWaitAttribute>() is null)
+            {
+                continue;
+            }
+
             var threshold = block.RecentEventThreshold;
             if (threshold is null)
             {
@@ -81,21 +88,13 @@ public static class NotificationsValidation
         var known = NotificationsForm.Events().Select(one => one.Key).ToHashSet(System.StringComparer.Ordinal);
         var problems = new List<string>();
 
-        foreach (var (key, targeting) in said)
+        // A level's wait is read by nothing: an event waits what the server says. It is kept as
+        // stored, so checking it would only refuse saves of the rest of the level.
+        foreach (var key in said.Keys)
         {
             if (!known.Contains(key))
             {
                 problems.Add($"{key} is not an event this server has.");
-                continue;
-            }
-
-            var wait = targeting?.RecentEventThreshold;
-
-            if (wait is not null && (wait < 0 || double.IsNaN(wait.Value) || double.IsInfinity(wait.Value)))
-            {
-                problems.Add(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{key}.recentEventThreshold is {wait.Value}. A wait is a number of seconds, so it starts at 0."));
             }
         }
 

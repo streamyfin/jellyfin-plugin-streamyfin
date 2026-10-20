@@ -14,31 +14,11 @@ const readJson = (path) =>
     window.ApiClient.ajax({ type: "GET", url: url(path), contentType: "application/json" })
         .then((response) => response.json());
 
-// What the server said when it refused a save. ApiClient rejects with the response itself,
-// whose body is the route's sentence written as a JSON string, so the page used to show its
-// fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
-// sentence still reads as the fallback.
-// The box for how long a level makes an event wait, or null for an event that never waits:
-// a wait set on a new item, an awaited title or a locked account changed nothing.
-export const waitInput = (one, theirs) => {
-    if (one.wait === null || one.wait === undefined) return null;
-    const wait = document.createElement("input");
-    wait.type = "number";
-    wait.min = "0";
-    wait.step = "1";
-    wait.className = "sf-number sf-wait";
-    wait.placeholder = "wait";
-    wait.title = "How long two of the same event wait, in seconds. Empty follows the level above.";
-    wait.setAttribute("aria-label", `How long two of ${one.title} wait, in seconds`);
-    wait.value = theirs.recentEventThreshold ?? "";
-    return wait;
-};
-
-// What one event row says for its level: its state, and its wait, from the box where the
-// event waits, or as it was stored where it does not. An empty row says nothing.
+// What one event row says for its level: its state, and a wait the level stored before,
+// kept as it was since the tab offers none. An empty row says nothing.
 export const eventSaid = (row) => {
     const enabled = row.querySelector(".sf-event-state").value;
-    const wait = row.querySelector(".sf-wait")?.value ?? row.dataset.keptWait ?? "";
+    const wait = row.dataset.keptWait ?? "";
     const one = {};
 
     if (enabled) one.enabled = enabled === "on";
@@ -46,6 +26,10 @@ export const eventSaid = (row) => {
     return one;
 };
 
+// What the server said when it refused a save. ApiClient rejects with the response itself,
+// whose body is the route's sentence written as a JSON string, so the page used to show its
+// fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
+// sentence still reads as the fallback.
 export const refusal = async (error) => {
     const fallback = error?.message ?? "Streamyfin could not save that. The server log has the reason.";
     const response = typeof error?.text === "function" ? error : error?.response;
@@ -168,10 +152,9 @@ export default function (view) {
             const controls = document.createElement("div");
             const state = document.createElement("select");
             const theirs = said?.[one.key] ?? {};
-            const wait = waitInput(one, theirs);
-            // A wait stored on an event that never waits does nothing, and has no box. It is
-            // kept as it was, so saving something else on this level does not drop it.
-            if (!wait && theirs.recentEventThreshold !== undefined && theirs.recentEventThreshold !== null) {
+            // A level's wait is read by nothing: an event waits what the server says. One stored
+            // before is kept as it was, so saving something else on this level does not drop it.
+            if (theirs.recentEventThreshold !== undefined && theirs.recentEventThreshold !== null) {
                 row.dataset.keptWait = String(theirs.recentEventThreshold);
             }
 
@@ -208,7 +191,7 @@ export default function (view) {
             }
             state.value = theirs.enabled === undefined ? "" : (theirs.enabled ? "on" : "off");
 
-            const mark = () => row.classList.toggle("is-set", Boolean(state.value) || (wait?.value ?? "") !== "");
+            const mark = () => row.classList.toggle("is-set", Boolean(state.value));
 
             state.addEventListener("change", async () => {
                 // Asked once, when it is turned on, and only for the events that carry
@@ -231,13 +214,8 @@ export default function (view) {
                 updateDock();
             }, { signal: showing.signal });
 
-            wait?.addEventListener("input", () => {
-                mark();
-                updateDock();
-            }, { signal: showing.signal });
-
             controls.className = "sf-event-controls";
-            controls.append(...[state, wait].filter(Boolean));
+            controls.append(state);
             row.append(text, controls);
             mark();
             host.appendChild(row);

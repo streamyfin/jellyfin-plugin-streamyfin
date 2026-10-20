@@ -554,7 +554,6 @@ notifications:
   
   itemAdded:
     enabled: true
-    recentEventThreshold: null
     enabledLibraries: []    # Notify when new content is added
     # Episodes are automatically grouped by season to reduce spam
 
