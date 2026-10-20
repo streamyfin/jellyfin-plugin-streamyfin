@@ -132,6 +132,14 @@ public class AwaitedTitleAnnouncer
     }
 
     /// <summary>
+    /// Forgets who was told about which title, once the new item messages about those titles
+    /// are long sent (#289).
+    /// </summary>
+    /// <returns>How many records went.</returns>
+    public int ForgetTold() =>
+        StreamyfinPlugin.Instance?.Database.ForgetAnnouncedBefore(DateTime.UtcNow - AwaitedTitles.ToldKeptFor) ?? 0;
+
+    /// <summary>
     /// Announces each arrival in turn, the next one even when one fails.
     /// </summary>
     /// <typeparam name="T">An arrival.</typeparam>

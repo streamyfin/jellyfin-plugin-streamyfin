@@ -40,6 +40,12 @@ public class EpisodeTimer
     private Timer Timer { get; }
 
     /// <summary>
+    /// Gets when the first episode of the batch came, which says which awaited title messages
+    /// were about this arrival (#289).
+    /// </summary>
+    public DateTime Opened { get; } = DateTime.UtcNow;
+
+    /// <summary>
     /// Adds an episode, or replaces the one with its id, and starts the minute again.
     /// </summary>
     /// <param name="episode">The episode added.</param>

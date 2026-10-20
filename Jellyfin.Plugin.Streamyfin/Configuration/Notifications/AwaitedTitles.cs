@@ -59,6 +59,12 @@ public static class AwaitedTitles
     /// </summary>
     public const int MostAwaited = 1000;
 
+    /// <summary>
+    /// How long the record of who was told a title arrived is kept. The new item message about
+    /// that title reads it within minutes; a day leaves room for a server that was busy (#289).
+    /// </summary>
+    public static readonly TimeSpan ToldKeptFor = TimeSpan.FromDays(1);
+
     /// <summary>The longest name a title may have.</summary>
     public const int LongestTitle = 300;
 

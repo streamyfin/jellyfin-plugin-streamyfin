@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
@@ -21,24 +22,57 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 
 
-public class ItemAddedService : BaseEvent, IHostedService
+public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 {
+    // How long a new item message waits for its title's id at most (#289).
+    private static readonly TimeSpan LongestIdWait = TimeSpan.FromMinutes(10);
+
+    // A movie's awaited title message is sent while its new item message waits for the id,
+    // within the longest wait, so anything told longer ago is about an earlier arrival.
+    private static readonly TimeSpan MovieArrival = LongestIdWait + TimeSpan.FromMinutes(5);
+
     private readonly ILibraryManager _libraryManager;
     private readonly IShowWatching _watching;
     private readonly ConcurrentDictionary<Guid, EpisodeTimer> _seasonItems;
+    private readonly AwaitedTitleAnnouncer _announcer;
+    private readonly IdentifiedTitles _identified;
 
     public ItemAddedService(ILibraryManager libraryManager,
         ILoggerFactory loggerFactory,
         LocalizationHelper localization,
         IServerApplicationHost applicationHost,
         NotificationHelper notificationHelper,
-        IUserDataManager userData
+        IUserDataManager userData,
+        AwaitedTitleAnnouncer announcer
     ) : base(loggerFactory, localization, applicationHost, notificationHelper)
     {
         _libraryManager = libraryManager;
         _watching = new LibraryShowWatching(libraryManager, userData);
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
+        _announcer = announcer;
+        _identified = new IdentifiedTitles(
+            LongestIdWait,
+            failed: e => _logger.LogError(e, "Could not send a new item message held for its title's id"));
     }
+
+    /// <summary>
+    /// Who a new item message goes to: everyone it went to before but the people the awaited
+    /// title message told about the same title, who get that one message instead (#289).
+    /// </summary>
+    /// <param name="told">The people told, by their Jellyfin user id.</param>
+    /// <param name="canOpen">Who may open what the message names, which still decides.</param>
+    /// <returns>Whether the message goes to a person.</returns>
+    internal static Func<User, bool> LeaveOut(IReadOnlySet<Guid> told, Func<User, bool> canOpen) =>
+        user => !told.Contains(user.Id) && canOpen(user);
+
+    /// <summary>
+    /// The earliest awaited title message that belongs to a batch of episodes: a little before
+    /// its first episode, since the two notice that episode in no set order, and after any batch
+    /// before it, which closed a minute before this one opened.
+    /// </summary>
+    /// <param name="opened">When the batch's first episode came.</param>
+    /// <returns>The moment.</returns>
+    internal static DateTime ToldSinceBatch(DateTime opened) => opened - TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Whether notifications are enabled for the library an item was added to.
@@ -204,17 +238,8 @@ public class ItemAddedService : BaseEvent, IHostedService
         switch (item)
         {
             case Movie movie:
-                SendDetached(
-                    _notificationHelper.SendForEvent(
-                        "itemAdded",
-                        Config?.notifications?.ItemAdded,
-                        byDefault: _ => true,
-                        // Not negotiable, whatever a level says: a title only goes to
-                        // somebody who may open it (#69).
-                        andAlso: NotificationHelper.CanOpenEvery([item]),
-                        write: audience => MovieMessage(item, audience),
-                        subject: new NotificationSubject("itemAdded", library)),
-                    "item added");
+                // Held until Jellyfin knows the movie's id, which says who waited for it (#289).
+                _identified.Send(movie, () => SendMovie(movie.Id, library));
                 break;
             case Episode episode:
                 var seasonId = episode.FindSeasonId();
@@ -241,6 +266,53 @@ public class ItemAddedService : BaseEvent, IHostedService
                 break;
         }
     }
+
+    private void SendMovie(Guid movieId, Guid? library)
+    {
+        // Read back: held until its id came, the movie may have changed or gone meanwhile.
+        if (_libraryManager.GetItemById(movieId) is not Movie movie)
+        {
+            return;
+        }
+
+        var told = ToldAbout(movie, DateTime.UtcNow - MovieArrival);
+
+        SendDetached(
+            _notificationHelper.SendForEvent(
+                "itemAdded",
+                Config?.notifications?.ItemAdded,
+                byDefault: _ => true,
+                // Not negotiable, whatever a level says: a title only goes to
+                // somebody who may open it (#69).
+                andAlso: LeaveOut(told, NotificationHelper.CanOpenEvery([movie])),
+                write: audience => MovieMessage(movie, audience),
+                subject: new NotificationSubject("itemAdded", library)),
+            "item added");
+    }
+
+    // Who the awaited title message told about a title since a moment. The arrival is settled
+    // here first, so they are known whichever library event noticed the title first; settling
+    // twice tells nobody twice (#289).
+    private HashSet<Guid> ToldAbout(BaseItem title, DateTime since)
+    {
+        try
+        {
+            if (_announcer.Arrive(title) is { } sending)
+            {
+                SendDetached(sending, "awaited title");
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Could not settle the arrival of {Title}", title.Name.ForLog());
+        }
+
+        return StreamyfinPlugin.Instance?.Database.ToldAbout(title.Id, since) ?? [];
+    }
+
+    // An update can bring the id a held new item message waits for (#289).
+    private void ItemUpdatedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs) =>
+        _identified.Updated(itemChangeEventArgs.Item);
 
     private void OnEpisodeAddedTimerCallback(Guid seasonId)
     {
@@ -303,17 +375,22 @@ public class ItemAddedService : BaseEvent, IHostedService
         var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), episode.Path);
         var subject = new NotificationSubject("itemAdded", library, series.Id);
 
+        // The people the awaited title message told about the show while this batch gathered
+        // are left out of it: the show arriving is their one message, and a later batch reaches
+        // them like anyone (#289). Held until the show's id is known, like a movie.
+        var since = ToldSinceBatch(countdown?.Opened ?? DateTime.UtcNow);
+
         // Observed like the movie send. Discarding the awaitable left a failure unobserved.
-        SendDetached(
+        _identified.Send(series, () => SendDetached(
             _notificationHelper.SendForEvent(
                 "itemAdded",
                 Config?.notifications?.ItemAdded,
                 byDefault: _ => true,
-                andAlso: NotificationHelper.CanOpenEvery(named),
+                andAlso: LeaveOut(ToldAbout(series, since), NotificationHelper.CanOpenEvery(named)),
                 write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)],
                 subject: subject,
                 watching: _watching),
-            "episodes added");
+            "episodes added"));
     }
 
     // Written once per language among the devices it goes to.
@@ -396,6 +473,7 @@ public class ItemAddedService : BaseEvent, IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _libraryManager.ItemAdded += ItemAddedHandler;
+        _libraryManager.ItemUpdated += ItemUpdatedHandler;
         return Task.CompletedTask;
     }
 
@@ -403,7 +481,12 @@ public class ItemAddedService : BaseEvent, IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _libraryManager.ItemAdded -= ItemAddedHandler;
+        _libraryManager.ItemUpdated -= ItemUpdatedHandler;
         _seasonItems.Clear();
+        _identified.Clear();
         return Task.CompletedTask;
     }
+
+    /// <inheritdoc />
+    public void Dispose() => _identified.Dispose();
 }

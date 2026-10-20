@@ -194,7 +194,13 @@ Seerr tells the person who requested a title when it is available, and nobody el
 the Seerr page of a movie or a show that is not on the server yet, anybody can ask the app
 to tell them when it arrives. The plugin keeps the title for them and, when it lands in
 Jellyfin, through Seerr or added by hand, notifies everyone who waited for it and can open
-it, then forgets it. It needs no webhook: it watches Jellyfin's own library.
+it, then takes it off their list. It needs no webhook: it watches Jellyfin's own library.
+
+That is their one message about the title. The new item message about it, the movie added or
+the batch of episodes the show arrived with, leaves them out, and everyone else gets it as
+before; a later batch of episodes reaches them like anyone. A new movie's message waits until
+Jellyfin knows the movie's TMDB or TVDB id, which is what tells who waited for it, ten minutes
+at most, and a batch of episodes waits for its show's id the same way.
 
 A person who paused their notifications hears about it once the pause is over. The event is
 "Awaited title" on the Notifications tab, on by default.

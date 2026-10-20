@@ -37,7 +37,7 @@ public class AwaitedTitlesTask : IScheduledTask
 
     /// <inheritdoc />
     public string Description =>
-        "Tells the people who paused their notifications about the titles they waited for that arrived meanwhile.";
+        "Tells the people who paused their notifications about the titles they waited for that arrived meanwhile, and forgets, a day later, who was told about which title.";
 
     /// <inheritdoc />
     public string Category => "Streamyfin";
@@ -58,6 +58,7 @@ public class AwaitedTitlesTask : IScheduledTask
         ArgumentNullException.ThrowIfNull(progress);
 
         var told = await _announcer.SettleHeld().ConfigureAwait(false);
+        _announcer.ForgetTold();
 
         if (told > 0)
         {

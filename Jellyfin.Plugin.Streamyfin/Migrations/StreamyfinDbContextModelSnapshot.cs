@@ -31,6 +31,9 @@ namespace Jellyfin.Plugin.Streamyfin.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("AnnouncedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("ArrivedItemId")
                         .HasColumnType("TEXT");
 

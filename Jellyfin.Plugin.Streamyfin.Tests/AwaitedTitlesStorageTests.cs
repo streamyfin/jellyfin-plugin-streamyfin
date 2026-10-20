@@ -220,6 +220,143 @@ public class AwaitedTitlesStorageTests : IDisposable
         Assert.Equal(_bob, Assert.Single(_db.AllAwaitedTitles()).UserId);
     }
 
+    /// <summary>
+    /// A title announced stays as a record of who was told about what arrived, so the new item
+    /// message can leave them out (#289), and is listed nowhere: not to the person, not in a
+    /// backup, and never announced again.
+    /// </summary>
+    [Fact]
+    public void AnAnnouncedTitleIsKeptAsToldAndListedNowhere()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Matrix(_bob));
+        var item = Guid.NewGuid();
+
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        Assert.Equal(new[] { _alice, _bob }.Order(), _db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)).Order());
+        Assert.Empty(_db.ToldAbout(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Empty(_db.GetAwaitedTitles(_alice));
+        Assert.Empty(_db.AllAwaitedTitles());
+        Assert.Empty(_db.SettleHeld(_ => AwaitedOutcome.Announce));
+    }
+
+    /// <summary>
+    /// Who was told before a moment is not told since it.
+    /// </summary>
+    [Fact]
+    public void ToldAboutCountsOnlyWhatWasToldSince()
+    {
+        _db.AddAwaitedTitle(Thrones(_alice));
+        var show = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Tv, 1399, 121361, show, _ => AwaitedOutcome.Announce);
+
+        Assert.Empty(_db.ToldAbout(show, DateTime.UtcNow.AddMinutes(1)));
+    }
+
+    /// <summary>
+    /// An arrival held by a pause is recorded as told once the pause is over.
+    /// </summary>
+    [Fact]
+    public void AHeldArrivalToldAfterThePauseIsRecorded()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Hold);
+
+        Assert.Empty(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+
+        _db.SettleHeld(_ => AwaitedOutcome.Announce);
+
+        Assert.Equal(_alice, Assert.Single(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1))));
+    }
+
+    /// <summary>
+    /// Waiting again for a title one was told about starts a fresh wait: the title went away
+    /// and is awaited again.
+    /// </summary>
+    [Fact]
+    public void WaitingAgainForATitleToldAboutStartsAFreshWait()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        Assert.Equal(AwaitResult.Added, _db.AddAwaitedTitle(Matrix(_alice, Now.AddDays(1))));
+
+        var again = Assert.Single(_db.GetAwaitedTitles(_alice));
+        Assert.Null(again.ArrivedItemId);
+        Assert.Null(again.AnnouncedAt);
+        Assert.Empty(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+    }
+
+    /// <summary>
+    /// Titles one was told about do not fill the list.
+    /// </summary>
+    [Fact]
+    public void TitlesToldAboutDoNotFillTheList()
+    {
+        for (var i = 0; i < AwaitedTitles.MostAwaited; i++)
+        {
+            _db.AddAwaitedTitle(new AwaitedTitle { UserId = _alice, MediaType = AwaitedTitles.Movie, TmdbId = 1000 + i, Title = $"Movie {i}", AddedAt = Now });
+        }
+
+        _db.SettleArrival(AwaitedTitles.Movie, 1000, null, Guid.NewGuid(), _ => AwaitedOutcome.Announce);
+
+        Assert.Equal(AwaitResult.Added, _db.AddAwaitedTitle(Matrix(_alice)));
+    }
+
+    /// <summary>
+    /// Removing a title takes off a wait, not the record of who was told.
+    /// </summary>
+    [Fact]
+    public void RemovingATitleLeavesWhoWasToldAlone()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        Assert.False(_db.RemoveAwaitedTitle(_alice, AwaitedTitles.Movie, 603));
+        Assert.Single(_db.ToldAbout(item, DateTime.UtcNow.AddMinutes(-1)));
+    }
+
+    /// <summary>
+    /// The record of who was told is forgotten after a while, and only that.
+    /// </summary>
+    [Fact]
+    public void WhoWasToldIsForgottenAfterAWhile()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Thrones(_alice));
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        Assert.Equal(0, _db.ForgetAnnouncedBefore(DateTime.UtcNow.AddMinutes(-1)));
+        Assert.Single(_db.ToldAbout(item, DateTime.MinValue));
+
+        Assert.Equal(1, _db.ForgetAnnouncedBefore(DateTime.UtcNow.AddMinutes(1)));
+        Assert.Empty(_db.ToldAbout(item, DateTime.MinValue));
+        Assert.Single(_db.GetAwaitedTitles(_alice));
+    }
+
+    /// <summary>
+    /// A restore puts back the waits a backup holds and keeps who was just told, except where
+    /// the backup waits for that same title again.
+    /// </summary>
+    [Fact]
+    public void ARestoreKeepsWhoWasJustTold()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Matrix(_bob));
+        var item = Guid.NewGuid();
+        _db.SettleArrival(AwaitedTitles.Movie, 603, null, item, _ => AwaitedOutcome.Announce);
+
+        _db.ReplaceAwaitedTitles([Thrones(_bob), Matrix(_bob)]);
+
+        Assert.Equal(_alice, Assert.Single(_db.ToldAbout(item, DateTime.MinValue)));
+        Assert.Equal(2, _db.GetAwaitedTitles(_bob).Count);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
