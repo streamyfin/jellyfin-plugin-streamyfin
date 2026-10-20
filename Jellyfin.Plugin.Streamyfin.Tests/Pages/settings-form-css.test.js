@@ -48,10 +48,18 @@ describe("the legend's close button", () => {
     });
 
     // The bigger box reaches into the banner's padding, so the cross stays where it was
-    // drawn, in the banner's corner, rather than pushing the legend down and inwards.
-    test("keeps the cross in the banner's corner", () => {
+    // drawn, in the banner's corner, rather than pushing the legend down and inwards. The
+    // margins are logical, so the corner follows the dashboard's reading direction, and
+    // each reaches less far than the banner's padding, so the box stays inside the banner.
+    test("keeps the cross in the banner's corner, whichever way the dashboard reads", () => {
         const close = rule(".sf-page .sf-banner-close")?.style;
-        expect(["top", "right", "bottom", "left"].map((side) => close?.getPropertyValue(`margin-${side}`)))
-            .toEqual(["-0.35rem", "-0.45rem", "0px", "auto"]);
+        const banner = rule(".sf-page .sf-banner")?.style;
+        const [blockStart, blockEnd] = close?.getPropertyValue("margin-block").split(" ") ?? [];
+        const [inlineStart, inlineEnd] = close?.getPropertyValue("margin-inline").split(" ") ?? [];
+        expect([blockStart, blockEnd, inlineStart, inlineEnd]).toEqual(["-0.35rem", "0", "auto", "-0.45rem"]);
+        expect(["margin", "margin-top", "margin-right", "margin-left"].map((name) => close?.getPropertyValue(name)))
+            .toEqual(["", "", "", ""]);
+        expect(-Number.parseFloat(blockStart)).toBeLessThan(Number.parseFloat(banner?.getPropertyValue("padding-top")));
+        expect(-Number.parseFloat(inlineEnd)).toBeLessThan(Number.parseFloat(banner?.getPropertyValue("padding-right")));
     });
 });

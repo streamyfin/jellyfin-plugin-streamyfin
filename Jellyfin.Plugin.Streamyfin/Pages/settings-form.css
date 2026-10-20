@@ -125,10 +125,11 @@
 .sf-page .sf-banner svg { flex: none; color: var(--sf-ac); margin-top: 0.2rem; width: 20px; height: 20px; }
 .sf-page .sf-banner b { color: var(--sf-ink); }
 .sf-page .sf-banner a { color: var(--sf-ac); }
-/* The cross gets a 2rem square to hit. The box reaches into the banner's padding, so the cross keeps its corner. */
+/* The cross gets a 2rem square to hit. The box reaches into the banner's padding, so the cross keeps its
+   corner. Logical margins, so the corner is the right one when the dashboard reads right to left. */
 .sf-page .sf-banner-close {
     display: flex; align-items: center; justify-content: center; flex: none; align-self: flex-start;
-    width: 2rem; height: 2rem; margin: -0.35rem -0.45rem 0 auto; padding: 0; cursor: pointer; border: 0; background: none;
+    width: 2rem; height: 2rem; margin-block: -0.35rem 0; margin-inline: auto -0.45rem; padding: 0; cursor: pointer; border: 0; background: none;
     color: var(--sf-ink-3); font-size: 1.6rem; line-height: 1; border-radius: 4px;
 }
 .sf-page .sf-banner-close:hover { color: var(--sf-ink); background: var(--sf-line-soft); }
