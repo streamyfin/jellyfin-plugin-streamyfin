@@ -8,6 +8,23 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-20, the app's half landed
+
+The app's side of P2 and P4.5 is on the app's `develop`, through its merge queue.
+streamyfin/streamyfin#2004 reads the settings the server resolved for the person, on
+`v1/config/resolved`, and falls back to `config` when a plugin older than this release answers
+404 there. The fallback goes once the app requires 0.70.0 or newer, at the earliest two app
+releases after 0.70.0 is out, as written down in streamyfin/streamyfin#2281.
+streamyfin/streamyfin#2076, streamyfin/streamyfin#2216 and streamyfin/streamyfin#2244, merged as
+one stack, tell the plugin each device's language and server, give each person a screen to choose
+their notifications, and let them wait for a title from its Seerr page. With them, P2 and P4.5
+are complete.
+
+The review of streamyfin/streamyfin#2244 asked what a person gets when a title they wait for
+arrives while they keep new movies and episodes on: both messages, the new item one and the
+awaited title one, since neither path looks at the other. One message instead of two is #289,
+after this release.
+
 ## 2026-10-16, the last bugs before the release
 
 The release notes say what each person chooses about their own notifications, and that a server
