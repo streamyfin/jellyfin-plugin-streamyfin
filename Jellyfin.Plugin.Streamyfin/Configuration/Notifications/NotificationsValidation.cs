@@ -107,11 +107,13 @@ public static class NotificationsValidation
                 continue;
             }
 
-            // Nothing reads a level's wait: an event waits what the server says. It is still
-            // stored as JSON, which cannot hold one that is not a number.
+            // Nothing reads a level's wait: an event waits what the server says. The Targeting
+            // tab draws no field for it, so a negative one a level kept is left alone rather
+            // than refusing every save of that level. It is still stored as JSON, which cannot
+            // hold one that is not a number.
             var wait = targeting?.RecentEventThreshold;
 
-            if (wait is not null && (wait < 0 || double.IsNaN(wait.Value) || double.IsInfinity(wait.Value)))
+            if (wait is not null && (double.IsNaN(wait.Value) || double.IsInfinity(wait.Value)))
             {
                 problems.Add(string.Create(
                     CultureInfo.InvariantCulture,

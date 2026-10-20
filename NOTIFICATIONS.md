@@ -21,8 +21,8 @@ reach is tried by machines that never stop. The wait is set for the whole server
 Notifications tab, which offers it only on those five. A new item, an awaited title and a
 locked account never wait, and a wait set on a group or a user is not read.
 
-A server that was already running when these three arrived has them off, since its stored
-configuration does not mention them. A fresh install has them on.
+A server that was already running when the last three events of the list arrived has them
+off, since its stored configuration does not mention them. A fresh install has them on.
 
 ## Posters
 
