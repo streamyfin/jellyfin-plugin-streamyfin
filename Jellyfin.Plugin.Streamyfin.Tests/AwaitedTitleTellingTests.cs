@@ -49,10 +49,11 @@ public sealed class AwaitedTitleTellingTests : IDisposable
         Language = "en"
     });
 
+    // With the retries Expo's answers allow, but without their waits.
     private static AwaitedTitleAnnouncer Announcer(Expo expo) => new(
         null!,
         null!,
-        new NotificationHelper(null, null, new SerializationHelper(), new Factory(expo)),
+        new NotificationHelper(null, null, new SerializationHelper(), new Factory(expo), ExpoRetry.Immediate),
         new LocalizationHelper(null, null),
         NullLogger<AwaitedTitleAnnouncer>.Instance);
 
