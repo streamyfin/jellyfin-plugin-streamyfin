@@ -58,6 +58,38 @@ public class EventWaitTests
     }
 
     /// <summary>
+    /// The longest wait the server stores is one every event that waits can still count, and
+    /// one second more is refused.
+    /// </summary>
+    /// <remarks>
+    /// One second more no longer fits in a <see cref="TimeSpan"/>: the event would throw while
+    /// working out its wait, and the notification would be lost.
+    /// </remarks>
+    [Theory]
+    [InlineData(typeof(SessionStartEvent))]
+    [InlineData(typeof(PlaybackStartEvent))]
+    [InlineData(typeof(TaskFailedService))]
+    [InlineData(typeof(PluginChangedEvent))]
+    [InlineData(typeof(SignInFailedEvent))]
+    public void TheLongestWaitStoredIsOneAnEventCanCount(Type eventType)
+    {
+        static Notifications Waiting(double seconds) => new()
+        {
+            SessionStarted = new NotificationConfiguration { RecentEventThreshold = seconds },
+            PlaybackStarted = new NotificationConfiguration { RecentEventThreshold = seconds },
+            TaskFailed = new NotificationConfiguration { RecentEventThreshold = seconds },
+            PluginChanged = new NotificationConfiguration { RecentEventThreshold = seconds },
+            SignInFailed = new NotificationConfiguration { RecentEventThreshold = seconds }
+        };
+        var longest = Waiting(NotificationsValidation.LongestWait);
+        var waitIn = eventType.GetMethod("WaitIn", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+
+        Assert.Null(NotificationsValidation.Check(longest));
+        Assert.Equal(TimeSpan.FromSeconds(NotificationsValidation.LongestWait), (TimeSpan)waitIn.Invoke(null, [longest])!);
+        Assert.NotNull(NotificationsValidation.Check(Waiting(NotificationsValidation.LongestWait + 1)));
+    }
+
+    /// <summary>
     /// A wait as long as the server can count does not stop every other event's cleanup.
     /// </summary>
     /// <remarks>
