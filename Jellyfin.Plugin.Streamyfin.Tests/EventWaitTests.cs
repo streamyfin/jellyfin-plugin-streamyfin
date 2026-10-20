@@ -126,6 +126,45 @@ public class EventWaitTests
     }
 
     /// <summary>
+    /// A wait raised after an event was sent covers that event too: the cleanup keeps it, and
+    /// the next one waits for the new wait.
+    /// </summary>
+    /// <remarks>
+    /// Found by CodeRabbit on #292. The cleanup forgot an entry at the wait it was sent under, so
+    /// raising five seconds to an hour let the same event notify again about five minutes later.
+    /// </remarks>
+    [Fact]
+    public void ACleanupKeepsWhatARaisedWaitStillCovers()
+    {
+        var key = $"test-raised-{Guid.NewGuid()}";
+        BaseEvent.RecentEvents[key] = (DateTime.UtcNow - TimeSpan.FromMinutes(7), TimeSpan.FromSeconds(5));
+
+        new Probe(TimeSpan.FromHours(1), longest: TimeSpan.FromHours(1)).Cleanup();
+
+        Assert.True(new Probe(TimeSpan.FromHours(1)).Seen(key));
+    }
+
+    /// <summary>
+    /// The longest wait in force is the longest of the five events that wait, each as the
+    /// server sets it or its own default, made positive as the events make it. A wait on an
+    /// event that never waits does not count.
+    /// </summary>
+    [Fact]
+    public void TheLongestWaitInForceIsReadFromTheEventsThatWait()
+    {
+        Assert.Equal(RecentEventWaitAttribute.SignInFailed, RecentEventWaitAttribute.LongestIn(null));
+        Assert.Equal(3600, RecentEventWaitAttribute.LongestIn(new Notifications
+        {
+            SessionStarted = new NotificationConfiguration { RecentEventThreshold = -3600 },
+            ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = 99999 }
+        }));
+        Assert.Equal(RecentEventWaitAttribute.SignInFailed, RecentEventWaitAttribute.LongestIn(new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = 99999 }
+        }));
+    }
+
+    /// <summary>
     /// An entry past its own wait and the cleanup's margin goes.
     /// </summary>
     [Fact]
@@ -139,7 +178,7 @@ public class EventWaitTests
         Assert.False(BaseEvent.RecentEvents.ContainsKey(key));
     }
 
-    private sealed class Probe(TimeSpan wait) : BaseEvent(
+    private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(
         Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance,
         new LocalizationHelper(null, null),
         null!,
@@ -150,5 +189,8 @@ public class EventWaitTests
         public void Cleanup() => CleanupOldEntries();
 
         protected override TimeSpan GetRecentEventThreshold() => wait;
+
+        // None by default, so a test sees each entry's own wait unless it raises one.
+        protected override TimeSpan LongestWaitInForce() => longest ?? TimeSpan.Zero;
     }
 }

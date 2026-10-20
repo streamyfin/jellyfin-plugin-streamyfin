@@ -31,14 +31,15 @@ public sealed class RecentEventWaitAttribute : Attribute
     public const double SignInFailed = 300;
 
     // Read once: the declarations do not change while the server runs.
-    private static readonly Lazy<IReadOnlyDictionary<string, double>> _byEvent = new(() =>
-        typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Select(property => (
-                // Keyed the way the form keys the event, so the two cannot disagree.
-                Key: NotificationsForm.KeyOf(property),
-                Wait: property.GetCustomAttribute<RecentEventWaitAttribute>()))
+    private static readonly Lazy<IReadOnlyList<(string Key, PropertyInfo Event, double Seconds)>> _waiting = new(() =>
+        [.. typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => (Event: property, Wait: property.GetCustomAttribute<RecentEventWaitAttribute>()))
             .Where(one => one.Wait is not null)
-            .ToDictionary(one => one.Key, one => one.Wait!.Seconds));
+            // Keyed the way the form keys the event, so the two cannot disagree.
+            .Select(one => (NotificationsForm.KeyOf(one.Event), one.Event, one.Wait!.Seconds))]);
+
+    private static readonly Lazy<IReadOnlyDictionary<string, double>> _byEvent = new(() =>
+        _waiting.Value.ToDictionary(one => one.Key, one => one.Seconds));
 
     /// <summary>
     /// What an event waits when nothing sets a wait, read from its declaration, so the events
@@ -51,6 +52,18 @@ public sealed class RecentEventWaitAttribute : Attribute
         _byEvent.Value.TryGetValue(eventKey, out var seconds)
             ? seconds
             : throw new ArgumentException($"{eventKey} declares no wait.", nameof(eventKey));
+
+    /// <summary>
+    /// The longest wait in force among the events that wait: each one's own as the server sets
+    /// it, made positive as the events make it, or its default when nothing sets it.
+    /// </summary>
+    /// <param name="notifications">The server's notifications, or nothing for the defaults.</param>
+    /// <returns>The wait in seconds.</returns>
+    public static double LongestIn(Notifications? notifications) =>
+        _waiting.Value.Max(one =>
+            notifications is not null && one.Event.GetValue(notifications) is NotificationConfiguration { RecentEventThreshold: { } seconds }
+                ? Math.Abs(seconds)
+                : one.Seconds);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecentEventWaitAttribute"/> class.

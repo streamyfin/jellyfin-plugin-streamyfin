@@ -114,17 +114,21 @@ public abstract class BaseEvent
     /// of the event that ran it, so a long wait on one event was cut short by another. The
     /// sum of a wait and the margin could overflow, so the elapsed time is compared to the
     /// wait first. An entry is removed only while it holds the value judged here: one claimed
-    /// again since then is someone's fresh claim.
+    /// again since then is someone's fresh claim. An entry also stays while the longest wait in
+    /// force covers it: forgotten at the wait it was sent under, an event whose wait was raised
+    /// since could notify again before the new wait was over.
     /// </remarks>
     protected void CleanupOldEntries()
     {
         var now = DateTime.UtcNow;
+        var longest = LongestWaitInForce();
 
         RecentEvents
             .Where(kvp =>
             {
+                var keep = kvp.Value.Wait > longest ? kvp.Value.Wait : longest;
                 var elapsed = now - kvp.Value.Last;
-                return elapsed > kvp.Value.Wait && elapsed - kvp.Value.Wait > CleanupThreshold;
+                return elapsed > keep && elapsed - keep > CleanupThreshold;
             })
             .ToList()
             .ForEach(kvp => RecentEvents.TryRemove(kvp));
@@ -146,6 +150,18 @@ public abstract class BaseEvent
     /// The wait this event holds the next one back by, for the tests.
     /// </summary>
     internal TimeSpan WaitNow => GetRecentEventThreshold();
+
+    /// <summary>
+    /// The longest wait in force among the events that wait.
+    /// </summary>
+    /// <returns>The wait.</returns>
+    protected virtual TimeSpan LongestWaitInForce() => SecondsAsWait(RecentEventWaitAttribute.LongestIn(Config?.notifications));
+
+    // As long as the server can count, and none for a wait that is not a number.
+    private static TimeSpan SecondsAsWait(double seconds) =>
+        double.IsNaN(seconds) ? TimeSpan.Zero
+        : seconds > NotificationsValidation.LongestWait ? TimeSpan.MaxValue
+        : TimeSpan.FromSeconds(seconds);
 
     /// <summary>
     /// How long we want to wait until allowing an event with a matching sessionKey to be processed
