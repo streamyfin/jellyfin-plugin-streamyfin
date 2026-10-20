@@ -8,6 +8,33 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-20, two last fixes from the pass on the beta
+
+The pass on the beta before 0.70.0 found two things worth fixing before the release.
+
+#290 makes the cross that hides a tab's legend a 2rem square, which is 29.75 px in Jellyfin's
+dashboard since its root font size is 14.88 px, set in the banner's corner on whichever side the
+dashboard reads from, so it stays in place in a right to left language. The logo on the plugin's
+card leaves more room around itself.
+
+#292 is about the wait between two of the same event, the "Recent event threshold". Both tabs
+offered it on every event, but only five events read it, a session started, a playback started, a
+failed task, a changed plugin and a refused sign in, and only the server's own: no caller ever
+resolved a group's or a user's. The Notifications tab now offers it on those five only, with each
+one's own wait shown when it is empty, and the Targeting tab no longer offers it. Working on it found
+a crash, a session or playback start with no block of its own in the configuration throwing and
+losing the notification a group had turned on, and a cleanup that cut one event's long wait short
+with another's. Two full reviews and CodeRabbit's then found the branch's own mistakes: a wait that
+is not a number failing the save with "Error processing request." instead of saying why, a cleanup
+that overflowed on the longest wait, a wait greyed out while it still applies, a level that kept
+a negative wait no longer saving from a tab that had lost the field to fix it, and a raised wait
+not reaching an event already sent. Two small leftovers, neither losing a notification in normal
+use, are #293.
+
+Worth remembering from #292: a field taken off a tab can leave behind a check the tab can no longer
+satisfy. Every value the tab still sends back has to pass the same checks with nothing on screen to
+change it.
+
 ## 2026-10-20, the app's half landed
 
 The app's side of P2 and P4.5 is on the app's `develop`, through its merge queue.
