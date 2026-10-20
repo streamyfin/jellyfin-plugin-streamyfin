@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using MediaBrowser.Controller;
@@ -91,12 +92,9 @@ public class PlaybackStartEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold()
-    {
-        if (Config?.notifications?.PlaybackStarted is { RecentEventThreshold: null })
-            return base.GetRecentEventThreshold();
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
 
-        var definedThreshold = (double) Config?.notifications?.PlaybackStarted?.RecentEventThreshold!;
-        return TimeSpan.FromSeconds(double.Abs(definedThreshold));
-    }
+    // A configuration with no block for the event threw here and lost the notification.
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.PlaybackStarted, "playbackStarted");
 }

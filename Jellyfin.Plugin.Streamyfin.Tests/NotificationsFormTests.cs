@@ -1,4 +1,5 @@
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
@@ -42,7 +43,7 @@ public class NotificationsFormTests
         var keys = NotificationsForm.Describe().Select(field => field.Key).ToArray();
 
         Assert.Contains("itemAdded.enabled", keys);
-        Assert.Contains("itemAdded.recentEventThreshold", keys);
+        Assert.Contains("sessionStarted.recentEventThreshold", keys);
         Assert.Contains("itemAdded.enabledLibraries", keys);
         Assert.Contains("sessionStarted.enabled", keys);
     }
@@ -52,7 +53,7 @@ public class NotificationsFormTests
     /// </summary>
     [Theory]
     [InlineData("itemAdded.enabled", SettingsControl.Toggle)]
-    [InlineData("itemAdded.recentEventThreshold", SettingsControl.Number)]
+    [InlineData("sessionStarted.recentEventThreshold", SettingsControl.Number)]
     [InlineData("itemAdded.enabledLibraries", SettingsControl.List)]
     public void TheControlComesFromTheType(string key, SettingsControl expected)
     {
@@ -95,7 +96,9 @@ public class NotificationsFormTests
     public void EveryFieldOfAnEventDependsOnItBeingOn()
     {
         Assert.Null(Field("itemAdded.enabled").DependsOn);
-        Assert.Equal("itemAdded.enabled", Field("itemAdded.recentEventThreshold").DependsOn);
+        // A wait matters even with the server's switch off: a group or a user can turn the
+        // event on, and the event still waits what the server says.
+        Assert.Null(Field("sessionStarted.recentEventThreshold").DependsOn);
         Assert.Equal("itemAdded.enabledLibraries", Field("itemAdded.enabledLibraries").Key);
         Assert.Equal("itemAdded.enabled", Field("itemAdded.enabledLibraries").DependsOn);
     }
@@ -108,6 +111,59 @@ public class NotificationsFormTests
     public void NoEventFieldIsLockable()
     {
         Assert.All(NotificationsForm.Describe(), field => Assert.False(field.Lockable));
+    }
+
+    /// <summary>
+    /// The wait is offered on the events that keep two of the same apart, and only there:
+    /// a new item, an awaited title and a locked account never read it, so a wait set on
+    /// them changed nothing.
+    /// </summary>
+    [Fact]
+    public void AWaitIsOfferedOnlyWhereTheEventWaits()
+    {
+        var waits = NotificationsForm.Describe()
+            .Select(field => field.Key)
+            .Where(key => key.EndsWith(".recentEventThreshold", System.StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                "sessionStarted.recentEventThreshold", "playbackStarted.recentEventThreshold",
+                "taskFailed.recentEventThreshold", "pluginChanged.recentEventThreshold",
+                "signInFailed.recentEventThreshold"
+            },
+            waits);
+    }
+
+    /// <summary>
+    /// A wait left empty is the event's own, and the field says which rather than leaving
+    /// the administrator to guess: five seconds, and five minutes for a refused sign in.
+    /// </summary>
+    [Theory]
+    [InlineData("sessionStarted", 5)]
+    [InlineData("playbackStarted", 5)]
+    [InlineData("taskFailed", 5)]
+    [InlineData("pluginChanged", 5)]
+    [InlineData("signInFailed", 300)]
+    public void AWaitSaysTheEventsOwn(string eventKey, double seconds)
+    {
+        var wait = Field($"{eventKey}.recentEventThreshold");
+
+        Assert.Equal(seconds, wait.ServerDefault);
+        Assert.Equal("How long to wait, in seconds, before the same event can notify again.", wait.Description);
+    }
+
+    /// <summary>
+    /// The Yaml tab's schema offers the wait on every event, since every event's block can
+    /// hold one, so it says which events read it.
+    /// </summary>
+    [Fact]
+    public void TheYamlSchemaSaysWhichEventsReadAWait()
+    {
+        var schema = SerializationHelper.GetJsonSchema<Config>();
+
+        Assert.Contains("Only a session started, a playback started, a failed task, a changed plugin and a refused sign in wait", schema, System.StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -144,7 +200,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.recentEventThreshold", "itemAdded.enabledLibraries" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries" },
             itemAdded);
     }
 

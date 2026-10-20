@@ -129,24 +129,6 @@ public class NotificationTargetingTests
     }
 
     /// <summary>
-    /// The wait between two of the same event is resolved the same way, and the server's
-    /// own is the fallback.
-    /// </summary>
-    [Fact]
-    public void TheWaitResolvesTheSameWay()
-    {
-        var levels = new[]
-        {
-            new Dictionary<string, NotificationTargeting> { [Event] = new() { RecentEventThreshold = 60 } },
-            new Dictionary<string, NotificationTargeting> { [Event] = new() { Enabled = true } }
-        };
-
-        Assert.Equal(60, NotificationTargeting.WaitOf(Event, serverWait: 5, levels));
-        Assert.Equal(5, NotificationTargeting.WaitOf(Event, serverWait: 5, []));
-        Assert.Null(NotificationTargeting.WaitOf(Event, serverWait: null, []));
-    }
-
-    /// <summary>
     /// Before an event is built at all, there is a cheaper question: does anybody want it?
     /// An event switched off on the server is still worth building when a group or a user
     /// asked for it, and worth skipping when nobody did.

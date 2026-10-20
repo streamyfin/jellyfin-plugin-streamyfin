@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using MediaBrowser.Common.Plugins;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
@@ -74,8 +75,10 @@ public class PluginChangedEvent(
         Tell(PluginChange.Uninstalled, eventArgs?.Argument?.Name, eventArgs?.Argument?.Version?.ToString());
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFrom(Config?.notifications?.PluginChanged, base.GetRecentEventThreshold());
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
+
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.PluginChanged, "pluginChanged");
 
     private Task Tell(PluginChange change, string? name, string? version)
     {

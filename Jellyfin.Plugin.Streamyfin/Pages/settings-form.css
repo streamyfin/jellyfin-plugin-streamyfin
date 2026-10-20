@@ -436,7 +436,6 @@
 .sf-page .sf-event .sf-event-text { flex: 1 1 auto; min-width: 0; }
 .sf-page .sf-event .sf-event-title { font-weight: 600; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .sf-page .sf-event .sf-event-controls { display: flex; align-items: center; gap: 0.5rem; flex: none; }
-.sf-page .sf-event .sf-wait { width: 6.5rem; }
 .sf-page .sf-names {
     font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px;
     background: var(--sf-pin-wash); color: var(--sf-pin); white-space: nowrap;

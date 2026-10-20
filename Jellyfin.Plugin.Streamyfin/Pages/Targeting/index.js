@@ -14,6 +14,22 @@ const readJson = (path) =>
     window.ApiClient.ajax({ type: "GET", url: url(path), contentType: "application/json" })
         .then((response) => response.json());
 
+// What one event row says for its level: its state, and a wait the level stored before,
+// kept as it was since the tab offers none. An empty row says nothing.
+export const eventSaid = (row) => {
+    const enabled = row.querySelector(".sf-event-state").value;
+    const wait = row.dataset.keptWait ?? "";
+    const one = {};
+
+    if (enabled) one.enabled = enabled === "on";
+    if (wait !== "") one.recentEventThreshold = Number(wait);
+    return one;
+};
+
+// How many events a level turns on or off, as its rows show. A wait it kept has no row of
+// its own to show, so it does not count.
+export const setCount = (said) => Object.values(said).filter((one) => one?.enabled !== undefined).length;
+
 // What the server said when it refused a save. ApiClient rejects with the response itself,
 // whose body is the route's sentence written as a JSON string, so the page used to show its
 // fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
@@ -106,14 +122,8 @@ export default function (view) {
         const said = {};
 
         for (const row of el("sf-events").children) {
-            const key = row.dataset.event;
-            const enabled = row.querySelector(".sf-event-state").value;
-            const wait = row.querySelector(".sf-wait").value;
-            const one = {};
-
-            if (enabled) one.enabled = enabled === "on";
-            if (wait !== "") one.recentEventThreshold = Number(wait);
-            if (Object.keys(one).length > 0) said[key] = one;
+            const one = eventSaid(row);
+            if (Object.keys(one).length > 0) said[row.dataset.event] = one;
         }
 
         return said;
@@ -129,7 +139,7 @@ export default function (view) {
         }
 
         el("sf-events-count").textContent = changed === 0
-            ? `${Object.keys(now).length || "nothing"} set`
+            ? `${setCount(now) || "nothing"} set`
             : `${changed} changed`;
 
         return changed;
@@ -145,8 +155,12 @@ export default function (view) {
             const title = document.createElement("div");
             const controls = document.createElement("div");
             const state = document.createElement("select");
-            const wait = document.createElement("input");
             const theirs = said?.[one.key] ?? {};
+            // A level's wait is read by nothing: an event waits what the server says. One stored
+            // before is kept as it was, so saving something else on this level does not drop it.
+            if (theirs.recentEventThreshold !== undefined && theirs.recentEventThreshold !== null) {
+                row.dataset.keptWait = String(theirs.recentEventThreshold);
+            }
 
             row.className = "sf-event";
             row.dataset.event = one.key;
@@ -181,16 +195,7 @@ export default function (view) {
             }
             state.value = theirs.enabled === undefined ? "" : (theirs.enabled ? "on" : "off");
 
-            wait.type = "number";
-            wait.min = "0";
-            wait.step = "1";
-            wait.className = "sf-number sf-wait";
-            wait.placeholder = "wait";
-            wait.title = "How long two of the same event wait, in seconds. Empty follows the level above.";
-            wait.setAttribute("aria-label", `How long two of ${one.title} wait, in seconds`);
-            wait.value = theirs.recentEventThreshold ?? "";
-
-            const mark = () => row.classList.toggle("is-set", Boolean(state.value) || wait.value !== "");
+            const mark = () => row.classList.toggle("is-set", Boolean(state.value));
 
             state.addEventListener("change", async () => {
                 // Asked once, when it is turned on, and only for the events that carry
@@ -213,13 +218,8 @@ export default function (view) {
                 updateDock();
             }, { signal: showing.signal });
 
-            wait.addEventListener("input", () => {
-                mark();
-                updateDock();
-            }, { signal: showing.signal });
-
             controls.className = "sf-event-controls";
-            controls.append(state, wait);
+            controls.append(state);
             row.append(text, controls);
             mark();
             host.appendChild(row);

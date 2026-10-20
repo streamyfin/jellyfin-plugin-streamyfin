@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
@@ -24,13 +25,6 @@ public class SignInFailedEvent(
     NotificationHelper notificationHelper
 ) : BaseEvent(loggerFactory, localization, applicationHost, notificationHelper), IEventConsumer<AuthenticationRequestEventArgs>
 {
-    /// <summary>
-    /// How long two refusals from the same place wait by default. A server anyone can
-    /// reach is tried by machines that never stop, and a notification for each of those is
-    /// a reason to turn the whole thing off.
-    /// </summary>
-    private static readonly TimeSpan Wait = TimeSpan.FromMinutes(5);
-
     /// <inheritdoc />
     public Task OnEvent(AuthenticationRequestEventArgs? eventArgs)
     {
@@ -74,6 +68,8 @@ public class SignInFailedEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFrom(Config?.notifications?.SignInFailed, Wait);
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
+
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.SignInFailed, "signInFailed");
 }

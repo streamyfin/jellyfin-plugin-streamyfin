@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using MediaBrowser.Controller;
 using Microsoft.Extensions.Logging;
 
@@ -11,8 +12,13 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 
 public abstract class BaseEvent
 {
-    private static readonly ConcurrentDictionary<string, DateTime> RecentEvents = new();
-    private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(5);
+    /// <summary>
+    /// The events told about recently, each with when it was and how long it holds the next
+    /// one back. Shared by every event, so each entry carries its own wait for the cleanup.
+    /// </summary>
+    internal static readonly ConcurrentDictionary<string, (DateTime Last, TimeSpan Wait)> RecentEvents = new();
+    // The same length the tabs say, read from where they read it.
+    private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(RecentEventWaitAttribute.Usual);
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
 
     protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;
@@ -77,7 +83,7 @@ public abstract class BaseEvent
 
             if (!RecentEvents.TryGetValue(sessionKey, out var last))
             {
-                if (RecentEvents.TryAdd(sessionKey, now))
+                if (RecentEvents.TryAdd(sessionKey, (now, threshold)))
                 {
                     _logger.LogDebug("No recent events for key: {0}", sessionKey);
                     return false;
@@ -86,13 +92,13 @@ public abstract class BaseEvent
                 continue;
             }
 
-            if (now - last < threshold)
+            if (now - last.Last < threshold)
             {
                 _logger.LogDebug("There are recent events for key: {0}", sessionKey);
                 return true;
             }
 
-            if (RecentEvents.TryUpdate(sessionKey, now, last))
+            if (RecentEvents.TryUpdate(sessionKey, (now, threshold), last))
             {
                 _logger.LogDebug("No recent events for key: {0}", sessionKey);
                 return false;
@@ -101,29 +107,61 @@ public abstract class BaseEvent
     }
     
     /// <summary>
-    /// Cleans up old session entries from the cache.
+    /// Forgets the events nobody waits on any more.
     /// </summary>
+    /// <remarks>
+    /// Each entry goes once its own wait and a margin have passed. The cleanup used the wait
+    /// of the event that ran it, so a long wait on one event was cut short by another. The
+    /// sum of a wait and the margin could overflow, so the elapsed time is compared to the
+    /// wait first. An entry is removed only while it holds the value judged here: one claimed
+    /// again since then is someone's fresh claim. An entry also stays while the longest wait in
+    /// force covers it: forgotten at the wait it was sent under, an event whose wait was raised
+    /// since could notify again before the new wait was over.
+    /// </remarks>
     protected void CleanupOldEntries()
     {
-        DateTime threshold = DateTime.UtcNow - GetCleanupThreshold();
-
-        _logger.LogDebug("Checking for entries older than: {0}", threshold);
+        var now = DateTime.UtcNow;
+        var longest = LongestWaitInForce();
 
         RecentEvents
-            .Where(kvp => kvp.Value < threshold)
-            .Select(kvp => kvp.Key)
+            .Where(kvp =>
+            {
+                var keep = kvp.Value.Wait > longest ? kvp.Value.Wait : longest;
+                var elapsed = now - kvp.Value.Last;
+                return elapsed > keep && elapsed - keep > CleanupThreshold;
+            })
             .ToList()
-            .ForEach(key => RecentEvents.TryRemove(key, out _));
+            .ForEach(kvp => RecentEvents.TryRemove(kvp));
     }
 
     /// <summary>
-    /// How long two of the same event wait, as configured or as this event prefers.
+    /// How long two of the same event wait: as the server's configuration says, or as the
+    /// event declares when it says nothing or has no block for the event at all.
     /// </summary>
     /// <param name="configuration">The event's configuration, which may be absent.</param>
-    /// <param name="fallback">The wait to use when nothing is configured.</param>
+    /// <param name="eventKey">The event, by the key the configuration uses.</param>
     /// <returns>The wait between two of the same event.</returns>
-    protected static TimeSpan WaitFrom(Configuration.Notifications.NotificationConfiguration? configuration, TimeSpan fallback) =>
-        configuration?.RecentEventThreshold is { } seconds ? TimeSpan.FromSeconds(Math.Abs(seconds)) : fallback;
+    protected static TimeSpan WaitFor(NotificationConfiguration? configuration, string eventKey) =>
+        TimeSpan.FromSeconds(configuration?.RecentEventThreshold is { } seconds
+            ? Math.Abs(seconds)
+            : RecentEventWaitAttribute.SecondsFor(eventKey));
+
+    /// <summary>
+    /// The wait this event holds the next one back by, for the tests.
+    /// </summary>
+    internal TimeSpan WaitNow => GetRecentEventThreshold();
+
+    /// <summary>
+    /// The longest wait in force among the events that wait.
+    /// </summary>
+    /// <returns>The wait.</returns>
+    protected virtual TimeSpan LongestWaitInForce() => SecondsAsWait(RecentEventWaitAttribute.LongestIn(Config?.notifications));
+
+    // As long as the server can count, and none for a wait that is not a number.
+    private static TimeSpan SecondsAsWait(double seconds) =>
+        double.IsNaN(seconds) ? TimeSpan.Zero
+        : seconds > NotificationsValidation.LongestWait ? TimeSpan.MaxValue
+        : TimeSpan.FromSeconds(seconds);
 
     /// <summary>
     /// How long we want to wait until allowing an event with a matching sessionKey to be processed
@@ -135,12 +173,4 @@ public abstract class BaseEvent
         return RecentEventThreshold;
     }
 
-    /// <summary>
-    /// Maximum age we want events stored our recentEvents cache to be
-    /// </summary>
-    /// <returns>TimeSpan for how long to wait</returns>
-    protected virtual TimeSpan GetCleanupThreshold()
-    {
-        return GetRecentEventThreshold() + CleanupThreshold;
-    }
 }

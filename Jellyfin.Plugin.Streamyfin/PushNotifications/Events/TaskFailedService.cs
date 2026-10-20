@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Model.Tasks;
@@ -71,8 +72,10 @@ public class TaskFailedService : BaseEvent, IHostedService
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFrom(Config?.notifications?.TaskFailed, base.GetRecentEventThreshold());
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
+
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.TaskFailed, "taskFailed");
 
     // Jellyfin raises this event straight from the worker that ran the task, so anything
     // thrown here would land in the server's own task pipeline rather than in a consumer it

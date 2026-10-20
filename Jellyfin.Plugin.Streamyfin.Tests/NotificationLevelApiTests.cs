@@ -85,15 +85,27 @@ public class NotificationLevelApiTests
     }
 
     /// <summary>
-    /// A wait is a number of seconds here too, and the page is not the only thing that
-    /// says so.
+    /// Nothing reads a level's wait, and the Targeting tab draws no field for it, so a
+    /// negative one a level kept is left alone rather than refusing every save of that level
+    /// with nowhere to fix it. It is stored as JSON, though, which cannot hold one that is
+    /// not a number.
     /// </summary>
     [Fact]
-    public void AWaitStartsAtZeroHereToo()
+    public void ALevelsWaitIsRefusedOnlyWhenItIsNotANumber()
     {
-        Assert.NotNull(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        Assert.Null(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
         {
             ["taskFailed"] = new() { RecentEventThreshold = -1 }
+        }));
+
+        Assert.NotNull(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        {
+            ["taskFailed"] = new() { RecentEventThreshold = double.NaN }
+        }));
+
+        Assert.NotNull(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        {
+            ["taskFailed"] = new() { RecentEventThreshold = double.PositiveInfinity }
         }));
 
         Assert.Null(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>

@@ -28,6 +28,10 @@ public static class NotificationsForm
 {
     private static readonly IReadOnlyList<SettingsChoice> _noOptions = [];
 
+    // On a card that is already one of the five events that wait, the sentence the Yaml
+    // schema adds about which events read a wait would only repeat the card.
+    private const string WaitDescription = "How long to wait, in seconds, before the same event can notify again.";
+
     /// <summary>
     /// Every field of every event, in the order they are declared.
     /// </summary>
@@ -56,12 +60,21 @@ public static class NotificationsForm
             var display = eventProperty.GetCustomAttribute<DisplayAttribute>();
             var category = display?.GetName() ?? eventProperty.Name;
             var eventKey = JsonNameOf(eventProperty);
+            var wait = eventProperty.GetCustomAttribute<RecentEventWaitAttribute>();
 
 
             foreach (var field in InDeclaredOrder(blockType))
             {
                 var control = ControlFor(field.PropertyType);
                 if (control == SettingsControl.Unknown)
+                {
+                    continue;
+                }
+
+                // A wait only matters to an event that keeps two of the same apart. Offered on
+                // the others it changed nothing, and an empty one did not say what it meant.
+                var isWait = JsonNameOf(field) == "recentEventThreshold";
+                if (isWait && wait is null)
                 {
                     continue;
                 }
@@ -80,7 +93,7 @@ public static class NotificationsForm
                     // the event.
                     Description: JsonNameOf(field) == "enabled"
                         ? display?.GetDescription() ?? described
-                        : described,
+                        : isWait ? WaitDescription : described,
                     Control: control,
                     // An event is on or off for the server, not pinned against a user.
                     // The three states belong to the settings, and saying so here keeps
@@ -93,7 +106,8 @@ public static class NotificationsForm
                     DependsOn: DependsOn(field, eventKey),
                     Integer: false,
                     Probe: null,
-                    Address: false));
+                    Address: false,
+                    ServerDefault: isWait ? wait!.Seconds : null));
             }
         }
 
@@ -220,6 +234,8 @@ public static class NotificationsForm
 
     // Everything in an event only matters while the event is on, which the page shows
     // the same way it shows a setting that depends on another.
+    // A wait matters with the server's switch off too: a group or a user can turn the event
+    // on, and the event still waits what the server says.
     private static string? DependsOn(PropertyInfo field, string eventKey) =>
-        JsonNameOf(field) == "enabled" ? null : $"{eventKey}.enabled";
+        JsonNameOf(field) is "enabled" or "recentEventThreshold" ? null : $"{eventKey}.enabled";
 }

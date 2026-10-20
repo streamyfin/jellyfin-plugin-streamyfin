@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
@@ -63,12 +64,9 @@ public class SessionStartEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold()
-    {
-        if (Config?.notifications?.SessionStarted is { RecentEventThreshold: null })
-            return base.GetRecentEventThreshold();
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
 
-        var definedThreshold = (double) Config?.notifications?.SessionStarted?.RecentEventThreshold!;
-        return TimeSpan.FromSeconds(double.Abs(definedThreshold));
-    }
+    // A configuration with no block for the event threw here and lost the notification.
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.SessionStarted, "sessionStarted");
 }
