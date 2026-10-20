@@ -15,7 +15,7 @@ public class NotificationConfiguration
     [JsonPropertyName(name: "enabled")]
     public bool Enabled { get; set; }
 
-    [Display(Name = "Recent event threshold", Description = "How long to wait, in seconds, before the same event can notify again.")]
+    [Display(Name = "Recent event threshold", Description = "How long to wait, in seconds, before the same event can notify again. Only a session started, a playback started, a failed task, a changed plugin and a refused sign in wait; the other events ignore it.")]
     [JsonPropertyName(name: "recentEventThreshold")]
     public double? RecentEventThreshold { get; set; }
 }

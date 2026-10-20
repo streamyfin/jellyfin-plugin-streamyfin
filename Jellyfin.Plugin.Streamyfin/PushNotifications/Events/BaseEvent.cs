@@ -111,17 +111,23 @@ public abstract class BaseEvent
     /// </summary>
     /// <remarks>
     /// Each entry goes once its own wait and a margin have passed. The cleanup used the wait
-    /// of the event that ran it, so a long wait on one event was cut short by another.
+    /// of the event that ran it, so a long wait on one event was cut short by another. The
+    /// sum of a wait and the margin could overflow, so the elapsed time is compared to the
+    /// wait first. An entry is removed only while it holds the value judged here: one claimed
+    /// again since then is someone's fresh claim.
     /// </remarks>
     protected void CleanupOldEntries()
     {
         var now = DateTime.UtcNow;
 
         RecentEvents
-            .Where(kvp => now - kvp.Value.Last > kvp.Value.Wait + CleanupThreshold)
-            .Select(kvp => kvp.Key)
+            .Where(kvp =>
+            {
+                var elapsed = now - kvp.Value.Last;
+                return elapsed > kvp.Value.Wait && elapsed - kvp.Value.Wait > CleanupThreshold;
+            })
             .ToList()
-            .ForEach(key => RecentEvents.TryRemove(key, out _));
+            .ForEach(kvp => RecentEvents.TryRemove(kvp));
     }
 
     /// <summary>

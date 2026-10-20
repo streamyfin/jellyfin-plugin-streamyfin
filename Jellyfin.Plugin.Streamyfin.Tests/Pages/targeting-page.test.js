@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { eventSaid, refusal } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
+import { eventSaid, refusal, setCount } from "../../Jellyfin.Plugin.Streamyfin/Pages/Targeting/index.js";
 
 // ApiClient rejects a failed request with the response itself, so this is what the page
 // is handed when the server refuses a save.
@@ -55,5 +55,15 @@ describe("what a level says about an event", () => {
     test("says only its state where no wait was stored", () => {
         expect(eventSaid(rowWith({ state: "off" }))).toEqual({ enabled: false });
         expect(eventSaid(rowWith())).toEqual({});
+    });
+});
+
+describe("how many events a level sets", () => {
+    // The card's header counts what the rows show. An event whose only entry is a wait the
+    // level kept shows "Follows the level above", so counting it said "2 set" over two rows
+    // that showed nothing set.
+    test("counts the events a level turns on or off, not a wait it kept", () => {
+        expect(setCount({ itemAdded: { recentEventThreshold: 30 }, signInFailed: { recentEventThreshold: 60 } })).toBe(0);
+        expect(setCount({ itemAdded: { enabled: true, recentEventThreshold: 30 }, sessionStarted: { enabled: false } })).toBe(2);
     });
 });

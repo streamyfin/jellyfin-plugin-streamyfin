@@ -9,8 +9,8 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 /// </summary>
 /// <remarks>
 /// Every field is optional, and one that is not set says nothing: the level below decides.
-/// That is what lets a group turn an event on without also fixing how long two of them
-/// wait.
+/// A level only turns an event on or off. A wait it holds is kept as stored and read by
+/// nothing: an event waits what the server says.
 /// </remarks>
 public class NotificationTargeting
 {

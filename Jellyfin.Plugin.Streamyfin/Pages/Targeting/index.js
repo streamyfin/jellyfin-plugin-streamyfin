@@ -26,6 +26,10 @@ export const eventSaid = (row) => {
     return one;
 };
 
+// How many events a level turns on or off, as its rows show. A wait it kept has no row of
+// its own to show, so it does not count.
+export const setCount = (said) => Object.values(said).filter((one) => one?.enabled !== undefined).length;
+
 // What the server said when it refused a save. ApiClient rejects with the response itself,
 // whose body is the route's sentence written as a JSON string, so the page used to show its
 // fallback for every refusal: a name in use, a value out of bounds. Anything that is not a
@@ -135,7 +139,7 @@ export default function (view) {
         }
 
         el("sf-events-count").textContent = changed === 0
-            ? `${Object.keys(now).length || "nothing"} set`
+            ? `${setCount(now) || "nothing"} set`
             : `${changed} changed`;
 
         return changed;

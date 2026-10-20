@@ -85,15 +85,26 @@ public class NotificationLevelApiTests
     }
 
     /// <summary>
-    /// A wait on a level is read by nothing: an event waits what the server says. The
-    /// Targeting tab keeps one a level stored, so checking it would only refuse saves.
+    /// A wait is a number of seconds here too, and the page is not the only thing that
+    /// says so. Nothing reads a level's wait, but it is stored as JSON, which cannot hold
+    /// one that is not a number.
     /// </summary>
     [Fact]
-    public void ALevelsWaitIsKeptUnchecked()
+    public void AWaitStartsAtZeroHereToo()
     {
-        Assert.Null(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        Assert.NotNull(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
         {
             ["taskFailed"] = new() { RecentEventThreshold = -1 }
+        }));
+
+        Assert.NotNull(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        {
+            ["taskFailed"] = new() { RecentEventThreshold = double.NaN }
+        }));
+
+        Assert.Null(NotificationsValidation.CheckTargeting(new Dictionary<string, NotificationTargeting>
+        {
+            ["taskFailed"] = new() { Enabled = true, RecentEventThreshold = 0 }
         }));
 
         Assert.Null(NotificationsValidation.CheckTargeting(null));

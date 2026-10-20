@@ -32,6 +32,50 @@ public class EventWaitTests
     }
 
     /// <summary>
+    /// Each event reads its own block, and a wait set there wins over the default, made
+    /// positive as the events always made it. Every event has a different wait here, so one
+    /// reading another's block, or another's default, cannot pass.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(SessionStartEvent), 11)]
+    [InlineData(typeof(PlaybackStartEvent), 12)]
+    [InlineData(typeof(TaskFailedService), 13)]
+    [InlineData(typeof(PluginChangedEvent), 14)]
+    [InlineData(typeof(SignInFailedEvent), 15)]
+    public void AnEventReadsItsOwnWait(Type eventType, double seconds)
+    {
+        var notifications = new Notifications
+        {
+            SessionStarted = new NotificationConfiguration { RecentEventThreshold = 11 },
+            PlaybackStarted = new NotificationConfiguration { RecentEventThreshold = 12 },
+            TaskFailed = new NotificationConfiguration { RecentEventThreshold = 13 },
+            PluginChanged = new NotificationConfiguration { RecentEventThreshold = 14 },
+            SignInFailed = new NotificationConfiguration { RecentEventThreshold = -15 }
+        };
+        var waitIn = eventType.GetMethod("WaitIn", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+
+        Assert.Equal(TimeSpan.FromSeconds(seconds), (TimeSpan)waitIn.Invoke(null, [notifications])!);
+    }
+
+    /// <summary>
+    /// A wait as long as the server can count does not stop every other event's cleanup.
+    /// </summary>
+    /// <remarks>
+    /// Its wait plus the cleanup's margin overflowed, and the cleanup that any of the five
+    /// events runs first threw, so none of them notified until the server restarted.
+    /// </remarks>
+    [Fact]
+    public void ACleanupCopesWithTheLongestWait()
+    {
+        var key = $"test-longest-{Guid.NewGuid()}";
+        BaseEvent.RecentEvents[key] = (DateTime.UtcNow - TimeSpan.FromDays(1), TimeSpan.MaxValue);
+
+        new Probe(TimeSpan.FromSeconds(5)).Cleanup();
+
+        Assert.True(BaseEvent.RecentEvents.ContainsKey(key));
+    }
+
+    /// <summary>
     /// What one event still waits for survives another event's cleanup.
     /// </summary>
     /// <remarks>

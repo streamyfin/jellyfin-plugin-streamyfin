@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
@@ -67,6 +68,8 @@ public class SignInFailedEvent(
     }
 
     /// <inheritdoc />
-    protected override TimeSpan GetRecentEventThreshold() =>
-        WaitFor(Config?.notifications?.SignInFailed, "signInFailed");
+    protected override TimeSpan GetRecentEventThreshold() => WaitIn(Config?.notifications);
+
+    internal static TimeSpan WaitIn(Notifications? notifications) =>
+        WaitFor(notifications?.SignInFailed, "signInFailed");
 }

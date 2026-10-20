@@ -17,6 +17,12 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 public static class NotificationsValidation
 {
     /// <summary>
+    /// The longest wait the server can count, in seconds: a <see cref="System.TimeSpan"/> holds
+    /// no more.
+    /// </summary>
+    internal const double LongestWait = 922_337_203_685;
+
+    /// <summary>
     /// The reason these events cannot be stored, if there is one.
     /// </summary>
     /// <param name="notifications">The events, which may be null.</param>
@@ -42,25 +48,30 @@ public static class NotificationsValidation
                 continue;
             }
 
-            // Only an event that waits reads its wait. The others are not drawn any more, so a
-            // bad value restored from a backup would refuse every save with nowhere to fix it.
-            if (eventProperty.GetCustomAttribute<RecentEventWaitAttribute>() is null)
-            {
-                continue;
-            }
-
             var threshold = block.RecentEventThreshold;
             if (threshold is null)
             {
                 continue;
             }
 
-            if (threshold < 0 || double.IsNaN(threshold.Value) || double.IsInfinity(threshold.Value))
+            var key = NotificationsForm.KeyOf(eventProperty);
+            var waits = eventProperty.GetCustomAttribute<RecentEventWaitAttribute>() is not null;
+
+            // The configuration is stored as JSON, which cannot hold a wait that is not a
+            // number, so that is refused on every event. A negative one is refused only where
+            // the event reads it: the others are not drawn, and one restored from a backup
+            // would refuse every save with nowhere to fix it.
+            if (double.IsNaN(threshold.Value) || double.IsInfinity(threshold.Value) || (waits && threshold < 0))
             {
-                var key = NotificationsForm.KeyOf(eventProperty);
                 problems.Add(string.Create(
                     CultureInfo.InvariantCulture,
                     $"{key}.recentEventThreshold is {threshold.Value}. A wait is a number of seconds, so it starts at 0."));
+            }
+            else if (waits && threshold > LongestWait)
+            {
+                problems.Add(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{key}.recentEventThreshold is {threshold.Value}, longer than the server can count. A wait is at most {LongestWait} seconds."));
             }
         }
 
@@ -88,13 +99,23 @@ public static class NotificationsValidation
         var known = NotificationsForm.Events().Select(one => one.Key).ToHashSet(System.StringComparer.Ordinal);
         var problems = new List<string>();
 
-        // A level's wait is read by nothing: an event waits what the server says. It is kept as
-        // stored, so checking it would only refuse saves of the rest of the level.
-        foreach (var key in said.Keys)
+        foreach (var (key, targeting) in said)
         {
             if (!known.Contains(key))
             {
                 problems.Add($"{key} is not an event this server has.");
+                continue;
+            }
+
+            // Nothing reads a level's wait: an event waits what the server says. It is still
+            // stored as JSON, which cannot hold one that is not a number.
+            var wait = targeting?.RecentEventThreshold;
+
+            if (wait is not null && (wait < 0 || double.IsNaN(wait.Value) || double.IsInfinity(wait.Value)))
+            {
+                problems.Add(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{key}.recentEventThreshold is {wait.Value}. A wait is a number of seconds, so it starts at 0."));
             }
         }
 

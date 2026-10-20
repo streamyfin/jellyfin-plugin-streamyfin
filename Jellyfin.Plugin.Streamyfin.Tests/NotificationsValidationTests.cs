@@ -73,19 +73,56 @@ public class NotificationsValidationTests
     }
 
     /// <summary>
-    /// A wait on an event that never waits is read by nothing, and the Notifications tab no
-    /// longer draws it, so a bad one restored from a backup must not refuse every save.
+    /// A negative wait on an event that never waits is read by nothing, and the Notifications
+    /// tab no longer draws it, so one restored from a backup must not refuse every save.
     /// </summary>
     [Fact]
-    public void AWaitOnAnEventThatNeverWaitsIsNotChecked()
+    public void ANegativeWaitOnAnEventThatNeverWaitsIsLeftAlone()
     {
         var notifications = new Notifications
         {
             ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = -5 },
-            UserLockedOut = new NotificationConfiguration { RecentEventThreshold = double.NaN }
+            UserLockedOut = new NotificationConfiguration { RecentEventThreshold = -1 }
         };
 
         Assert.Null(NotificationsValidation.Check(notifications));
+    }
+
+    /// <summary>
+    /// A wait that is not a number cannot be stored at all, since the configuration is
+    /// written as JSON, so it is refused on every event, in a sentence rather than a 500.
+    /// </summary>
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void AWaitThatIsNotANumberIsRefusedOnEveryEvent(double seconds)
+    {
+        var notifications = new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { RecentEventThreshold = seconds },
+            AwaitedTitle = new NotificationConfiguration { RecentEventThreshold = seconds }
+        };
+
+        var problem = NotificationsValidation.Check(notifications);
+
+        Assert.Contains("itemAdded.recentEventThreshold", problem!, System.StringComparison.Ordinal);
+        Assert.Contains("awaitedTitle.recentEventThreshold", problem!, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A wait longer than the server can count is refused, rather than failing the event
+    /// that tries to wait it.
+    /// </summary>
+    [Fact]
+    public void AWaitLongerThanTheServerCanCountIsRefused()
+    {
+        var notifications = new Notifications
+        {
+            SignInFailed = new NotificationConfiguration { RecentEventThreshold = 1e12 }
+        };
+
+        Assert.Contains("signInFailed.recentEventThreshold", NotificationsValidation.Check(notifications)!, System.StringComparison.Ordinal);
     }
 
     /// <summary>

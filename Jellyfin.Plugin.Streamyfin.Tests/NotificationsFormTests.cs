@@ -1,4 +1,5 @@
 using System.Linq;
+using Jellyfin.Plugin.Streamyfin.Configuration;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 using Xunit;
@@ -95,7 +96,9 @@ public class NotificationsFormTests
     public void EveryFieldOfAnEventDependsOnItBeingOn()
     {
         Assert.Null(Field("itemAdded.enabled").DependsOn);
-        Assert.Equal("sessionStarted.enabled", Field("sessionStarted.recentEventThreshold").DependsOn);
+        // A wait matters even with the server's switch off: a group or a user can turn the
+        // event on, and the event still waits what the server says.
+        Assert.Null(Field("sessionStarted.recentEventThreshold").DependsOn);
         Assert.Equal("itemAdded.enabledLibraries", Field("itemAdded.enabledLibraries").Key);
         Assert.Equal("itemAdded.enabled", Field("itemAdded.enabledLibraries").DependsOn);
     }
@@ -145,7 +148,22 @@ public class NotificationsFormTests
     [InlineData("signInFailed", 300)]
     public void AWaitSaysTheEventsOwn(string eventKey, double seconds)
     {
-        Assert.Equal(seconds, Field($"{eventKey}.recentEventThreshold").ServerDefault);
+        var wait = Field($"{eventKey}.recentEventThreshold");
+
+        Assert.Equal(seconds, wait.ServerDefault);
+        Assert.Equal("How long to wait, in seconds, before the same event can notify again.", wait.Description);
+    }
+
+    /// <summary>
+    /// The Yaml tab's schema offers the wait on every event, since every event's block can
+    /// hold one, so it says which events read it.
+    /// </summary>
+    [Fact]
+    public void TheYamlSchemaSaysWhichEventsReadAWait()
+    {
+        var schema = SerializationHelper.GetJsonSchema<Config>();
+
+        Assert.Contains("Only a session started, a playback started, a failed task, a changed plugin and a refused sign in wait", schema, System.StringComparison.Ordinal);
     }
 
     /// <summary>

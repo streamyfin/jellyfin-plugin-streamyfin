@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -11,10 +10,10 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 /// sets a wait.
 /// </summary>
 /// <remarks>
-/// Only these events read <see cref="NotificationConfiguration.RecentEventThreshold"/>. The
-/// Notifications and Targeting tabs offered a wait on every event, so one set on a new
-/// item, an awaited title or a locked account changed nothing, and an empty one did not say
-/// what the event would wait. The tabs now offer it where this attribute is, with its length.
+/// Only these events read <see cref="NotificationConfiguration.RecentEventThreshold"/>, and
+/// only the server's own. The Notifications tab offered a wait on every event, so one set on
+/// a new item, an awaited title or a locked account changed nothing, and an empty one did not
+/// say what the event would wait. It now offers it where this attribute is, with its length.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class RecentEventWaitAttribute : Attribute
@@ -35,7 +34,8 @@ public sealed class RecentEventWaitAttribute : Attribute
     private static readonly Lazy<IReadOnlyDictionary<string, double>> _byEvent = new(() =>
         typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Select(property => (
-                Key: property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? property.Name,
+                // Keyed the way the form keys the event, so the two cannot disagree.
+                Key: NotificationsForm.KeyOf(property),
                 Wait: property.GetCustomAttribute<RecentEventWaitAttribute>()))
             .Where(one => one.Wait is not null)
             .ToDictionary(one => one.Key, one => one.Wait!.Seconds));

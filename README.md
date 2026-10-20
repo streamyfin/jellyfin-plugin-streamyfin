@@ -64,7 +64,7 @@
     <td align="center"><em>Home: the rows of the app's home screen, as the app draws them</em></td>
   </tr>
   <tr>
-    <td width="50%"><img src="assets/screenshots/notifications.png" alt="The Notifications tab: one card per event with its switch and the wait between two of the same event"></td>
+    <td width="50%"><img src="assets/screenshots/notifications.png" alt="The Notifications tab: one card per event with its switch, and on the events that wait, how long two of the same stay apart"></td>
     <td width="50%"><img src="assets/screenshots/yaml.png" alt="The Yaml Editor tab: the configuration as one YAML document in a code editor"></td>
   </tr>
   <tr>
