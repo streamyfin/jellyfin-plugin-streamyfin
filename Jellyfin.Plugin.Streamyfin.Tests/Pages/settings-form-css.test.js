@@ -35,3 +35,23 @@ describe("the help text switched off", () => {
         expect(rule(".sf-page .is-keyless .sf-key:not(.sf-keep)")?.style.getPropertyValue("display")).toBe("none");
     });
 });
+
+describe("the legend's close button", () => {
+    // The cross that hides the legend on the Application, Home, Notifications and
+    // Targeting tabs was a 1.2rem glyph in a box as small as it, hard to see and to hit.
+    test("is a 2rem square with a larger cross, centred in it", () => {
+        const close = rule(".sf-page .sf-banner-close")?.style;
+        expect([close?.getPropertyValue("width"), close?.getPropertyValue("height")]).toEqual(["2rem", "2rem"]);
+        expect(close?.getPropertyValue("font-size")).toBe("1.6rem");
+        expect([close?.getPropertyValue("display"), close?.getPropertyValue("align-items"), close?.getPropertyValue("justify-content")])
+            .toEqual(["flex", "center", "center"]);
+    });
+
+    // The bigger box reaches into the banner's padding, so the cross stays where it was
+    // drawn, in the banner's corner, rather than pushing the legend down and inwards.
+    test("keeps the cross in the banner's corner", () => {
+        const close = rule(".sf-page .sf-banner-close")?.style;
+        expect(["top", "right", "bottom", "left"].map((side) => close?.getPropertyValue(`margin-${side}`)))
+            .toEqual(["-0.35rem", "-0.45rem", "0px", "auto"]);
+    });
+});
