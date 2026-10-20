@@ -50,8 +50,9 @@ internal sealed class IdentifiedTitles : IDisposable
     }
 
     /// <summary>
-    /// Sends now when the title has its id, or when there is no wait; otherwise once an update
-    /// brings the id, or once the wait is over.
+    /// Sends now when the title has its id, when its metadata already came without one, or when
+    /// there is no wait; otherwise once an update brings the id or ends its refresh without one,
+    /// or once the wait is over.
     /// </summary>
     /// <param name="title">The movie or the show the message is about.</param>
     /// <param name="wait">How long the message may wait for the id.</param>
@@ -61,7 +62,8 @@ internal sealed class IdentifiedTitles : IDisposable
     /// and reads the others back from its database, so the one added may since have been read
     /// again without the id, while the update brings the scan's own, with it.
     /// </param>
-    public void Send(BaseItem title, TimeSpan wait, Func<BaseItem, Task> send)
+    /// <returns>The send when it goes now, or a finished task when the message is held.</returns>
+    public Task Send(BaseItem title, TimeSpan wait, Func<BaseItem, Task> send)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(send);
@@ -70,7 +72,7 @@ internal sealed class IdentifiedTitles : IDisposable
         // it and the lock found nothing held, and the message waited the whole wait.
         lock (_gate)
         {
-            if (wait > TimeSpan.Zero && !HasId(title))
+            if (wait > TimeSpan.Zero && !Identified(title))
             {
                 var held = new Held(title, send, Now() + wait);
                 if (!_byTitle.TryGetValue(title.Id, out var waiting))
@@ -82,22 +84,23 @@ internal sealed class IdentifiedTitles : IDisposable
                 waiting.Add(held);
                 _byEnd.Enqueue(held, held.Ends);
                 Arm();
-                return;
+                return Task.CompletedTask;
             }
         }
 
-        Run(send, title);
+        return Run(send, title);
     }
 
     /// <summary>
-    /// Sends what waits for an updated title, once the update brings its id.
+    /// Sends what waits for an updated title, once the update brings its id, or ends the
+    /// title's refresh without one.
     /// </summary>
     /// <param name="item">What Jellyfin updated.</param>
     public void Updated(BaseItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        if (!HasId(item))
+        if (!Identified(item))
         {
             return;
         }
@@ -159,7 +162,21 @@ internal sealed class IdentifiedTitles : IDisposable
     /// </summary>
     /// <param name="title">The movie or the show.</param>
     /// <returns><c>true</c> when it has one.</returns>
-    internal static bool HasId(BaseItem title) => AwaitedTitles.IdsOf(title.ProviderIds) is not (null, null);
+    internal static bool HasId(BaseItem title) => AwaitedTitleAnnouncer.IdsOf(title) is not (null, null);
+
+    /// <summary>
+    /// Whether waiting for a title's id has come to an end: it has one, or its metadata came
+    /// without one, which no id comes after.
+    /// </summary>
+    /// <param name="title">The movie or the show.</param>
+    /// <returns><c>true</c> when holding its message would only make it late.</returns>
+    /// <remarks>
+    /// Found by the second review of #294: only an id ended the wait, so a show known by an
+    /// AniDB id only, or a home video, waited the whole wait whenever anybody waited for a title
+    /// of its kind. Jellyfin stamps <c>DateLastRefreshed</c> once a refresh has asked every
+    /// provider; it saves a new item once before that, unstamped, which ends nothing.
+    /// </remarks>
+    internal static bool Identified(BaseItem title) => HasId(title) || title.DateLastRefreshed != default;
 
     private TimeSpan Now() => _time.GetElapsedTime(_origin);
 

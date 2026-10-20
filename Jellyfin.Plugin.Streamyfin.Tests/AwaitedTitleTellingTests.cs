@@ -83,36 +83,100 @@ public sealed class AwaitedTitleTellingTests : IDisposable
     }
 
     /// <summary>
-    /// A message Expo refused puts the arrival back as held: the task tells them at its next
-    /// run, and they stay left out of the new item message meanwhile.
+    /// A message Expo turned away as too many, after the retries it allows, is put back as
+    /// held: Expo says in so many words that it did not take it, so the task tells them at its
+    /// next run, and they stay left out of the new item message meanwhile.
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task AMessageExpoRefusedIsToldAgainLater()
+    public async Task AMessageExpoDidNotTakeIsToldAgainLater()
     {
         _db.AddAwaitedTitle(Matrix(_alice));
         Device(_alice);
+        var expo = new Expo(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
 
-        await Announcer(new Expo(_ => new HttpResponseMessage(HttpStatusCode.BadRequest))).Announce(_db, _matrix, Arrive());
+        await Announcer(expo).Announce(_db, _matrix, Arrive());
 
+        Assert.Equal(ExpoRetry.Immediate.Tries, expo.Calls);
         Assert.Equal(_alice, Assert.Single(LeftOut()));
         Assert.Equal(_alice, Assert.Single(_db.SettleHeld(_ => AwaitedOutcome.Announce)).UserId);
     }
 
     /// <summary>
-    /// A message that never reached Expo, the network down or Expo silent until the client
-    /// gave up, is told again later the same way, and does not fail the arrival.
+    /// A message that never reached Expo, the server unreachable or its name unknown, is told
+    /// again later the same way, and does not fail the arrival.
     /// </summary>
+    /// <param name="error">What the connection said.</param>
     /// <returns>A task.</returns>
-    [Fact]
-    public async Task AMessageThatNeverReachedExpoIsToldAgainLater()
+    [Theory]
+    [InlineData(HttpRequestError.ConnectionError)]
+    [InlineData(HttpRequestError.NameResolutionError)]
+    [InlineData(HttpRequestError.SecureConnectionError)]
+    public async Task AMessageThatNeverReachedExpoIsToldAgainLater(HttpRequestError error)
     {
         _db.AddAwaitedTitle(Matrix(_alice));
         Device(_alice);
 
-        await Announcer(new Expo(_ => throw new HttpRequestException("no route to exp.host"))).Announce(_db, _matrix, Arrive());
+        await Announcer(new Expo(_ => throw new HttpRequestException(error, "no route to exp.host"))).Announce(_db, _matrix, Arrive());
 
         Assert.Equal(_alice, Assert.Single(_db.SettleHeld(_ => AwaitedOutcome.Announce)).UserId);
+    }
+
+    /// <summary>
+    /// A message Expo may have sent, its answer an error or lost on the way, is not told again:
+    /// Expo takes no key to tell a request it has already sent, so a second one would reach the
+    /// person twice. Every send of the plugin is held to the same rule.
+    /// </summary>
+    /// <remarks>
+    /// Found by the second review of #294: the first version told them again after any failure.
+    /// </remarks>
+    /// <param name="answer">What Expo did.</param>
+    /// <returns>A task.</returns>
+    [Theory]
+    [InlineData("500")]
+    [InlineData("502")]
+    [InlineData("408")]
+    [InlineData("ended")]
+    [InlineData("timeout")]
+    public async Task AMessageExpoMayHaveSentIsNotToldAgain(string answer)
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        Device(_alice);
+        var expo = new Expo(_ => answer switch
+        {
+            "ended" => throw new HttpRequestException(HttpRequestError.ResponseEnded, "The response ended prematurely."),
+            "timeout" => throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout of 30 seconds elapsing."),
+            _ => new HttpResponseMessage((HttpStatusCode)int.Parse(answer, System.Globalization.CultureInfo.InvariantCulture))
+        });
+
+        await Announcer(expo).Announce(_db, _matrix, Arrive());
+
+        Assert.Equal(1, expo.Calls);
+        Assert.Empty(_db.SettleHeld(_ => AwaitedOutcome.Announce));
+        Assert.Equal(_alice, Assert.Single(LeftOut()));
+    }
+
+    /// <summary>
+    /// A message Expo refused for what it is would be refused the same way at every run, so it
+    /// is not told again either: held, the person would wait forever and be left out of every
+    /// new item message about the title meanwhile.
+    /// </summary>
+    /// <remarks>
+    /// Found by the second review of #294: the first version held them again after a 400, and
+    /// the task sent the same refused request every 15 minutes, with no end.
+    /// </remarks>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task AMessageExpoRefusedForWhatItIsIsNotToldAgain()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        Device(_alice);
+        var expo = new Expo(_ => new HttpResponseMessage(HttpStatusCode.BadRequest));
+
+        await Announcer(expo).Announce(_db, _matrix, Arrive());
+
+        Assert.Equal(1, expo.Calls);
+        Assert.Empty(_db.SettleHeld(_ => AwaitedOutcome.Announce));
     }
 
     /// <summary>
@@ -146,13 +210,49 @@ public sealed class AwaitedTitleTellingTests : IDisposable
         Device(_bob);
         var bobs = $"ExponentPushToken[{_bob:N}]";
         var expo = new Expo(body => body.Contains(bobs, StringComparison.Ordinal)
-            ? new HttpResponseMessage(HttpStatusCode.BadRequest)
+            ? new HttpResponseMessage(HttpStatusCode.TooManyRequests)
             : Ok());
 
         await Announcer(expo).Announce(_db, _matrix, Arrive());
 
-        Assert.Equal(2, expo.Calls);
+        Assert.Equal(1 + ExpoRetry.Immediate.Tries, expo.Calls);
         Assert.Equal(_bob, Assert.Single(_db.SettleHeld(_ => AwaitedOutcome.Announce)).UserId);
+    }
+
+    /// <summary>
+    /// A message whose people cannot be put back as held, the database refusing, does not keep
+    /// the next message from going.
+    /// </summary>
+    /// <remarks>Found by the second review of #294.</remarks>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task APutBackThatFailsStopsNothing()
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Matrix(_bob, "Matrix"));
+        Device(_alice);
+        Device(_bob);
+        var told = Arrive();
+        var bobs = $"ExponentPushToken[{_bob:N}]";
+        var sentToAlice = false;
+        var expo = new Expo(body =>
+        {
+            if (!body.Contains(bobs, StringComparison.Ordinal))
+            {
+                sentToAlice = true;
+                return Ok();
+            }
+
+            // Gone under it: whatever comes next from the database fails.
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestDirectory.Delete(_directory);
+            return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        });
+
+        // Bob's message goes first: the people who asked for it by another name come first.
+        await Announcer(expo).Announce(_db, _matrix, [.. told.OrderBy(row => row.UserId == _bob ? 0 : 1)]);
+
+        Assert.True(sentToAlice);
     }
 
     private static HttpResponseMessage Ok() => new(HttpStatusCode.OK)

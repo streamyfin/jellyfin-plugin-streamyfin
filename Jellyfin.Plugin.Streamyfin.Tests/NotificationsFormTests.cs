@@ -173,6 +173,24 @@ public class NotificationsFormTests
     }
 
     /// <summary>
+    /// How long a copy of a title leaves out the people told about it is a number of seconds on
+    /// the item added card, from nothing to a day, an hour when left empty, and offered with the
+    /// server's switch off too, like the wait for a title's id.
+    /// </summary>
+    [Fact]
+    public void TheWindowForCopiesIsOfferedOnTheItemAddedCard()
+    {
+        var window = Field("itemAdded.copiesWithin");
+
+        Assert.Equal("Item added", window.Category);
+        Assert.Equal(SettingsControl.Number, window.Control);
+        Assert.Equal(0, window.Minimum);
+        Assert.Equal(86400, window.Maximum);
+        Assert.Equal(3600, window.ServerDefault);
+        Assert.Null(window.DependsOn);
+    }
+
+    /// <summary>
     /// The Yaml tab's schema offers the wait on every event, since every event's block can
     /// hold one, so it says which events read it.
     /// </summary>
@@ -218,7 +236,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleId" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleId", "itemAdded.copiesWithin" },
             itemAdded);
     }
 

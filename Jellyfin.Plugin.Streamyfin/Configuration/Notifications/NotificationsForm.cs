@@ -238,9 +238,13 @@ public static class NotificationsForm
     // A wait matters with the server's switch off too: a group or a user can turn the event
     // on, and the event still waits what the server says.
     private static string? DependsOn(PropertyInfo field, string eventKey) =>
-        JsonNameOf(field) is "enabled" or "recentEventThreshold" or "waitForTitleId" ? null : $"{eventKey}.enabled";
+        JsonNameOf(field) is "enabled" or "recentEventThreshold" or "waitForTitleId" or "copiesWithin" ? null : $"{eventKey}.enabled";
 
     // What an empty field means, so the page can say it rather than leave it to guess.
-    private static double? ServerDefaultOf(PropertyInfo field) =>
-        JsonNameOf(field) == "waitForTitleId" ? ItemAddedNotificationConfiguration.UsualWaitForTitleId : null;
+    private static double? ServerDefaultOf(PropertyInfo field) => JsonNameOf(field) switch
+    {
+        "waitForTitleId" => ItemAddedNotificationConfiguration.UsualWaitForTitleId,
+        "copiesWithin" => ItemAddedNotificationConfiguration.UsualCopiesWithin,
+        _ => null
+    };
 }

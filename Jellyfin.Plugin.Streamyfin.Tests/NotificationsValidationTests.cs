@@ -84,6 +84,35 @@ public class NotificationsValidationTests
     }
 
     /// <summary>
+    /// How long a copy of a title leaves out the people told about it is held to its bounds the
+    /// same way, read from the property the page reads them from.
+    /// </summary>
+    /// <param name="seconds">The window.</param>
+    /// <param name="refused">Whether it is refused.</param>
+    [Theory]
+    [InlineData(0d, false)]
+    [InlineData(86400d, false)]
+    [InlineData(-1d, true)]
+    [InlineData(86401d, true)]
+    [InlineData(double.NaN, true)]
+    public void TheWindowForCopiesIsHeldToItsBounds(double seconds, bool refused)
+    {
+        var notifications = new Notifications
+        {
+            ItemAdded = new ItemAddedNotificationConfiguration { CopiesWithin = seconds }
+        };
+
+        var problem = NotificationsValidation.Check(notifications);
+
+        Assert.Equal(refused, problem is not null);
+        if (refused)
+        {
+            Assert.Contains("itemAdded.copiesWithin", problem!, System.StringComparison.Ordinal);
+            Assert.Contains("from 0 to 86400", problem!, System.StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// A negative wait is refused, and the message names the key so an administrator can
     /// find it in the file they wrote it in.
     /// </summary>

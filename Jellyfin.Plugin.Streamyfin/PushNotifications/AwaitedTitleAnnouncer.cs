@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
@@ -74,6 +76,49 @@ public class AwaitedTitleAnnouncer
         Episode { IsVirtualItem: false } episode => episode.Series,
         _ => null
     };
+
+    /// <summary>
+    /// The TMDB and TVDB ids an item carries, read safely while Jellyfin may be writing them.
+    /// </summary>
+    /// <param name="item">The movie or the show.</param>
+    /// <returns>Each id, or <c>null</c> when it is missing.</returns>
+    /// <remarks>
+    /// Jellyfin keeps an item's ids in a plain dictionary and writes them in place during a
+    /// refresh, on its own thread, while a batch of episodes or a held message reads them on a
+    /// timer's: a read that meets the write throws "Collection was modified". The write takes
+    /// nanoseconds, so the read is simply made again. Found by the second review of #294.
+    /// </remarks>
+    internal static (int? Tmdb, int? Tvdb) IdsOf(BaseItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        for (var tried = 1; ; tried++)
+        {
+            try
+            {
+                return AwaitedTitles.IdsOf(item.ProviderIds);
+            }
+            // Whatever a read racing a write throws: the dictionary is not made for it.
+            catch (Exception) when (tried < 10)
+            {
+                Thread.Yield();
+            }
+            catch (Exception)
+            {
+                return (null, null);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The earliest telling about another copy of a title that its new item message still
+    /// leaves out: counted back from when the message's arrival began, not from when it goes,
+    /// so a copy held for its id keeps the whole window.
+    /// </summary>
+    /// <param name="since">When the arrival began, a little before.</param>
+    /// <param name="window">How long a copy leaves out the people told.</param>
+    /// <returns>The moment.</returns>
+    internal static DateTime CopiesSince(DateTime since, TimeSpan window) => since - window;
 
     /// <summary>
     /// The title an update settles, when it is waited for: a show or a movie by its own update,
@@ -152,12 +197,14 @@ public class AwaitedTitleAnnouncer
     /// The movie or the show the message is about, as the update that brought its ids left it.
     /// </param>
     /// <param name="since">When the message's arrival began, a little before.</param>
+    /// <param name="copiesWithin">How long a copy of the title leaves out the people told about it.</param>
     /// <returns>
     /// The people who waited for the title: told about this item since the arrival began, about
-    /// another copy within the hour, or held by a pause until it ends. Nobody when the title has
-    /// no id, or the record cannot be read: the message then goes to everyone, as before.
+    /// another copy within the window before it, or held by a pause until it ends. Nobody when
+    /// the title has no id, or the record cannot be read: the message then goes to everyone, as
+    /// before.
     /// </returns>
-    public IReadOnlySet<Guid> Settle(BaseItem title, DateTime since)
+    public IReadOnlySet<Guid> Settle(BaseItem title, DateTime since, TimeSpan copiesWithin)
     {
         ArgumentNullException.ThrowIfNull(title);
 
@@ -165,7 +212,7 @@ public class AwaitedTitleAnnouncer
         // title first. Settling twice tells nobody twice.
         Consider(title);
 
-        var (tmdb, tvdb) = AwaitedTitles.IdsOf(title.ProviderIds);
+        var (tmdb, tvdb) = IdsOf(title);
         var database = StreamyfinPlugin.Instance?.Database;
 
         if (database is null || (tmdb is null && tvdb is null))
@@ -181,7 +228,7 @@ public class AwaitedTitleAnnouncer
                 tvdb,
                 title.Id,
                 since,
-                DateTime.UtcNow - AwaitedTitles.CopiesWithin);
+                CopiesSince(since, copiesWithin));
         }
         catch (Exception e)
         {
@@ -207,7 +254,7 @@ public class AwaitedTitleAnnouncer
             return Task.CompletedTask;
         }
 
-        var (tmdb, tvdb) = AwaitedTitles.IdsOf(title.ProviderIds);
+        var (tmdb, tvdb) = IdsOf(title);
         if (tmdb is null && tvdb is null)
         {
             return null;
@@ -377,9 +424,10 @@ public class AwaitedTitleAnnouncer
     /// <returns>A task, which does not fail for a message that never left.</returns>
     /// <remarks>
     /// The rows are kept as told before the message goes, and the new item message about the
-    /// title leaves those people out. A message Expo refused, or never answered, is put back as
-    /// held for its own people only, so the task tells them at its next run rather than nobody
-    /// telling them at all (#289).
+    /// title leaves those people out. A message Expo did not take is put back as held for its
+    /// own people only, so the task tells them at its next run rather than nobody telling them
+    /// at all (#289). Only one Expo did not take: a message it may have sent, an error or a lost
+    /// answer, would reach them twice, and Expo takes no key to tell the two apart.
     /// </remarks>
     internal async Task Announce(PluginDatabase database, BaseItem title, List<AwaitedTitle> told)
     {
@@ -398,36 +446,71 @@ public class AwaitedTitleAnnouncer
                 continue;
             }
 
-            string? failure = null;
+            if (await NotTaken(theirs, title, named).ConfigureAwait(false) is not { } why)
+            {
+                continue;
+            }
 
             try
             {
-                var answer = await _notificationHelper.SendToDevices(
-                    theirs,
-                    audience => [Message(title, named, audience)],
-                    new NotificationSubject(NotificationEvents.AwaitedTitle)).ConfigureAwait(false);
-
-                if (answer is null)
-                {
-                    failure = "Expo did not take it";
-                }
+                var again = database.Untell(told.Where(row => people.Contains(row.UserId)));
+                _logger.LogWarning(
+                    "Expo did not take the message telling {People} person(s) that {Title} arrived ({Why}): {Again} held again, told at the next run of the awaited titles task",
+                    people.Count,
+                    title.Name.ForLog(),
+                    why,
+                    again);
             }
             catch (Exception e)
             {
-                failure = "it could not be sent";
-                _logger.LogError(e, "Could not tell who waited for {Title} that it arrived", title.Name.ForLog());
+                // The next message still goes.
+                _logger.LogError(e, "Could not hold the arrival of {Title} again for the people Expo did not tell", title.Name.ForLog());
+            }
+        }
+    }
+
+    // Sends one message, and says why when Expo did not take it: turned away as too many after
+    // the retries it allows, or never reached. Nothing when it took it, or may have.
+    private async Task<string?> NotTaken(List<DeviceToken> devices, BaseItem title, AwaitedTitle named)
+    {
+        HttpStatusCode? refused = null;
+
+        try
+        {
+            var answer = await _notificationHelper.SendToDevices(
+                devices,
+                audience => [Message(title, named, audience)],
+                new NotificationSubject(NotificationEvents.AwaitedTitle),
+                status => refused = status).ConfigureAwait(false);
+
+            if (answer is not null)
+            {
+                return null;
             }
 
-            if (failure is not null)
+            if (refused == HttpStatusCode.TooManyRequests)
             {
-                var again = database.Untell(told.Where(row => people.Contains(row.UserId)));
-                _logger.LogWarning(
-                    "Telling {People} person(s) that {Title} arrived failed ({Failure}): {Again} held again, told at the next run of the awaited titles task",
-                    people.Count,
-                    title.Name.ForLog(),
-                    failure,
-                    again);
+                return "too many requests";
             }
+
+            _logger.LogError(
+                "Expo refused the message telling who waited that {Title} arrived ({Status}); it is not sent again, since it may have gone out or would be refused again",
+                title.Name.ForLog(),
+                refused.HasValue ? (int)refused.Value : (object)"no answer");
+            return null;
+        }
+        catch (HttpRequestException e) when (e.HttpRequestError is HttpRequestError.NameResolutionError
+            or HttpRequestError.ConnectionError
+            or HttpRequestError.SecureConnectionError
+            or HttpRequestError.ProxyTunnelError)
+        {
+            _logger.LogWarning(e, "The message telling who waited that {Title} arrived never reached Expo", title.Name.ForLog());
+            return "never reached";
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Could not tell who waited for {Title} that it arrived; it is not sent again, since it may have gone out", title.Name.ForLog());
+            return null;
         }
     }
 }

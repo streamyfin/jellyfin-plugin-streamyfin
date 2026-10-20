@@ -198,16 +198,23 @@ it, then takes it off their list. It needs no webhook: it watches Jellyfin's own
 
 That is their one message about the title. The new item message about it, the movie added or
 the batches of episodes the show arrived with, leaves them out, and so does the message about a
-copy of the title in another library, a 4K one beside the main one, within the hour. Everyone
-else gets it as before, and a later batch of episodes reaches them like anyone.
+copy of the title in another library, a 4K one beside the main one, within the hour after they
+were told: "Copies of a title within" on the Item added card sets another window, up to a day,
+and 0 never leaves them out of a copy's message. Everyone else gets it as before, and a later
+batch of episodes reaches them like anyone.
 
-While somebody waits for a title of its kind, a new movie's message waits until Jellyfin knows
-the movie's TMDB or TVDB id, which is what tells who waited for it, and a batch of episodes waits
-for its show's id the same way. It goes as soon as the id comes, ten minutes at most: "Wait for
-the title's id" on the Item added card sets another wait, up to an hour, and 0 sends at once. A
-message still waiting when the server stops goes out as it stops. If Expo does not take an
-awaited title message, the scheduled task "Streamyfin awaited titles" sends it again at its next
-run, every 15 minutes.
+While the message may leave somebody out, a person waiting for a title of its kind, one a pause
+holds back, or one told about such a title within that window, a new movie's message waits until
+Jellyfin knows the movie's TMDB or TVDB id, which is what tells who waited for it, and a batch of
+episodes waits for its show's id the same way. It goes as soon as the id comes, or as soon as
+Jellyfin's metadata comes without one, ten minutes at most: "Wait for the title's id" on the Item
+added card sets another wait, up to an hour, and 0 sends at once. A message still waiting, and a
+batch of episodes still gathering, go out as the server stops.
+
+If Expo turns an awaited title message away as too many, or the server cannot reach Expo, the
+scheduled task "Streamyfin awaited titles" sends it again at its next run, every 15 minutes. One
+Expo may have sent, an error or an answer lost on the way, is not sent again, like every other
+notification: Expo could not tell it from the first.
 
 A person who paused their notifications hears about it once the pause is over. The event is
 "Awaited title" on the Notifications tab, on by default.

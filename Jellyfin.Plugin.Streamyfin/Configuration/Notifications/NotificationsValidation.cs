@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -41,15 +43,7 @@ public static class NotificationsValidation
             problems.Add(wording);
         }
 
-        // A server timer cannot count some of these, and a message held longer than an hour
-        // is not news any more (#289).
-        if (notifications.ItemAdded?.WaitForTitleId is { } idWait
-            && (!double.IsFinite(idWait) || idWait < 0 || idWait > ItemAddedNotificationConfiguration.LongestWaitForTitleId))
-        {
-            problems.Add(string.Create(
-                CultureInfo.InvariantCulture,
-                $"itemAdded.waitForTitleId is {idWait}. The wait for a title's id is a number of seconds from 0 to {ItemAddedNotificationConfiguration.LongestWaitForTitleId}."));
-        }
+        problems.AddRange(OutOfBounds(notifications));
 
         foreach (var eventProperty in typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -86,6 +80,35 @@ public static class NotificationsValidation
         }
 
         return problems.Count == 0 ? null : string.Join(" ", problems);
+    }
+
+    // Every field of an event that declares its bounds, held to them: the page draws the same
+    // bounds from the same attribute, so the two cannot disagree (#289).
+    private static IEnumerable<string> OutOfBounds(Notifications notifications)
+    {
+        foreach (var eventProperty in typeof(Notifications).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (eventProperty.GetValue(notifications) is not NotificationConfiguration block)
+            {
+                continue;
+            }
+
+            foreach (var field in block.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (field.GetCustomAttribute<BoundsAttribute>() is not { } bounds || field.GetValue(block) is not double value)
+                {
+                    continue;
+                }
+
+                if (!double.IsFinite(value) || value < bounds.Minimum || value > bounds.Maximum)
+                {
+                    var name = field.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? field.Name;
+                    yield return string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{NotificationsForm.KeyOf(eventProperty)}.{name} is {value}. It takes a number of seconds from {bounds.Minimum} to {bounds.Maximum}.");
+                }
+            }
+        }
     }
 
     /// <summary>

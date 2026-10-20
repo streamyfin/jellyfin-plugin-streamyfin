@@ -34,6 +34,18 @@ public class ItemAddedNotificationConfiguration: NotificationConfiguration
     /// </summary>
     public const double LongestWaitForTitleId = 3600;
 
+    /// <summary>
+    /// How long, in seconds, a copy of a title leaves out the people told about it when nothing
+    /// says otherwise: copies of one title, a 4K library beside the main one, usually come
+    /// within the hour of each other (#289).
+    /// </summary>
+    public const double UsualCopiesWithin = 3600;
+
+    /// <summary>
+    /// The longest window for copies, in seconds: the day the record of who was told is kept.
+    /// </summary>
+    public const double LongestCopiesWithin = 86400;
+
     [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
@@ -42,6 +54,11 @@ public class ItemAddedNotificationConfiguration: NotificationConfiguration
     [Bounds(0, LongestWaitForTitleId)]
     [JsonPropertyName(name: "waitForTitleId")]
     public double? WaitForTitleId { get; set; }
+
+    [Display(Name = "Copies of a title within", Description = "How long, in seconds, after the people who waited for a title were told it arrived, a copy of it in another library, a 4K one beside the main one, still leaves them out of its new item message. 0 never does. An hour when left empty, a day at most.")]
+    [Bounds(0, LongestCopiesWithin)]
+    [JsonPropertyName(name: "copiesWithin")]
+    public double? CopiesWithin { get; set; }
 }
 
 public class Notifications

@@ -82,15 +82,32 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             ? TimeSpan.FromSeconds(Math.Min(set, ItemAddedNotificationConfiguration.LongestWaitForTitleId))
             : TimeSpan.FromSeconds(ItemAddedNotificationConfiguration.UsualWaitForTitleId);
 
+    /// <summary>
+    /// How long a copy of a title leaves out the people told about it, as the administrator set
+    /// it.
+    /// </summary>
+    /// <param name="seconds">What the configuration says, which may be nothing.</param>
+    /// <returns>
+    /// The window: an hour when nothing is set, or when what is set is something the server
+    /// could not count; a day at most, the day the record of who was told is kept.
+    /// </returns>
+    internal static TimeSpan CopiesWithin(double? seconds) =>
+        seconds is { } set && double.IsFinite(set) && set >= 0
+            ? TimeSpan.FromSeconds(Math.Min(set, ItemAddedNotificationConfiguration.LongestCopiesWithin))
+            : TimeSpan.FromSeconds(ItemAddedNotificationConfiguration.UsualCopiesWithin);
+
+    private TimeSpan CopiesWithin() => CopiesWithin(Config?.notifications?.ItemAdded?.CopiesWithin);
+
     // How long a new item message about a title without its id waits for it (#289): only while
-    // somebody waits for a title of its kind and the awaited title event can reach them. Then
-    // the id says who to leave out; otherwise it would leave nobody out, and the message would
-    // only be late.
+    // its metadata may still bring one, and somebody may be left out: a person who waits for a
+    // title of its kind, whom a pause holds back, or who was told about one recently, whom a
+    // copy would leave out. The awaited title event has to reach them too. Then the id says who
+    // to leave out; otherwise it would leave nobody out, and the message would only be late.
     private TimeSpan IdWait(BaseItem title, string mediaType)
     {
         var wait = WaitForTitleId(Config?.notifications?.ItemAdded?.WaitForTitleId);
 
-        if (wait == TimeSpan.Zero || IdentifiedTitles.HasId(title))
+        if (wait == TimeSpan.Zero || IdentifiedTitles.Identified(title))
         {
             return TimeSpan.Zero;
         }
@@ -98,7 +115,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
         try
         {
             return _notificationHelper.Wants(NotificationEvents.AwaitedTitle, Config?.notifications?.AwaitedTitle)
-                && StreamyfinPlugin.Instance?.Database.AnybodyAwaits(mediaType) == true
+                && StreamyfinPlugin.Instance?.Database.MayLeaveSomebodyOut(mediaType, DateTime.UtcNow - CopiesWithin()) == true
                     ? wait
                     : TimeSpan.Zero;
         }
@@ -297,7 +314,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 
                 var countdown = _countdown ?? new EpisodeTimer(
                     episodes: [],
-                    callback: _ => OnEpisodeAddedTimerCallback(seasonId),
+                    callback: _ => Gathered(seasonId, stopping: false),
                     // On the timer's thread, where an exception nobody catches stops the server.
                     failed: e => _logger.LogError(e, "Could not announce the episodes added to season {Season}", seasonId)
                 )
@@ -326,7 +343,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 
         // The people who waited for it get the awaited title message instead, settled here
         // (#289).
-        var awaited = _announcer.Settle(movie, ToldSince(added));
+        var awaited = _announcer.Settle(movie, ToldSince(added), CopiesWithin());
 
         return _notificationHelper.SendForEvent(
             "itemAdded",
@@ -343,22 +360,28 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
     private void ItemUpdatedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs) =>
         _identified.Updated(itemChangeEventArgs.Item);
 
-    private void OnEpisodeAddedTimerCallback(Guid seasonId)
+    // A batch closed: a minute without another episode of its season, or the server stopping,
+    // which sends it at once rather than lose it with the countdown.
+    private Task Gathered(Guid seasonId, bool stopping)
     {
-        _seasonItems.TryRemove(seasonId, out var countdown);
+        if (!_seasonItems.TryRemove(seasonId, out var countdown))
+        {
+            return Task.CompletedTask;
+        }
+
         _runs.Forget(DateTime.UtcNow);
 
         // A copy, since the scan may still be adding to the countdown while this reads it.
-        var episodes = countdown?.Snapshot() ?? [];
+        var episodes = countdown.Snapshot();
 
-        if (episodes.Count == 0) return;
+        if (episodes.Count == 0) return Task.CompletedTask;
 
         // A season whose series no longer resolves, deleted or identified again within the
         // minute, has nothing to name.
         if ((_libraryManager.GetItemById(seasonId) as Season)?.Series is not { } series)
         {
             _logger.LogInformation("The season {Season} has no series any more, so nothing was sent for its {Count} episode(s)", seasonId, episodes.Count);
-            return;
+            return Task.CompletedTask;
         }
 
         _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", episodes.Count, series.Name.ForLog());
@@ -366,13 +389,13 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
         // The people the awaited title message told about the show during this arrival are left
         // out of it: the show arriving is their one message, and a later arrival reaches them
         // like anyone (#289). Held until the show's id is known, like a movie.
-        var since = ToldSince(countdown?.Began ?? DateTime.UtcNow);
+        var since = ToldSince(countdown.Began);
         var ids = episodes.Select(added => added.Id).ToList();
         var first = episodes[0];
 
-        _identified.Send(
+        return _identified.Send(
             series,
-            IdWait(series, AwaitedTitles.Tv),
+            stopping ? TimeSpan.Zero : IdWait(series, AwaitedTitles.Tv),
             identified => SendEpisodes(seasonId, ids, first, identified, since));
     }
 
@@ -421,7 +444,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
         // The library for those who turned it off, the show for those who follow or muted it.
         var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), first.Path);
         var subject = new NotificationSubject("itemAdded", library, series.Id);
-        var awaited = _announcer.Settle(series, since);
+        var awaited = _announcer.Settle(series, since, CopiesWithin());
 
         return _notificationHelper.SendForEvent(
             "itemAdded",
@@ -524,17 +547,20 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
     {
         _libraryManager.ItemAdded -= ItemAddedHandler;
         _libraryManager.ItemUpdated -= ItemUpdatedHandler;
-        _seasonItems.Clear();
 
-        // Sent rather than dropped: Jellyfin does not add a title again after a restart, so a
-        // message held for its id would otherwise reach nobody (#289).
+        // Sent rather than dropped, the batches still gathering and the messages held for their
+        // title's id: Jellyfin does not add a title again after a restart, so they would
+        // otherwise reach nobody (#289).
+        List<Task> sending = [.. _seasonItems.Keys.ToList().Select(seasonId => Gathered(seasonId, stopping: true))];
+        sending.Add(_identified.SendAll());
+
         try
         {
-            await _identified.SendAll().WaitAsync(cancellationToken).ConfigureAwait(false);
+            await Task.WhenAll(sending).WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("The server stopped before every new item message held for its title's id was sent");
+            _logger.LogWarning("The server stopped before every new item message held back was sent");
         }
     }
 

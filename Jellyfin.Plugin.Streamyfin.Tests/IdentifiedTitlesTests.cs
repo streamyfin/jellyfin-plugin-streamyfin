@@ -161,26 +161,38 @@ public class IdentifiedTitlesTests
         var late = 0;
         using var held = new IdentifiedTitles(new TestClock(), _ => { });
 
+        Exception? failed = null;
+
         for (var i = 0; i < 3000; i++)
         {
             var movie = Movie();
             var sent = 0;
             using var start = new Barrier(2);
-            var sending = new Thread(() =>
+            // Caught here and looked at after the join: thrown on a thread of its own, it ended
+            // the whole test run rather than this test.
+            void Run(Action action)
             {
-                start.SignalAndWait();
-                held.Send(movie, TenMinutes, _ =>
+                try
                 {
-                    Interlocked.Increment(ref sent);
-                    return Task.CompletedTask;
-                });
-            });
-            var updating = new Thread(() =>
+                    start.SignalAndWait();
+                    action();
+                }
+                catch (Exception e)
+                {
+                    Interlocked.CompareExchange(ref failed, e, null);
+                }
+            }
+
+            var sending = new Thread(() => Run(() => held.Send(movie, TenMinutes, _ =>
             {
-                start.SignalAndWait();
+                Interlocked.Increment(ref sent);
+                return Task.CompletedTask;
+            })));
+            var updating = new Thread(() => Run(() =>
+            {
                 movie.ProviderIds[nameof(MetadataProvider.Tmdb)] = "603";
                 held.Updated(movie);
-            });
+            }));
 
             sending.Start();
             updating.Start();
@@ -193,7 +205,111 @@ public class IdentifiedTitlesTests
             }
         }
 
+        Assert.Null(failed);
         Assert.Equal(0, late);
+    }
+
+    /// <summary>
+    /// A title's ids are read while Jellyfin writes them, on the timer's thread and the
+    /// refresh's: the read waits for the write rather than failing.
+    /// </summary>
+    /// <remarks>
+    /// Found by the second review of #294, through the race test above, which ended the test
+    /// run about once in a hundred: Jellyfin keeps an item's ids in a plain dictionary and
+    /// writes them in place during a refresh, so a read that meets the write throws "Collection
+    /// was modified". On a server, that lost the batch of episodes being read.
+    /// </remarks>
+    [Fact]
+    public void ATitlesIdsAreReadWhileJellyfinWritesThem()
+    {
+        var movie = Movie();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        Exception? failed = null;
+
+        var writing = new Thread(() =>
+        {
+            for (var i = 0; !stop.IsCancellationRequested; i++)
+            {
+                movie.ProviderIds[$"Other{i % 64}"] = "1";
+                movie.ProviderIds.Remove($"Other{(i + 32) % 64}");
+            }
+        });
+
+        writing.Start();
+        try
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                IdentifiedTitles.HasId(movie);
+            }
+        }
+        catch (Exception e)
+        {
+            failed = e;
+        }
+
+        writing.Join();
+        Assert.Null(failed);
+    }
+
+    /// <summary>
+    /// A title whose metadata refresh ended without an id is sent then, about the title as the
+    /// refresh left it: no id is coming, and holding it longer only makes it late.
+    /// </summary>
+    /// <remarks>
+    /// Found by the second review of #294. Only an update that brought the id let a message go,
+    /// so a show known by an AniDB id only, or a home video, waited the whole wait whenever
+    /// anybody waited for a title of its kind.
+    /// </remarks>
+    [Fact]
+    public void ATitleWhoseRefreshEndedWithoutAnIdIsSentThen()
+    {
+        BaseItem? about = null;
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
+        var added = Movie();
+        var refreshed = Movie(id: added.Id);
+        refreshed.DateLastRefreshed = new DateTime(2026, 10, 21, 8, 0, 0, DateTimeKind.Utc);
+
+        held.Send(added, TenMinutes, Counting(title => about = title));
+        held.Updated(refreshed);
+
+        Assert.Same(refreshed, about);
+    }
+
+    /// <summary>
+    /// A title whose metadata already came without an id, a show known by its AniDB id only
+    /// getting new episodes, is sent at once: no id is coming.
+    /// </summary>
+    [Fact]
+    public void ATitleAlreadyRefreshedWithoutAnIdIsSentAtOnce()
+    {
+        var sent = 0;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+        var show = Movie();
+        show.DateLastRefreshed = new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc);
+
+        held.Send(show, TenMinutes, Counting(_ => sent++));
+
+        Assert.Equal(1, sent);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
+    /// Jellyfin saves a new item once before its first refresh asks for the ids: that update
+    /// does not end the wait.
+    /// </summary>
+    [Fact]
+    public void TheSaveBeforeTheFirstRefreshDoesNotEndTheWait()
+    {
+        var sent = 0;
+        using var held = new IdentifiedTitles(new TestClock(), _ => { });
+        var movie = Movie();
+
+        held.Send(movie, TenMinutes, Counting(_ => sent++));
+        held.Updated(Movie(id: movie.Id));
+
+        Assert.Equal(0, sent);
     }
 
     /// <summary>
@@ -315,8 +431,8 @@ public class IdentifiedTitlesTests
         var first = Movie();
         var second = Movie();
 
-        held.Send(first, TenMinutes, Counting(sent.Add));
-        held.Send(second, TenMinutes, Counting(sent.Add));
+        _ = held.Send(first, TenMinutes, Counting(sent.Add));
+        _ = held.Send(second, TenMinutes, Counting(sent.Add));
         await held.SendAll();
         clock.Advance(TenMinutes * 2);
         held.Updated(Movie("603", first.Id));
@@ -336,8 +452,8 @@ public class IdentifiedTitlesTests
         var going = new TaskCompletionSource();
         using var held = new IdentifiedTitles(new TestClock(), failures.Add);
 
-        held.Send(Movie(), TenMinutes, _ => going.Task);
-        held.Send(Movie(), TenMinutes, _ => Task.FromException(new InvalidOperationException("Expo is down")));
+        _ = held.Send(Movie(), TenMinutes, _ => going.Task);
+        _ = held.Send(Movie(), TenMinutes, _ => Task.FromException(new InvalidOperationException("Expo is down")));
         var stopping = held.SendAll();
 
         Assert.False(stopping.IsCompleted);

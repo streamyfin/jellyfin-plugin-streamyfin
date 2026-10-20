@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Xunit;
@@ -91,5 +92,41 @@ public class AwaitedTitleOneMessageTests
     public void TheWaitForATitlesIdIsWhatTheAdministratorSet(double? seconds, double expected)
     {
         Assert.Equal(TimeSpan.FromSeconds(expected), ItemAddedService.WaitForTitleId(seconds));
+    }
+
+    /// <summary>
+    /// How long a copy of a title leaves out the people told about it is what the administrator
+    /// set, an hour when they set nothing, and never past the day the record of who was told is
+    /// kept.
+    /// </summary>
+    /// <param name="seconds">What the configuration says.</param>
+    /// <param name="expected">The window, in seconds.</param>
+    [Theory]
+    [InlineData(null, 3600)]
+    [InlineData(0d, 0)]
+    [InlineData(5400d, 5400)]
+    [InlineData(86400d, 86400)]
+    [InlineData(-5d, 3600)]
+    [InlineData(double.NaN, 3600)]
+    [InlineData(1e12, 86400)]
+    public void TheWindowForCopiesIsWhatTheAdministratorSet(double? seconds, double expected)
+    {
+        Assert.Equal(TimeSpan.FromSeconds(expected), ItemAddedService.CopiesWithin(seconds));
+    }
+
+    /// <summary>
+    /// The window for copies is counted back from when the arrival began, not from when its
+    /// message goes, so a copy held for its id keeps the whole window.
+    /// </summary>
+    /// <remarks>
+    /// Found by the second review of #294: counted from the send, every minute a copy waited
+    /// for its id came off the hour.
+    /// </remarks>
+    [Fact]
+    public void TheWindowForCopiesIsCountedFromTheArrival()
+    {
+        var since = new DateTime(2026, 10, 21, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(since - TimeSpan.FromHours(1), AwaitedTitleAnnouncer.CopiesSince(since, TimeSpan.FromHours(1)));
     }
 }
