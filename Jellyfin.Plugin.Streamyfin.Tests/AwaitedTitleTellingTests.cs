@@ -49,6 +49,21 @@ public sealed class AwaitedTitleTellingTests : IDisposable
         Language = "en"
     });
 
+    // As many devices as asked, each a token of its own, all saying whose they are.
+    private void Devices(Guid userId, int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            _db.AddDeviceToken(new DeviceToken
+            {
+                Token = $"ExponentPushToken[{userId:N}-{i}]",
+                DeviceId = Guid.NewGuid(),
+                UserId = userId,
+                Language = "en"
+            });
+        }
+    }
+
     // With the retries Expo's answers allow, but without their waits.
     private static AwaitedTitleAnnouncer Announcer(Expo expo) => new(
         null!,
@@ -220,6 +235,39 @@ public sealed class AwaitedTitleTellingTests : IDisposable
     }
 
     /// <summary>
+    /// The people who asked for a title the same way, with more devices between them than Expo
+    /// takes in one request, are told a request at a time, each person within one, so a request
+    /// Expo did not take holds again only the people it was for.
+    /// </summary>
+    /// <remarks>
+    /// Found by the third review of #294. One send for them all answered as soon as one request
+    /// was taken: the people of a later request Expo turned away stayed told and heard nothing,
+    /// and a later request that never reached Expo held everybody again, those already told too.
+    /// </remarks>
+    /// <param name="answer">What Expo does with Bob's request.</param>
+    /// <returns>A task.</returns>
+    [Theory]
+    [InlineData("429")]
+    [InlineData("unreachable")]
+    public async Task ARequestExpoDidNotTakeHoldsOnlyItsOwnPeople(string answer)
+    {
+        _db.AddAwaitedTitle(Matrix(_alice));
+        _db.AddAwaitedTitle(Matrix(_bob));
+        Devices(_alice, 60);
+        Devices(_bob, 60);
+        var bobs = $"ExponentPushToken[{_bob:N}-";
+        var expo = new Expo(body => !body.Contains(bobs, StringComparison.Ordinal)
+            ? Ok()
+            : answer == "429"
+                ? new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+                : throw new HttpRequestException(HttpRequestError.ConnectionError, "no route to exp.host"));
+
+        await Announcer(expo).Announce(_db, _matrix, Arrive());
+
+        Assert.Equal(_bob, Assert.Single(_db.SettleHeld(_ => AwaitedOutcome.Announce)).UserId);
+    }
+
+    /// <summary>
     /// A message whose people cannot be put back as held, the database refusing, does not keep
     /// the next message from going.
     /// </summary>
@@ -243,8 +291,8 @@ public sealed class AwaitedTitleTellingTests : IDisposable
                 return Ok();
             }
 
-            // Gone under it: whatever comes next from the database fails.
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            // Gone under it: whatever comes next from the database fails. Its own pools only, as
+            // TestDirectory clears them: clearing every pool broke the tests running beside it.
             TestDirectory.Delete(_directory);
             return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
         });

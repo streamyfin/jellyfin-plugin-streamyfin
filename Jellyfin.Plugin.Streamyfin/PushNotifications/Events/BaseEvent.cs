@@ -55,11 +55,7 @@ public abstract class BaseEvent
     {
         ArgumentNullException.ThrowIfNull(send);
 
-        _ = send.ContinueWith(
-            task => _logger.LogError(task.Exception, "Failed to send the {What} notification", what),
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.Default);
+        _ = Detached.Observe(send, e => _logger.LogError(e, "Failed to send the {What} notification", what));
     }
 
     /// <summary>

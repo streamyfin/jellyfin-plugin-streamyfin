@@ -86,7 +86,7 @@ public class AwaitedTitleAnnouncer
     /// Jellyfin keeps an item's ids in a plain dictionary and writes them in place during a
     /// refresh, on its own thread, while a batch of episodes or a held message reads them on a
     /// timer's: a read that meets the write throws "Collection was modified". The write takes
-    /// nanoseconds, so the read is simply made again. Found by the second review of #294.
+    /// nanoseconds, so the read is simply made again.
     /// </remarks>
     internal static (int? Tmdb, int? Tvdb) IdsOf(BaseItem item)
     {
@@ -117,8 +117,9 @@ public class AwaitedTitleAnnouncer
     /// </summary>
     /// <param name="since">When the arrival began, a little before.</param>
     /// <param name="window">How long a copy leaves out the people told.</param>
-    /// <returns>The moment.</returns>
-    internal static DateTime CopiesSince(DateTime since, TimeSpan window) => since - window;
+    /// <returns>The moment, or none at all for a window of nothing, which leaves nobody out.</returns>
+    internal static DateTime CopiesSince(DateTime since, TimeSpan window) =>
+        window > TimeSpan.Zero ? since - window : DateTime.MaxValue;
 
     /// <summary>
     /// The title an update settles, when it is waited for: a show or a movie by its own update,
@@ -170,13 +171,9 @@ public class AwaitedTitleAnnouncer
             if (Arrive(title) is { } sending)
             {
                 _pending.Take(title.Id, DateTime.UtcNow);
-                // Settled already: a message that never left is held again, and the task tells
+                // Settled already: a message Expo did not take is held again, and the task tells
                 // them at its next run.
-                _ = sending.ContinueWith(
-                    task => _logger.LogError(task.Exception, "Failed to tell who waited for {Title} that it arrived", title.Name.ForLog()),
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnFaulted,
-                    TaskScheduler.Default);
+                _ = Detached.Observe(sending, e => _logger.LogError(e, "Failed to tell who waited for {Title} that it arrived", title.Name.ForLog()));
                 return;
             }
 
@@ -446,26 +443,69 @@ public class AwaitedTitleAnnouncer
                 continue;
             }
 
-            if (await NotTaken(theirs, title, named).ConfigureAwait(false) is not { } why)
+            foreach (var (request, inIt) in ByRequest(theirs))
             {
-                continue;
+                if (await NotTaken(request, title, named).ConfigureAwait(false) is not { } why)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var again = database.Untell(told.Where(row => inIt.Contains(row.UserId)));
+                    _logger.LogWarning(
+                        "Expo did not take the message telling {People} person(s) that {Title} arrived ({Why}): {Again} held again, told at the next run of the awaited titles task",
+                        inIt.Count,
+                        title.Name.ForLog(),
+                        why,
+                        again);
+                }
+                catch (Exception e)
+                {
+                    // The next request still goes.
+                    _logger.LogError(e, "Could not hold the arrival of {Title} again for the people Expo did not tell", title.Name.ForLog());
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The devices of a message's people, a request's worth at a time, each person's devices in
+    /// one request.
+    /// </summary>
+    /// <param name="devices">The devices.</param>
+    /// <param name="limit">The most recipients Expo takes in one request.</param>
+    /// <returns>Each request's devices, with the people they belong to.</returns>
+    /// <remarks>
+    /// Sent all at once, past a hundred devices, the message answered as soon as one request was
+    /// taken: the people of a later request Expo turned away stayed told and heard nothing, and
+    /// a later request that never reached Expo had everybody told again, those already told too.
+    /// One request at a time, the one Expo did not take names exactly the people to tell again.
+    /// </remarks>
+    internal static IEnumerable<(List<DeviceToken> Devices, HashSet<Guid> People)> ByRequest(
+        IEnumerable<DeviceToken> devices,
+        int limit = ExpoBatching.MaxRecipientsPerRequest)
+    {
+        List<DeviceToken> request = [];
+        HashSet<Guid> people = [];
+
+        foreach (var person in devices.GroupBy(device => device.UserId))
+        {
+            var theirs = person.ToList();
+            if (request.Count > 0 && request.Count + theirs.Count > limit)
+            {
+                yield return (request, people);
+                request = [];
+                people = [];
             }
 
-            try
-            {
-                var again = database.Untell(told.Where(row => people.Contains(row.UserId)));
-                _logger.LogWarning(
-                    "Expo did not take the message telling {People} person(s) that {Title} arrived ({Why}): {Again} held again, told at the next run of the awaited titles task",
-                    people.Count,
-                    title.Name.ForLog(),
-                    why,
-                    again);
-            }
-            catch (Exception e)
-            {
-                // The next message still goes.
-                _logger.LogError(e, "Could not hold the arrival of {Title} again for the people Expo did not tell", title.Name.ForLog());
-            }
+            request.AddRange(theirs);
+            people.Add(person.Key);
+        }
+
+        if (request.Count > 0)
+        {
+            yield return (request, people);
         }
     }
 

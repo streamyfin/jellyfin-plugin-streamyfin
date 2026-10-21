@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
@@ -128,5 +129,57 @@ public class AwaitedTitleOneMessageTests
         var since = new DateTime(2026, 10, 21, 12, 0, 0, DateTimeKind.Utc);
 
         Assert.Equal(since - TimeSpan.FromHours(1), AwaitedTitleAnnouncer.CopiesSince(since, TimeSpan.FromHours(1)));
+    }
+
+    /// <summary>
+    /// A window of nothing leaves nobody out of a copy's message: no telling is ever late enough.
+    /// </summary>
+    /// <remarks>
+    /// Found by the third review of #294: counted back by nothing, the window still took every
+    /// telling from the half minute before the copy's own arrival.
+    /// </remarks>
+    [Fact]
+    public void AWindowOfNothingLeavesNobodyOutOfACopysMessage()
+    {
+        var since = new DateTime(2026, 10, 21, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(DateTime.MaxValue, AwaitedTitleAnnouncer.CopiesSince(since, TimeSpan.Zero));
+    }
+
+    /// <summary>
+    /// The server stopping sends what is still gathering and what is held, and one batch whose
+    /// season cannot be read keeps neither the others nor the held messages from going.
+    /// </summary>
+    /// <remarks>Found by the third review of #294.</remarks>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task OneBatchThatCannotBeReadKeepsNothingFromGoingAsTheServerStops()
+    {
+        var failures = new List<Exception>();
+        var sent = new List<string>();
+        var going = new TaskCompletionSource();
+
+        var stopping = ItemAddedService.SendEverything(
+            [
+                () => throw new InvalidOperationException("the library is closing"),
+                () =>
+                {
+                    sent.Add("batch");
+                    return going.Task;
+                }
+            ],
+            () =>
+            {
+                sent.Add("held");
+                return Task.CompletedTask;
+            },
+            failures.Add);
+
+        Assert.False(stopping.IsCompleted);
+        going.SetResult();
+        await stopping;
+
+        Assert.Equal(["batch", "held"], sent);
+        Assert.Single(failures);
     }
 }

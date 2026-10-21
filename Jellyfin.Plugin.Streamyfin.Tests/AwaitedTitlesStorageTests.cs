@@ -325,36 +325,6 @@ public class AwaitedTitlesStorageTests : IDisposable
     }
 
     /// <summary>
-    /// Whether a new item message of a kind may have somebody to leave out: a person who waits
-    /// for a title of that kind, one a pause holds back, or one told about one since a moment,
-    /// who a copy of that title would leave out.
-    /// </summary>
-    /// <remarks>
-    /// Found by the second review of #294. Only a wait counted, so once everybody who waited for
-    /// a movie was told, a copy of it added without its id went at once, before the id that
-    /// would have left them out.
-    /// </remarks>
-    [Fact]
-    public void MayLeaveSomebodyOutWhileATitleOfThatKindIsWaitedForHeldOrJustTold()
-    {
-        var hourAgo = DateTime.UtcNow.AddHours(-1);
-        Assert.False(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, hourAgo));
-
-        _db.AddAwaitedTitle(Matrix(_alice));
-        _db.AddAwaitedTitle(Matrix(_bob));
-
-        Assert.True(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, hourAgo));
-        Assert.False(_db.MayLeaveSomebodyOut(AwaitedTitles.Tv, hourAgo));
-
-        _db.SettleArrival(AwaitedTitles.Movie, 603, null, Guid.NewGuid(), row => row.UserId == _alice ? AwaitedOutcome.Announce : AwaitedOutcome.Hold);
-
-        Assert.True(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, hourAgo));
-        _db.SettleHeld(_ => AwaitedOutcome.Announce);
-        Assert.True(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, hourAgo));
-        Assert.False(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, DateTime.UtcNow.AddMinutes(1)));
-    }
-
-    /// <summary>
     /// When the message telling them never left, the arrival is put back as held: the task
     /// tells them at its next run, and the new item message, which left them out, does not
     /// leave them with nothing.
@@ -409,7 +379,7 @@ public class AwaitedTitlesStorageTests : IDisposable
 
         Assert.Equal(0, _db.Untell(told));
         Assert.Null(Assert.Single(_db.GetAwaitedTitles(_alice)).ArrivedItemId);
-        Assert.True(_db.MayLeaveSomebodyOut(AwaitedTitles.Movie, DateTime.UtcNow.AddMinutes(1)));
+        Assert.Single(_db.AllAwaitedTitles());
     }
 
     /// <summary>

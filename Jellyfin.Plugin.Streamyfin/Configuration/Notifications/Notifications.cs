@@ -50,7 +50,7 @@ public class ItemAddedNotificationConfiguration: NotificationConfiguration
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
 
-    [Display(Name = "Wait for the title's id", Description = "While somebody waits for a title, how long, in seconds, a new movie or batch of episodes waits for Jellyfin to find its TMDB or TVDB id, so the people who waited for it get only the awaited title message. It goes as soon as the id comes. 0 sends at once. Ten minutes when left empty, an hour at most.")]
+    [Display(Name = "Wait for the title's id", Description = "How long, in seconds, a new movie or a new show's batch of episodes waits for Jellyfin's metadata to find its TMDB or TVDB id: the people who waited for the title then get only the awaited title message, and the message names the title as its metadata does. It goes as soon as the id comes, or the metadata came without one. 0 sends at once. Ten minutes when left empty, an hour at most.")]
     [Bounds(0, LongestWaitForTitleId)]
     [JsonPropertyName(name: "waitForTitleId")]
     public double? WaitForTitleId { get; set; }

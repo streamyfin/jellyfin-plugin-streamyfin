@@ -414,6 +414,22 @@ public class IdentifiedTitlesTests
     }
 
     /// <summary>
+    /// A send that ends canceled, Expo slower than the client's timeout, is reported like one that
+    /// failed: lost either way.
+    /// </summary>
+    /// <remarks>Found by the third review of #294: only a send that failed was heard of.</remarks>
+    [Fact]
+    public void ASendThatEndsCanceledIsReported()
+    {
+        var failures = new List<Exception>();
+        using var held = new IdentifiedTitles(new TestClock(), failures.Add);
+
+        _ = held.Send(Movie("603"), TenMinutes, _ => Task.FromCanceled(new CancellationToken(canceled: true)));
+
+        Assert.IsAssignableFrom<OperationCanceledException>(Assert.Single(failures));
+    }
+
+    /// <summary>
     /// When the server stops, everything held is sent at once, about the title as it was
     /// added, and nothing is sent for it afterwards.
     /// </summary>

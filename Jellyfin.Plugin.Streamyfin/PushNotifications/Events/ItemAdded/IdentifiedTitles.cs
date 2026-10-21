@@ -171,9 +171,8 @@ internal sealed class IdentifiedTitles : IDisposable
     /// <param name="title">The movie or the show.</param>
     /// <returns><c>true</c> when holding its message would only make it late.</returns>
     /// <remarks>
-    /// Found by the second review of #294: only an id ended the wait, so a show known by an
-    /// AniDB id only, or a home video, waited the whole wait whenever anybody waited for a title
-    /// of its kind. Jellyfin stamps <c>DateLastRefreshed</c> once a refresh has asked every
+    /// Without the second half, a show known by an AniDB id only, or a home video, waited the
+    /// whole wait. Jellyfin stamps <c>DateLastRefreshed</c> once a refresh has asked every
     /// provider; it saves a new item once before that, unstamped, which ends nothing.
     /// </remarks>
     internal static bool Identified(BaseItem title) => HasId(title) || title.DateLastRefreshed != default;
@@ -265,17 +264,7 @@ internal sealed class IdentifiedTitles : IDisposable
             return Task.CompletedTask;
         }
 
-        return sending.ContinueWith(
-            task =>
-            {
-                if (task.Exception is { } failure)
-                {
-                    _failed(failure.InnerExceptions.Count == 1 ? failure.InnerExceptions[0] : failure);
-                }
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+        return Detached.Observe(sending, _failed);
     }
 
     private sealed class Held(BaseItem title, Func<BaseItem, Task> send, TimeSpan ends)
