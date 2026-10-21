@@ -132,10 +132,22 @@ public class MediaNotificationTests
     public void AShowJellyfinHasNotRefreshedIsNamedByItsTitle()
     {
         var show = new Series { Id = Guid.NewGuid(), Name = "Breaking Bad (2008) [tvdbid-81189]" };
+        var season = new Season { Id = Guid.NewGuid(), SeriesId = show.Id, IndexNumber = 1 };
+        var episode = new Episode { Id = Guid.NewGuid(), SeriesId = show.Id, SeasonId = season.Id, IndexNumber = 2 };
 
-        var name = WithLibrary([show], () => ItemAddedService.ShowName(show));
+        var message = WithLibrary(
+            [show, season, episode],
+            () => ItemAddedService.EpisodesMessage(
+                new LocalizationHelper(null, null),
+                season,
+                show,
+                single: episode,
+                first: episode,
+                total: 1,
+                new Audience(CultureInfo.InvariantCulture, null),
+                poster: null));
 
-        Assert.Equal("Breaking Bad", name);
+        Assert.Equal("Breaking Bad - Episode 2 added for Season 1", message.Body);
     }
 
     // Episode.Series and Episode.Season go through the static BaseItem.LibraryManager,
