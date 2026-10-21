@@ -377,19 +377,29 @@ public class VisibleLibrariesTests
     }
 
     /// <summary>
-    /// A message counting a season's episodes is not sent when one of them cannot be read
-    /// back, since it names that episode all the same and nothing can say who may open it.
+    /// A message counting a season's episodes counts the ones it can read back, and nothing
+    /// else: an episode gone since it came, deleted or replaced by a new file, is neither counted
+    /// nor checked against anybody, and the rest are still announced.
     /// </summary>
+    /// <remarks>
+    /// Found by the fourth review of #294. One episode gone used to keep the whole batch from
+    /// going, which a batch held for its show's id made likelier: a repack of one episode, which
+    /// Jellyfin removes and adds again, lost the announcement of every other.
+    /// </remarks>
     [Fact]
-    public void AMessageNamingAnEpisodeThatCannotBeReadIsNotSent()
+    public void AMessageCountsTheEpisodesStillThere()
     {
         var season = new Seen(Alice);
         var episode = new Seen(Alice);
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
 
-        Assert.Null(ItemAddedService.EverythingNamed(season, [first, second], id => id == first ? episode : null));
-        Assert.Equal([season, episode], ItemAddedService.EverythingNamed(season, [first], _ => episode));
+        var still = ItemAddedService.StillThere(season, [first, second], id => id == first ? episode : null);
+
+        Assert.NotNull(still);
+        Assert.Equal([season, episode], still.Value.Named);
+        Assert.Equal([first], still.Value.Episodes);
+        Assert.Null(ItemAddedService.StillThere(season, [first, second], _ => null));
     }
 
     private static User Account() => new("zz-test", "provider", "reset");

@@ -32,8 +32,19 @@ public class AwaitedTitle
     public DateTime AddedAt { get; set; }
 
     /// <summary>
-    /// Gets or sets the item that arrived while the person had paused their notifications,
-    /// waiting to be announced, or <c>null</c> while the title has not arrived.
+    /// Gets or sets the item that arrived: held while the person has paused their
+    /// notifications, then kept with <see cref="AnnouncedAt"/> once they are told, or
+    /// <c>null</c> while the title has not arrived.
     /// </summary>
     public Guid? ArrivedItemId { get; set; }
+
+    /// <summary>
+    /// Gets or sets when the person was told the title arrived, or nothing while they still
+    /// wait for it.
+    /// </summary>
+    /// <remarks>
+    /// A row once told is kept a little over a day rather than deleted, so the new item message about
+    /// the same title can leave them out (#289): they get one message, not two.
+    /// </remarks>
+    public DateTime? AnnouncedAt { get; set; }
 }

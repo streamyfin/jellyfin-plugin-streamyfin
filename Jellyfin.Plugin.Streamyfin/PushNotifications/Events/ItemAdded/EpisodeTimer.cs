@@ -36,8 +36,20 @@ public class EpisodeTimer
         Timer = new Timer(Fire, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
+    /// <summary>
+    /// How long a batch waits after its last episode, and so the longest pause between two
+    /// episodes that arrive together.
+    /// </summary>
+    internal static readonly TimeSpan Gathers = TimeSpan.FromSeconds(60);
+
     // Held the way it always was: it fires once, and goes with the countdown.
     private Timer Timer { get; }
+
+    /// <summary>
+    /// Gets when the run of episodes this batch came in began, which says which awaited title
+    /// messages were about this arrival (#289).
+    /// </summary>
+    public DateTime Began { get; init; } = DateTime.UtcNow;
 
     /// <summary>
     /// Adds an episode, or replaces the one with its id, and starts the minute again.
@@ -91,5 +103,5 @@ public class EpisodeTimer
         }
     }
 
-    private void ResetTimer() => Timer.Change(TimeSpan.FromSeconds(60), Timeout.InfiniteTimeSpan);
+    private void ResetTimer() => Timer.Change(Gathers, Timeout.InfiniteTimeSpan);
 }

@@ -59,6 +59,17 @@ public static class AwaitedTitles
     /// </summary>
     public const int MostAwaited = 1000;
 
+    /// <summary>
+    /// How long the record of who was told a title arrived is kept. The new item message about
+    /// that title reads it within minutes, and a copy of the title in another library within the
+    /// window for copies, a day at most (#289).
+    /// </summary>
+    public static readonly TimeSpan ToldKeptFor =
+        // Longer than a copy can take to be told about: the whole window for copies, then the
+        // whole wait for its id, and the task's run to come (#289).
+        TimeSpan.FromSeconds(ItemAddedNotificationConfiguration.LongestCopiesWithin + ItemAddedNotificationConfiguration.LongestWaitForTitleId)
+        + TimeSpan.FromMinutes(30);
+
     /// <summary>The longest name a title may have.</summary>
     public const int LongestTitle = 300;
 

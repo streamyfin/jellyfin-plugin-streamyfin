@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
@@ -21,23 +22,116 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 
 
-public class ItemAddedService : BaseEvent, IHostedService
+public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IShowWatching _watching;
     private readonly ConcurrentDictionary<Guid, EpisodeTimer> _seasonItems;
+    private readonly AwaitedTitleAnnouncer _announcer;
+    private readonly IdentifiedTitles _identified;
+    private readonly ShowRuns _runs = new(EpisodeTimer.Gathers);
 
     public ItemAddedService(ILibraryManager libraryManager,
         ILoggerFactory loggerFactory,
         LocalizationHelper localization,
         IServerApplicationHost applicationHost,
         NotificationHelper notificationHelper,
-        IUserDataManager userData
+        IUserDataManager userData,
+        AwaitedTitleAnnouncer announcer
     ) : base(loggerFactory, localization, applicationHost, notificationHelper)
     {
         _libraryManager = libraryManager;
         _watching = new LibraryShowWatching(libraryManager, userData);
         _seasonItems = new ConcurrentDictionary<Guid, EpisodeTimer>();
+        _announcer = announcer;
+        _identified = new IdentifiedTitles(
+            TimeProvider.System,
+            failed: e => _logger.LogError(e, "Could not send a new item message"),
+            // A show's batch closes a minute after its last episode, and can read a copy of the
+            // show from before the update that identified it.
+            remember: title => title is Series);
+    }
+
+    /// <summary>
+    /// Who a new item message goes to: everyone it went to before but the people the awaited
+    /// title message told about the same title, who get that one message instead (#289).
+    /// </summary>
+    /// <param name="told">The people told, by their Jellyfin user id.</param>
+    /// <param name="canOpen">Who may open what the message names, which still decides.</param>
+    /// <returns>Whether the message goes to a person.</returns>
+    internal static Func<User, bool> LeaveOut(IReadOnlySet<Guid> told, Func<User, bool> canOpen) =>
+        user => !told.Contains(user.Id) && canOpen(user);
+
+    /// <summary>
+    /// The earliest awaited title message that belongs to a new item message: a little before
+    /// its arrival began, since the two notice the title in no set order, and after any arrival
+    /// before it, which ended a batch's minute before this one began.
+    /// </summary>
+    /// <param name="began">When the movie came, or the run of episodes the batch came in began.</param>
+    /// <returns>The moment.</returns>
+    internal static DateTime ToldSince(DateTime began) => began - TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// How long a new item message may wait for its title's id, as the administrator set it.
+    /// </summary>
+    /// <param name="seconds">What the configuration says, which may be nothing.</param>
+    /// <returns>
+    /// The wait: ten minutes when nothing is set, or when what is set is something the server
+    /// could not count, which the page refuses but a configuration stored before it did may
+    /// hold; an hour at most.
+    /// </returns>
+    internal static TimeSpan WaitForTitleId(double? seconds) =>
+        Seconds(seconds, ItemAddedNotificationConfiguration.UsualWaitForTitleId, ItemAddedNotificationConfiguration.LongestWaitForTitleId);
+
+    /// <summary>
+    /// How long a copy of a title leaves out the people told about it, as the administrator set
+    /// it.
+    /// </summary>
+    /// <param name="seconds">What the configuration says, which may be nothing.</param>
+    /// <returns>
+    /// The window: an hour when nothing is set, or when what is set is something the server
+    /// could not count; a day at most, the day the record of who was told is kept.
+    /// </returns>
+    internal static TimeSpan CopiesWithin(double? seconds) =>
+        Seconds(seconds, ItemAddedNotificationConfiguration.UsualCopiesWithin, ItemAddedNotificationConfiguration.LongestCopiesWithin);
+
+    // A number of seconds as the administrator set it: the usual one when nothing is set, or when
+    // what is set is something the server could not count, and never past the longest.
+    private static TimeSpan Seconds(double? set, double usual, double longest) =>
+        set is { } seconds && double.IsFinite(seconds) && seconds >= 0
+            ? TimeSpan.FromSeconds(Math.Min(seconds, longest))
+            : TimeSpan.FromSeconds(usual);
+
+    private TimeSpan CopiesWithin() => CopiesWithin(Config?.notifications?.ItemAdded?.CopiesWithin);
+
+    // How long a new item message about a title without its id waits for it (#289): only while
+    // its metadata may still bring one, and somebody may be left out: a person who waits for a
+    // title of its kind, whom a pause holds back, or who was told about one recently, whom a
+    // copy would leave out. The awaited title event has to reach them too. Then the id says who
+    // to leave out; otherwise it would leave nobody out, and the message would only be late:
+    // Jellyfin refreshes a new title in a walk over its whole library, minutes on a large one.
+    private TimeSpan IdWait(BaseItem title, string mediaType)
+    {
+        var wait = WaitForTitleId(Config?.notifications?.ItemAdded?.WaitForTitleId);
+
+        if (wait == TimeSpan.Zero || IdentifiedTitles.Identified(title))
+        {
+            return TimeSpan.Zero;
+        }
+
+        try
+        {
+            return _notificationHelper.Wants(NotificationEvents.AwaitedTitle, Config?.notifications?.AwaitedTitle)
+                && StreamyfinPlugin.Instance?.Database.MayLeaveSomebodyOut(mediaType, DateTime.UtcNow - CopiesWithin()) == true
+                    ? wait
+                    : TimeSpan.Zero;
+        }
+        catch (Exception e)
+        {
+            // Unable to tell, the message goes at once, as it always did.
+            _logger.LogError(e, "Could not tell whether anybody waits for {Title}", title.Name.ForLog());
+            return TimeSpan.Zero;
+        }
     }
 
     /// <summary>
@@ -134,19 +228,21 @@ public class ItemAddedService : BaseEvent, IHostedService
     }
 
     /// <summary>
-    /// Everything a message about a season names, or <c>null</c> when the library no longer
-    /// holds one of them.
+    /// What a message about a season still names: the season and the episodes the library still
+    /// holds, or <c>null</c> when it holds none of them.
     /// </summary>
     /// <param name="season">The season the message is about.</param>
-    /// <param name="episodes">The episodes it counts.</param>
+    /// <param name="episodes">The episodes it gathered.</param>
     /// <param name="lookup">How to read an item back, which answers null for one that is gone.</param>
-    /// <returns>The season and its episodes, or <c>null</c>.</returns>
+    /// <returns>Everything the message names, to check against a user, and the episodes it counts.</returns>
     /// <remarks>
-    /// An episode that cannot be read cannot be checked against a user, and the message
-    /// counts it all the same, so nothing goes out rather than a message authorized on less
-    /// than it says.
+    /// An episode gone since it came, deleted or replaced by a new file, is neither counted nor
+    /// checked against anybody, so the message never names more than it was authorized on, and
+    /// the others are still announced. A batch held for its show's id made that likelier: a
+    /// repack of one episode, which Jellyfin removes and adds again, used to keep every other
+    /// from being announced (#289).
     /// </remarks>
-    internal static List<BaseItem>? EverythingNamed(
+    internal static (List<BaseItem> Named, List<Guid> Episodes)? StillThere(
         BaseItem season,
         IEnumerable<Guid> episodes,
         Func<Guid, BaseItem?> lookup)
@@ -156,20 +252,18 @@ public class ItemAddedService : BaseEvent, IHostedService
         ArgumentNullException.ThrowIfNull(lookup);
 
         List<BaseItem> named = [season];
+        List<Guid> there = [];
 
         foreach (var id in episodes)
         {
-            var episode = lookup(id);
-
-            if (episode is null)
+            if (lookup(id) is { } episode)
             {
-                return null;
+                named.Add(episode);
+                there.Add(id);
             }
-
-            named.Add(episode);
         }
 
-        return named;
+        return there.Count == 0 ? null : (named, there);
     }
 
     private void ItemAddedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
@@ -204,17 +298,12 @@ public class ItemAddedService : BaseEvent, IHostedService
         switch (item)
         {
             case Movie movie:
-                SendDetached(
-                    _notificationHelper.SendForEvent(
-                        "itemAdded",
-                        Config?.notifications?.ItemAdded,
-                        byDefault: _ => true,
-                        // Not negotiable, whatever a level says: a title only goes to
-                        // somebody who may open it (#69).
-                        andAlso: NotificationHelper.CanOpenEvery([item]),
-                        write: audience => MovieMessage(item, audience),
-                        subject: new NotificationSubject("itemAdded", library)),
-                    "item added");
+                var added = DateTime.UtcNow;
+                // Held until Jellyfin knows the movie's id, which says who waited for it (#289).
+                _identified.Send(
+                    movie,
+                    IdWait(movie, AwaitedTitles.Movie),
+                    identified => SendMovie(movie.Id, identified, added, library));
                 break;
             case Episode episode:
                 var seasonId = episode.FindSeasonId();
@@ -224,14 +313,21 @@ public class ItemAddedService : BaseEvent, IHostedService
                     return;
                 }
 
+                // Counted before the batch: a season the scan reaches minutes into a show's
+                // arrival still belongs to it (#289).
+                var began = _runs.Add(episode.FindSeriesId(), DateTime.UtcNow);
+
                 _seasonItems.TryGetValue(seasonId, out var _countdown);
 
                 var countdown = _countdown ?? new EpisodeTimer(
                     episodes: [],
-                    callback: _ => OnEpisodeAddedTimerCallback(seasonId),
+                    callback: _ => Gathered(seasonId, stopping: false),
                     // On the timer's thread, where an exception nobody catches stops the server.
                     failed: e => _logger.LogError(e, "Could not announce the episodes added to season {Season}", seasonId)
-                );
+                )
+                {
+                    Began = began
+                };
 
                 countdown.Add(episode);
                 _seasonItems.TryAdd(seasonId, countdown);
@@ -242,83 +338,179 @@ public class ItemAddedService : BaseEvent, IHostedService
         }
     }
 
-    private void OnEpisodeAddedTimerCallback(Guid seasonId)
+    private Task SendMovie(Guid movieId, BaseItem movie, DateTime added, Guid? library)
     {
-        _seasonItems.TryRemove(seasonId, out var countdown);
-
-        // A copy, since the scan may still be adding to the countdown while this reads it.
-        var episodes = countdown?.Snapshot() ?? [];
-        var total = episodes.Count;
-
-        if (total == 0) return;
-
-        var episode = episodes[0];
-        var refreshedSeason = _libraryManager.GetItemById(seasonId) as Season;
-
-        // A season whose series no longer resolves, deleted or identified again within the
-        // minute, has nothing to name.
-        if (refreshedSeason?.Series is not { } series)
+        // Read back: held until its id came, the movie may have gone meanwhile. What the message
+        // says comes from the one handed in, which the update that brought the id left with
+        // its metadata: the library may hand back a copy it read again before, without them.
+        if (_libraryManager.GetItemById(movieId) is not Movie)
         {
-            _logger.LogInformation("The season {Season} has no series any more, so nothing was sent for its {Count} episode(s)", seasonId, total);
-            return;
+            return Task.CompletedTask;
         }
 
-        // Only logged: the message writes the name for itself, per language.
-        var name = series.Name.ForLog();
+        // The people who waited for it get the awaited title message instead, settled here
+        // (#289).
+        var awaited = _announcer.Settle(movie, ToldSince(added), CopiesWithin());
 
-        _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", total, name);
+        return _notificationHelper.SendForEvent(
+            "itemAdded",
+            Config?.notifications?.ItemAdded,
+            byDefault: _ => true,
+            // Not negotiable, whatever a level says: a title only goes to
+            // somebody who may open it (#69).
+            andAlso: LeaveOut(awaited, NotificationHelper.CanOpenEvery([movie])),
+            write: audience => MovieMessage(movie, audience),
+            subject: new NotificationSubject("itemAdded", library));
+    }
 
-        // The one episode is read back here rather than inside the message, which is
-        // written once per language and should not go to the library each time.
-        Episode? single = null;
-
-        if (total == 1)
+    // An update can bring the id a held new item message waits for (#289). Only a movie's or a
+    // show's: a scan updates every item it touches, and those are the titles messages wait on.
+    private void ItemUpdatedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
+    {
+        if (itemChangeEventArgs.Item is Movie or Series)
         {
-            single = _libraryManager.GetItemById(episode.Id) as Episode;
+            _identified.Updated(itemChangeEventArgs.Item);
+        }
+    }
 
-            if (single is null)
+    /// <summary>
+    /// Sends what the server would otherwise lose as it stops: the batches still gathering, then
+    /// the messages held for their title's id.
+    /// </summary>
+    /// <param name="closing">Each batch still gathering, sent when called.</param>
+    /// <param name="held">Sends the messages held.</param>
+    /// <param name="failed">Hears of one that could not be sent.</param>
+    /// <returns>Every send, to wait for.</returns>
+    /// <remarks>
+    /// One batch whose season cannot be read, the library closing under it, keeps neither the
+    /// others nor the held messages from going.
+    /// </remarks>
+    internal static Task SendEverything(IEnumerable<Func<Task>> closing, Func<Task> held, Action<Exception> failed)
+    {
+        List<Task> sending = [];
+
+        foreach (var close in closing)
+        {
+            try
             {
-                return;
+                sending.Add(close());
+            }
+            catch (Exception e)
+            {
+                failed(e);
             }
         }
 
-        // The season and every episode the message counts. A season can be visible while an
-        // episode in it is not, and this message names how many arrived and, for a single
-        // one, its number and its id.
-        var named = EverythingNamed(
-            refreshedSeason,
-            episodes.Select(added => added.Id),
-            id => _libraryManager.GetItemById(id));
-
-        if (named is null)
+        try
         {
-            _logger.LogInformation(
-                "One of the {Count} episode(s) added to {Season} is no longer in the library, so nothing was sent",
-                total,
-                name);
-            return;
+            sending.Add(held());
+        }
+        catch (Exception e)
+        {
+            failed(e);
+        }
+
+        return Task.WhenAll(sending);
+    }
+
+    // A batch closed: a minute without another episode of its season, or the server stopping,
+    // which sends it at once rather than lose it with the countdown.
+    private Task Gathered(Guid seasonId, bool stopping)
+    {
+        if (!_seasonItems.TryRemove(seasonId, out var countdown))
+        {
+            return Task.CompletedTask;
+        }
+
+        _runs.Forget(DateTime.UtcNow);
+
+        // A copy, since the scan may still be adding to the countdown while this reads it.
+        var episodes = countdown.Snapshot();
+
+        if (episodes.Count == 0) return Task.CompletedTask;
+
+        // A season whose series no longer resolves, deleted or identified again within the
+        // minute, has nothing to name.
+        if ((_libraryManager.GetItemById(seasonId) as Season)?.Series is not { } series)
+        {
+            _logger.LogInformation("The season {Season} has no series any more, so nothing was sent for its {Count} episode(s)", seasonId, episodes.Count);
+            return Task.CompletedTask;
+        }
+
+        _logger.LogInformation("Episode timer finished. Captured {0} episodes for {1}.", episodes.Count, series.Name.ForLog());
+
+        // The people the awaited title message told about the show during this arrival are left
+        // out of it: the show arriving is their one message, and a later arrival reaches them
+        // like anyone (#289). Held until the show's id is known, like a movie.
+        var since = ToldSince(countdown.Began);
+        var ids = episodes.Select(added => added.Id).ToList();
+        var first = episodes[0];
+
+        return _identified.Send(
+            series,
+            stopping ? TimeSpan.Zero : IdWait(series, AwaitedTitles.Tv),
+            identified => SendEpisodes(seasonId, ids, first, identified, since));
+    }
+
+    // Everything is read back here, when the message goes, rather than when the batch closed:
+    // held for the show's id, an episode may have gone meanwhile, and the message names how
+    // many arrived and, for a single one, its number and its id.
+    private Task SendEpisodes(Guid seasonId, List<Guid> gathered, Episode first, BaseItem series, DateTime since)
+    {
+        // Only logged: the message writes the name for itself, per language.
+        var name = series.Name.ForLog();
+
+        if (_libraryManager.GetItemById(seasonId) is not Season season)
+        {
+            _logger.LogInformation("The season {Season} is gone, so nothing was sent for its {Count} episode(s)", seasonId, gathered.Count);
+            return Task.CompletedTask;
+        }
+
+        // The season and every episode the message counts. A season can be visible while an
+        // episode in it is not.
+        if (StillThere(season, gathered, id => _libraryManager.GetItemById(id)) is not { } still)
+        {
+            _logger.LogInformation("None of the {Count} episode(s) added to {Season} is in the library any more, so nothing was sent", gathered.Count, name);
+            return Task.CompletedTask;
+        }
+
+        var (named, episodes) = still;
+
+        if (episodes.Count < gathered.Count)
+        {
+            _logger.LogInformation("{Gone} of the {Count} episode(s) added to {Season} are no longer in the library, so the message counts the others", gathered.Count - episodes.Count, gathered.Count, name);
+        }
+
+        var total = episodes.Count;
+
+        // The one episode, read back with the rest, names its number and its id.
+        var single = total == 1 ? named[1] as Episode : null;
+
+        if (total == 1 && single is null)
+        {
+            return Task.CompletedTask;
         }
 
         // The library for those who turned it off, the show for those who follow or muted it.
-        var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), episode.Path);
+        var library = LibraryIdOf(_libraryManager.GetVirtualFolders(), first.Path);
         var subject = new NotificationSubject("itemAdded", library, series.Id);
+        var awaited = _announcer.Settle(series, since, CopiesWithin());
 
-        // Observed like the movie send. Discarding the awaitable left a failure unobserved.
-        SendDetached(
-            _notificationHelper.SendForEvent(
-                "itemAdded",
-                Config?.notifications?.ItemAdded,
-                byDefault: _ => true,
-                andAlso: NotificationHelper.CanOpenEvery(named),
-                write: audience => [EpisodesMessage(refreshedSeason, single, episode, total, audience)],
-                subject: subject,
-                watching: _watching),
-            "episodes added");
+        return _notificationHelper.SendForEvent(
+            "itemAdded",
+            Config?.notifications?.ItemAdded,
+            byDefault: _ => true,
+            andAlso: LeaveOut(awaited, NotificationHelper.CanOpenEvery(named)),
+            write: audience => [EpisodesMessage(season, series, single, first, total, audience)],
+            subject: subject,
+            watching: _watching);
     }
 
-    // Written once per language among the devices it goes to.
+    // Written once per language among the devices it goes to. The show is the one handed in,
+    // named by its metadata, rather than the season's, which may be a copy read before it.
     private ExpoNotificationRequest EpisodesMessage(
         Season season,
+        BaseItem series,
         Episode? single,
         Episode first,
         int total,
@@ -326,7 +518,7 @@ public class ItemAddedService : BaseEvent, IHostedService
     {
         var culture = audience.Culture;
 
-        var name = season.Series.Name.Escape();
+        var name = series.Name.Escape();
         var data = new Dictionary<string, object?>();
         List<string> body = [];
         string title;
@@ -377,7 +569,7 @@ public class ItemAddedService : BaseEvent, IHostedService
         }
 
         data["seasonIndex"] = season.IndexNumber;
-        data["seriesId"] = season.SeriesId.ToString("N");
+        data["seriesId"] = series.Id.ToString("N");
         data["type"] = first.GetType().Name.Escape();
 
         return new ExpoNotificationRequest
@@ -388,7 +580,7 @@ public class ItemAddedService : BaseEvent, IHostedService
 
             // The series rather than the episode: a poster is what a phone shows well, and
             // an episode's own image is a frame of it.
-            RichContent = Poster(audience, season.SeriesId.Equals(default) ? season.Id : season.SeriesId)
+            RichContent = Poster(audience, series.Id)
         };
     }
 
@@ -396,14 +588,34 @@ public class ItemAddedService : BaseEvent, IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _libraryManager.ItemAdded += ItemAddedHandler;
+        _libraryManager.ItemUpdated += ItemUpdatedHandler;
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _libraryManager.ItemAdded -= ItemAddedHandler;
-        _seasonItems.Clear();
-        return Task.CompletedTask;
+        _libraryManager.ItemUpdated -= ItemUpdatedHandler;
+
+        // Sent rather than dropped, the batches still gathering and the messages held for their
+        // title's id: Jellyfin does not add a title again after a restart, so they would
+        // otherwise reach nobody (#289).
+        var sending = SendEverything(
+            [.. _seasonItems.Keys.ToList().Select<Guid, Func<Task>>(seasonId => () => Gathered(seasonId, stopping: true))],
+            _identified.SendAll,
+            e => _logger.LogError(e, "Could not send a new item message as the server stopped"));
+
+        try
+        {
+            await sending.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("The server stopped before every new item message held back was sent");
+        }
     }
+
+    /// <inheritdoc />
+    public void Dispose() => _identified.Dispose();
 }

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 
 namespace Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 
@@ -22,9 +23,42 @@ public class NotificationConfiguration
 
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
+    /// <summary>
+    /// How long, in seconds, a new item message waits for its title's id when nothing says
+    /// otherwise (#289).
+    /// </summary>
+    public const double UsualWaitForTitleId = 600;
+
+    /// <summary>
+    /// The longest wait for a title's id, in seconds: a message held longer is not news any more.
+    /// </summary>
+    public const double LongestWaitForTitleId = 3600;
+
+    /// <summary>
+    /// How long, in seconds, a copy of a title leaves out the people told about it when nothing
+    /// says otherwise: copies of one title, a 4K library beside the main one, usually come
+    /// within the hour of each other (#289).
+    /// </summary>
+    public const double UsualCopiesWithin = 3600;
+
+    /// <summary>
+    /// The longest window for copies, in seconds: the day the record of who was told is kept.
+    /// </summary>
+    public const double LongestCopiesWithin = 86400;
+
     [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
+
+    [Display(Name = "Wait for the title's id", Description = "While somebody waits for a title, how long, in seconds, a new movie or a new show's batch of episodes waits for Jellyfin's metadata to find its TMDB or TVDB id, so the people who waited for that title get only the awaited title message. It goes as soon as the id comes, or the metadata came without one. 0 sends at once. Ten minutes when left empty, an hour at most.")]
+    [Bounds(0, LongestWaitForTitleId)]
+    [JsonPropertyName(name: "waitForTitleId")]
+    public double? WaitForTitleId { get; set; }
+
+    [Display(Name = "Copies of a title within", Description = "How long, in seconds, after the people who waited for a title were told it arrived, a copy of it in another library, a 4K one beside the main one, still leaves them out of its new item message. 0 never does. An hour when left empty, a day at most.")]
+    [Bounds(0, LongestCopiesWithin)]
+    [JsonPropertyName(name: "copiesWithin")]
+    public double? CopiesWithin { get; set; }
 }
 
 public class Notifications

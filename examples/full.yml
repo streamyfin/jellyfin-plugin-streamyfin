@@ -555,6 +555,8 @@ notifications:
   itemAdded:
     enabled: true
     enabledLibraries: []    # Notify when new content is added
+    waitForTitleId: 600     # While somebody waits for a title: seconds a new item waits for its TMDB or TVDB id, 0 = at once
+    copiesWithin: 3600      # A copy of a title in another library leaves out who was told about it within these seconds, 0 = never
     # Episodes are automatically grouped by season to reduce spam
 
   awaitedTitle:

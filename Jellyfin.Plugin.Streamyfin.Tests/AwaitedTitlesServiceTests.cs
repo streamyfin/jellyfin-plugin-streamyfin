@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -26,8 +27,8 @@ public class AwaitedTitlesServiceTests
         var pending = new PendingTitles(TimeSpan.FromHours(24));
         pending.Add(show.Id, Now);
 
-        Assert.Same(show, AwaitedTitlesService.SettledBy(pending, show, Now));
-        Assert.Same(show, MediaNotificationTests.WithLibrary([show], () => AwaitedTitlesService.SettledBy(pending, episode, Now)));
+        Assert.Same(show, AwaitedTitleAnnouncer.SettledBy(pending, show, Now));
+        Assert.Same(show, MediaNotificationTests.WithLibrary([show], () => AwaitedTitleAnnouncer.SettledBy(pending, episode, Now)));
     }
 
     /// <summary>
@@ -40,7 +41,7 @@ public class AwaitedTitlesServiceTests
         var pending = new PendingTitles(TimeSpan.FromHours(24));
         pending.Add(movie.Id, Now);
 
-        Assert.Same(movie, AwaitedTitlesService.SettledBy(pending, movie, Now));
+        Assert.Same(movie, AwaitedTitleAnnouncer.SettledBy(pending, movie, Now));
     }
 
     /// <summary>
@@ -52,7 +53,7 @@ public class AwaitedTitlesServiceTests
         var pending = new PendingTitles(TimeSpan.FromHours(24));
         pending.Add(Guid.NewGuid(), Now);
 
-        Assert.Null(AwaitedTitlesService.SettledBy(pending, new Movie { Id = Guid.NewGuid() }, Now));
-        Assert.Null(AwaitedTitlesService.SettledBy(pending, new Season { Id = Guid.NewGuid() }, Now));
+        Assert.Null(AwaitedTitleAnnouncer.SettledBy(pending, new Movie { Id = Guid.NewGuid() }, Now));
+        Assert.Null(AwaitedTitleAnnouncer.SettledBy(pending, new Season { Id = Guid.NewGuid() }, Now));
     }
 }

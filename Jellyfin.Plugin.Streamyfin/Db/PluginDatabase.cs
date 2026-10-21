@@ -1068,7 +1068,7 @@ public class PluginDatabase
         using var context = CreateContext();
         return [.. context.AwaitedTitles
             .AsNoTracking()
-            .Where(a => a.UserId == userId)
+            .Where(a => a.UserId == userId && a.AnnouncedAt == null)
             .OrderByDescending(a => a.AddedAt)];
     }
 
@@ -1084,17 +1084,28 @@ public class PluginDatabase
         using var context = CreateContext();
         using var transaction = context.Database.BeginTransaction();
 
-        if (context.AwaitedTitles.Any(a => a.UserId == title.UserId && a.MediaType == title.MediaType && a.TmdbId == title.TmdbId))
+        var same = context.AwaitedTitles.SingleOrDefault(a => a.UserId == title.UserId && a.MediaType == title.MediaType && a.TmdbId == title.TmdbId);
+        if (same is { AnnouncedAt: null })
         {
             return AwaitResult.AlreadyAwaited;
         }
 
-        if (context.AwaitedTitles.Count(a => a.UserId == title.UserId) >= AwaitedTitles.MostAwaited)
+        // Titles they were told about are not on their list any more.
+        if (context.AwaitedTitles.Count(a => a.UserId == title.UserId && a.AnnouncedAt == null) >= AwaitedTitles.MostAwaited)
         {
             return AwaitResult.Full;
         }
 
-        context.AwaitedTitles.Add(title);
+        if (same is null)
+        {
+            context.AwaitedTitles.Add(title);
+        }
+        else
+        {
+            // Told about before, and gone since: a fresh wait for the same title.
+            Wait(same, title);
+        }
+
         context.SaveChanges();
         transaction.Commit();
         return AwaitResult.Added;
@@ -1111,7 +1122,7 @@ public class PluginDatabase
     {
         using var context = CreateContext();
         return context.AwaitedTitles
-            .Where(a => a.UserId == userId && a.MediaType == mediaType && a.TmdbId == tmdbId)
+            .Where(a => a.UserId == userId && a.MediaType == mediaType && a.TmdbId == tmdbId && a.AnnouncedAt == null)
             .ExecuteDelete() > 0;
     }
 
@@ -1123,7 +1134,7 @@ public class PluginDatabase
     /// <param name="tvdbId">Its TVDB id, when Jellyfin knows it.</param>
     /// <param name="itemId">What arrived, kept for the people a pause holds back.</param>
     /// <param name="decide">What each waiting row comes to.</param>
-    /// <returns>The rows to announce now, which are off the table.</returns>
+    /// <returns>The rows to announce now, kept as told.</returns>
     /// <remarks>
     /// One transaction, so two arrivals of the same title at once, two episodes of a season
     /// that came in one go, cannot both announce it: the second finds nobody waiting.
@@ -1142,14 +1153,8 @@ public class PluginDatabase
             return [];
         }
 
-        // Ids are positive, so -1 matches nothing.
-        var tmdb = tmdbId ?? -1;
-        var tvdb = tvdbId ?? -1;
-
         IQueryable<AwaitedTitle> Waiting(IQueryable<AwaitedTitle> rows) =>
-            rows.Where(a => a.MediaType == mediaType
-                && a.ArrivedItemId == null
-                && (a.TmdbId == tmdb || a.TvdbId == tvdb));
+            OfTitle(rows, mediaType, tmdbId, tvdbId).Where(a => a.ArrivedItemId == null);
 
         // Read first, without the write lock: a library scan adds thousands of items that
         // nobody waits for, and each would otherwise hold the lock for nothing.
@@ -1168,21 +1173,131 @@ public class PluginDatabase
     /// Settles the arrivals a pause held back.
     /// </summary>
     /// <param name="decide">What each held row comes to now.</param>
-    /// <returns>The rows to announce now, which are off the table.</returns>
+    /// <returns>The rows to announce now, kept as told.</returns>
     public List<AwaitedTitle> SettleHeld(Func<AwaitedTitle, AwaitedOutcome> decide)
     {
         ArgumentNullException.ThrowIfNull(decide);
-        return Settle(rows => rows.Where(a => a.ArrivedItemId != null), decide, arrived: null);
+        return Settle(rows => rows.Where(a => a.ArrivedItemId != null && a.AnnouncedAt == null), decide, arrived: null);
+    }
+
+    /// <summary>
+    /// Who the new item message about a title leaves out: the people who waited for it and
+    /// whose arrival is settled (#289).
+    /// </summary>
+    /// <param name="mediaType">The kind of title.</param>
+    /// <param name="tmdbId">Its TMDB id, when Jellyfin knows it.</param>
+    /// <param name="tvdbId">Its TVDB id, when Jellyfin knows it.</param>
+    /// <param name="itemId">The item the message is about.</param>
+    /// <param name="since">The earliest telling about this item that belongs to the message.</param>
+    /// <param name="copiesSince">The earliest telling about another copy of the title that counts.</param>
+    /// <returns>The people, by their Jellyfin user id.</returns>
+    /// <remarks>
+    /// Told about this item since the message's arrival began; told about another copy of the
+    /// title, a 4K library beside the main one, since the second moment; or held by a pause,
+    /// which the task tells once it ends. Matched by the title's ids rather than by the item,
+    /// since each copy is an item of its own.
+    /// </remarks>
+    public HashSet<Guid> WhoWaitedFor(string mediaType, int? tmdbId, int? tvdbId, Guid itemId, DateTime since, DateTime copiesSince)
+    {
+        if (tmdbId is null && tvdbId is null)
+        {
+            return [];
+        }
+
+        using var context = CreateContext();
+        return [.. OfTitle(context.AwaitedTitles.AsNoTracking(), mediaType, tmdbId, tvdbId)
+            .Where(a => a.ArrivedItemId != null
+                && (a.AnnouncedAt == null
+                    || (a.ArrivedItemId == itemId && a.AnnouncedAt >= since)
+                    || (a.ArrivedItemId != itemId && a.AnnouncedAt >= copiesSince)))
+            .Select(a => a.UserId)];
+    }
+
+    /// <summary>
+    /// Whether a new item message of a kind may have somebody to leave out, which is when one
+    /// without its title's id is worth holding for the id (#289).
+    /// </summary>
+    /// <param name="mediaType">The kind of title.</param>
+    /// <param name="toldSince">The earliest telling a copy of its title would still leave out.</param>
+    /// <returns>
+    /// <c>true</c> while somebody waits for a title of that kind, a pause holds one back from
+    /// somebody, or somebody was told about one since the moment.
+    /// </returns>
+    public bool MayLeaveSomebodyOut(string mediaType, DateTime toldSince)
+    {
+        using var context = CreateContext();
+        return context.AwaitedTitles.Any(a => a.MediaType == mediaType
+            && (a.AnnouncedAt == null || a.AnnouncedAt >= toldSince));
+    }
+
+    // The rows about a title, by its kind and either of its ids. One place, so the arrival a
+    // person is told about and the new item message that leaves them out match the same rows.
+    private static IQueryable<AwaitedTitle> OfTitle(IQueryable<AwaitedTitle> rows, string mediaType, int? tmdbId, int? tvdbId)
+    {
+        // Ids are positive, so -1 matches nothing.
+        var tmdb = tmdbId ?? -1;
+        var tvdb = tvdbId ?? -1;
+
+        return rows.Where(a => a.MediaType == mediaType && (a.TmdbId == tmdb || a.TvdbId == tvdb));
+    }
+
+    /// <summary>
+    /// Puts arrivals back as held, when the message telling them never left: the awaited
+    /// titles task tells them at its next run (#289).
+    /// </summary>
+    /// <param name="told">The rows, as they were settled.</param>
+    /// <returns>How many were put back.</returns>
+    /// <remarks>
+    /// Loaded and saved rather than updated in place: the build for 10.11 runs on Jellyfin 12,
+    /// whose EF Core changed <c>ExecuteUpdate</c>.
+    /// </remarks>
+    public int Untell(IEnumerable<AwaitedTitle> told)
+    {
+        ArgumentNullException.ThrowIfNull(told);
+
+        using var context = CreateContext();
+        using var transaction = context.Database.BeginTransaction();
+        var changed = 0;
+
+        foreach (var sent in told)
+        {
+            var row = context.AwaitedTitles.SingleOrDefault(a => a.UserId == sent.UserId && a.MediaType == sent.MediaType && a.TmdbId == sent.TmdbId);
+
+            // Only the telling that failed: a row told again since, or waited for afresh, is
+            // left as it is.
+            if (row is { AnnouncedAt: { } announced } && announced == sent.AnnouncedAt)
+            {
+                row.AnnouncedAt = null;
+                changed++;
+            }
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+        return changed;
+    }
+
+    /// <summary>
+    /// Forgets who was told about what before a moment.
+    /// </summary>
+    /// <param name="cutoff">Every telling before it goes.</param>
+    /// <returns>How many were forgotten.</returns>
+    public int ForgetAnnouncedBefore(DateTime cutoff)
+    {
+        using var context = CreateContext();
+        return context.AwaitedTitles
+            .Where(a => a.AnnouncedAt != null && a.AnnouncedAt < cutoff)
+            .ExecuteDelete();
     }
 
     /// <summary>
     /// Every title everyone waits for, for a backup.
     /// </summary>
-    /// <returns>The titles.</returns>
+    /// <returns>The titles, without the ones people were told about.</returns>
     public List<AwaitedTitle> AllAwaitedTitles()
     {
         using var context = CreateContext();
-        return [.. context.AwaitedTitles.AsNoTracking()];
+        return [.. context.AwaitedTitles.AsNoTracking().Where(a => a.AnnouncedAt == null)];
     }
 
     /// <summary>
@@ -1196,10 +1311,36 @@ public class PluginDatabase
         using var context = CreateContext();
         using var transaction = context.Database.BeginTransaction();
 
-        context.AwaitedTitles.ExecuteDelete();
-        context.AwaitedTitles.AddRange(titles);
+        // Who was just told stays told, unless the backup waits for that same title again.
+        context.AwaitedTitles.Where(a => a.AnnouncedAt == null).ExecuteDelete();
+        var told = context.AwaitedTitles.ToList();
+
+        foreach (var title in titles)
+        {
+            var same = told.Find(a => a.UserId == title.UserId && a.MediaType == title.MediaType && a.TmdbId == title.TmdbId);
+            if (same is null)
+            {
+                context.AwaitedTitles.Add(title);
+            }
+            else
+            {
+                Wait(same, title);
+            }
+        }
+
         context.SaveChanges();
         transaction.Commit();
+    }
+
+    // A row told about before becomes this wait. Updated in place: its key is the same.
+    private static void Wait(AwaitedTitle row, AwaitedTitle wait)
+    {
+        row.TvdbId = wait.TvdbId;
+        row.Title = wait.Title;
+        row.Year = wait.Year;
+        row.AddedAt = wait.AddedAt;
+        row.ArrivedItemId = wait.ArrivedItemId;
+        row.AnnouncedAt = null;
     }
 
     private List<AwaitedTitle> Settle(
@@ -1211,6 +1352,7 @@ public class PluginDatabase
         using var transaction = context.Database.BeginTransaction();
 
         var announce = new List<AwaitedTitle>();
+        var now = DateTime.UtcNow;
 
         foreach (var row in which(context.AwaitedTitles).ToList())
         {
@@ -1218,7 +1360,10 @@ public class PluginDatabase
             {
                 case AwaitedOutcome.Announce:
                     announce.Add(row);
-                    context.AwaitedTitles.Remove(row);
+                    // Kept as told rather than deleted, so the new item message about the same
+                    // title leaves them out (#289). Forgotten a little over a day later.
+                    row.ArrivedItemId ??= arrived;
+                    row.AnnouncedAt = now;
                     break;
                 case AwaitedOutcome.Drop:
                     context.AwaitedTitles.Remove(row);

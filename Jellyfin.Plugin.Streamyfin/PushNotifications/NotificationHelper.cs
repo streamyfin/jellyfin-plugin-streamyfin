@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.IO.Compression;
 using System.IO;
@@ -345,11 +346,16 @@ public class NotificationHelper
     /// What the messages are about, to mark them with their channel, thread and buttons;
     /// nothing for a message about nothing in particular.
     /// </param>
+    /// <param name="refused">
+    /// Hears the status Expo refused a batch with, after the retries it allows, for a caller
+    /// that acts on why nothing was sent; nothing to only log it.
+    /// </param>
     /// <returns>Expo's response, or null when there is nobody to send to.</returns>
     public async Task<ExpoNotificationResponse?> SendToDevices(
         IEnumerable<DeviceToken> devices,
         Func<Audience, ExpoNotificationRequest[]> write,
-        NotificationSubject? subject = null)
+        NotificationSubject? subject = null,
+        Action<HttpStatusCode>? refused = null)
     {
         ArgumentNullException.ThrowIfNull(devices);
         ArgumentNullException.ThrowIfNull(write);
@@ -384,7 +390,7 @@ public class NotificationHelper
             groups.Sum(group => group.Tokens.Count),
             groups.Count);
 
-        return await Send([.. messages]).ConfigureAwait(false);
+        return await SendBatches([.. messages], refused).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -468,7 +474,10 @@ public class NotificationHelper
     /// which <see cref="ExpoTickets.Reconcile"/> answers by doing nothing at all.
     /// </para>
     /// </remarks>
-    public async Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications)
+    public Task<ExpoNotificationResponse?> Send(params ExpoNotificationRequest[] notifications) =>
+        SendBatches(notifications, refused: null);
+
+    private async Task<ExpoNotificationResponse?> SendBatches(ExpoNotificationRequest[] notifications, Action<HttpStatusCode>? refused)
     {
         ArgumentNullException.ThrowIfNull(notifications);
 
@@ -506,7 +515,8 @@ public class NotificationHelper
                 SendUri,
                 _serializationHelper.ToJson(batch),
                 _retry,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None,
+                refused).ConfigureAwait(false);
 
             PruneAndQueue(recipients, response, sentAt);
 
@@ -614,7 +624,8 @@ public class NotificationHelper
         string uri,
         string serializedRequest,
         ExpoRetry retry,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<HttpStatusCode>? refused = null)
         where T : class
     {
         _logger?.LogDebug("Preparing to call {Uri}", uri);
@@ -651,6 +662,7 @@ public class NotificationHelper
                     tried,
                     shown);
 
+                refused?.Invoke(rawResponse.StatusCode);
                 return null;
             }
 

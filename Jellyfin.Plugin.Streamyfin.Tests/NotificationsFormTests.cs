@@ -155,6 +155,42 @@ public class NotificationsFormTests
     }
 
     /// <summary>
+    /// The wait for a title's id is a number of seconds on the item added card, from nothing to
+    /// an hour, ten minutes when left empty, and offered with the server's switch off too: a
+    /// group can turn new items on, and their messages wait what the server says (#289).
+    /// </summary>
+    [Fact]
+    public void TheWaitForATitlesIdIsOfferedOnTheItemAddedCard()
+    {
+        var wait = Field("itemAdded.waitForTitleId");
+
+        Assert.Equal("Item added", wait.Category);
+        Assert.Equal(SettingsControl.Number, wait.Control);
+        Assert.Equal(0, wait.Minimum);
+        Assert.Equal(3600, wait.Maximum);
+        Assert.Equal(600, wait.ServerDefault);
+        Assert.Null(wait.DependsOn);
+    }
+
+    /// <summary>
+    /// How long a copy of a title leaves out the people told about it is a number of seconds on
+    /// the item added card, from nothing to a day, an hour when left empty, and offered with the
+    /// server's switch off too, like the wait for a title's id.
+    /// </summary>
+    [Fact]
+    public void TheWindowForCopiesIsOfferedOnTheItemAddedCard()
+    {
+        var window = Field("itemAdded.copiesWithin");
+
+        Assert.Equal("Item added", window.Category);
+        Assert.Equal(SettingsControl.Number, window.Control);
+        Assert.Equal(0, window.Minimum);
+        Assert.Equal(86400, window.Maximum);
+        Assert.Equal(3600, window.ServerDefault);
+        Assert.Null(window.DependsOn);
+    }
+
+    /// <summary>
     /// The Yaml tab's schema offers the wait on every event, since every event's block can
     /// hold one, so it says which events read it.
     /// </summary>
@@ -200,7 +236,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleId", "itemAdded.copiesWithin" },
             itemAdded);
     }
 
