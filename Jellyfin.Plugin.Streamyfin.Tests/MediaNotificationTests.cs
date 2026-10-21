@@ -68,6 +68,7 @@ public class MediaNotificationTests
     [InlineData("The Good German (2006) [tmdbid-182]", "The Good German (2006)")]
     [InlineData("[REC] 2 (2009) [tmdbid-10664]", "[REC] 2 (2009)")]
     [InlineData("(500) Days of Summer (2009) [tmdbid-19913]", "(500) Days of Summer (2009)")]
+    [InlineData("Metropolis [1927]", "Metropolis (1927)")]
     [InlineData(
         "LEGO DC Comics Super Heroes - Justice League vs. Bizarro League (2015) [tmdbid-326215]",
         "LEGO DC Comics Super Heroes - Justice League vs. Bizarro League (2015)")]
@@ -166,7 +167,35 @@ public class MediaNotificationTests
     [InlineData("Galactica 1980", "Galactica 1980 (1980) [tvdbid-71173]", "Galactica 1980 - Episode 2 added for Season 1")]
     public void ABatchOfEpisodesNamesItsShowByItsTitle(string name, string folder, string expected)
     {
-        var show = new Series { Id = Guid.NewGuid(), Name = name, Path = $"/media/shows/{folder}" };
+        Assert.Equal(expected, EpisodeBody(new Series { Id = Guid.NewGuid(), Name = name, Path = $"/media/shows/{folder}" }));
+    }
+
+    /// <summary>
+    /// A show its metadata named keeps that name whole in a batch of episodes, a year in it
+    /// included, even when it is the name of its folder: the batch's message shows no year of its
+    /// own.
+    /// </summary>
+    /// <param name="folder">The show's folder.</param>
+    [Theory]
+    [InlineData("Doctor Who (2005)")]
+    [InlineData("Doctor Who (2005) [tvdbid-78804]")]
+    public void ARefreshedShowKeepsItsMetadataNameInABatch(string folder)
+    {
+        var show = new Series
+        {
+            Id = Guid.NewGuid(),
+            Name = "Doctor Who (2005)",
+            ProductionYear = 2005,
+            DateLastRefreshed = Refreshed,
+            Path = $"/media/shows/{folder}"
+        };
+
+        Assert.Equal("Doctor Who (2005) - Episode 2 added for Season 1", EpisodeBody(show));
+    }
+
+    // The body of the message about a show's episode 2 of season 1, arrived alone.
+    private static string? EpisodeBody(Series show)
+    {
         var season = new Season { Id = Guid.NewGuid(), SeriesId = show.Id, IndexNumber = 1 };
         var episode = new Episode { Id = Guid.NewGuid(), SeriesId = show.Id, SeasonId = season.Id, IndexNumber = 2 };
 
@@ -182,7 +211,7 @@ public class MediaNotificationTests
                 new Audience(CultureInfo.InvariantCulture, null),
                 poster: null));
 
-        Assert.Equal(expected, message.Body);
+        return message.Body;
     }
 
     // The last line of a movie's message.

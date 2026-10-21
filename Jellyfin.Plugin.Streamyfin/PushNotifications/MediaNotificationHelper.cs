@@ -25,37 +25,38 @@ static partial class MediaNotificationHelper
     /// moment, since with the id in the folder name nothing holds it for the refresh. Only such a
     /// name is cleaned, and only of what Jellyfin itself reads in a folder name: the ids, and the
     /// year at the end, which is then the year. Any other name is a title already, the
-    /// metadata's or one Jellyfin read off a file name, kept whole but for a year the message
-    /// would repeat.
+    /// metadata's or one Jellyfin read off a file name, and is kept whole.
     /// </remarks>
     internal static (string Name, int? Year) NameAndYearOf(BaseItem title)
     {
         var name = title.Name ?? string.Empty;
-        var year = title.ProductionYear;
-        var folderName = HasFolderName(title);
 
-        if (folderName)
+        if (!HasFolderName(title))
         {
-            name = Spaces().Replace(FolderIds().Replace(name, " "), " ").Trim();
+            return (name, title.ProductionYear);
         }
 
-        var dated = TrailingYear().Match(name);
-        if (dated.Success
-            && (folderName || year?.ToString(CultureInfo.InvariantCulture) == dated.Groups["year"].Value)
-            && dated.Index > 0)
+        var cleaned = Spaces().Replace(FolderIds().Replace(name, " "), " ").Trim();
+        var year = title.ProductionYear;
+        var dated = FolderYear().Match(cleaned);
+
+        if (dated.Success && dated.Index > 0)
         {
             year = int.Parse(dated.Groups["year"].ValueSpan, CultureInfo.InvariantCulture);
-            name = name[..dated.Index];
+            cleaned = cleaned[..dated.Index];
         }
 
-        return name.Length > 0 ? (name, year) : (title.Name ?? string.Empty, title.ProductionYear);
+        return cleaned.Length > 0 ? (cleaned, year) : (name, title.ProductionYear);
     }
 
     // Whether a title still has the name Jellyfin gave it from its folder: a movie in a folder of
-    // its own, or a show, named exactly as that folder is.
+    // its own, or a show, named exactly as that folder is, and not refreshed yet, since a name its
+    // metadata gave can be the folder's too, "Doctor Who (2005)".
     private static bool HasFolderName(BaseItem title)
     {
-        if (title.IsInMixedFolder || string.IsNullOrEmpty(title.ContainingFolderPath))
+        if (title.DateLastRefreshed != default
+            || title.IsInMixedFolder
+            || string.IsNullOrEmpty(title.ContainingFolderPath))
         {
             return false;
         }
@@ -75,9 +76,10 @@ static partial class MediaNotificationHelper
         RegexOptions.IgnoreCase)]
     private static partial Regex FolderIds();
 
-    // A year in brackets at the end of a name, as Radarr and Sonarr write it.
-    [GeneratedRegex(@"\s*\((?<year>[0-9]{4})\)\s*$")]
-    private static partial Regex TrailingYear();
+    // A year at the end of a folder name, in round or square brackets, which Jellyfin reads as
+    // the year: one of 19xx or 20xx, as its naming rules take it.
+    [GeneratedRegex(@"\s*(?:\((?<year>(?:19|20)[0-9]{2})\)|\[(?<year>(?:19|20)[0-9]{2})\])\s*$")]
+    private static partial Regex FolderYear();
 
     [GeneratedRegex(@"\s{2,}")]
     private static partial Regex Spaces();
@@ -99,7 +101,8 @@ static partial class MediaNotificationHelper
                 var movieName = named.Escape();
                 data["id"] = movie.Id.ToString("N");
 
-                name = year is null
+                // A name that ends in its year already, as a metadata name can, gets it once.
+                name = year is null || movieName.EndsWith(string.Create(CultureInfo.InvariantCulture, $"({year})"), StringComparison.Ordinal)
                     ? movieName
                     : localization.GetFormatted(
                         key: "NameAndYear",
