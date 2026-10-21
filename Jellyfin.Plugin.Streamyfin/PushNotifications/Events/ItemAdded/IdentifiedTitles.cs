@@ -25,6 +25,9 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 /// </remarks>
 internal sealed class IdentifiedTitles : IDisposable
 {
+    // How long a title an update identified is remembered, for a message about it held later.
+    private static readonly TimeSpan KnownFor = TimeSpan.FromMinutes(10);
+
     private readonly object _gate = new();
     // By title, for the update that brings the id; by when the wait ends, for the timer.
     private readonly Dictionary<Guid, List<Held>> _byTitle = [];
@@ -33,17 +36,29 @@ internal sealed class IdentifiedTitles : IDisposable
     private readonly long _origin;
     private readonly ITimer _timer;
     private readonly Action<Exception> _failed;
+    private readonly Func<BaseItem, bool> _remember;
+    // The titles an update identified lately, by id, as the update left them.
+    private readonly Dictionary<Guid, (BaseItem Title, TimeSpan At)> _known = [];
+    private TimeSpan _sweptAt;
     private TimeSpan? _armedFor;
+    // Once the server stopped, nothing is held: the timer would outlive it.
+    private bool _stopped;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IdentifiedTitles"/> class.
     /// </summary>
     /// <param name="time">The clock the waits are counted on.</param>
     /// <param name="failed">Hears of a message that could not be sent.</param>
-    public IdentifiedTitles(TimeProvider time, Action<Exception> failed)
+    /// <param name="remember">
+    /// Which titles an update identified are remembered for a while, so a message about one held
+    /// later goes at once: a batch of episodes can read a copy of its show from before the update
+    /// that brought the id, and wait for an update that already came. Nothing by default.
+    /// </param>
+    public IdentifiedTitles(TimeProvider time, Action<Exception> failed, Func<BaseItem, bool>? remember = null)
     {
         _time = time;
         _failed = failed;
+        _remember = remember ?? (_ => false);
         // Counted from a timestamp, which a change of the server's clock does not move.
         _origin = time.GetTimestamp();
         _timer = time.CreateTimer(_ => SendDue(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -70,25 +85,34 @@ internal sealed class IdentifiedTitles : IDisposable
 
         // Looked at under the lock only: an update that brought the id between a look outside
         // it and the lock found nothing held, and the message waited the whole wait.
+        var about = title;
         lock (_gate)
         {
-            if (wait > TimeSpan.Zero && !Identified(title))
+            if (wait > TimeSpan.Zero && !_stopped && !Identified(title))
             {
-                var held = new Held(title, send, Now() + wait);
-                if (!_byTitle.TryGetValue(title.Id, out var waiting))
+                // An update identified it already, on a copy fresher than this one.
+                if (_known.TryGetValue(title.Id, out var known) && Now() - known.At <= KnownFor)
                 {
-                    waiting = [];
-                    _byTitle[title.Id] = waiting;
+                    about = known.Title;
                 }
+                else
+                {
+                    var held = new Held(title, send, Now() + wait);
+                    if (!_byTitle.TryGetValue(title.Id, out var waiting))
+                    {
+                        waiting = [];
+                        _byTitle[title.Id] = waiting;
+                    }
 
-                waiting.Add(held);
-                _byEnd.Enqueue(held, held.Ends);
-                Arm();
-                return Task.CompletedTask;
+                    waiting.Add(held);
+                    _byEnd.Enqueue(held, held.Ends);
+                    Arm();
+                    return Task.CompletedTask;
+                }
             }
         }
 
-        return Run(send, title);
+        return Run(send, about);
     }
 
     /// <summary>
@@ -108,6 +132,11 @@ internal sealed class IdentifiedTitles : IDisposable
         List<Held>? released;
         lock (_gate)
         {
+            if (_remember(item))
+            {
+                Remember(item);
+            }
+
             if (!_byTitle.Remove(item.Id, out released))
             {
                 return;
@@ -139,6 +168,7 @@ internal sealed class IdentifiedTitles : IDisposable
         List<Held> all;
         lock (_gate)
         {
+            _stopped = true;
             all = [.. _byTitle.Values.SelectMany(waiting => waiting).OrderBy(held => held.Ends)];
             Forget();
         }
@@ -178,6 +208,27 @@ internal sealed class IdentifiedTitles : IDisposable
     internal static bool Identified(BaseItem title) => HasId(title) || title.DateLastRefreshed != default;
 
     private TimeSpan Now() => _time.GetElapsedTime(_origin);
+
+    // Under the lock. Swept at most once a minute: a scan updates many titles in a row.
+    private void Remember(BaseItem title)
+    {
+        var now = Now();
+        _known[title.Id] = (title, now);
+
+        if (now - _sweptAt < TimeSpan.FromMinutes(1))
+        {
+            return;
+        }
+
+        _sweptAt = now;
+        foreach (var (id, known) in _known.ToList())
+        {
+            if (now - known.At > KnownFor)
+            {
+                _known.Remove(id);
+            }
+        }
+    }
 
     // Under the lock.
     private void Forget()

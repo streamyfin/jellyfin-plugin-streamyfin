@@ -414,6 +414,89 @@ public class IdentifiedTitlesTests
     }
 
     /// <summary>
+    /// A show whose update brought its id before its batch was held is sent at once, about the
+    /// show the update brought: the batch may read a copy Jellyfin kept from before the update,
+    /// and no update is coming to release it.
+    /// </summary>
+    /// <remarks>
+    /// Found by the fourth review of #294. Jellyfin's cache keeps only so many items and does not
+    /// take back the one a refresh saved, so the copy a batch read could lack the ids its update
+    /// already brought; read back from the library instead, the update could still land between
+    /// the read and the hold. Either way the batch waited the whole wait and left nobody out.
+    /// </remarks>
+    [Fact]
+    public void AShowIdentifiedBeforeItsBatchIsHeldIsSentAtOnce()
+    {
+        BaseItem? about = null;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { }, remember: _ => true);
+        var updated = Movie("603");
+        var copy = Movie(id: updated.Id);
+
+        held.Updated(updated);
+        _ = held.Send(copy, TenMinutes, Counting(title => about = title));
+
+        Assert.Same(updated, about);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
+    /// Only the titles it is told to remember are remembered: a scan updates every item it
+    /// touches, and keeping them all would keep the whole library in memory.
+    /// </summary>
+    [Fact]
+    public void OnlyTheTitlesToRememberAreRemembered()
+    {
+        var sent = 0;
+        using var held = new IdentifiedTitles(new TestClock(), _ => { }, remember: _ => false);
+        var updated = Movie("603");
+
+        held.Updated(updated);
+        _ = held.Send(Movie(id: updated.Id), TenMinutes, Counting(_ => sent++));
+
+        Assert.Equal(0, sent);
+    }
+
+    /// <summary>
+    /// What is remembered is forgotten after a while, so a title updated long before is held
+    /// again like any other.
+    /// </summary>
+    [Fact]
+    public void WhatIsRememberedIsForgottenAfterAWhile()
+    {
+        var sent = 0;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { }, remember: _ => true);
+        var updated = Movie("603");
+
+        held.Updated(updated);
+        clock.Advance(TimeSpan.FromMinutes(11));
+        _ = held.Send(Movie(id: updated.Id), TenMinutes, Counting(_ => sent++));
+
+        Assert.Equal(0, sent);
+    }
+
+    /// <summary>
+    /// Once the server stopped, nothing is held any more: a batch closing as it stops, or an
+    /// event still running, would wait for a timer the stop leaves behind.
+    /// </summary>
+    /// <remarks>Found by the fourth review of #294.</remarks>
+    /// <returns>A task.</returns>
+    [Fact]
+    public async Task NothingIsHeldOnceTheServerStopped()
+    {
+        var sent = 0;
+        var clock = new TestClock();
+        using var held = new IdentifiedTitles(clock, _ => { });
+
+        await held.SendAll();
+        _ = held.Send(Movie(), TenMinutes, Counting(_ => sent++));
+
+        Assert.Equal(1, sent);
+        Assert.Equal(0, clock.Armed);
+    }
+
+    /// <summary>
     /// A send that ends canceled, Expo slower than the client's timeout, is reported like one that
     /// failed: lost either way.
     /// </summary>

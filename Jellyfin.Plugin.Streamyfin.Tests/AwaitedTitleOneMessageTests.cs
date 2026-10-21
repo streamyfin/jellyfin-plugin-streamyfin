@@ -132,6 +132,22 @@ public class AwaitedTitleOneMessageTests
     }
 
     /// <summary>
+    /// The record of who was told outlives the longest window for copies and the longest wait for
+    /// a copy's id together, so a copy that arrives late in the window and waits for its id still
+    /// finds the people told.
+    /// </summary>
+    /// <remarks>Found by the fourth review of #294: both were a day, and the task could forget first.</remarks>
+    [Fact]
+    public void WhoWasToldIsKeptLongerThanAnyCopyCanTake()
+    {
+        var longest = TimeSpan.FromSeconds(
+            Jellyfin.Plugin.Streamyfin.Configuration.Notifications.ItemAddedNotificationConfiguration.LongestCopiesWithin
+            + Jellyfin.Plugin.Streamyfin.Configuration.Notifications.ItemAddedNotificationConfiguration.LongestWaitForTitleId);
+
+        Assert.True(Jellyfin.Plugin.Streamyfin.Configuration.Notifications.AwaitedTitles.ToldKeptFor > longest);
+    }
+
+    /// <summary>
     /// A window of nothing leaves nobody out of a copy's message: no telling is ever late enough.
     /// </summary>
     /// <remarks>

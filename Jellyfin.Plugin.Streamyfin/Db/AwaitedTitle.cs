@@ -43,7 +43,7 @@ public class AwaitedTitle
     /// wait for it.
     /// </summary>
     /// <remarks>
-    /// A row once told is kept for a day rather than deleted, so the new item message about
+    /// A row once told is kept a little over a day rather than deleted, so the new item message about
     /// the same title can leave them out (#289): they get one message, not two.
     /// </remarks>
     public DateTime? AnnouncedAt { get; set; }

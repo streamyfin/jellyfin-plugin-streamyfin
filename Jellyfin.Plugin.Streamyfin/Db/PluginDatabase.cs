@@ -1213,6 +1213,23 @@ public class PluginDatabase
             .Select(a => a.UserId)];
     }
 
+    /// <summary>
+    /// Whether a new item message of a kind may have somebody to leave out, which is when one
+    /// without its title's id is worth holding for the id (#289).
+    /// </summary>
+    /// <param name="mediaType">The kind of title.</param>
+    /// <param name="toldSince">The earliest telling a copy of its title would still leave out.</param>
+    /// <returns>
+    /// <c>true</c> while somebody waits for a title of that kind, a pause holds one back from
+    /// somebody, or somebody was told about one since the moment.
+    /// </returns>
+    public bool MayLeaveSomebodyOut(string mediaType, DateTime toldSince)
+    {
+        using var context = CreateContext();
+        return context.AwaitedTitles.Any(a => a.MediaType == mediaType
+            && (a.AnnouncedAt == null || a.AnnouncedAt >= toldSince));
+    }
+
     // The rows about a title, by its kind and either of its ids. One place, so the arrival a
     // person is told about and the new item message that leaves them out match the same rows.
     private static IQueryable<AwaitedTitle> OfTitle(IQueryable<AwaitedTitle> rows, string mediaType, int? tmdbId, int? tvdbId)
@@ -1344,7 +1361,7 @@ public class PluginDatabase
                 case AwaitedOutcome.Announce:
                     announce.Add(row);
                     // Kept as told rather than deleted, so the new item message about the same
-                    // title leaves them out (#289). Forgotten a day later.
+                    // title leaves them out (#289). Forgotten a little over a day later.
                     row.ArrivedItemId ??= arrived;
                     row.AnnouncedAt = now;
                     break;

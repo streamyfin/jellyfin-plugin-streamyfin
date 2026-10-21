@@ -203,13 +203,16 @@ were told: "Copies of a title within" on the Item added card sets another window
 and 0 never leaves them out of a copy's message. Everyone else gets it as before, and a later
 batch of episodes reaches them like anyone.
 
-A new movie's message waits for the movie's metadata: until Jellyfin knows its TMDB or TVDB id,
-which is what tells who waited for it, or until the metadata came without one. A batch of episodes
-of a new show waits for the show's the same way. The message then names the title as its metadata
-does, and who may open it is decided on the rating the metadata brought. It waits ten minutes at
-most: "Wait for the title's id" on the Item added card sets another wait, up to an hour, and 0
-sends at once, before the metadata. A message still waiting, and a batch of episodes still
-gathering, go out as the server stops.
+While the message may leave somebody out, a person waiting for a title of its kind, one a pause
+holds back, or one told about such a title within that window, a new movie's message waits until
+Jellyfin knows the movie's TMDB or TVDB id, which is what tells who waited for it, and a batch of
+episodes of a new show waits for the show's id the same way. It goes as soon as the id comes, or
+as soon as Jellyfin's metadata came without one, ten minutes at most: "Wait for the title's id" on
+the Item added card sets another wait, up to an hour, and 0 sends at once. Jellyfin brings a new
+title's metadata in a walk over its whole library, so on a large one that can take minutes, and a
+refresh a metadata provider failed waits the whole wait. Everywhere else the message goes at once,
+as it always did. A message still waiting, and a batch of episodes still gathering, go out as the
+server stops. A batch counts the episodes still in the library when it goes.
 
 If Expo turns an awaited title message away as too many, or the server cannot reach Expo, the
 scheduled task "Streamyfin awaited titles" sends it again at its next run, every 15 minutes. One
