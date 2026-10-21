@@ -548,12 +548,12 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             data["id"] = single.Id.ToString("N"); // only provide for a single episode notification
 
             // Both episode & season information is available
-            if (single.IndexNumber != null && single.Season.IndexNumber != null)
+            if (single.IndexNumber != null && season.IndexNumber != null)
             {
                 body.Add(localization.GetFormatted(
                     key: "EpisodeNumberAddedForSeason",
                     cultureInfo: culture,
-                    args: [name, single.IndexNumber, single.Season.IndexNumber]));
+                    args: [name, single.IndexNumber, season.IndexNumber]));
             }
             // only episode information is available
             else if (single.IndexNumber != null)
@@ -564,12 +564,12 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
                     args: [name, single.IndexNumber]));
             }
             // only season information is available
-            else if (single.Season.IndexNumber != null)
+            else if (season.IndexNumber != null)
             {
                 body.Add(localization.GetFormatted(
                     key: "EpisodeAddedForSeason",
                     cultureInfo: culture,
-                    args: [name, single.Season.IndexNumber]));
+                    args: [name, season.IndexNumber]));
             }
         }
         else

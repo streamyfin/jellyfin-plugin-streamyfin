@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text.RegularExpressions;
 using Jellyfin.Plugin.Streamyfin.Extensions;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.models;
@@ -10,7 +11,7 @@ using MediaBrowser.Controller.Entities.TV;
 
 namespace Jellyfin.Plugin.Streamyfin.PushNotifications;
 
-static class MediaNotificationHelper
+static partial class MediaNotificationHelper
 {
     /// <summary>
     /// The name and the year a message gives a movie or a show.
@@ -18,23 +19,68 @@ static class MediaNotificationHelper
     /// <param name="title">The movie or the show.</param>
     /// <returns>Its name, and its year when one is known.</returns>
     /// <remarks>
-    /// Until its first refresh, Jellyfin names a title after its folder or file, with the year
-    /// and what Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>. A message can go in
-    /// that moment: with the id in the folder name, nothing holds it for the refresh. Such a name
-    /// is read the way Jellyfin reads it to look the title up. A refreshed title keeps the name
-    /// its metadata gave it, which may end in a number that is no year.
+    /// Until its metadata names it, Jellyfin names a movie in a folder of its own after that
+    /// folder, word for word, and Jellyfin 10.11 does the same with a show: with the year and the
+    /// ids Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>. A message can go in that
+    /// moment, since with the id in the folder name nothing holds it for the refresh. Only such a
+    /// name is cleaned, and only of what Jellyfin itself reads in a folder name: the ids, and the
+    /// year at the end, which is then the year. Any other name is a title already, the
+    /// metadata's or one Jellyfin read off a file name, kept whole but for a year the message
+    /// would repeat.
     /// </remarks>
     internal static (string Name, int? Year) NameAndYearOf(BaseItem title)
     {
-        if (title.DateLastRefreshed != default)
+        var name = title.Name ?? string.Empty;
+        var year = title.ProductionYear;
+        var folderName = HasFolderName(title);
+
+        if (folderName)
         {
-            return (title.Name, title.ProductionYear);
+            name = Spaces().Replace(FolderIds().Replace(name, " "), " ").Trim();
         }
 
-        var parsed = BaseItem.LibraryManager?.ParseName(title.Name);
+        var dated = TrailingYear().Match(name);
+        if (dated.Success
+            && (folderName || year?.ToString(CultureInfo.InvariantCulture) == dated.Groups["year"].Value)
+            && dated.Index > 0)
+        {
+            year = int.Parse(dated.Groups["year"].ValueSpan, CultureInfo.InvariantCulture);
+            name = name[..dated.Index];
+        }
 
-        return (string.IsNullOrWhiteSpace(parsed?.Name) ? title.Name : parsed.Name, title.ProductionYear ?? parsed?.Year);
+        return name.Length > 0 ? (name, year) : (title.Name ?? string.Empty, title.ProductionYear);
     }
+
+    // Whether a title still has the name Jellyfin gave it from its folder: a movie in a folder of
+    // its own, or a show, named exactly as that folder is.
+    private static bool HasFolderName(BaseItem title)
+    {
+        if (title.IsInMixedFolder || string.IsNullOrEmpty(title.ContainingFolderPath))
+        {
+            return false;
+        }
+
+        var folder = Path.GetFileName(Path.TrimEndingDirectorySeparator(title.ContainingFolderPath));
+
+        return string.Equals(title.Name, folder, StringComparison.Ordinal);
+    }
+
+    // The ids Jellyfin reads in a folder name, with the short forms Jellyfin 12 also reads.
+    private const string IdNames = "(?:tmdb|tvdb|imdb)(?:id)?|tvmazeid|anidbid|anilistid|anisearchid";
+
+    // Each of them in every bracket Jellyfin 12 reads it in: [tmdbid-653], [tmdbid=653],
+    // {tmdb-653}, (imdbid-tt0013442) and the like.
+    [GeneratedRegex(
+        @"\[(?:" + IdNames + @")[=-][^\]]+\]|\((?:" + IdNames + @")[=-][^)]+\)|\{(?:" + IdNames + @")[=-][^}]+\}",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex FolderIds();
+
+    // A year in brackets at the end of a name, as Radarr and Sonarr write it.
+    [GeneratedRegex(@"\s*\((?<year>[0-9]{4})\)\s*$")]
+    private static partial Regex TrailingYear();
+
+    [GeneratedRegex(@"\s{2,}")]
+    private static partial Regex Spaces();
 
     public static ExpoNotificationRequest? CreateMediaNotification(
         LocalizationHelper localization,
@@ -50,8 +96,7 @@ static class MediaNotificationHelper
         {
             case Movie movie:
                 var (named, year) = NameAndYearOf(movie);
-                // Potentially clean up any BaseItem without any corrected metadata
-                var movieName = Regex.Replace(named.Escape(), "\\(\\d+\\)", "").Trim();
+                var movieName = named.Escape();
                 data["id"] = movie.Id.ToString("N");
 
                 name = year is null
