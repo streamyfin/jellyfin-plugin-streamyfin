@@ -8,6 +8,48 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-21, one message when an awaited title arrives
+
+#294 closes #289. A person who waited for a title got "Now on the server" and the new item message
+about the same title, "Movie added" or the batch of episodes the show arrived with. They now get the
+first one only. The record of who was told is kept a little over a day instead of deleted, and the
+new item message leaves out the people it names: told about this item during its arrival, about
+another copy of the title in another library within the hour, or held back by a pause until the
+task tells them.
+
+The id is what says who waited, and a movie's message went before its metadata brought it. Where
+the message may leave somebody out, a person waiting for a title of its kind, one a pause holds
+back, or one told about such a title within the window for copies, a new movie's message or a new
+show's batch now waits for the title's TMDB or TVDB id, or for its metadata to come without one,
+which Jellyfin marks by stamping `DateLastRefreshed`. That is ten minutes at most, a wait "Wait for
+the title's id" on the Item added card sets. Everywhere else the message goes at once, as before,
+since Jellyfin brings a new title's metadata in a walk over its whole library, minutes on a large
+one. A message still waiting, and a batch still gathering, go out as the server stops.
+
+Four full reviews, after CodeRabbit's, shaped most of it, and each case was seen on a throwaway
+Jellyfin 12.2 before and after. The first version held every message without an id for ten minutes
+whoever waited, dropped held messages on a restart, matched who was told by item, so a 4K copy sent
+the second message anyway, and told nobody when Expo did not take the awaited one. The second sent
+again an awaited message Expo refused for what it is, every 15 minutes with no end, and one Expo may
+have sent, which could reach the person twice. The third sent an awaited message to more than a
+hundred devices as one send, which took the answer to the first request for the whole. The fourth
+found a mistake of the third round itself: holding every new title's message until its metadata
+made every server's messages minutes late on a large library, so the hold went back to where
+somebody may be left out. It also found a batch dropped whole when one of its episodes was replaced
+while it waited, and a message held just after the server stopped that never went. A fifth review,
+cut short, left three smaller things for later, none of them a blocker: #297.
+
+Worth remembering: a send to Expo is told again only when Expo said it did not take it, a 429 after
+its retries, or never got it. Everything else, a 5xx, a timeout, an answer lost on the way, may have
+gone out, and Expo takes no key to tell a second send from the first. Jellyfin saves a new item once
+before its first refresh asks for the ids, unstamped, so an update is not the end of the metadata.
+And Jellyfin's item cache keeps the copy it read: `UpdateItemsAsync` does not put the updated item
+back, so a later read can hand back the title without the ids its refresh saved.
+
+The titles watched for their ids are still forgotten on a restart, as since #225: #295. A new item
+message is still decided on an item Jellyfin has not rated yet, wherever it goes before the
+metadata: #296.
+
 ## 2026-10-20, two last fixes from the pass on the beta
 
 The pass on the beta before 0.70.0 found two things worth fixing before the release.
