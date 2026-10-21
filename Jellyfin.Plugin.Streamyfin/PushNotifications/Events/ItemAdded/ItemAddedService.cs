@@ -506,6 +506,14 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             watching: _watching);
     }
 
+    /// <summary>
+    /// The name a batch of episodes gives its show: still the name of its folder when Jellyfin
+    /// has not refreshed it yet, so read like the name of a new movie.
+    /// </summary>
+    /// <param name="series">The show.</param>
+    /// <returns>The name, ready for the message.</returns>
+    internal static string ShowName(BaseItem series) => MediaNotificationHelper.NameAndYearOf(series).Name.Escape();
+
     // Written once per language among the devices it goes to. The show is the one handed in,
     // named by its metadata, rather than the season's, which may be a copy read before it.
     private ExpoNotificationRequest EpisodesMessage(
@@ -518,7 +526,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
     {
         var culture = audience.Culture;
 
-        var name = series.Name.Escape();
+        var name = ShowName(series);
         var data = new Dictionary<string, object?>();
         List<string> body = [];
         string title;

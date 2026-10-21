@@ -12,6 +12,30 @@ namespace Jellyfin.Plugin.Streamyfin.PushNotifications;
 
 static class MediaNotificationHelper
 {
+    /// <summary>
+    /// The name and the year a message gives a movie or a show.
+    /// </summary>
+    /// <param name="title">The movie or the show.</param>
+    /// <returns>Its name, and its year when one is known.</returns>
+    /// <remarks>
+    /// Until its first refresh, Jellyfin names a title after its folder or file, with the year
+    /// and what Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>. A message can go in
+    /// that moment: with the id in the folder name, nothing holds it for the refresh. Such a name
+    /// is read the way Jellyfin reads it to look the title up. A refreshed title keeps the name
+    /// its metadata gave it, which may end in a number that is no year.
+    /// </remarks>
+    internal static (string Name, int? Year) NameAndYearOf(BaseItem title)
+    {
+        if (title.DateLastRefreshed != default)
+        {
+            return (title.Name, title.ProductionYear);
+        }
+
+        var parsed = BaseItem.LibraryManager?.ParseName(title.Name);
+
+        return (string.IsNullOrWhiteSpace(parsed?.Name) ? title.Name : parsed.Name, title.ProductionYear ?? parsed?.Year);
+    }
+
     public static ExpoNotificationRequest? CreateMediaNotification(
         LocalizationHelper localization,
         string title,
@@ -25,15 +49,18 @@ static class MediaNotificationHelper
         switch (item)
         {
             case Movie movie:
+                var (named, year) = NameAndYearOf(movie);
                 // Potentially clean up any BaseItem without any corrected metadata
-                var movieName = Regex.Replace(movie.Name.Escape(), "\\(\\d+\\)", "").Trim();
+                var movieName = Regex.Replace(named.Escape(), "\\(\\d+\\)", "").Trim();
                 data["id"] = movie.Id.ToString("N");
 
-                name = localization.GetFormatted(
-                    key: "NameAndYear",
-                    cultureInfo: culture,
-                    args: [movieName, movie.ProductionYear]
-                );
+                name = year is null
+                    ? movieName
+                    : localization.GetFormatted(
+                        key: "NameAndYear",
+                        cultureInfo: culture,
+                        args: [movieName, year]
+                    );
                 break;
             case Season season:
                 if (!string.IsNullOrEmpty(season.Series.Name) && season.Series?.ProductionYear is not null)
