@@ -37,6 +37,14 @@ Jellyfin serves an item's images without a token, so nothing of yours travels to
 a phone with the address. On iOS the image needs a notification service extension in the
 app, so it shows there once the app carries one.
 
+## A new title's name
+
+Until its metadata names it, Jellyfin names a new movie or show after its folder, with the year
+and the ids Radarr or Sonarr write there: "Nosferatu (1922) [tmdbid-653]". A new item message
+usually goes before that, so it leaves out the ids Jellyfin reads in a folder name, and gives a
+year the name carries in brackets once, in the year's place: "Nosferatu (1922)". The rest of the
+name stays as the folder has it.
+
 ## Languages
 
 A notification is written in the language of the device it goes to. The app says which one

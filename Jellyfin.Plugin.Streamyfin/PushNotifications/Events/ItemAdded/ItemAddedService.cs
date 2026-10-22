@@ -501,68 +501,87 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             Config?.notifications?.ItemAdded,
             byDefault: _ => true,
             andAlso: LeaveOut(awaited, NotificationHelper.CanOpenEvery(named)),
-            write: audience => [EpisodesMessage(season, series, single, first, total, audience)],
+            // The series' poster rather than the episode's image: a poster is what a phone shows
+            // well, and an episode's own image is a frame of it.
+            write: audience => [EpisodesMessage(_localization, season, series, single, first, total, audience, Poster(audience, series.Id))],
             subject: subject,
             watching: _watching);
     }
 
-    // Written once per language among the devices it goes to. The show is the one handed in,
-    // named by its metadata, rather than the season's, which may be a copy read before it.
-    private ExpoNotificationRequest EpisodesMessage(
+    /// <summary>
+    /// The message about a batch of episodes, written once per language among the devices it
+    /// goes to.
+    /// </summary>
+    /// <param name="localization">The plugin's sentences.</param>
+    /// <param name="season">The season the batch came in.</param>
+    /// <param name="series">
+    /// The show: the one handed in, rather than the season's, which may be a copy read before it.
+    /// A show Jellyfin has not named yet still has its folder's name.
+    /// </param>
+    /// <param name="single">The episode, when the batch holds one.</param>
+    /// <param name="first">The first episode of the batch.</param>
+    /// <param name="total">How many episodes the batch counts.</param>
+    /// <param name="audience">The devices it goes to: their language.</param>
+    /// <param name="poster">What the message shows beside its text, if anything.</param>
+    /// <returns>The message.</returns>
+    internal static ExpoNotificationRequest EpisodesMessage(
+        LocalizationHelper localization,
         Season season,
         BaseItem series,
         Episode? single,
         Episode first,
         int total,
-        Audience audience)
+        Audience audience,
+        ExpoRichContent? poster)
     {
         var culture = audience.Culture;
 
-        var name = series.Name.Escape();
+        // Without the ids of its folder name, which a show Jellyfin has not named yet still has.
+        var name = MediaNotificationHelper.NameOf(series).Escape();
         var data = new Dictionary<string, object?>();
         List<string> body = [];
         string title;
 
         if (single is not null)
         {
-            title = _localization.GetString("EpisodeAddedTitle", culture);
+            title = localization.GetString("EpisodeAddedTitle", culture);
             data["id"] = single.Id.ToString("N"); // only provide for a single episode notification
 
             // Both episode & season information is available
-            if (single.IndexNumber != null && single.Season.IndexNumber != null)
+            if (single.IndexNumber != null && season.IndexNumber != null)
             {
-                body.Add(_localization.GetFormatted(
+                body.Add(localization.GetFormatted(
                     key: "EpisodeNumberAddedForSeason",
                     cultureInfo: culture,
-                    args: [name, single.IndexNumber, single.Season.IndexNumber]));
+                    args: [name, single.IndexNumber, season.IndexNumber]));
             }
             // only episode information is available
             else if (single.IndexNumber != null)
             {
-                body.Add(_localization.GetFormatted(
+                body.Add(localization.GetFormatted(
                     key: "EpisodeAdded",
                     cultureInfo: culture,
                     args: [name, single.IndexNumber]));
             }
             // only season information is available
-            else if (single.Season.IndexNumber != null)
+            else if (season.IndexNumber != null)
             {
-                body.Add(_localization.GetFormatted(
+                body.Add(localization.GetFormatted(
                     key: "EpisodeAddedForSeason",
                     cultureInfo: culture,
-                    args: [name, single.Season.IndexNumber]));
+                    args: [name, season.IndexNumber]));
             }
         }
         else
         {
-            title = _localization.GetString("EpisodesAddedTitle", culture);
+            title = localization.GetString("EpisodesAddedTitle", culture);
 
             body.Add(season.IndexNumber != null
-                ? _localization.GetFormatted(
+                ? localization.GetFormatted(
                     key: "TotalEpisodesAddedForSeason",
                     cultureInfo: culture,
                     args: [name, total, season.IndexNumber])
-                : _localization.GetFormatted(
+                : localization.GetFormatted(
                     key: "EpisodesAddedToSeries",
                     cultureInfo: culture,
                     args: [name, total]));
@@ -577,10 +596,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             Title = title,
             Body = string.Join("\n", body),
             Data = data,
-
-            // The series rather than the episode: a poster is what a phone shows well, and
-            // an episode's own image is a frame of it.
-            RichContent = Poster(audience, series.Id)
+            RichContent = poster
         };
     }
 
