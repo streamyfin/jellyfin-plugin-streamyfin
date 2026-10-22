@@ -166,7 +166,7 @@ static partial class MediaNotificationHelper
                                 episode.IndexNumber.Value.ToString("00", CultureInfo.InvariantCulture)
                             ]
                         ),
-                    _ => episode.Series?.Name.Escape()
+                    _ => episode.Series is { } itsShow ? NameOf(itsShow).Escape() : null
                 };
 
                 data["seriesId"] = episode.SeriesId.ToString("N");

@@ -137,13 +137,17 @@ public class MediaNotificationTests
 
     /// <summary>
     /// A message about an episode, the one an administrator gets when somebody starts it, names
-    /// its show without the ids either.
+    /// its show without the ids either, numbered or not, as a special can be.
     /// </summary>
-    [Fact]
-    public void AnEpisodeIsNamedByItsShowWithoutItsIds()
+    /// <param name="number">The episode's number, if it has one.</param>
+    /// <param name="expected">What the message says.</param>
+    [Theory]
+    [InlineData(5, "Breaking Bad (2008), Episode 05")]
+    [InlineData(null, "Breaking Bad (2008)")]
+    public void AnEpisodeIsNamedByItsShowWithoutItsIds(int? number, string expected)
     {
         var series = new Series { Id = Guid.NewGuid(), Name = "Breaking Bad (2008) [tvdbid-81189]" };
-        var episode = new Episode { Id = Guid.NewGuid(), SeriesId = series.Id, IndexNumber = 5 };
+        var episode = new Episode { Id = Guid.NewGuid(), SeriesId = series.Id, IndexNumber = number };
 
         var notification = WithLibrary(
             [series],
@@ -155,7 +159,7 @@ public class MediaNotificationTests
                 CultureInfo.InvariantCulture));
 
         Assert.NotNull(notification);
-        Assert.Equal("Breaking Bad (2008), Episode 05", notification.Body);
+        Assert.Equal(expected, notification.Body);
     }
 
     // The last line of a movie's message.
