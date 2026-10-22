@@ -1,0 +1,233 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+
+namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+
+/// <summary>
+/// What the server refuses to store.
+/// </summary>
+/// <remarks>
+/// The admin form already refuses a value outside a setting's bounds, and says which
+/// setting and why. It is the only thing that does: the Yaml tab writes whatever is
+/// typed, and the targeting routes take a JSON body from anything holding an API key.
+/// A skip time of 600 was accepted by all three, reached the app, and made a button
+/// jump ten minutes.
+///
+/// <para>
+/// An address is checked for being one at all. The Yaml tab accepted
+/// <c>http://:5055</c>, which parses as YAML and is not an address, and the app was
+/// handed it. Whether anything answers there is a different question, and one only a
+/// probe can ask.
+/// </para>
+///
+/// <para>
+/// The home layout is checked here too, by <see cref="Sections"/>: a section carrying
+/// two queries used whichever the app tested first, and a section carrying none drew
+/// an empty row under a title.
+/// </para>
+///
+/// <para>
+/// The bounds come from <see cref="BoundsAttribute"/>, the same declaration the form
+/// draws from, so a setting is bounded once and both ends agree. Nothing here holds a
+/// list of keys.
+/// </para>
+/// </remarks>
+public static class SettingsValidation
+{
+    /// <summary>
+    /// The reasons these settings cannot be stored, one line each.
+    /// </summary>
+    /// <param name="settings">The settings, or the part of them a level carries.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
+    /// <returns>The problems, in declaration order. Empty when there are none.</returns>
+    internal static IReadOnlyList<string> Problems(Settings? settings, Settings? before = null)
+    {
+        if (settings is null)
+        {
+            return [];
+        }
+
+        var problems = new List<string>(Sections.Problems(settings));
+
+        foreach (var descriptor in SettingsSchema.Descriptors)
+        {
+            var bounds = descriptor.Bounds;
+
+            // A level carries a setting or it does not. The absent ones are not this
+            // method's business: they fall through to the level below.
+            var value = descriptor.Read(settings);
+            if (value is null)
+            {
+                continue;
+            }
+
+            if (descriptor.IsWebAddress && value is string address && !string.IsNullOrWhiteSpace(address)
+                && !WebAddress.Parses(address, out _))
+            {
+                problems.Add(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} needs a whole http or https address, and this is \"{1}\".",
+                    descriptor.DisplayName ?? descriptor.Key,
+                    address));
+            }
+
+            if (!IsNumber(value))
+            {
+                continue;
+            }
+
+            var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+
+            // Yaml reads .nan and .inf as numbers, and a comparison with NaN is never true,
+            // so bounds let it through, and a setting without bounds has none to meet. The
+            // Json the store writes has no spelling for either, and saving answered 500.
+            if (double.IsNaN(number) || double.IsInfinity(number))
+            {
+                problems.Add(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} needs a number, and this is not one.",
+                    descriptor.DisplayName ?? descriptor.Key));
+                continue;
+            }
+
+            if (bounds is null)
+            {
+                continue;
+            }
+            // A value the level already holds is left alone: bounds that arrived after
+            // it was stored, as the app's own ranges did in 0.70, would otherwise refuse
+            // every save of any tab, and the restore of the server's own backup, over a
+            // setting nobody touched. A value that changed is held to them.
+            if ((number < bounds.Minimum || number > bounds.Maximum) && !Equals(descriptor.Read(before), value))
+            {
+                problems.Add(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} accepts {1} to {2}, and this is {3}.",
+                    descriptor.DisplayName ?? descriptor.Key,
+                    Number(bounds.Minimum),
+                    Number(bounds.Maximum),
+                    Number(number)));
+            }
+        }
+
+        return problems;
+    }
+
+    /// <summary>
+    /// Tidies these settings and says what still cannot be stored.
+    /// </summary>
+    /// <param name="settings">The settings, which are trimmed in place and lose Seerr's block once it is on the keys.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
+    /// <returns>The message to refuse with, or <c>null</c> when they can be stored.</returns>
+    /// <remarks>
+    /// One call, because the two halves have to happen in this order and a write path
+    /// that did only the second stored an address with the space the first removes.
+    /// </remarks>
+    public static string? Check(Settings? settings, Settings? before = null)
+    {
+        // A document sent with the example text earlier versions stored is a template nobody
+        // filled, and it replaces the whole configuration: taking the text out would take the
+        // server's real value away without a word, so it is refused by name (#279).
+        if (Placeholders.Problem(settings) is { } example)
+        {
+            return example;
+        }
+
+        // Before anything else: a document that writes one setting twice and disagrees
+        // with itself is refused rather than resolved by precedence, since an
+        // administrator who wrote both meant one of them.
+        if (IntegrationBlocks.Disagreement(settings) is { } argument)
+        {
+            return argument;
+        }
+
+        // What a block says becomes what the keys say, so everything after this, here and
+        // in the resolution, reads one place.
+        IntegrationBlocks.Fold(settings);
+
+        Tidy(settings);
+
+        return Message(settings, before);
+    }
+
+    /// <summary>
+    /// Trims the settings that are addresses, writes an empty home as none, and takes out
+    /// the example text earlier versions stored, in place.
+    /// </summary>
+    /// <param name="settings">The settings, which may be null.</param>
+    /// <remarks>
+    /// The check trims before parsing, so an address pasted with a space passes it and
+    /// was then stored with the space. The Yaml tab and the targeting routes have no
+    /// form to trim it for them.
+    /// </remarks>
+    internal static void Tidy(Settings? settings)
+    {
+        if (settings is null)
+        {
+            return;
+        }
+
+        Sections.EmptyAsNone(settings);
+
+        // Stored by a version up to 0.68.1.0 where a value goes, and served as one (#279).
+        Placeholders.TakeOut(settings);
+
+        foreach (var descriptor in SettingsSchema.Descriptors)
+        {
+            if (!descriptor.IsWebAddress)
+            {
+                continue;
+            }
+
+            if (descriptor.Read(settings) is not string address)
+            {
+                continue;
+            }
+
+            var trimmed = address.Trim();
+
+            // An address with nothing in it is not a value. Stored as one it reads as
+            // "the server suggests you use no server", which the form then refuses as
+            // empty, so an administrator who never touched Seerr arrived on a page with
+            // two problems to fix and a save button that would not move. The key goes
+            // back to being absent, which is what "the app decides" is spelled as.
+            if (trimmed.Length == 0)
+            {
+                descriptor.Property.SetValue(settings, null);
+                continue;
+            }
+
+            if (!string.Equals(trimmed, address, StringComparison.Ordinal))
+            {
+                descriptor.Write(settings, trimmed);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The problems as one message, or null when there are none.
+    /// </summary>
+    /// <param name="settings">The settings to check.</param>
+    /// <param name="before">What the same level holds now, or <c>null</c> for a new one.</param>
+    /// <returns>The message, or <c>null</c>.</returns>
+    internal static string? Message(Settings? settings, Settings? before = null)
+    {
+        var problems = Problems(settings, before);
+
+        return problems.Count == 0 ? null : string.Join(" ", problems);
+    }
+
+    private static bool IsNumber(object value) =>
+        value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    // 60 rather than 60.0, since an administrator reading the message is not thinking in
+    // doubles; a bound that is not whole, a speed's 0.25, keeps its fraction. The
+    // comparison is a difference rather than an equality, which is how a double says
+    // "whole".
+    private static string Number(double value) =>
+        Math.Abs(value - Math.Truncate(value)) < 1e-9 && Math.Abs(value) < 1e15
+            ? ((long)value).ToString(CultureInfo.InvariantCulture)
+            : value.ToString(CultureInfo.InvariantCulture);
+}

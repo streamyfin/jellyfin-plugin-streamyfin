@@ -1,0 +1,5 @@
+# The JavaScript this repository owns: the admin pages, which only a browser runs and
+# which get a DOM here (happy-dom), and the release scripts, which run under node.
+[test]
+root = "Jellyfin.Plugin.Streamyfin.Tests"
+preload = ["./Jellyfin.Plugin.Streamyfin.Tests/Pages/dom.setup.js"]

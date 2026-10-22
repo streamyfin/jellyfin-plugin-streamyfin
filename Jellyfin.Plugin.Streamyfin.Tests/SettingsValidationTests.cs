@@ -1,0 +1,385 @@
+using System.Linq;
+using System.Reflection;
+using Jellyfin.Plugin.Streamyfin.Configuration;
+using Jellyfin.Plugin.Streamyfin.Configuration.Settings;
+using Xunit;
+using Settings = Jellyfin.Plugin.Streamyfin.Configuration.Settings.Settings;
+
+namespace Jellyfin.Plugin.Streamyfin.Tests;
+
+/// <summary>
+/// What the server refuses to store.
+/// </summary>
+/// <remarks>
+/// Until this existed the admin form was the only thing that knew a skip time stops at
+/// sixty: the Yaml tab wrote whatever was typed, and the targeting routes took a JSON
+/// body from anything holding an API key. The bounds come from the same declaration the
+/// form draws from, so a setting is bounded once.
+/// </remarks>
+public class SettingsValidationTests
+{
+    /// <summary>
+    /// Settings within their bounds are stored.
+    /// </summary>
+    [Fact]
+    public void SettingsWithinTheirBoundsAreAccepted()
+    {
+        var settings = new Settings
+        {
+            forwardSkipTime = new Lockable<int> { value = 60, locked = false },
+            rewindSkipTime = new Lockable<int> { value = 0, locked = false },
+            subtitleSize = new Lockable<int> { value = 120, locked = true },
+        };
+
+        Assert.Empty(SettingsValidation.Problems(settings));
+        Assert.Null(SettingsValidation.Message(settings));
+    }
+
+    /// <summary>
+    /// A value past its bounds is refused, and the message names the setting the way an
+    /// administrator reads it rather than by its key.
+    /// </summary>
+    [Theory]
+    [InlineData(600)]
+    [InlineData(-5)]
+    public void AValueOutsideItsBoundsIsRefused(int value)
+    {
+        var settings = new Settings { forwardSkipTime = new Lockable<int> { value = value, locked = false } };
+
+        var problem = Assert.Single(SettingsValidation.Problems(settings));
+
+        Assert.Contains("Forward skip time", problem, System.StringComparison.Ordinal);
+        Assert.Contains("0 to 60", problem, System.StringComparison.Ordinal);
+        Assert.Contains(value.ToString(System.Globalization.CultureInfo.InvariantCulture), problem, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Every setting out of bounds is named, not just the first, so one save says
+    /// everything that has to change.
+    /// </summary>
+    [Fact]
+    public void EverySettingOutOfBoundsIsNamed()
+    {
+        var settings = new Settings
+        {
+            forwardSkipTime = new Lockable<int> { value = 600, locked = false },
+            subtitleSize = new Lockable<int> { value = 900, locked = false },
+        };
+
+        Assert.Equal(2, SettingsValidation.Problems(settings).Count);
+    }
+
+    /// <summary>
+    /// A setting a level does not carry is not its business: it falls through to the
+    /// level below, and a partial level is the normal shape of a group.
+    /// </summary>
+    [Fact]
+    public void ASettingALevelDoesNotCarryIsNotChecked()
+    {
+        Assert.Empty(SettingsValidation.Problems(new Settings()));
+        Assert.Empty(SettingsValidation.Problems(null));
+    }
+
+    /// <summary>
+    /// A setting with no declared bounds accepts anything, which is what having no
+    /// bounds means.
+    /// </summary>
+    [Fact]
+    public void ASettingWithNoBoundsAcceptsAnything()
+    {
+        var settings = new Settings { showHomeBackdrop = new Lockable<bool> { value = false, locked = false } };
+
+        Assert.Empty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// A value the level already holds is not refused by bounds that arrived after it.
+    /// </summary>
+    /// <remarks>
+    /// 0.68.1's example said auto play took 1 to 10 and the app honours a 10. Held to the
+    /// app's own 7, a server storing 10 could no longer save any tab, since every tab
+    /// sends the whole configuration, nor restore its own backup.
+    /// </remarks>
+    [Fact]
+    public void AStoredValueOutsideBoundsThatArrivedLaterIsLeftAlone()
+    {
+        var before = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = false } };
+        var settings = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = true } };
+
+        Assert.Empty(SettingsValidation.Problems(settings, before));
+    }
+
+    /// <summary>
+    /// A value that changed is held to the bounds, whatever the level held before.
+    /// </summary>
+    [Theory]
+    [InlineData(3)]
+    [InlineData(null)]
+    public void AChangedValueOutsideBoundsIsRefused(int? stored)
+    {
+        var before = stored is null
+            ? null
+            : new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = stored.Value, locked = false } };
+        var settings = new Settings { maxAutoPlayEpisodeCount = new Lockable<int> { value = 10, locked = false } };
+
+        Assert.Equal(
+            ["Max auto play episode count accepts -1 to 7, and this is 10."],
+            SettingsValidation.Problems(settings, before));
+    }
+
+    /// <summary>
+    /// A subtitle size below 10 is refused, since the app would read it as a scale.
+    /// </summary>
+    /// <remarks>
+    /// The app divides a size of 10 or more by 100 and keeps anything smaller as it is,
+    /// so the 5 the old bounds allowed reached it as five times the normal size.
+    /// </remarks>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(310)]
+    public void ASubtitleSizeOutsideTheAppsRangeIsRefused(int size)
+    {
+        var settings = new Settings { subtitleSize = new Lockable<int> { value = size, locked = true } };
+
+        Assert.NotEmpty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// A null is not out of bounds. It is the app's own answer for a nullable setting,
+    /// the playback quality's "no cap", and refusing it here would refuse Max.
+    /// </summary>
+    [Fact]
+    public void ANullIsNotOutOfBounds()
+    {
+        var settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { value = null, locked = false } };
+
+        Assert.Empty(SettingsValidation.Problems(settings));
+    }
+
+    /// <summary>
+    /// Every bounded setting is a number, since bounds mean nothing on anything else.
+    /// </summary>
+    [Fact]
+    public void OnlyANumberCarriesBounds()
+    {
+        var wrong = SettingsSchema.Descriptors
+            .Where(d => d.Property.GetCustomAttribute<BoundsAttribute>() is not null)
+            .Where(d => SettingsForm.Describe().Single(f => f.Key == d.Key).Control != SettingsControl.Number)
+            .Select(d => d.Key)
+            .ToArray();
+
+        Assert.Empty(wrong);
+    }
+
+    /// <summary>
+    /// The bounds the server enforces are the bounds the form draws, because they are
+    /// the same declaration. A second list would drift the first time one moved.
+    /// </summary>
+    [Fact]
+    public void TheServerAndTheFormShareTheirBounds()
+    {
+        foreach (var field in SettingsForm.Describe().Where(f => f.Minimum is not null))
+        {
+            var bounds = SettingsSchema.Descriptors
+                .Single(d => d.Key == field.Key)
+                .Property.GetCustomAttribute<BoundsAttribute>();
+
+            Assert.NotNull(bounds);
+            Assert.Equal(field.Minimum, bounds!.Minimum);
+            Assert.Equal(field.Maximum, bounds.Maximum);
+        }
+    }
+
+    /// <summary>
+    /// An address with nothing in it is not a value. Stored as one it says the server
+    /// suggests using no server, and the form refuses it as empty, so a fresh install
+    /// opened on two problems nobody made.
+    /// </summary>
+    [Fact]
+    public void AnEmptyAddressIsNotStoredAtAll()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "" },
+            marlinServerUrl = new Lockable<string> { value = "   " }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+    }
+
+    /// <summary>
+    /// The text earlier versions stored where an address goes is no address. Up to 0.68.1.0 a
+    /// server that never set Seerr stored "Enter jellyseerr server url", 0.70 served it as the
+    /// address, and the app tested it at every sign in (#279). Locked or not, and whatever
+    /// its case, it goes the way an empty address does.
+    /// </summary>
+    /// <param name="placeholder">The text, as one version or one example wrote it.</param>
+    [Theory]
+    [InlineData("Enter jellyseerr server url")]
+    [InlineData("Enter marlin server url")]
+    [InlineData("Enter Marlin server URL")]
+    [InlineData("  Enter Streamystats server URL ")]
+    public void APlaceholderAddressIsNotStoredAtAll(string placeholder)
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = placeholder },
+            marlinServerUrl = new Lockable<string> { value = placeholder, locked = true },
+            streamyStatsServerUrl = new Lockable<string> { value = placeholder }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Null(settings.jellyseerrServerUrl);
+        Assert.Null(settings.marlinServerUrl);
+        Assert.Null(settings.streamyStatsServerUrl);
+    }
+
+    /// <summary>
+    /// The library id earlier versions stored as an example is no library: the tabs listed it
+    /// as Other. A real id beside it stays, with its lock.
+    /// </summary>
+    [Fact]
+    public void APlaceholderHiddenLibraryIsNoLibrary()
+    {
+        var alone = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] } };
+        var beside = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true }
+        };
+
+        SettingsValidation.Tidy(alone);
+        SettingsValidation.Tidy(beside);
+
+        Assert.Null(alone.hiddenLibraries);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, beside.hiddenLibraries!.value);
+        Assert.True(beside.hiddenLibraries.locked);
+    }
+
+    /// <summary>
+    /// A lock an administrator put on the hidden libraries while they held only the example
+    /// text kept everyone from hiding any: it stays, on an empty list.
+    /// </summary>
+    [Fact]
+    public void ALockedHiddenLibraryPlaceholderKeepsItsLock()
+    {
+        var settings = new Settings { hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"], locked = true } };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.True(settings.hiddenLibraries!.locked);
+        Assert.Empty(settings.hiddenLibraries.value);
+    }
+
+    /// <summary>
+    /// Only what was taken out is named: a real hidden library beside the example text stays, a
+    /// setting the tidying does not read keeps whatever it holds, and neither is reported.
+    /// </summary>
+    [Fact]
+    public void OnlyTheSettingsTakenOutAreNamed()
+    {
+        var settings = new Settings
+        {
+            hiddenLibraries = new Lockable<string[]> { value = ["f137a2dd21bbc1b99aa5c0f6bf02a805", "Enter library id(s)"], locked = true },
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            subtitleFont = new Lockable<string> { value = "Enter library id(s)" }
+        };
+
+        Assert.Equal(new[] { "hiddenLibraries", "jellyseerrServerUrl" }, Placeholders.TakeOut(settings));
+        Assert.Equal("Enter library id(s)", settings.subtitleFont!.value);
+        Assert.Equal(new[] { "f137a2dd21bbc1b99aa5c0f6bf02a805" }, settings.hiddenLibraries!.value);
+    }
+
+    /// <summary>
+    /// A document sent with the example text still in it is refused, by the setting's name: it
+    /// replaces the whole configuration, so taking the text out would also take the server's
+    /// real address away without a word. Reading stored text takes it out; sending it is a
+    /// template nobody filled.
+    /// </summary>
+    [Fact]
+    public void ADocumentStillHoldingTheExampleTextIsRefused()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            hiddenLibraries = new Lockable<string[]> { value = ["Enter library id(s)"] }
+        };
+
+        Assert.Equal(
+            "Hidden libraries still holds the example text \"Enter library id(s)\": write a value, or leave the setting out. "
+            + "Seerr server URL still holds the example text \"Enter jellyseerr server url\": write a value, or leave the setting out.",
+            SettingsValidation.Check(settings));
+    }
+
+    /// <summary>
+    /// The example text beside Seerr's block is refused for what it is, rather than as the block
+    /// and the key disagreeing.
+    /// </summary>
+    [Fact]
+    public void TheExampleTextBesideTheBlockIsRefusedForWhatItIs()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "Enter jellyseerr server url" },
+            seerr = new SeerrSettings { serverUrl = new Lockable<string> { value = "http://seerr.example" } }
+        };
+
+        Assert.StartsWith("Seerr server URL still holds the example text", SettingsValidation.Check(settings), System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A home with no sections is stored as no list, which is what emptying the Home tab
+    /// means: the app's own home screen. Stored as an empty list, the app draws a home
+    /// screen with nothing on it.
+    /// </summary>
+    [Fact]
+    public void AnEmptyHomeIsStoredAsNone()
+    {
+        var settings = new Settings
+        {
+            home = new Lockable<Home> { locked = true, value = new Home { sections = [] } }
+        };
+
+        Assert.Null(SettingsValidation.Check(settings));
+
+        Assert.True(settings.home!.locked);
+        Assert.Null(settings.home.value!.sections);
+    }
+
+    /// <summary>
+    /// An address that is one is kept, with its spaces taken off.
+    /// </summary>
+    [Fact]
+    public void AnAddressThatIsOneSurvivesTidying()
+    {
+        var settings = new Settings
+        {
+            jellyseerrServerUrl = new Lockable<string> { value = "  https://requests.example.com  " }
+        };
+
+        SettingsValidation.Tidy(settings);
+
+        Assert.Equal("https://requests.example.com", settings.jellyseerrServerUrl!.value);
+    }
+
+    /// <summary>
+    /// The configuration a fresh server starts from carries no address, so an
+    /// administrator who has never opened the plugin has nothing to fix.
+    /// </summary>
+    [Fact]
+    public void TheSeededConfigurationCarriesNoEmptyAddress()
+    {
+        var seeded = PluginConfiguration.DefaultSettings();
+
+        var empty = SettingsSchema.Descriptors
+            .Where(descriptor => descriptor.IsWebAddress)
+            .Where(descriptor => descriptor.Read(seeded) is string address && string.IsNullOrWhiteSpace(address))
+            .Select(descriptor => descriptor.Key)
+            .ToArray();
+
+        Assert.Empty(empty);
+    }
+}

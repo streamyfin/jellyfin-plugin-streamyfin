@@ -1,0 +1,30 @@
+[
+    {
+        "name": "Watching, then new",
+        "description": "What people are part way through, the next episodes, then what arrived lately.",
+        "sections": [
+            { "title": "Continue Watching", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/UserItems/Resume", "query": { "includeItemTypes": "Movie,Episode" } } },
+            { "title": "Next Up", "kind": "nextUp", "orientation": "horizontal", "nextUp": { "limit": 20, "enableResumable": false } },
+            { "title": "Latest Movies", "kind": "latest", "orientation": "vertical", "latest": { "includeItemTypes": ["Movie"], "limit": 20 } },
+            { "title": "Latest Episodes", "kind": "latest", "orientation": "horizontal", "latest": { "includeItemTypes": ["Episode"], "limit": 20 } }
+        ]
+    },
+    {
+        "name": "Libraries first",
+        "description": "The libraries each person can open, then what they are watching and what is new.",
+        "sections": [
+            { "title": "My Media", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/streamyfin/v1/my-media" } },
+            { "title": "Continue Watching", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/UserItems/Resume", "query": { "includeItemTypes": "Movie,Episode" } } },
+            { "title": "Recently Added", "kind": "latest", "orientation": "vertical", "latest": { "limit": 20 } }
+        ]
+    },
+    {
+        "name": "A movie night",
+        "description": "Unwatched films, newest first, and suggestions from what each person watched.",
+        "sections": [
+            { "title": "Unwatched Movies", "kind": "items", "orientation": "vertical", "items": { "includeItemTypes": ["Movie"], "filters": ["IsUnplayed"], "sortBy": ["DateCreated"], "sortOrder": ["Descending"], "limit": 20 } },
+            { "title": "For You", "kind": "custom", "orientation": "vertical", "custom": { "endpoint": "/streamyfin/v1/for-you" } },
+            { "title": "Favorites", "kind": "items", "orientation": "vertical", "items": { "includeItemTypes": ["Movie", "Series"], "filters": ["IsFavorite"], "limit": 20 } }
+        ]
+    }
+]
