@@ -69,6 +69,7 @@ public class MediaNotificationTests
     [InlineData("Nosferatu (1922) [tt0013442]", null, "Nosferatu (1922)")]
     [InlineData("Nosferatu tt0013442 (1922)", null, "Nosferatu (1922)")]
     [InlineData("Film tt1234567Extended (2020)", null, "Film tt1234567Extended (2020)")]
+    [InlineData("(1922) [tmdbid-653]", 1922, "(1922)")]
     [InlineData("Step Up 3D (2010)", null, "Step Up 3D (2010)")]
     [InlineData("The Good German (2006) [tmdbid-182]", null, "The Good German (2006)")]
     [InlineData("[REC] 2 (2009) [tmdbid-10664]", null, "[REC] 2 (2009)")]
@@ -133,6 +134,36 @@ public class MediaNotificationTests
                 single: episode,
                 first: episode,
                 total: 1,
+                new Audience(CultureInfo.InvariantCulture, null),
+                poster: null));
+
+        Assert.Equal(expected, message.Body);
+    }
+
+    /// <summary>
+    /// A batch of several episodes names its show the same way, with its season's number or
+    /// without one.
+    /// </summary>
+    /// <param name="seasonNumber">The season's number, if it has one.</param>
+    /// <param name="expected">What the message says.</param>
+    [Theory]
+    [InlineData(1, "Breaking Bad (2008) - 2 episodes added for Season 1")]
+    [InlineData(null, "Breaking Bad (2008) - 2 episodes added")]
+    public void ABatchOfSeveralEpisodesNamesItsShowWithoutItsIds(int? seasonNumber, string expected)
+    {
+        var show = new Series { Id = Guid.NewGuid(), Name = "Breaking Bad (2008) [tvdbid-81189]" };
+        var season = new Season { Id = Guid.NewGuid(), SeriesId = show.Id, IndexNumber = seasonNumber };
+        var first = new Episode { Id = Guid.NewGuid(), SeriesId = show.Id, SeasonId = season.Id, IndexNumber = 1 };
+
+        var message = WithLibrary(
+            [show, season, first],
+            () => ItemAddedService.EpisodesMessage(
+                new LocalizationHelper(null, null),
+                season,
+                show,
+                single: null,
+                first: first,
+                total: 2,
                 new Audience(CultureInfo.InvariantCulture, null),
                 poster: null));
 

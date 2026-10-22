@@ -47,9 +47,12 @@ static partial class MediaNotificationHelper
         var name = NameOf(title);
         var last = TrailingYear().Match(name);
 
-        if (last.Success && last.Index > 0)
+        if (last.Success)
         {
-            return (name[..last.Index], int.Parse(last.Groups["year"].ValueSpan, CultureInfo.InvariantCulture));
+            // A name that is a bracketed year alone already gives it: no second one after it.
+            return last.Index > 0
+                ? (name[..last.Index], int.Parse(last.Groups["year"].ValueSpan, CultureInfo.InvariantCulture))
+                : (name, null);
         }
 
         if (title.ProductionYear is not { } year)
