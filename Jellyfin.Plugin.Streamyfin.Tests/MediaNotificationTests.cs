@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using MediaBrowser.Controller.Entities;
@@ -18,8 +19,6 @@ namespace Jellyfin.Plugin.Streamyfin.Tests;
 [Collection(StaticLibrary.Name)]
 public class MediaNotificationTests
 {
-    private static readonly DateTime Refreshed = new(2026, 10, 21, 8, 0, 0, DateTimeKind.Utc);
-
     /// <summary>
     /// An episode with a number but no season is named by its series and number.
     /// </summary>
@@ -47,155 +46,77 @@ public class MediaNotificationTests
     }
 
     /// <summary>
-    /// A movie in a folder of its own has that folder's name until Jellyfin finds its metadata:
-    /// its message gives the title and the year, without the ids Radarr writes there, and keeps
-    /// every word of the title.
+    /// A movie's message gives its title and its year, once: without the ids Radarr writes in a
+    /// folder name, and with a year the name carries in brackets in the year's place, the one at
+    /// the end of the name, a folder's, over one Jellyfin read off the file. Nothing else in the
+    /// name changes.
     /// </summary>
     /// <remarks>
-    /// Seen on the beta with Radarr's folder naming: the TMDB id in the folder name gives the
-    /// movie its id the moment it is added, so its message goes before the refresh, and read
-    /// "Nosferatu  [tmdbid-653] (1922)". Read like a search for the title, as Jellyfin's
-    /// ParseName reads it, the name also lost words: "Step Up 3D" became "Step Up".
+    /// Until its metadata names it, Jellyfin names a new movie after its folder. Its message
+    /// waits for that name, two minutes at most; these are the names it goes with when Jellyfin
+    /// did not name it in time, a title no provider knows or a scan's walk, and names a metadata
+    /// gave. Seen on the beta: "Nosferatu  [tmdbid-653] (1922)".
     /// </remarks>
-    /// <param name="folder">The folder the movie is in, which is its name.</param>
+    /// <param name="name">The movie's name.</param>
+    /// <param name="year">Its year, as Jellyfin has it.</param>
     /// <param name="expected">What the message says.</param>
     [Theory]
-    [InlineData("Nosferatu (1922) [tmdbid-653]", "Nosferatu (1922)")]
-    [InlineData("Nosferatu (1922) [imdbid-tt0013442]", "Nosferatu (1922)")]
-    [InlineData("Nosferatu (1922) {tmdb-653}", "Nosferatu (1922)")]
-    [InlineData("Nosferatu [tmdbid=653] (1922)", "Nosferatu (1922)")]
-    [InlineData("Step Up 3D (2010)", "Step Up 3D (2010)")]
-    [InlineData("The Good German (2006) [tmdbid-182]", "The Good German (2006)")]
-    [InlineData("[REC] 2 (2009) [tmdbid-10664]", "[REC] 2 (2009)")]
-    [InlineData("(500) Days of Summer (2009) [tmdbid-19913]", "(500) Days of Summer (2009)")]
-    [InlineData("Metropolis [1927]", "Metropolis (1927)")]
-    [InlineData(
-        "LEGO DC Comics Super Heroes - Justice League vs. Bizarro League (2015) [tmdbid-326215]",
-        "LEGO DC Comics Super Heroes - Justice League vs. Bizarro League (2015)")]
-    [InlineData("Sintel", "Sintel")]
-    public void AMovieStillNamedAfterItsFolderIsNamedByItsTitle(string folder, string expected)
+    [InlineData("Nosferatu (1922) [tmdbid-653]", null, "Nosferatu (1922)")]
+    [InlineData("Nosferatu (1922) [tmdbid-653]", 1922, "Nosferatu (1922)")]
+    [InlineData("Nosferatu (1922) {tmdb-653}", null, "Nosferatu (1922)")]
+    [InlineData("Nosferatu [tmdbid=653] (1922)", null, "Nosferatu (1922)")]
+    [InlineData("Nosferatu (1922) [tmdbid-653] [imdbid-tt0013442]", 1922, "Nosferatu (1922)")]
+    [InlineData("Step Up 3D (2010)", null, "Step Up 3D (2010)")]
+    [InlineData("The Good German (2006) [tmdbid-182]", null, "The Good German (2006)")]
+    [InlineData("[REC] 2 (2009) [tmdbid-10664]", null, "[REC] 2 (2009)")]
+    [InlineData("Metropolis [1927]", null, "Metropolis (1927)")]
+    [InlineData("Blade Runner 2049 (2017) [tmdbid-335984]", 2049, "Blade Runner 2049 (2017)")]
+    [InlineData("Inception (2010) [1080p] [BluRay] [YTS.MX]", 2010, "Inception [1080p] [BluRay] [YTS.MX] (2010)")]
+    [InlineData("(500) Days of Summer (2009) [tmdbid-19913]", null, "(500) Days of Summer (2009)")]
+    [InlineData("(500) Days of Summer", 2009, "(500) Days of Summer (2009)")]
+    [InlineData("Blade Runner 2049", 2017, "Blade Runner 2049 (2017)")]
+    [InlineData("Halloween (2018)", 2018, "Halloween (2018)")]
+    [InlineData("Le Voyage dans la Lune", 1902, "Le Voyage dans la Lune (1902)")]
+    [InlineData("Sintel", null, "Sintel")]
+    public void AMovieIsNamedByItsTitleAndItsYear(string name, int? year, string expected)
     {
-        var movie = new Movie { Id = Guid.NewGuid(), Name = folder, Path = $"/media/movies/{folder}/{folder} - [WEBDL-1080p].mkv" };
+        var movie = new Movie { Id = Guid.NewGuid(), Name = name, ProductionYear = year };
 
-        Assert.Equal(expected, Body(movie));
+        Assert.Equal(expected, Body(movie, new LocalizationHelper(null, null)));
     }
 
     /// <summary>
-    /// The year a folder name gives wins over the one Jellyfin read off the file name, which may
-    /// be part of the title.
-    /// </summary>
-    [Fact]
-    public void TheFolderYearWinsOverAYearReadOffTheFile()
-    {
-        const string folder = "Blade Runner 2049 (2017) [tmdbid-335984]";
-        var movie = new Movie { Id = Guid.NewGuid(), Name = folder, ProductionYear = 2049, Path = $"/media/movies/{folder}/Blade Runner 2049.mkv" };
-
-        Assert.Equal("Blade Runner 2049 (2017)", Body(movie));
-    }
-
-    /// <summary>
-    /// A movie Jellyfin named from its metadata keeps that name, stamped as refreshed or not: a
-    /// provider that failed leaves the stamp off, and the name its metadata gave in.
-    /// </summary>
-    [Fact]
-    public void AMovieNamedByItsMetadataKeepsThatName()
-    {
-        var movie = new Movie
-        {
-            Id = Guid.NewGuid(),
-            Name = "Blade Runner 2049",
-            ProductionYear = 2017,
-            Path = "/media/movies/Blade Runner 2049 (2017) [tmdbid-335984]/Blade Runner 2049.mkv"
-        };
-
-        Assert.Equal("Blade Runner 2049 (2017)", Body(movie));
-    }
-
-    /// <summary>
-    /// A movie loose among others keeps the name Jellyfin read off its file, which is a title
-    /// already.
-    /// </summary>
-    [Fact]
-    public void AMovieInAMixedFolderKeepsTheNameJellyfinReadOffItsFile()
-    {
-        var movie = new Movie
-        {
-            Id = Guid.NewGuid(),
-            Name = "Blade Runner 2049",
-            ProductionYear = 2017,
-            IsInMixedFolder = true,
-            Path = "/media/movies/Blade Runner 2049 (2017).mkv"
-        };
-
-        Assert.Equal("Blade Runner 2049 (2017)", Body(movie));
-    }
-
-    /// <summary>
-    /// A name the metadata gave keeps every bracket in it; only a year the message would repeat
-    /// is taken off.
+    /// The year goes through the administrator's wording for a name and its year, for a name that
+    /// ended in its year too.
     /// </summary>
     /// <param name="name">The movie's name.</param>
-    /// <param name="year">Its year.</param>
-    /// <param name="expected">What the message says.</param>
     [Theory]
-    [InlineData("(500) Days of Summer", 2009, "(500) Days of Summer (2009)")]
-    [InlineData("Halloween (2018)", 2018, "Halloween (2018)")]
-    public void AMetadataNameKeepsItsBrackets(string name, int year, string expected)
+    [InlineData("Halloween")]
+    [InlineData("Halloween (2018)")]
+    public void TheYearGoesThroughTheAdministratorsWording(string name)
     {
-        var movie = new Movie
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            ProductionYear = year,
-            DateLastRefreshed = Refreshed,
-            Path = "/media/movies/Some Folder (1999)/movie.mkv"
-        };
+        var localization = new LocalizationHelper(null, null, () => [new WordingOverride { Key = "NameAndYear", Text = "[{0}] / {1}" }]);
+        var movie = new Movie { Id = Guid.NewGuid(), Name = name, ProductionYear = 2018 };
 
-        Assert.Equal(expected, Body(movie));
+        Assert.Equal("[Halloween] / 2018", Body(movie, localization));
     }
 
     /// <summary>
-    /// A batch of episodes names its show by its title. Jellyfin 10.11 names a new show after its
-    /// folder, the year and the ids Sonarr writes there with it; Jellyfin 12 already takes the
-    /// year and what follows off, and a number in the title is no year.
+    /// A batch of episodes names its show without the ids Sonarr writes in a folder name, which
+    /// Jellyfin 10.11 names a new show after, and Jellyfin 12 too for a folder without a year. The
+    /// rest of the name stays, a year in it included: the batch's message gives no year of its own.
     /// </summary>
-    /// <param name="name">The show's name as Jellyfin gave it.</param>
-    /// <param name="folder">The show's folder.</param>
+    /// <param name="name">The show's name.</param>
     /// <param name="expected">What the message says.</param>
     [Theory]
-    [InlineData("Breaking Bad (2008) [tvdbid-81189]", "Breaking Bad (2008) [tvdbid-81189]", "Breaking Bad - Episode 2 added for Season 1")]
-    [InlineData("Galactica 1980", "Galactica 1980 (1980) [tvdbid-71173]", "Galactica 1980 - Episode 2 added for Season 1")]
-    public void ABatchOfEpisodesNamesItsShowByItsTitle(string name, string folder, string expected)
+    [InlineData("Breaking Bad (2008) [tvdbid-81189]", "Breaking Bad (2008) - Episode 2 added for Season 1")]
+    [InlineData("Breaking Bad [tvdbid-81189]", "Breaking Bad - Episode 2 added for Season 1")]
+    [InlineData("Mr  Robot (2015) [tvdbid-289590]", "Mr  Robot (2015) - Episode 2 added for Season 1")]
+    [InlineData("Galactica 1980", "Galactica 1980 - Episode 2 added for Season 1")]
+    [InlineData("Doctor Who (2005)", "Doctor Who (2005) - Episode 2 added for Season 1")]
+    public void ABatchOfEpisodesNamesItsShowWithoutItsIds(string name, string expected)
     {
-        Assert.Equal(expected, EpisodeBody(new Series { Id = Guid.NewGuid(), Name = name, Path = $"/media/shows/{folder}" }));
-    }
-
-    /// <summary>
-    /// A show its metadata named keeps that name whole in a batch of episodes, a year in it
-    /// included, even when it is the name of its folder: the batch's message shows no year of its
-    /// own.
-    /// </summary>
-    /// <param name="folder">The show's folder.</param>
-    [Theory]
-    [InlineData("Doctor Who (2005)")]
-    [InlineData("Doctor Who (2005) [tvdbid-78804]")]
-    public void ARefreshedShowKeepsItsMetadataNameInABatch(string folder)
-    {
-        var show = new Series
-        {
-            Id = Guid.NewGuid(),
-            Name = "Doctor Who (2005)",
-            ProductionYear = 2005,
-            DateLastRefreshed = Refreshed,
-            Path = $"/media/shows/{folder}"
-        };
-
-        Assert.Equal("Doctor Who (2005) - Episode 2 added for Season 1", EpisodeBody(show));
-    }
-
-    // The body of the message about a show's episode 2 of season 1, arrived alone.
-    private static string? EpisodeBody(Series show)
-    {
+        var show = new Series { Id = Guid.NewGuid(), Name = name };
         var season = new Season { Id = Guid.NewGuid(), SeriesId = show.Id, IndexNumber = 1 };
         var episode = new Episode { Id = Guid.NewGuid(), SeriesId = show.Id, SeasonId = season.Id, IndexNumber = 2 };
 
@@ -211,15 +132,38 @@ public class MediaNotificationTests
                 new Audience(CultureInfo.InvariantCulture, null),
                 poster: null));
 
-        return message.Body;
+        Assert.Equal(expected, message.Body);
+    }
+
+    /// <summary>
+    /// A message about an episode, the one an administrator gets when somebody starts it, names
+    /// its show without the ids either.
+    /// </summary>
+    [Fact]
+    public void AnEpisodeIsNamedByItsShowWithoutItsIds()
+    {
+        var series = new Series { Id = Guid.NewGuid(), Name = "Breaking Bad (2008) [tvdbid-81189]" };
+        var episode = new Episode { Id = Guid.NewGuid(), SeriesId = series.Id, IndexNumber = 5 };
+
+        var notification = WithLibrary(
+            [series],
+            () => MediaNotificationHelper.CreateMediaNotification(
+                new LocalizationHelper(null, null),
+                "Playback started",
+                [],
+                episode,
+                CultureInfo.InvariantCulture));
+
+        Assert.NotNull(notification);
+        Assert.Equal("Breaking Bad (2008), Episode 05", notification.Body);
     }
 
     // The last line of a movie's message.
-    private static string? Body(Movie movie) =>
+    private static string? Body(Movie movie, LocalizationHelper localization) =>
         WithLibrary(
             [movie],
             () => MediaNotificationHelper.CreateMediaNotification(
-                new LocalizationHelper(null, null),
+                localization,
                 "Movie added",
                 [],
                 movie,
