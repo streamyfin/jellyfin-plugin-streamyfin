@@ -8,6 +8,33 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-10-22, a new title's message without its folder's ids
+
+#298, from the pass on the beta. Until its metadata names it, Jellyfin names a new movie after its
+folder, and a new show too on 10.11, and on 12 for a folder without a year, with the ids Radarr or
+Sonarr write there. A new item message goes before that, so since 0.46 it could read
+"Nosferatu  [tmdbid-653] (1922)". It now leaves out what Jellyfin itself reads as an id in a folder
+name, `tmdbid`, `imdbid`, `tvdbid` and the others in any of the brackets Jellyfin 12 reads, and an
+IMDb id on its own, and gives a bracketed year once, through the `NameAndYear` wording. Nothing else
+in a name changes: the old strip of every number in round brackets, which took "(500)" out of
+"(500) Days of Summer", is gone. The Playback started message, which names a movie or an episode's
+show the same way, changes with it.
+
+Three full reviews and CodeRabbit shaped it. The first version read names with
+`ILibraryManager.ParseName`, which drops real words: "Step Up 3D" became "Step Up". The second
+cleaned only a name still equal to its folder, which Jellyfin 10.11 breaks by changing the dots of a
+show's folder name, and gave a year twice after a tag. The third held the message until Jellyfin
+named the title; its review found that the hold for the name and #289's hold for the id shared one
+deadline, which brings #289's second message back when a metadata provider fails. That hold is #299,
+a draft for after 0.70, with the review's eleven findings as its checklist. CodeRabbit then found an
+IMDb id a word runs into taken with the space before it, and a name that is only its year given that
+year twice.
+
+Seen on the beta's 10.11.11 and 12.2.0 test instances with a stand-in for Expo, RC 5 beside the
+branch: "Faust  [tmdbid-10728] (1926)" became "Nosferatu (1922)", "Sunrise  tt0018455 (1927)"
+became "Metropolis (1927)", and on 10.11 a batch of "Zzyzx Other Show (2008) [tvdbid-999999992]"
+became one of "Zzyzx Test Show (2008)".
+
 ## 2026-10-21, one message when an awaited title arrives
 
 #294 closes #289. A person who waited for a title got "Now on the server" and the new item message
