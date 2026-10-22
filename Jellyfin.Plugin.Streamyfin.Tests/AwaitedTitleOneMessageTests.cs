@@ -5,7 +5,6 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Streamyfin.PushNotifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
-using MediaBrowser.Controller.Entities.Movies;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -94,66 +93,6 @@ public class AwaitedTitleOneMessageTests
     public void TheWaitForATitlesIdIsWhatTheAdministratorSet(double? seconds, double expected)
     {
         Assert.Equal(TimeSpan.FromSeconds(expected), ItemAddedService.WaitForTitleId(seconds));
-    }
-
-    /// <summary>
-    /// The wait for a title's name is what the administrator set, two minutes when they set
-    /// nothing or something the server could not count, and ten at most: held longer, a new
-    /// item is not news any more.
-    /// </summary>
-    /// <param name="seconds">What the configuration says.</param>
-    /// <param name="expected">The wait, in seconds.</param>
-    [Theory]
-    [InlineData(null, 120)]
-    [InlineData(0d, 0)]
-    [InlineData(45d, 45)]
-    [InlineData(600d, 600)]
-    [InlineData(-5d, 120)]
-    [InlineData(double.NaN, 120)]
-    [InlineData(double.PositiveInfinity, 120)]
-    [InlineData(1e12, 600)]
-    public void TheWaitForATitlesNameIsWhatTheAdministratorSet(double? seconds, double expected)
-    {
-        Assert.Equal(TimeSpan.FromSeconds(expected), ItemAddedService.WaitForTitleName(seconds));
-    }
-
-    /// <summary>
-    /// A held new item message goes once Jellyfin named its title, when it waits for the name,
-    /// and once Jellyfin knows the title's id, when it waits for that too. A stamped refresh ends
-    /// both waits: no name and no id come after it.
-    /// </summary>
-    /// <param name="forName">Whether it waits for the name.</param>
-    /// <param name="forId">Whether it waits for the id.</param>
-    /// <param name="name">The title's name now; it was added as "Nosferatu (1922) [tmdbid-653]".</param>
-    /// <param name="stamped">Whether a refresh stamped it.</param>
-    /// <param name="hasId">Whether Jellyfin knows its TMDB id.</param>
-    /// <param name="expected">Whether the message goes.</param>
-    [Theory]
-    [InlineData(true, false, "Nosferatu (1922) [tmdbid-653]", false, true, false)]
-    [InlineData(true, false, "Nosferatu le vampire", false, false, true)]
-    [InlineData(true, false, "Nosferatu (1922) [tmdbid-653]", true, false, true)]
-    [InlineData(false, true, "Nosferatu (1922) [tmdbid-653]", false, true, true)]
-    [InlineData(false, true, "Nosferatu le vampire", false, false, false)]
-    [InlineData(true, true, "Nosferatu le vampire", false, false, false)]
-    [InlineData(true, true, "Nosferatu le vampire", false, true, true)]
-    [InlineData(true, true, "Nosferatu (1922) [tmdbid-653]", true, false, true)]
-    [InlineData(false, false, "Nosferatu (1922) [tmdbid-653]", false, false, true)]
-    public void AHeldMessageGoesOnceWhatItWaitsForCame(bool forName, bool forId, string name, bool stamped, bool hasId, bool expected)
-    {
-        var movie = new Movie { Id = Guid.NewGuid(), Name = name };
-        if (stamped)
-        {
-            movie.DateLastRefreshed = new DateTime(2026, 10, 22, 8, 0, 0, DateTimeKind.Utc);
-        }
-
-        if (hasId)
-        {
-            movie.ProviderIds["Tmdb"] = "653";
-        }
-
-        var ready = ItemAddedService.ReadyWhen("Nosferatu (1922) [tmdbid-653]", forName, forId);
-
-        Assert.Equal(expected, ready(movie));
     }
 
     /// <summary>

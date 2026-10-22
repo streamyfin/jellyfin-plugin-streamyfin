@@ -20,10 +20,9 @@ static partial class MediaNotificationHelper
     /// <returns>The name.</returns>
     /// <remarks>
     /// Until its metadata names it, Jellyfin names a new title after its folder, with the ids
-    /// Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>. A new item message waits for
-    /// the name, two minutes at most, and goes with the folder's when Jellyfin did not name the
-    /// title in time. Such an id is never part of a title, so it comes off any name, and nothing
-    /// else does. A name made of ids alone is kept as it is rather than left empty.
+    /// Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>, and a new item message usually
+    /// goes before that. Such an id is never part of a title, so it comes off any name, and
+    /// nothing else does. A name made of ids alone is kept as it is rather than left empty.
     /// </remarks>
     internal static string NameOf(BaseItem title)
     {
@@ -67,10 +66,16 @@ static partial class MediaNotificationHelper
     // The ids Jellyfin reads in a folder name, with the short forms Jellyfin 12 also reads.
     private const string IdNames = "(?:tmdb|tvdb|imdb)(?:id)?|tvmazeid|anidbid|anilistid|anisearchid";
 
+    // An IMDb id on its own, which Jellyfin finds anywhere in a folder name: tt in lower case, and
+    // seven or eight digits.
+    private const string ImdbId = "(?-i:tt)[0-9]{7,8}";
+
     // Each of them in every bracket Jellyfin 12 reads it in, with the space before it:
-    // " [tmdbid-653]", " [tmdbid=653]", " {tmdb-653}", " (imdbid-tt0013442)" and the like.
+    // " [tmdbid-653]", " [tmdbid=653]", " {tmdb-653}", " (imdbid-tt0013442)" and the like, and an
+    // IMDb id on its own, in brackets or not: " [tt0013442]", " tt0013442".
     [GeneratedRegex(
-        @"\s*(?:\[(?:" + IdNames + @")[=-][^\]]+\]|\((?:" + IdNames + @")[=-][^)]+\)|\{(?:" + IdNames + @")[=-][^}]+\})",
+        @"\s*(?:\[(?:" + IdNames + @")[=-][^\]]+\]|\((?:" + IdNames + @")[=-][^)]+\)|\{(?:" + IdNames + @")[=-][^}]+\}"
+        + @"|\[" + ImdbId + @"\]|\(" + ImdbId + @"\)|\{" + ImdbId + @"\}|(?<![\p{L}\p{N}])" + ImdbId + @"(?![0-9]))",
         RegexOptions.IgnoreCase)]
     private static partial Regex Ids();
 
@@ -130,7 +135,10 @@ static partial class MediaNotificationHelper
             case Episode episode:
                 data["id"] = episode.Id.ToString("N");
 
-                name = !string.IsNullOrEmpty(episode.Series?.Name) switch
+                // Without the ids of its folder name, which a show Jellyfin has not named yet still has.
+                var seriesName = episode.Series is { } itsShow ? NameOf(itsShow).Escape() : null;
+
+                name = !string.IsNullOrEmpty(seriesName) switch
                 {
                     // Name + Season + Episode
                     true when episode.Season?.IndexNumber is not null && episode.IndexNumber is not null =>
@@ -139,7 +147,7 @@ static partial class MediaNotificationHelper
                             cultureInfo: culture,
                             args:
                             [
-                                NameOf(episode.Series).Escape(),
+                                seriesName,
                                 episode.Season.IndexNumber.Value.ToString(CultureInfo.InvariantCulture),
                                 episode.IndexNumber.Value.ToString("00", CultureInfo.InvariantCulture)
                             ]
@@ -151,7 +159,7 @@ static partial class MediaNotificationHelper
                             cultureInfo: culture,
                             args:
                             [
-                                NameOf(episode.Series).Escape(),
+                                seriesName,
                                 episode.Season.IndexNumber.Value.ToString(CultureInfo.InvariantCulture)
                             ]
                         ),
@@ -162,11 +170,11 @@ static partial class MediaNotificationHelper
                             cultureInfo: culture,
                             args:
                             [
-                                NameOf(episode.Series).Escape(),
+                                seriesName,
                                 episode.IndexNumber.Value.ToString("00", CultureInfo.InvariantCulture)
                             ]
                         ),
-                    _ => episode.Series is { } itsShow ? NameOf(itsShow).Escape() : null
+                    _ => seriesName
                 };
 
                 data["seriesId"] = episode.SeriesId.ToString("N");

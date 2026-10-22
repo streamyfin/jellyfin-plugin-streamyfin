@@ -47,15 +47,14 @@ public class MediaNotificationTests
 
     /// <summary>
     /// A movie's message gives its title and its year, once: without the ids Radarr writes in a
-    /// folder name, and with a year the name carries in brackets in the year's place, the one at
-    /// the end of the name, a folder's, over one Jellyfin read off the file. Nothing else in the
-    /// name changes.
+    /// folder name, an IMDb id on its own included, and with a year the name carries in brackets
+    /// in the year's place, the one at the end of the name, a folder's, over one Jellyfin read off
+    /// the file. Nothing else in the name changes.
     /// </summary>
     /// <remarks>
-    /// Until its metadata names it, Jellyfin names a new movie after its folder. Its message
-    /// waits for that name, two minutes at most; these are the names it goes with when Jellyfin
-    /// did not name it in time, a title no provider knows or a scan's walk, and names a metadata
-    /// gave. Seen on the beta: "Nosferatu  [tmdbid-653] (1922)".
+    /// Until its metadata names it, Jellyfin names a new movie after its folder, and the movie's
+    /// message usually goes before that. These are such names, and names a metadata gave. Seen on
+    /// the beta: "Nosferatu  [tmdbid-653] (1922)".
     /// </remarks>
     /// <param name="name">The movie's name.</param>
     /// <param name="year">Its year, as Jellyfin has it.</param>
@@ -66,6 +65,9 @@ public class MediaNotificationTests
     [InlineData("Nosferatu (1922) {tmdb-653}", null, "Nosferatu (1922)")]
     [InlineData("Nosferatu [tmdbid=653] (1922)", null, "Nosferatu (1922)")]
     [InlineData("Nosferatu (1922) [tmdbid-653] [imdbid-tt0013442]", 1922, "Nosferatu (1922)")]
+    [InlineData("Nosferatu (1922) tt0013442", null, "Nosferatu (1922)")]
+    [InlineData("Nosferatu (1922) [tt0013442]", null, "Nosferatu (1922)")]
+    [InlineData("Nosferatu tt0013442 (1922)", null, "Nosferatu (1922)")]
     [InlineData("Step Up 3D (2010)", null, "Step Up 3D (2010)")]
     [InlineData("The Good German (2006) [tmdbid-182]", null, "The Good German (2006)")]
     [InlineData("[REC] 2 (2009) [tmdbid-10664]", null, "[REC] 2 (2009)")]
@@ -111,6 +113,7 @@ public class MediaNotificationTests
     [Theory]
     [InlineData("Breaking Bad (2008) [tvdbid-81189]", "Breaking Bad (2008) - Episode 2 added for Season 1")]
     [InlineData("Breaking Bad [tvdbid-81189]", "Breaking Bad - Episode 2 added for Season 1")]
+    [InlineData("Breaking Bad (2008) tt0903747", "Breaking Bad (2008) - Episode 2 added for Season 1")]
     [InlineData("Mr  Robot (2015) [tvdbid-289590]", "Mr  Robot (2015) - Episode 2 added for Season 1")]
     [InlineData("Galactica 1980", "Galactica 1980 - Episode 2 added for Season 1")]
     [InlineData("Doctor Who (2005)", "Doctor Who (2005) - Episode 2 added for Season 1")]

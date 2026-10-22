@@ -84,29 +84,6 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
         Seconds(seconds, ItemAddedNotificationConfiguration.UsualWaitForTitleId, ItemAddedNotificationConfiguration.LongestWaitForTitleId);
 
     /// <summary>
-    /// How long a new item message may wait for Jellyfin to name its title, as the
-    /// administrator set it.
-    /// </summary>
-    /// <param name="seconds">What the configuration says, which may be nothing.</param>
-    /// <returns>
-    /// The wait: two minutes when nothing is set, or when what is set is something the server
-    /// could not count; ten minutes at most.
-    /// </returns>
-    internal static TimeSpan WaitForTitleName(double? seconds) =>
-        Seconds(seconds, ItemAddedNotificationConfiguration.UsualWaitForTitleName, ItemAddedNotificationConfiguration.LongestWaitForTitleName);
-
-    /// <summary>
-    /// When a held new item message may go: once Jellyfin named its title, when it waits for the
-    /// name, and once Jellyfin knows the title's id, when it waits for that too.
-    /// </summary>
-    /// <param name="nameAtAdd">The title's name when the message was held, its folder's for a new title.</param>
-    /// <param name="forName">Whether the message waits for the name.</param>
-    /// <param name="forId">Whether the message waits for the id.</param>
-    /// <returns>Whether the message may go about the title as an update left it.</returns>
-    internal static Func<BaseItem, bool> ReadyWhen(string? nameAtAdd, bool forName, bool forId) =>
-        title => (!forName || IdentifiedTitles.Named(title, nameAtAdd)) && (!forId || IdentifiedTitles.Identified(title));
-
-    /// <summary>
     /// How long a copy of a title leaves out the people told about it, as the administrator set
     /// it.
     /// </summary>
@@ -127,27 +104,12 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 
     private TimeSpan CopiesWithin() => CopiesWithin(Config?.notifications?.ItemAdded?.CopiesWithin);
 
-    // How long a new item message waits, and for what: for Jellyfin to name the title, so the
-    // message gives the name and the poster the library shows rather than its folder's name, two
-    // minutes unless the administrator set otherwise or a refresh named it already; and for the
-    // title's id where somebody may be left out (#289). The longer wait holds it for both.
-    private (TimeSpan Wait, Func<BaseItem, bool> Ready) Hold(BaseItem title, string mediaType)
-    {
-        var name = title.Name;
-        var nameWait = IdentifiedTitles.Named(title, name)
-            ? TimeSpan.Zero
-            : WaitForTitleName(Config?.notifications?.ItemAdded?.WaitForTitleName);
-        var idWait = IdWait(title, mediaType);
-
-        return (nameWait > idWait ? nameWait : idWait, ReadyWhen(name, nameWait > TimeSpan.Zero, idWait > TimeSpan.Zero));
-    }
-
     // How long a new item message about a title without its id waits for it (#289): only while
     // its metadata may still bring one, and somebody may be left out: a person who waits for a
     // title of its kind, whom a pause holds back, or who was told about one recently, whom a
     // copy would leave out. The awaited title event has to reach them too. Then the id says who
-    // to leave out; otherwise it would leave nobody out, and the message would wait up to ten
-    // minutes for nothing, where the wait for the name is two.
+    // to leave out; otherwise it would leave nobody out, and the message would only be late:
+    // Jellyfin refreshes a new title in a walk over its whole library, minutes on a large one.
     private TimeSpan IdWait(BaseItem title, string mediaType)
     {
         var wait = WaitForTitleId(Config?.notifications?.ItemAdded?.WaitForTitleId);
@@ -337,13 +299,10 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
         {
             case Movie movie:
                 var added = DateTime.UtcNow;
-                // Held until Jellyfin named the movie, and until it knows the movie's id where
-                // that says who waited for it (#289).
-                var (wait, ready) = Hold(movie, AwaitedTitles.Movie);
+                // Held until Jellyfin knows the movie's id, which says who waited for it (#289).
                 _identified.Send(
                     movie,
-                    wait,
-                    ready,
+                    IdWait(movie, AwaitedTitles.Movie),
                     identified => SendMovie(movie.Id, identified, added, library));
                 break;
             case Episode episode:
@@ -381,9 +340,9 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 
     private Task SendMovie(Guid movieId, BaseItem movie, DateTime added, Guid? library)
     {
-        // Read back: held until its name or its id came, the movie may have gone meanwhile. What
-        // the message says comes from the one handed in, which the update that brought them left
-        // with its metadata: the library may hand back a copy it read again before, without them.
+        // Read back: held until its id came, the movie may have gone meanwhile. What the message
+        // says comes from the one handed in, which the update that brought the id left with
+        // its metadata: the library may hand back a copy it read again before, without them.
         if (_libraryManager.GetItemById(movieId) is not Movie)
         {
             return Task.CompletedTask;
@@ -404,9 +363,8 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
             subject: new NotificationSubject("itemAdded", library));
     }
 
-    // An update can bring the name or the id a held new item message waits for (#289). Only a
-    // movie's or a show's: a scan updates every item it touches, and those are the titles messages
-    // wait on.
+    // An update can bring the id a held new item message waits for (#289). Only a movie's or a
+    // show's: a scan updates every item it touches, and those are the titles messages wait on.
     private void ItemUpdatedHandler(object? sender, ItemChangeEventArgs itemChangeEventArgs)
     {
         if (itemChangeEventArgs.Item is Movie or Series)
@@ -483,17 +441,14 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
 
         // The people the awaited title message told about the show during this arrival are left
         // out of it: the show arriving is their one message, and a later arrival reaches them
-        // like anyone (#289). Held until Jellyfin named the show and, where it matters, knows its
-        // id, like a movie.
+        // like anyone (#289). Held until the show's id is known, like a movie.
         var since = ToldSince(countdown.Began);
         var ids = episodes.Select(added => added.Id).ToList();
         var first = episodes[0];
-        var (wait, ready) = stopping ? (TimeSpan.Zero, ReadyWhen(series.Name, false, false)) : Hold(series, AwaitedTitles.Tv);
 
         return _identified.Send(
             series,
-            wait,
-            ready,
+            stopping ? TimeSpan.Zero : IdWait(series, AwaitedTitles.Tv),
             identified => SendEpisodes(seasonId, ids, first, identified, since));
     }
 
@@ -560,9 +515,8 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
     /// <param name="localization">The plugin's sentences.</param>
     /// <param name="season">The season the batch came in.</param>
     /// <param name="series">
-    /// The show: the one handed in, as the update that named it left it, rather than the season's,
-    /// which may be a copy read before it. A show Jellyfin did not name within the wait still has
-    /// its folder's name.
+    /// The show: the one handed in, rather than the season's, which may be a copy read before it.
+    /// A show Jellyfin has not named yet still has its folder's name.
     /// </param>
     /// <param name="single">The episode, when the batch holds one.</param>
     /// <param name="first">The first episode of the batch.</param>
@@ -582,7 +536,7 @@ public sealed class ItemAddedService : BaseEvent, IHostedService, IDisposable
     {
         var culture = audience.Culture;
 
-        // Without the ids of its folder name, which a show Jellyfin did not name in time still has.
+        // Without the ids of its folder name, which a show Jellyfin has not named yet still has.
         var name = MediaNotificationHelper.NameOf(series).Escape();
         var data = new Dictionary<string, object?>();
         List<string> body = [];

@@ -155,24 +155,6 @@ public class NotificationsFormTests
     }
 
     /// <summary>
-    /// The wait for a title's name is a number of seconds on the item added card, from nothing
-    /// to ten minutes, two when left empty, and offered with the server's switch off too, like
-    /// the wait for a title's id.
-    /// </summary>
-    [Fact]
-    public void TheWaitForATitlesNameIsOfferedOnTheItemAddedCard()
-    {
-        var wait = Field("itemAdded.waitForTitleName");
-
-        Assert.Equal("Item added", wait.Category);
-        Assert.Equal(SettingsControl.Number, wait.Control);
-        Assert.Equal(0, wait.Minimum);
-        Assert.Equal(600, wait.Maximum);
-        Assert.Equal(120, wait.ServerDefault);
-        Assert.Null(wait.DependsOn);
-    }
-
-    /// <summary>
     /// The wait for a title's id is a number of seconds on the item added card, from nothing to
     /// an hour, ten minutes when left empty, and offered with the server's switch off too: a
     /// group can turn new items on, and their messages wait what the server says (#289).
@@ -254,7 +236,7 @@ public class NotificationsFormTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleName", "itemAdded.waitForTitleId", "itemAdded.copiesWithin" },
+            new[] { "itemAdded.enabled", "itemAdded.enabledLibraries", "itemAdded.waitForTitleId", "itemAdded.copiesWithin" },
             itemAdded);
     }
 
