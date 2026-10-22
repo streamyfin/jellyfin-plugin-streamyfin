@@ -20,9 +20,10 @@ static partial class MediaNotificationHelper
     /// <returns>The name.</returns>
     /// <remarks>
     /// Until its metadata names it, Jellyfin names a new title after its folder, with the ids
-    /// Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>, and a new item message usually
-    /// goes before that. Such an id is never part of a title, so it comes off any name, and
-    /// nothing else does. A name made of ids alone is kept as it is rather than left empty.
+    /// Radarr or Sonarr write there, such as <c>[tmdbid-653]</c>. A new item message waits for
+    /// the name, two minutes at most, and goes with the folder's when Jellyfin did not name the
+    /// title in time. Such an id is never part of a title, so it comes off any name, and nothing
+    /// else does. A name made of ids alone is kept as it is rather than left empty.
     /// </remarks>
     internal static string NameOf(BaseItem title)
     {
