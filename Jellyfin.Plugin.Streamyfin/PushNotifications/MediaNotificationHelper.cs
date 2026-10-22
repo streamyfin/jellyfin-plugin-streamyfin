@@ -72,10 +72,11 @@ static partial class MediaNotificationHelper
 
     // Each of them in every bracket Jellyfin 12 reads it in, with the space before it:
     // " [tmdbid-653]", " [tmdbid=653]", " {tmdb-653}", " (imdbid-tt0013442)" and the like, and an
-    // IMDb id on its own, in brackets or not: " [tt0013442]", " tt0013442".
+    // IMDb id on its own, in brackets or standing apart: " [tt0013442]", " tt0013442". One a letter
+    // or a digit runs into, "tt1234567Extended", stays: it may be part of the title.
     [GeneratedRegex(
         @"\s*(?:\[(?:" + IdNames + @")[=-][^\]]+\]|\((?:" + IdNames + @")[=-][^)]+\)|\{(?:" + IdNames + @")[=-][^}]+\}"
-        + @"|\[" + ImdbId + @"\]|\(" + ImdbId + @"\)|\{" + ImdbId + @"\}|(?<![\p{L}\p{N}])" + ImdbId + @"(?![0-9]))",
+        + @"|\[" + ImdbId + @"\]|\(" + ImdbId + @"\)|\{" + ImdbId + @"\}|(?<![\p{L}\p{N}])" + ImdbId + @"(?![\p{L}\p{N}]))",
         RegexOptions.IgnoreCase)]
     private static partial Regex Ids();
 

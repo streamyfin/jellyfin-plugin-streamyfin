@@ -68,6 +68,7 @@ public class MediaNotificationTests
     [InlineData("Nosferatu (1922) tt0013442", null, "Nosferatu (1922)")]
     [InlineData("Nosferatu (1922) [tt0013442]", null, "Nosferatu (1922)")]
     [InlineData("Nosferatu tt0013442 (1922)", null, "Nosferatu (1922)")]
+    [InlineData("Film tt1234567Extended (2020)", null, "Film tt1234567Extended (2020)")]
     [InlineData("Step Up 3D (2010)", null, "Step Up 3D (2010)")]
     [InlineData("The Good German (2006) [tmdbid-182]", null, "The Good German (2006)")]
     [InlineData("[REC] 2 (2009) [tmdbid-10664]", null, "[REC] 2 (2009)")]
