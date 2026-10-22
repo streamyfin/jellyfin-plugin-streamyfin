@@ -24,6 +24,19 @@ public class NotificationConfiguration
 public class ItemAddedNotificationConfiguration: NotificationConfiguration
 {
     /// <summary>
+    /// How long, in seconds, a new item message waits for Jellyfin to name its title when
+    /// nothing says otherwise: a new title is named within seconds of being added, unless a scan
+    /// adds many at once and names them in a walk over the library.
+    /// </summary>
+    public const double UsualWaitForTitleName = 120;
+
+    /// <summary>
+    /// The longest wait for a title's name, in seconds: a message held longer is not news any
+    /// more, and a scan's walk would make every message that late.
+    /// </summary>
+    public const double LongestWaitForTitleName = 600;
+
+    /// <summary>
     /// How long, in seconds, a new item message waits for its title's id when nothing says
     /// otherwise (#289).
     /// </summary>
@@ -49,6 +62,11 @@ public class ItemAddedNotificationConfiguration: NotificationConfiguration
     [Display(Name = "Enabled libraries", Description = "The libraries whose new items get announced. Leave them all out to announce every library.")]
     [JsonPropertyName(name: "enabledLibraries")]
     public string[]? EnabledLibraries { get; set; }
+
+    [Display(Name = "Wait for the title's name", Description = "How long, in seconds, a new movie or a new show's batch of episodes waits for Jellyfin's metadata to name the title, so the message gives the name and the poster the library shows rather than its folder's name. It goes as soon as the title is named. 0 sends at once. Two minutes when left empty, ten at most.")]
+    [Bounds(0, LongestWaitForTitleName)]
+    [JsonPropertyName(name: "waitForTitleName")]
+    public double? WaitForTitleName { get; set; }
 
     [Display(Name = "Wait for the title's id", Description = "While somebody waits for a title, how long, in seconds, a new movie or a new show's batch of episodes waits for Jellyfin's metadata to find its TMDB or TVDB id, so the people who waited for that title get only the awaited title message. It goes as soon as the id comes, or the metadata came without one. 0 sends at once. Ten minutes when left empty, an hour at most.")]
     [Bounds(0, LongestWaitForTitleId)]
