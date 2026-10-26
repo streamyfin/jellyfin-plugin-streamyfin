@@ -172,6 +172,15 @@ limit there and reads as Disabled in 0.56, and a lock on the count wins over a p
 unlocked, which both descriptions say. `autoPlayEpisodeCount` left the app at the same time,
 and its entry in `NotDeclared` went with it, leaving five.
 
+Two more changes reached the app's develop before 0.56 shipped, and the weekly App parity workflow
+(`.github/workflows/app-parity.yml`) found them on 2026-10-26. `confirmBeforeStoppingPlayback`
+(streamyfin#2317) decides whether Back asks "Stop playback?" before leaving the player on Apple TV
+and Android TV; the apps before it always ask. It is declared without a default, like the four
+above. `enableH265ForChromecast` left the app with its two Chromecast device profiles when casting
+moved to Jellyfin's own receiver (streamyfin#2075), which runs the playback negotiation itself. The
+0.55 apps in the field still pick their profile from it, so it joins `maxAutoPlayEpisodeCount` in
+`KeptForAppsInTheField`, with their default of `false` for Reset.
+
 **Ahead of the app: next episodes.** `nextEpisodesDownloadCount`, `nextEpisodesNetwork` and
 `nextEpisodesDeleteAnyDownload` are declared for streamyfin#2275, before the app reads them, so
 the manifest leaves them out and `DeclaredAheadOfTheApp` names that pull request. They ship no

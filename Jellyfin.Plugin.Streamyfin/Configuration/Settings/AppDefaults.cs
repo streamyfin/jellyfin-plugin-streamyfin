@@ -27,6 +27,9 @@ public static class AppDefaults
     {
         // The app 0.55 caps auto play at 3 episodes in a row.
         ["maxAutoPlayEpisodeCount"] = JsonSerializer.SerializeToElement(3),
+
+        // The app 0.55 offers HEVC to no Chromecast unless asked.
+        ["enableH265ForChromecast"] = JsonSerializer.SerializeToElement(false),
     };
 
     /// <summary>

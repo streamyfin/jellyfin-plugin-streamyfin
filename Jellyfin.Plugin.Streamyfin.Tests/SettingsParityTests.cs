@@ -116,6 +116,10 @@ public class SettingsParityTests
             + "only to carry it over: migrateStillWatchingSetting turns the plugin's count "
             + "into the first preset with at least as many episodes, and an administrator's lock on it beats an unlocked "
             + "preset. The 0.55 apps in the field read nothing else to cap auto play.",
+        ["enableH265ForChromecast"] =
+            "The app 0.56 casts through Jellyfin's own receiver (streamyfin#2075), which runs the "
+            + "playback negotiation itself, and dropped the switch with its two Chromecast device "
+            + "profiles. The 0.55 apps in the field still build the profile from it.",
     };
 
     /// <summary>
