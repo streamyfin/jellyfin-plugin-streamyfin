@@ -116,6 +116,10 @@ public class SettingsParityTests
             + "only to carry it over: migrateStillWatchingSetting turns the plugin's count "
             + "into the first preset with at least as many episodes, and an administrator's lock on it beats an unlocked "
             + "preset. The 0.55 apps in the field read nothing else to cap auto play.",
+        ["enableH265ForChromecast"] =
+            "The app 0.56 casts through Jellyfin's own receiver (streamyfin#2075), which runs the "
+            + "playback negotiation itself, and dropped the switch with its two Chromecast device "
+            + "profiles. The 0.55 apps in the field still build the profile from it.",
     };
 
     /// <summary>
@@ -716,6 +720,34 @@ public class SettingsParityTests
         var without = KeptForAppsInTheField.Keys.Where(key => AppDefaults.For(key) is null).ToArray();
 
         Assert.True(without.Length == 0, "Kept for the apps in the field, with no default to reset to:\n  " + string.Join("\n  ", without));
+    }
+
+    /// <summary>
+    /// A key kept for the apps in the field declares their default, when it declares one.
+    /// </summary>
+    /// <remarks>
+    /// The manifest no longer has the key, so <see cref="ADeclaredDefaultEqualsTheAppsOwn"/> no
+    /// longer compares it, and the apps in the field still apply an unlocked default. This holds
+    /// the declared default to the one <see cref="AppDefaults"/> keeps for them.
+    /// </remarks>
+    [Fact]
+    public void AKeyKeptForTheAppsInTheFieldDeclaresTheirDefault()
+    {
+        var settings = PluginConfiguration.DefaultSettings();
+
+        var disagreements = KeptForAppsInTheField.Keys
+            .Where(key => AppDefaults.For(key) is not null)
+            .Select(key => Disagreement(
+                new ManifestEntry(key, "kept", AppDefaults.For(key)!.Value, true, null, default, null),
+                key,
+                DeclaredAt(settings, key).Value))
+            .OfType<string>()
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            disagreements.Length == 0,
+            "Kept for the apps in the field, with a default that is not theirs:\n  " + string.Join("\n  ", disagreements));
     }
 
     /// <summary>
