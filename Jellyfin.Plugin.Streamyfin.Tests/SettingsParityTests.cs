@@ -723,6 +723,34 @@ public class SettingsParityTests
     }
 
     /// <summary>
+    /// A key kept for the apps in the field declares their default, when it declares one.
+    /// </summary>
+    /// <remarks>
+    /// The manifest no longer has the key, so <see cref="ADeclaredDefaultEqualsTheAppsOwn"/> no
+    /// longer compares it, and the apps in the field still apply an unlocked default. This holds
+    /// the declared default to the one <see cref="AppDefaults"/> keeps for them.
+    /// </remarks>
+    [Fact]
+    public void AKeyKeptForTheAppsInTheFieldDeclaresTheirDefault()
+    {
+        var settings = PluginConfiguration.DefaultSettings();
+
+        var disagreements = KeptForAppsInTheField.Keys
+            .Where(key => AppDefaults.For(key) is not null)
+            .Select(key => Disagreement(
+                new ManifestEntry(key, "kept", AppDefaults.For(key)!.Value, true, null, default, null),
+                key,
+                DeclaredAt(settings, key).Value))
+            .OfType<string>()
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            disagreements.Length == 0,
+            "Kept for the apps in the field, with a default that is not theirs:\n  " + string.Join("\n  ", disagreements));
+    }
+
+    /// <summary>
     /// A key kept for the apps in the field is stale from both sides.
     /// </summary>
     [Fact]

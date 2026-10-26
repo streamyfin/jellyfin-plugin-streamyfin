@@ -179,7 +179,8 @@ and Android TV; the apps before it always ask. It is declared without a default,
 above. `enableH265ForChromecast` left the app with its two Chromecast device profiles when casting
 moved to Jellyfin's own receiver (streamyfin#2075), which runs the playback negotiation itself. The
 0.55 apps in the field still pick their profile from it, so it joins `maxAutoPlayEpisodeCount` in
-`KeptForAppsInTheField`, with their default of `false` for Reset.
+`KeptForAppsInTheField`. Unlike that one it has a declared default, their `false`, which the manifest
+no longer checks, so a test holds it to the one `AppDefaults` keeps for them.
 
 **Ahead of the app: next episodes.** `nextEpisodesDownloadCount`, `nextEpisodesNetwork` and
 `nextEpisodesDeleteAnyDownload` are declared for streamyfin#2275, before the app reads them, so
