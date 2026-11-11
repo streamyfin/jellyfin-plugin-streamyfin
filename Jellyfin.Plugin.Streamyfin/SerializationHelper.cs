@@ -129,6 +129,10 @@ public class SerializationHelper
         var options = GetJsonSerializerOptions();
         options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<SubtitlePlaybackMode>>().Single());
 
+        // Max reaches the app by its key: the app's Max has no number of its own.
+        options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<Bitrate>>().Single());
+        options.Converters.Insert(0, new AppBitrateConverter());
+
         // Seerr reaches the app as its block only (P6.1). The flat keys stay in storage and in
         // the YAML, where an administrator may still write them, and Project builds the block
         // from them on the way out.
@@ -449,6 +453,33 @@ public class SerializationHelper
 
             InputAttrs = inputAttrs;
             ContainerAttrs = containerAttrs;
+        }
+    }
+
+    /// <summary>
+    /// Writes a playback quality the way the app reads it: by its number, as the app compares
+    /// its qualities by value, and Max by its key, as the app's Max has no number.
+    /// </summary>
+    private sealed class AppBitrateConverter : System.Text.Json.Serialization.JsonConverter<Bitrate>
+    {
+        private const string MaxKey = "Max";
+
+        /// <inheritdoc />
+        public override Bitrate Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options) =>
+            reader.TokenType == JsonTokenType.String && reader.GetString() == MaxKey
+                ? Bitrate.Max
+                : (Bitrate)reader.GetInt32();
+
+        /// <inheritdoc />
+        public override void Write(Utf8JsonWriter writer, Bitrate value, JsonSerializerOptions options)
+        {
+            if (value == Bitrate.Max)
+            {
+                writer.WriteStringValue(MaxKey);
+                return;
+            }
+
+            writer.WriteNumberValue((int)value);
         }
     }
 }

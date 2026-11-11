@@ -65,6 +65,70 @@ public class BackupTests
     }
 
     /// <summary>
+    /// A file from before this version, restored after its start carried the server's own
+    /// configuration over, locks at Max what it locked empty, at every level: the empty value
+    /// meant Max when it was written.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupsLockedEmptyQualityIsRestoredAtMax()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(LockedEmptyEverywhere()));
+
+        Assert.False(read!.EmptyBitrateIsAuto);
+        read.CarryLockedMaxOver();
+
+        Assert.Equal(Configuration.Bitrate.Max, read.Config?.settings?.defaultBitrate?.value);
+        Assert.Equal(Configuration.Bitrate.Max, Assert.Single(read.Groups).Settings?.defaultBitrate?.value);
+        Assert.Equal(Configuration.Bitrate.Max, Assert.Single(read.Users).Settings?.defaultBitrate?.value);
+    }
+
+    /// <summary>
+    /// A file this version wrote says so, and its locked empty quality is the app's Auto.
+    /// </summary>
+    [Fact]
+    public void ABackupOfThisVersionKeepsALockedAuto()
+    {
+        var backup = LockedEmptyEverywhere();
+        backup.EmptyBitrateIsAuto = true;
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        read!.CarryLockedMaxOver();
+
+        Assert.True(read.EmptyBitrateIsAuto);
+        Assert.Null(read.Config?.settings?.defaultBitrate?.value);
+        Assert.Null(Assert.Single(read.Groups).Settings?.defaultBitrate?.value);
+        Assert.Null(Assert.Single(read.Users).Settings?.defaultBitrate?.value);
+    }
+
+    private static ConfigurationBackup LockedEmptyEverywhere() => new()
+    {
+        Plugin = "0.70.0.5",
+        TakenAt = DateTimeOffset.UtcNow,
+        Config = new Configuration.Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+        },
+        Groups =
+        [
+            new SettingsGroupDto
+            {
+                Name = "TVs",
+                Priority = 1,
+                UserIds = [Guid.NewGuid()],
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+            }
+        ],
+        Users =
+        [
+            new UserBackup
+            {
+                UserId = Guid.NewGuid(),
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+            }
+        ]
+    };
+
+    /// <summary>
     /// Every level in a file is checked the way a level written through the API is.
     /// </summary>
     /// <remarks>

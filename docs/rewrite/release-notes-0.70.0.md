@@ -87,6 +87,7 @@ The app for Jellyfin 12 is 0.56 (streamyfin/streamyfin#2192), with the sign in, 
 - **The three new admin alerts are off on a server that was already running**, since its stored configuration does not mention them. A fresh install has them on.
 - **Moving a server to Jellyfin 12.** The server keeps the build for 10.11 until the next release, since Jellyfin only offers a higher version as an update, and that build runs on 12 (#247). Jellyfin 12 gives the Live TV view, and each account's Playlists view, a new id, once; Collections keeps its own. Where Hidden libraries holds one of the old ids, for the server, a group or one account, the view shows again in the app, and a locked value keeps the app from hiding it itself. Those views are not in the list of libraries the tabs offer, which shows an old id as Other: write the new id, which `/UserViews` gives for each account, in the Yaml Editor after the upgrade (#255).
 - **Notifications go out in batches of 100 devices.** No test server could try a send to more than 100 real devices.
+- **The playback quality's empty value is the app's own default.** Earlier versions labelled it Max. The app with Auto quality reads it as Auto, which measures the connection to the server, and the apps before it as Max. Max is now a choice of its own, which every app reads. A quality an earlier version locked empty is locked at Max at the first start, once; one left unlocked stays empty.
 
 ## How to try it
 

@@ -290,6 +290,113 @@ public class GlobalConfigurationStoreTests : IDisposable
         Assert.False(_store.Current.notifications?.AwaitedTitle?.Enabled);
     }
 
+    /// <summary>
+    /// The earlier versions labelled the playback quality's empty value Max: one an
+    /// administrator locked there is locked at Max, which this version names, now that the
+    /// empty value leaves the app its own default, Auto.
+    /// </summary>
+    [Fact]
+    public void AQualityLockedEmptyByAnEarlierVersionIsLockedAtMax()
+    {
+        _store.Save(new Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null } }
+        });
+
+        _store.KeepLockedMaxBitrate();
+
+        var read = new GlobalConfigurationStore(_db, _serialization).Current.settings?.defaultBitrate;
+        Assert.True(read?.locked);
+        Assert.Equal(Bitrate.Max, read?.value);
+    }
+
+    /// <summary>
+    /// A group or a person can lock it empty too, and a level above the server's wins: both
+    /// are locked at Max with it.
+    /// </summary>
+    [Fact]
+    public void AQualityLockedEmptyInAGroupOrForAPersonIsLockedAtMaxToo()
+    {
+        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        {
+            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+        });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        var person = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+
+        _store.KeepLockedMaxBitrate();
+
+        var groupQuality = _serialization.DeserializeJson<Settings>(_db.GetSettingsGroup(group.Id)!.SettingsJson)?.defaultBitrate;
+        var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
+        Assert.Equal(Bitrate.Max, groupQuality?.value);
+        Assert.True(groupQuality?.locked);
+        Assert.Equal(Bitrate.Max, personQuality?.value);
+    }
+
+    /// <summary>
+    /// A row that does not parse is left as it is: the rows after it are carried all the same,
+    /// and the marker is written, so the next start does not try again over it.
+    /// </summary>
+    [Fact]
+    public void AnUnreadableRowIsLeftAsItIsAndTheOthersAreCarried()
+    {
+        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        {
+            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+        });
+        var broken = _db.SaveSettingsGroup(new SettingsGroup { Name = "Broken", SettingsJson = "{not json" });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        var brokenPerson = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(brokenPerson, "{not json", "{}");
+        var person = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+
+        _store.KeepLockedMaxBitrate();
+
+        Assert.Equal("{not json", _db.GetSettingsGroup(broken.Id)!.SettingsJson);
+        Assert.Equal("{not json", _db.GetUserSettingsOverride(brokenPerson)!.SettingsJson);
+        var groupQuality = _serialization.DeserializeJson<Settings>(_db.GetSettingsGroup(group.Id)!.SettingsJson)?.defaultBitrate;
+        var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
+        Assert.Equal(Bitrate.Max, groupQuality?.value);
+        Assert.Equal(Bitrate.Max, personQuality?.value);
+        Assert.True(_db.HasMarker(ImportMarker.LockedMaxBitrate));
+    }
+
+    /// <summary>
+    /// Left empty and unlocked, it was the default the app picks for itself: it stays so.
+    /// </summary>
+    [Fact]
+    public void AQualityLeftEmptyAndUnlockedStaysEmpty()
+    {
+        _store.Save(new Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Bitrate?> { locked = false, value = null } }
+        });
+
+        _store.KeepLockedMaxBitrate();
+
+        Assert.Null(_store.Current.settings?.defaultBitrate?.value);
+    }
+
+    /// <summary>
+    /// Once: an administrator who locks the app's default afterwards keeps it.
+    /// </summary>
+    [Fact]
+    public void AnAdministratorWhoLocksTheAppsDefaultAfterwardsKeepsIt()
+    {
+        _store.Save(new Config());
+        _store.KeepLockedMaxBitrate();
+
+        var config = _store.Current;
+        config.settings ??= new Settings();
+        config.settings.defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null };
+        _store.Save(config);
+        new GlobalConfigurationStore(_db, _serialization).KeepLockedMaxBitrate();
+
+        Assert.Null(new GlobalConfigurationStore(_db, _serialization).Current.settings?.defaultBitrate?.value);
+    }
+
     // What a server that installed 0.68.1.0 and never set these stored by default, beside one
     // setting an administrator chose.
     private static Config FromADefault068() => new()

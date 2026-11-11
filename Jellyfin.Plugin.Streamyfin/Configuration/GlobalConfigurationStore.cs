@@ -147,6 +147,82 @@ public sealed class GlobalConfigurationStore
     }
 
     /// <summary>
+    /// Locks the playback quality at Max, once, where an earlier version locked it empty.
+    /// </summary>
+    /// <remarks>
+    /// The earlier versions labelled the empty value Max, and the apps before Auto read it as no
+    /// cap. This version names Max and leaves the empty value to the app's own default, Auto.
+    /// Unlocked, the empty value was the app's default then too, and stays. The marker keeps an
+    /// administrator who locks the app's default afterwards from being moved to Max.
+    /// </remarks>
+    public void KeepLockedMaxBitrate()
+    {
+        // Not fatal, like the switch above: it runs in the plugin's constructor.
+        try
+        {
+            if (_database.HasMarker(ImportMarker.LockedMaxBitrate))
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                var config = _cached ??= Read();
+                if (LockedMaxBitrate.CarryOver(config.settings))
+                {
+                    _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
+                    _cached = config;
+                    _logger?.LogInformation("Locked the playback quality at Max, which an earlier version stored as no value");
+                }
+            }
+
+            // A group or a person above the server's level wins over it: they are carried too.
+            foreach (var group in _database.GetSettingsGroups())
+            {
+                var settings = ReadRow(group.SettingsJson, $"group {group.Id}");
+                if (LockedMaxBitrate.CarryOver(settings))
+                {
+                    group.SettingsJson = _serialization.SerializeToJson(settings!);
+                    _database.SaveSettingsGroup(group);
+                    _logger?.LogInformation("Locked the playback quality of group {Group} at Max, which an earlier version stored as no value", group.Name);
+                }
+            }
+
+            foreach (var person in _database.GetAllUserSettingsOverrides())
+            {
+                var settings = ReadRow(person.SettingsJson, $"user {person.UserId}");
+                if (LockedMaxBitrate.CarryOver(settings))
+                {
+                    _database.SaveUserSettingsOverride(person.UserId, _serialization.SerializeToJson(settings!), person.NotificationsJson);
+                    _logger?.LogInformation("Locked the playback quality of user {User} at Max, which an earlier version stored as no value", person.UserId);
+                }
+            }
+
+            // After the configuration: a failure in between runs this again.
+            _database.Mark(ImportMarker.LockedMaxBitrate);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not lock the playback quality at Max. This is tried again on the next start");
+        }
+    }
+
+    // A row that does not parse is left as it is: one bad row would otherwise stop the
+    // carry-over of the rows after it, and keep the marker out for every later start.
+    private Settings.Settings? ReadRow(string json, string what)
+    {
+        try
+        {
+            return _serialization.DeserializeJson<Settings.Settings>(json);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger?.LogWarning(ex, "Could not read the settings stored for {What}. Its playback quality was left as it is", what);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Takes the example text earlier versions stored where a value goes out of the stored
     /// configuration, and names the settings it was in (#279).
     /// </summary>
@@ -212,6 +288,7 @@ public sealed class GlobalConfigurationStore
         Import(legacy, pluginConfigurationsPath);
         ForgetPlaceholders();
         SwitchOnAwaitedTitles();
+        KeepLockedMaxBitrate();
     }
 
     /// <summary>
