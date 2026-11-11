@@ -295,7 +295,8 @@ public static class SettingsForm
     ///
     /// <para>
     /// A nullable enum keeps null as its first choice. Only the playback quality is one
-    /// today, where null is the app's "Max", meaning no cap. P3.1 could not express that:
+    /// today, where null leaves the app its own default, Auto; Max, no cap, is a member of
+    /// its own, which the earlier versions offered as that null. P3.1 could not express that:
     /// json-editor labels a null entry "null" however its title is set, so the schema had
     /// to encode it as an empty string and the page had to turn the empty string back into
     /// null on the way out. Drawing the control ourselves, null is simply a choice.
@@ -307,7 +308,7 @@ public static class SettingsForm
 
         if (acceptsNull)
         {
-            choices.Add(new SettingsChoice(null, "Max"));
+            choices.Add(new SettingsChoice(null, "Auto"));
         }
 
         foreach (var member in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))

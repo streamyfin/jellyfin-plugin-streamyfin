@@ -290,6 +290,60 @@ public class GlobalConfigurationStoreTests : IDisposable
         Assert.False(_store.Current.notifications?.AwaitedTitle?.Enabled);
     }
 
+    /// <summary>
+    /// The earlier versions labelled the playback quality's empty value Max: one an
+    /// administrator locked there is locked at Max, which this version names, now that the
+    /// empty value leaves the app its own default, Auto.
+    /// </summary>
+    [Fact]
+    public void AQualityLockedEmptyByAnEarlierVersionIsLockedAtMax()
+    {
+        _store.Save(new Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null } }
+        });
+
+        _store.KeepLockedMaxBitrate();
+
+        var read = new GlobalConfigurationStore(_db, _serialization).Current.settings?.defaultBitrate;
+        Assert.True(read?.locked);
+        Assert.Equal(Bitrate.Max, read?.value);
+    }
+
+    /// <summary>
+    /// Left empty and unlocked, it was the default the app picks for itself: it stays so.
+    /// </summary>
+    [Fact]
+    public void AQualityLeftEmptyAndUnlockedStaysEmpty()
+    {
+        _store.Save(new Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Bitrate?> { locked = false, value = null } }
+        });
+
+        _store.KeepLockedMaxBitrate();
+
+        Assert.Null(_store.Current.settings?.defaultBitrate?.value);
+    }
+
+    /// <summary>
+    /// Once: an administrator who locks the app's default afterwards keeps it.
+    /// </summary>
+    [Fact]
+    public void AnAdministratorWhoLocksTheAppsDefaultAfterwardsKeepsIt()
+    {
+        _store.Save(new Config());
+        _store.KeepLockedMaxBitrate();
+
+        var config = _store.Current;
+        config.settings ??= new Settings();
+        config.settings.defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null };
+        _store.Save(config);
+        new GlobalConfigurationStore(_db, _serialization).KeepLockedMaxBitrate();
+
+        Assert.Null(new GlobalConfigurationStore(_db, _serialization).Current.settings?.defaultBitrate?.value);
+    }
+
     // What a server that installed 0.68.1.0 and never set these stored by default, beside one
     // setting an administrator chose.
     private static Config FromADefault068() => new()

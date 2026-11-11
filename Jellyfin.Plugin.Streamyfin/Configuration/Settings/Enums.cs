@@ -75,10 +75,13 @@ public enum ImageStyle
     cover
 };
 
-// Labelled and ordered as the app's quality picker, BITRATES in BitrateSelector.tsx:
-// Max, which is null here, then the fastest first. The values are what travels.
+// Labelled and ordered as the app's quality picker, BITRATES in constants/Playback.ts: Max,
+// then the fastest first. The values are what travels, except Max, which the app reads by its
+// key. No value at all leaves the app its own default, Auto, which measures the connection.
 public enum Bitrate
 {
+    [Display(Name = "Max")]
+    Max = 0,
     [Display(Name = "8 Mb/s")]
     _8MB = 8000000,
     [Display(Name = "4 Mb/s")]

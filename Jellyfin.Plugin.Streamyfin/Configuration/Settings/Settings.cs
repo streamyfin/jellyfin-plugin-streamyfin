@@ -520,7 +520,7 @@ public class Settings
     [NotNull]
     [Display(Name = "Default playback quality")]
     [SettingScope("Playback controls", Group = "Quality")]
-    public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null/MAX;
+    public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null: the app's default, Auto;
 
     [NotNull]
     [Display(Name = "Max auto play episode count", Description = "For the app before 0.56: how many episodes play one after another on their own, up to 7, and 0 or -1 for no limit. Auto play next episode is what turns auto play off. The app 0.56 reads this as the first still watching preset that allows at least as many episodes, 0 or -1 as Disabled, and a lock on this wins over a still watching preset left unlocked")]

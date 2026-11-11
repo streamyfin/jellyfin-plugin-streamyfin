@@ -8,6 +8,20 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-11, the empty playback quality is the app's own default
+
+The app's Auto quality (streamyfin/streamyfin#2388) measures the connection to the server and
+becomes the app's default. It reads the plugin's empty `defaultBitrate`, which Jellyfin leaves out
+of the JSON, as that default. The plugin labelled the empty value Max, so the form now says Auto,
+and Max is a member of `Bitrate` of its own: stored as 0, which a build rolled back to still reads,
+and sent to the app by its key, `Max`, which the app finds in its qualities whatever its version.
+
+CodeRabbit's review of the app pull request found the case this leaves: an administrator who
+locked the empty value meant Max, the only meaning it had. At its first start this version locks
+such a quality at Max, once, behind the `locked-max-bitrate` marker, so that an administrator who
+locks the app's default afterwards keeps it. An unlocked empty value was the app's default then
+too, and stays empty.
+
 ## 2026-10-22, a new title's message without its folder's ids
 
 #298, from the pass on the beta. Until its metadata names it, Jellyfin names a new movie after its

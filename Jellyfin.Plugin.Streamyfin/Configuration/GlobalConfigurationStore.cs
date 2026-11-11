@@ -147,6 +147,47 @@ public sealed class GlobalConfigurationStore
     }
 
     /// <summary>
+    /// Locks the playback quality at Max, once, where an earlier version locked it empty.
+    /// </summary>
+    /// <remarks>
+    /// The earlier versions labelled the empty value Max, and the apps before Auto read it as no
+    /// cap. This version names Max and leaves the empty value to the app's own default, Auto.
+    /// Unlocked, the empty value was the app's default then too, and stays. The marker keeps an
+    /// administrator who locks the app's default afterwards from being moved to Max.
+    /// </remarks>
+    public void KeepLockedMaxBitrate()
+    {
+        // Not fatal, like the switch above: it runs in the plugin's constructor.
+        try
+        {
+            if (_database.HasMarker(ImportMarker.LockedMaxBitrate))
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                var config = _cached ??= Read();
+                var quality = config.settings?.defaultBitrate;
+                if (quality is { locked: true, value: null })
+                {
+                    quality.value = Bitrate.Max;
+                    _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
+                    _cached = config;
+                    _logger?.LogInformation("Locked the playback quality at Max, which an earlier version stored as no value");
+                }
+            }
+
+            // After the configuration: a failure in between runs this again.
+            _database.Mark(ImportMarker.LockedMaxBitrate);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not lock the playback quality at Max. This is tried again on the next start");
+        }
+    }
+
+    /// <summary>
     /// Takes the example text earlier versions stored where a value goes out of the stored
     /// configuration, and names the settings it was in (#279).
     /// </summary>
@@ -212,6 +253,7 @@ public sealed class GlobalConfigurationStore
         Import(legacy, pluginConfigurationsPath);
         ForgetPlaceholders();
         SwitchOnAwaitedTitles();
+        KeepLockedMaxBitrate();
     }
 
     /// <summary>
