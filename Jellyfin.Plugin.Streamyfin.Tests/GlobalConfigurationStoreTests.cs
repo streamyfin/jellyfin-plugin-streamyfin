@@ -311,6 +311,30 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
+    /// A group or a person can lock it empty too, and a level above the server's wins: both
+    /// are locked at Max with it.
+    /// </summary>
+    [Fact]
+    public void AQualityLockedEmptyInAGroupOrForAPersonIsLockedAtMaxToo()
+    {
+        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        {
+            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+        });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        var person = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+
+        _store.KeepLockedMaxBitrate();
+
+        var groupQuality = _serialization.DeserializeJson<Settings>(_db.GetSettingsGroup(group.Id)!.SettingsJson)?.defaultBitrate;
+        var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
+        Assert.Equal(Bitrate.Max, groupQuality?.value);
+        Assert.True(groupQuality?.locked);
+        Assert.Equal(Bitrate.Max, personQuality?.value);
+    }
+
+    /// <summary>
     /// Left empty and unlocked, it was the default the app picks for itself: it stays so.
     /// </summary>
     [Fact]

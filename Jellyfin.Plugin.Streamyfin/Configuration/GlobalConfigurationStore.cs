@@ -168,13 +168,33 @@ public sealed class GlobalConfigurationStore
             lock (_gate)
             {
                 var config = _cached ??= Read();
-                var quality = config.settings?.defaultBitrate;
-                if (quality is { locked: true, value: null })
+                if (LockedMaxBitrate.CarryOver(config.settings))
                 {
-                    quality.value = Bitrate.Max;
                     _database.SaveGlobalConfigJson(_serialization.SerializeToJson(config));
                     _cached = config;
                     _logger?.LogInformation("Locked the playback quality at Max, which an earlier version stored as no value");
+                }
+            }
+
+            // A group or a person above the server's level wins over it: they are carried too.
+            foreach (var group in _database.GetSettingsGroups())
+            {
+                var settings = _serialization.DeserializeJson<Settings.Settings>(group.SettingsJson);
+                if (LockedMaxBitrate.CarryOver(settings))
+                {
+                    group.SettingsJson = _serialization.SerializeToJson(settings!);
+                    _database.SaveSettingsGroup(group);
+                    _logger?.LogInformation("Locked the playback quality of group {Group} at Max, which an earlier version stored as no value", group.Name);
+                }
+            }
+
+            foreach (var person in _database.GetAllUserSettingsOverrides())
+            {
+                var settings = _serialization.DeserializeJson<Settings.Settings>(person.SettingsJson);
+                if (LockedMaxBitrate.CarryOver(settings))
+                {
+                    _database.SaveUserSettingsOverride(person.UserId, _serialization.SerializeToJson(settings!), person.NotificationsJson);
+                    _logger?.LogInformation("Locked the playback quality of user {User} at Max, which an earlier version stored as no value", person.UserId);
                 }
             }
 
