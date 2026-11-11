@@ -179,7 +179,7 @@ public sealed class GlobalConfigurationStore
             // A group or a person above the server's level wins over it: they are carried too.
             foreach (var group in _database.GetSettingsGroups())
             {
-                var settings = _serialization.DeserializeJson<Settings.Settings>(group.SettingsJson);
+                var settings = ReadRow(group.SettingsJson, $"group {group.Id}");
                 if (LockedMaxBitrate.CarryOver(settings))
                 {
                     group.SettingsJson = _serialization.SerializeToJson(settings!);
@@ -190,7 +190,7 @@ public sealed class GlobalConfigurationStore
 
             foreach (var person in _database.GetAllUserSettingsOverrides())
             {
-                var settings = _serialization.DeserializeJson<Settings.Settings>(person.SettingsJson);
+                var settings = ReadRow(person.SettingsJson, $"user {person.UserId}");
                 if (LockedMaxBitrate.CarryOver(settings))
                 {
                     _database.SaveUserSettingsOverride(person.UserId, _serialization.SerializeToJson(settings!), person.NotificationsJson);
@@ -204,6 +204,21 @@ public sealed class GlobalConfigurationStore
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Could not lock the playback quality at Max. This is tried again on the next start");
+        }
+    }
+
+    // A row that does not parse is left as it is: one bad row would otherwise stop the
+    // carry-over of the rows after it, and keep the marker out for every later start.
+    private Settings.Settings? ReadRow(string json, string what)
+    {
+        try
+        {
+            return _serialization.DeserializeJson<Settings.Settings>(json);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger?.LogWarning(ex, "Could not read the settings stored for {What}. Its playback quality was left as it is", what);
+            return null;
         }
     }
 

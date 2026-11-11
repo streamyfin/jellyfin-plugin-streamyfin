@@ -22,6 +22,12 @@ such a quality at Max, once, behind the `locked-max-bitrate` marker, so that an 
 locks the app's default afterwards keeps it. An unlocked empty value was the app's default then
 too, and stays empty.
 
+A group or a person who locked it empty is locked at Max at that start too, as those levels win
+over the server's. A row that does not parse is left as it is and logged, so it holds back neither
+the rows after it nor the marker. A backup now says its empty quality is the app's Auto
+(`emptyBitrateIsAuto`): a file without it is older, and its restore locks at Max what it locked
+empty, at every level.
+
 ## 2026-10-22, a new title's message without its folder's ids
 
 #298, from the pass on the beta. Until its metadata names it, Jellyfin names a new movie after its

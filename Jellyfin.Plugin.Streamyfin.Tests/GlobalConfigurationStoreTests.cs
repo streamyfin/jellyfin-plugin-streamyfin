@@ -335,6 +335,35 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
+    /// A row that does not parse is left as it is: the rows after it are carried all the same,
+    /// and the marker is written, so the next start does not try again over it.
+    /// </summary>
+    [Fact]
+    public void AnUnreadableRowIsLeftAsItIsAndTheOthersAreCarried()
+    {
+        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        {
+            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+        });
+        var broken = _db.SaveSettingsGroup(new SettingsGroup { Name = "Broken", SettingsJson = "{not json" });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        var brokenPerson = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(brokenPerson, "{not json", "{}");
+        var person = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+
+        _store.KeepLockedMaxBitrate();
+
+        Assert.Equal("{not json", _db.GetSettingsGroup(broken.Id)!.SettingsJson);
+        Assert.Equal("{not json", _db.GetUserSettingsOverride(brokenPerson)!.SettingsJson);
+        var groupQuality = _serialization.DeserializeJson<Settings>(_db.GetSettingsGroup(group.Id)!.SettingsJson)?.defaultBitrate;
+        var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
+        Assert.Equal(Bitrate.Max, groupQuality?.value);
+        Assert.Equal(Bitrate.Max, personQuality?.value);
+        Assert.True(_db.HasMarker(ImportMarker.LockedMaxBitrate));
+    }
+
+    /// <summary>
     /// Left empty and unlocked, it was the default the app picks for itself: it stays so.
     /// </summary>
     [Fact]
