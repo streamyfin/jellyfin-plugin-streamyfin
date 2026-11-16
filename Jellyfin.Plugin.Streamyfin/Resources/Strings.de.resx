@@ -62,6 +62,14 @@
         <value>{0} hinzugefügt</value>
         <comment>0 = Media type</comment>
     </data>
+  <data name="AwaitedTitleArrivedTitle" xml:space="preserve">
+        <value>Jetzt auf dem Server</value>
+        <comment>Title of the notification about a movie or a show the person asked to be told about</comment>
+    </data>
+  <data name="AwaitedTitleArrivedBody" xml:space="preserve">
+        <value>{0}, worauf du gewartet hast, ist hier.</value>
+        <comment>0 = Name of the movie or the show, with its year</comment>
+    </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
         <value>Episode hinzugefügt</value>
     </data>
