@@ -496,6 +496,16 @@ public class Settings
     [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<OrientationLock>? defaultVideoOrientation { get; set; }
     
+    // The app's master switch over every player gesture, streamyfin/streamyfin#2440.
+    // First in the Gestures group: the form draws a group in declaration order.
+    // Off, it stops every gesture whatever its own switch says, and the
+    // app keeps their values for when it is turned back on. No default until the app
+    // reads it: an unlocked one would be written into every refreshing app's settings.
+    [NotNull]
+    [Display(Name = "Player gestures", Description = "Turn off to stop every swipe, hold, pinch and double tap in the player. Tapping still shows the controls. No released app reads it yet")]
+    [SettingScope("Playback controls", Group = "Gestures")]
+    public Lockable<bool>? enablePlayerGestures { get; set; } // = true;
+
     [NotNull]
     [Display(Name = "Safe area in video controls", Description = "Enable or disable the safe area for video controls")]
     [SettingScope("Playback controls", Group = "Gestures")]

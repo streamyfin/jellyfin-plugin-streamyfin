@@ -139,6 +139,11 @@ settings:
     value: false  # Disable haptic/vibration feedback
 
   # ==================== Swipe Gesture Controls ====================
+  # For the app's coming master switch, streamyfin/streamyfin#2440: no released app reads it yet.
+  enablePlayerGestures:
+    locked: false
+    value: true  # false stops every swipe, hold, pinch and double tap in the player, whatever the switches below say
+
   enableHorizontalSwipeSkip:
     locked: false
     value: true  # Enable swipe left/right to skip
