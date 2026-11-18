@@ -346,6 +346,24 @@ public class SettingsFormTests
     }
 
     /// <summary>
+    /// The master switch over the player's gestures leads its card, the way the app
+    /// puts it above the switches it governs.
+    /// </summary>
+    /// <remarks>
+    /// The form keeps declaration order within a group, and two settings declared
+    /// earlier in the file share the Gestures group, so a declaration among the
+    /// gesture switches drew it third.
+    /// </remarks>
+    [Fact]
+    public void ThePlayerGesturesSwitchLeadsItsGroup()
+    {
+        var gestures = SettingsForm.Describe()
+            .Where(f => f.Category == "Playback controls" && f.Group == "Gestures");
+
+        Assert.Equal("enablePlayerGestures", gestures.First().Key);
+    }
+
+    /// <summary>
     /// Whether an administrator can pin a setting travels with it, since that is a
     /// second control beside the value and the page has to know to draw it.
     /// </summary>
