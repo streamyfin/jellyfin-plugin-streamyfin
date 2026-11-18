@@ -181,6 +181,14 @@ turned on from now on starts with, and a series keeps its own after that, locked
 only is the network's member 0, the app's default, so a lock written without a value is that
 one. Once the app reads the keys, the parity tests ask for the entry to go.
 
+**Ahead of the app: the player gestures master switch.** `enablePlayerGestures` is declared
+for streamyfin#2440, which adds a switch above the six gesture switches, before the app reads it,
+so it is in `DeclaredAheadOfTheApp` under that pull request and ships no default, like the next
+episodes keys. Locked off, it stops every gesture whatever their own switches say, and the app
+keeps those switches' values for when it is turned back on. It completes the gestures declared
+above rather than replacing them: an administrator who locks the six on still needs this one
+locked too, or a user can turn every gesture off with it.
+
 ## The manifest, and the test that reads it
 
 `Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json` lists what the app
