@@ -63,11 +63,11 @@
         <comment>0 = Media type</comment>
     </data>
   <data name="AwaitedTitleArrivedTitle" xml:space="preserve">
-        <value>Elo um Server</value>
+        <value>Elo um Servery</value>
         <comment>Title of the notification about a movie or a show the person asked to be told about</comment>
     </data>
   <data name="AwaitedTitleArrivedBody" xml:space="preserve">
-        <value>{0}, wourop du gewaart hues, ass hei.</value>
+        <value>{0}, wourop s du gewaart hues, ass hei.</value>
         <comment>0 = Name of the movie or the show, with its year</comment>
     </data>
   <data name="EpisodeAddedTitle" xml:space="preserve">
@@ -109,7 +109,7 @@
         <value>Iergendeen</value>
     </data>
   <data name="SeerrTestTitle" xml:space="preserve">
-        <value>Seerr ass verbonnen</value>
+        <value>Seerr ass verbonn</value>
     </data>
   <data name="SeerrTestBody" xml:space="preserve">
         <value>Dëst ass d'Testmeldung vun dengem Seerr-Server</value>
