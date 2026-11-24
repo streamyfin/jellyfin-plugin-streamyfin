@@ -27,6 +27,7 @@ public class AppDefaultsTests
     [InlineData("skipIntro", "\"ask\"")]
     [InlineData("maxAutoPlayEpisodeCount", "3")]
     [InlineData("stillWatchingPreset", "\"default\"")]
+    [InlineData("confirmBeforeStoppingPlayback", "false")]
     [InlineData("defaultPlaybackSpeed", "1")]
     public void ASettingThePluginDeclaresNothingForHasTheApps(string key, string expected)
     {

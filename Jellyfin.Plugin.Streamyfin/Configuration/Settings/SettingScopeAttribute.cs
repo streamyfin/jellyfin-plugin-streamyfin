@@ -19,9 +19,9 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration.Settings;
 ///
 /// <para>
 /// One deliberate departure from the app's arrangement: it shows the two native player
-/// toggles on the TV screen, because a user only ever sees their own device. An
-/// administrator configures every platform in one sitting, so they sit together in a
-/// Video player group on the playback page.
+/// toggles and the stop confirmation on the TV screen, because a user only ever sees their
+/// own device. An administrator configures every platform in one sitting, so they sit
+/// together in a Video player group on the playback page.
 /// </para>
 ///
 /// <para>

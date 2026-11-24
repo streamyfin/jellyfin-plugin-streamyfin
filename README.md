@@ -132,7 +132,7 @@ Add this URL the same way as above, beside the one you already have:
 https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest-unstable.json
 ```
 
-An unstable build is numbered above the release it follows: after 0.68.1.0 they are 0.68.1.1, 0.68.1.2 and so on, counting commits. The next release, 0.70.0.0, is above all of them, so **removing the unstable repository puts you back on the stable path by itself**: the next release is offered as an ordinary update. Nothing has to be uninstalled.
+An unstable build is numbered above the release it follows: after 0.70.0.0 they are 0.70.0.1, 0.70.0.2 and so on, counting commits. The next release is above all of them, so **removing the unstable repository puts you back on the stable path by itself**: the next release is offered as an ordinary update. Nothing has to be uninstalled.
 
 Keep both repositories and you are on the unstable channel, since its builds are the newer number until the next release goes out. That is the point of it, and it is the reason to remove the URL once you are done testing.
 
