@@ -262,6 +262,19 @@ describe("a value the plugin sends in another shape", () => {
         expect(one(root, "defaultBitrate").wireNote).toContain("null is Auto");
     });
 
+    // settings.ts already imports one module of the app whole (ScreenOrientation).
+    test("a module the normalizer imports whole is read member by member", () => {
+        const root = checkout(
+            settings(
+                "  defaultBitrate?: Bitrate;",
+                "  defaultBitrate: Bitrates.AUTO_BITRATE,",
+                'import * as Bitrates from "@/utils/bitrate";\n'
+                    + normalize('  if (settingsKey === "defaultBitrate" && value == null) return Bitrates.AUTO_BITRATE;')),
+            { "utils/bitrate.ts": 'export const AUTO_BITRATE = { key: "Auto", value: undefined };\n' });
+
+        expect(one(root, "defaultBitrate")).toMatchObject({ default: { key: "Auto" }, wireDefault: null });
+    });
+
     // A package's code is not run here: the name is missing, which says which one.
     test("a package the normalizer imports is not loaded for it", () => {
         const root = checkout(settings(

@@ -293,12 +293,12 @@ function normalizer(scope, values) {
     };
     // From the app's own modules only: a package's code is not run here, so the name is
     // missing instead, and the error says which one.
-    for (const [name, { module: from }] of module.imports) {
+    for (const [name, { module: from, namespace }] of module.imports) {
         if (Object.hasOwn(context, name) || !(from.startsWith('@/') || from.startsWith('.'))) continue;
         let read;
         Object.defineProperty(context, name, {
             enumerable: true,
-            get: () => (read ??= { value: imported(name, [], scope) }).value,
+            get: () => (read ??= { value: namespace ? members(name, scope) : imported(name, [], scope) }).value,
         });
     }
 
@@ -314,6 +314,18 @@ function normalizer(scope, values) {
             throw new Unreadable(`normalizePluginValue could not be run here: ${error.message}`);
         }
     };
+}
+
+/** A module imported whole, each member read from its source the first time it is asked for. */
+function members(name, scope) {
+    const read = new Map();
+    return new Proxy({}, {
+        get: (_, member) => {
+            if (typeof member !== 'string') return undefined;
+            if (!read.has(member)) read.set(member, imported(name, [member], scope));
+            return read.get(member);
+        },
+    });
 }
 
 /**
