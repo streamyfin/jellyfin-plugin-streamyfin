@@ -718,7 +718,7 @@ public class Settings
     public Lockable<bool>? showDownloadLiveActivity { get; set; } // = true;
 
     [NotNull]
-    [Display(Name = "HEVC for Chromecast", Description = "Offer HEVC to a Chromecast, which only some models decode")]
+    [Display(Name = "HEVC for Chromecast", Description = "For the app before 0.56: offer HEVC to a Chromecast, which only some models decode. The app 0.56 casts through Jellyfin's own receiver, which works out what each Chromecast can play, and no longer reads this")]
     [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<bool>? enableH265ForChromecast { get; set; } // = false;
 
@@ -820,6 +820,11 @@ public class Settings
                       + "the engine each device is set to, MPV or ExoPlayer.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
+
+    [NotNull]
+    [Display(Name = "Confirm before stopping playback", Description = "Apple TV and Android TV only. Ask \"Stop playback?\" before Back leaves the player, rather than stopping straight away. Read by the app 0.56 and later; the apps before it always ask")]
+    [SettingScope("Playback controls", Group = "Video player")]
+    public Lockable<bool>? confirmBeforeStoppingPlayback { get; set; } // = false
 
 }
 

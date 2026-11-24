@@ -8,7 +8,7 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
-## 2026-11-11, the empty playback quality is the app's own default
+## 2026-11-24, the empty playback quality is the app's own default
 
 The app's Auto quality (streamyfin/streamyfin#2388) measures the connection to the server and
 becomes the app's default. It reads the plugin's empty `defaultBitrate`, which Jellyfin leaves out
@@ -17,7 +17,7 @@ and Max is a member of `Bitrate` of its own: stored as 0, which a build rolled b
 and sent to the app by its key, `Max`, which the app finds in its qualities whatever its version.
 
 CodeRabbit's review of the app pull request found the case this leaves: an administrator who
-locked the empty value meant Max, the only meaning it had. At its first start this version locks
+locked the empty value meant Max, the only meaning it had. At its first start 0.70.1 locks
 such a quality at Max, once, behind the `locked-max-bitrate` marker, so that an administrator who
 locks the app's default afterwards keeps it. An unlocked empty value was the app's default then
 too, and stays empty.
@@ -27,6 +27,55 @@ over the server's. A row that does not parse is left as it is and logged, so it 
 the rows after it nor the marker. A backup now says its empty quality is the app's Auto
 (`emptyBitrateIsAuto`): a file without it is older, and its restore locks at Max what it locked
 empty, at every level.
+
+This waited for 0.70.0.0 and goes out in 0.70.1. Its line moved from the 0.70.0 notes, kept as
+published, to `release-notes-0.70.1.md`.
+
+## 2026-11-24, 0.70.0.0 released
+
+The last pass ran on the beta with release candidate 7 (develop 15c92e3) and the app as the stores
+have it, 0.55.2, on an iPhone and on a Google TV Streamer. The locks reached the app: on the TV, a
+group's forward skip locked at 45 and the server's rewind locked at 20 moved a paused video by 45
+and 20 seconds, and a locked subtitle row showed greyed out, passed over by the focus. Back during
+playback still asked "Stop playback?" on 0.55, as #303 expects of the apps before 0.56. A movie
+requested in Seerr arrived, and its message reached the iPhone without the folder's ids, as #298
+meant. The steps that need the app 0.56 were not part of it, nor were an Apple TV and an Android
+phone, for want of one.
+
+#121 went into main as a merge commit, the one merge here that is not squashed, and main's tree
+after it was develop's at 15c92e3, the candidate tested. Create release, with 0.70.0.0 typed in
+since the computed number would have been 1.0.0.0, published both builds. The manifest has their two
+entries, `targetAbi` 10.11.9.0 and 12.0.0.0, and a fresh Jellyfin 10.11.11 and 12.4.0 each
+installed its own build from the catalogue. `release-notes-0.70.0.md` now holds the text as
+published, with screenshots of the released build and the changes sorted by kind. The merge closed
+the 22 issues #121 named that were still open.
+
+The pass left two things for later. The "Watching, then new" example of the Home tab, new in 0.70,
+has a Latest Movies row that stays empty on Jellyfin 12 and 13, since Jellyfin answers no movie for
+it without a library (#307). And a movie Jellyfin adds twice, when a library walk removes a folder
+item of its name and adds the movie again, is announced twice, as 0.68 did too (#308).
+
+## 2026-11-24, the app 0.56 on stopping playback and on casting
+
+#303, after the weekly App parity check failed on the morning of 2026-10-26. Two pull requests had
+reached the app's develop on 2026-10-21. streamyfin/streamyfin#2317 adds
+`confirmBeforeStoppingPlayback`: on Apple TV and Android TV, Back now stops playback straight away
+unless it is on, where the apps before 0.56 always ask "Stop playback?". It is declared without a
+default, like the four other settings of the app 0.56. streamyfin/streamyfin#2075 casts through
+Jellyfin's own receiver, which runs the playback negotiation itself, and drops
+`enableH265ForChromecast` with the two Chromecast device profiles it picked between. The 0.55 apps
+in the field still pick their profile from it, so it stays, in `KeptForAppsInTheField` beside
+`maxAutoPlayEpisodeCount`, and its description says it is for the app before 0.56.
+
+The full review found that leaving the manifest also left its declared default unchecked: flipped
+to `true`, every parity test still passed. A test now holds the declared default of a kept key to
+the one `AppDefaults` keeps for the apps in the field. The two lists of kept keys, and their
+defaults copied from the app's source, are still written by hand: #304.
+
+Seen on the beta's 12.2.0 test instance, the release candidate's DLL swapped for the branch's and
+put back: 94 fields in the settings form instead of 93, the new one under Playback controls, Video
+player, and the setting reaching an account that is not an administrator as
+`{"locked": true, "value": true}` once locked, then absent again.
 
 ## 2026-10-22, a new title's message without its folder's ids
 
