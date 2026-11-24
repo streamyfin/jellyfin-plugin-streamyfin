@@ -8,6 +8,28 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-24, the app 0.56 on stopping playback and on casting
+
+#303, after the weekly App parity check failed on the morning of 2026-10-26. Two pull requests had
+reached the app's develop on 2026-10-21. streamyfin/streamyfin#2317 adds
+`confirmBeforeStoppingPlayback`: on Apple TV and Android TV, Back now stops playback straight away
+unless it is on, where the apps before 0.56 always ask "Stop playback?". It is declared without a
+default, like the four other settings of the app 0.56. streamyfin/streamyfin#2075 casts through
+Jellyfin's own receiver, which runs the playback negotiation itself, and drops
+`enableH265ForChromecast` with the two Chromecast device profiles it picked between. The 0.55 apps
+in the field still pick their profile from it, so it stays, in `KeptForAppsInTheField` beside
+`maxAutoPlayEpisodeCount`, and its description says it is for the app before 0.56.
+
+The full review found that leaving the manifest also left its declared default unchecked: flipped
+to `true`, every parity test still passed. A test now holds the declared default of a kept key to
+the one `AppDefaults` keeps for the apps in the field. The two lists of kept keys, and their
+defaults copied from the app's source, are still written by hand: #304.
+
+Seen on the beta's 12.2.0 test instance, the release candidate's DLL swapped for the branch's and
+put back: 94 fields in the settings form instead of 93, the new one under Playback controls, Video
+player, and the setting reaching an account that is not an administrator as
+`{"locked": true, "value": true}` once locked, then absent again.
+
 ## 2026-10-22, a new title's message without its folder's ids
 
 #298, from the pass on the beta. Until its metadata names it, Jellyfin names a new movie after its
