@@ -5,7 +5,7 @@
         "sections": [
             { "title": "Continue Watching", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/UserItems/Resume", "query": { "includeItemTypes": "Movie,Episode" } } },
             { "title": "Next Up", "kind": "nextUp", "orientation": "horizontal", "nextUp": { "limit": 20, "enableResumable": false } },
-            { "title": "Latest Movies", "kind": "latest", "orientation": "vertical", "latest": { "includeItemTypes": ["Movie"], "limit": 20 } },
+            { "title": "Latest Movies", "kind": "items", "orientation": "vertical", "items": { "includeItemTypes": ["Movie"], "sortBy": ["DateCreated"], "sortOrder": ["Descending"], "limit": 20 } },
             { "title": "Latest Episodes", "kind": "latest", "orientation": "horizontal", "latest": { "includeItemTypes": ["Episode"], "limit": 20 } }
         ]
     },

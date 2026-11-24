@@ -351,6 +351,21 @@ describe("the examples", () => {
         for (const section of resumes) expect(section.custom.query).toEqual({ includeItemTypes: "Movie,Episode" });
     });
 
+    // Without a library, Jellyfin 12 and 13 answer Latest for movies with none (#307), so a
+    // row of new films lists them by the date they were added.
+    test("a row of new movies asks for them by date added, not Latest", () => {
+        const sections = EXAMPLES.flatMap((example) => example.sections);
+        const latestMovies = sections.filter((section) => section.latest?.includeItemTypes?.includes("Movie"));
+        const newMovies = sections.filter((section) => section.title === "Latest Movies");
+
+        expect(latestMovies).toEqual([]);
+        expect(newMovies.length).toBeGreaterThan(0);
+        for (const section of newMovies) {
+            expect(section.kind).toBe("items");
+            expect(section.items).toMatchObject({ includeItemTypes: ["Movie"], sortBy: ["DateCreated"], sortOrder: ["Descending"] });
+        }
+    });
+
     const KNOWN = {
         includeItemTypes: ["Movie", "Series", "Episode"],
         filters: ["IsUnplayed", "IsPlayed", "IsFavorite", "IsResumable"],
