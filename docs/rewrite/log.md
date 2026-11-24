@@ -8,6 +8,29 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-24, the generator reads the app's develop again
+
+The weekly App parity check had failed since 2026-11-02 on an error rather than on a difference, so
+it said nothing about what the app had moved. Three things in the app's develop stopped the
+generator, one behind the other. The default of `autoBitrateTtlMinutes` is
+`BITRATE_DETECTION_TTL_MS / 60_000` (streamyfin/streamyfin#2388), a constant of another module
+divided, and the generator only ran arithmetic on literals: it now works out `+ - * / % **` when
+both sides read as numbers, wherever they come from. `normalizePluginValue` now returns
+`AUTO_BITRATE` for the empty quality the plugin sends, and the generator handed it three names: it
+now gets every name `settings.ts` imports from the app's own modules, each read from its source the
+first time it is asked for, so the next import needs nothing here, and the note on `defaultBitrate`
+says null is Auto. A package's code is still not run for it. Arithmetic on a built-in such as
+`Math.PI * 2` goes to `runPure` as before.
+Last, the TV settings screen moved to `app/(auth)/(tabs)/(more)/settings.tv.tsx` with the Expo SDK
+58 move (streamyfin/streamyfin#2458), and `CHOICES` still named the old path.
+
+The manifest is not regenerated here. The app's develop now has five settings the plugin does not
+declare, `autoBitrateAdapt`, `autoBitrateInNetworkMin`, `autoBitrateRatio`, `autoBitrateTtlMinutes`
+(streamyfin/streamyfin#2388 and #2482) and `matchRefreshRate` (streamyfin/streamyfin#2418), and Auto
+as its default quality, which #305 brings in. Until they are declared the check fails on that
+difference, which is what it is for. The app now runs the generator on each of its own pull
+requests too, so the next one is seen before it lands.
+
 ## 2026-11-24, 0.70.0.0 released
 
 The last pass ran on the beta with release candidate 7 (develop 15c92e3) and the app as the stores
