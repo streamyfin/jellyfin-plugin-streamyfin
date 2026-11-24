@@ -1,5 +1,9 @@
 <!-- The text of the 0.70.0.0 release as it was published on 2026-11-24, screenshots of the released build on Jellyfin 12.4 included. -->
 
+> [!CAUTION]
+> **Back up everything before you update.** Stop your Jellyfin server and take a full backup of its data and configuration folders first, as Jellyfin asks before every upgrade.
+> 0.70 moves the plugin's configuration out of `Jellyfin.Plugin.Streamyfin.xml` and the device registrations out of `streamyfin_plugin.db` into a new database. It leaves both old files as they were, and they are what [going back to 0.68.1.0](https://github.com/streamyfin/jellyfin-plugin-streamyfin#going-back-to-068100) reads, so keep a copy of them. Then read [Before you update](#before-you-update).
+
 Welcome to **0.70.0.0** of the Streamyfin plugin!
 
 This is the rewrite. The plugin grows from a YAML box with a handful of options into a dashboard that sets every setting of the app, for everyone, for a group or for one user, and it learns to send the notifications people actually want, in their own language.
