@@ -25,20 +25,20 @@
         <value>Playback started</value>
     </data>
     <data name="UserWatching" xml:space="preserve">
-        <!-- 0 = Username -->
         <value>{0} watching</value>
+        <comment>0 = Username</comment>
     </data>
     <data name="SeriesSeasonAndEpisode" xml:space="preserve">
-        <!-- 0 = Name, 1 = Season index number, 2 = Episode index number -->
         <value>{0}, S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
     </data>
     <data name="SeriesSeason" xml:space="preserve">
-        <!-- 0 = Name, 1 = Season index number -->
         <value>{0}, Season {1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
     </data>
     <data name="Series Episode" xml:space="preserve">
-        <!-- 0 = Name, 1 = Episode index number -->
         <value>{0}, Episode {1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
     </data>
     <!-- endregion PlaybackStartEvent -->
     
@@ -47,8 +47,8 @@
         <value>Session started</value>
     </data>
     <data name="UserNowOnline" xml:space="preserve">
-        <!-- 0 = Username -->
         <value>{0} is now online</value>
+        <comment>0 = Username</comment>
     </data>
     <!-- endregion SessionStartEvent -->
 
@@ -57,49 +57,184 @@
         <value>User locked out</value>
     </data>
     <data name="UserHasBeenLockedOut" xml:space="preserve">
-        <!-- 0 = Username -->
         <value>{0} has been locked out</value>
+        <comment>0 = Username</comment>
     </data>
-    <!-- endregion SessionStartEvent -->
+    <!-- endregion UserLockedOutEvent -->
 
     <!-- region ItemAddedEvent -->
     <data name="ItemAddedTitle" xml:space="preserve">
-        <!-- 0 = Media type -->
         <value>{0} added</value>
+        <comment>0 = Media type</comment>
+    </data>
+    <data name="AwaitedTitleArrivedTitle" xml:space="preserve">
+        <value>Now on the server</value>
+        <comment>Title of the notification about a movie or a show the person asked to be told about</comment>
+    </data>
+    <data name="AwaitedTitleArrivedBody" xml:space="preserve">
+        <value>{0}, which you were waiting for, is here.</value>
+        <comment>0 = Name of the movie or the show, with its year</comment>
     </data>
     <data name="EpisodeAddedTitle" xml:space="preserve">
-        <!-- 0 = Media type -->
         <value>Episode added</value>
     </data>
     <data name="EpisodesAddedTitle" xml:space="preserve">
-        <!-- 0 = Media type -->
         <value>Episodes added</value>
     </data>
 
     <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
-        <!-- 0 = Series Name, 1 = Episode index, 2 = Season index -->
         <value>{0} - Episode {1} added for Season {2}</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
     </data>
     <data name="EpisodeAdded" xml:space="preserve">
-        <!-- 0 = Series Name, 1 = Episode index -->
         <value>{0} - Episode {1} added</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
     </data>
     <data name="EpisodeAddedForSeason" xml:space="preserve">
-        <!-- 0 = Series Name, 1 = Season index -->
         <value>{0} - Episode added for Season {1}</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
     </data>
     <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
-        <!-- 0 = Series Name, 1 = Episode count, 2 = Season index -->
         <value>{0} - {1} episodes added for Season {2}</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
     </data>
     <data name="EpisodesAddedToSeries" xml:space="preserve">
-        <!-- 0 = Series Name, 1 = Episode count -->
         <value>{0} - {1} episodes added</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
     </data>
     <!-- endregion ItemAddedEvent -->
 
     <data name="NameAndYear" xml:space="preserve">
-        <!-- 0 = Name, 1 = Year -->
         <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
     </data>
+
+    <!-- region Seerr webhook -->
+    <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>Unknown media</value>
+    </data>
+    <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>Someone</value>
+    </data>
+
+    <data name="SeerrTestTitle" xml:space="preserve">
+        <value>Seerr is connected</value>
+    </data>
+    <data name="SeerrTestBody" xml:space="preserve">
+        <value>This is the test notification from your Seerr server</value>
+    </data>
+
+    <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>New media request</value>
+    </data>
+    <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>{0} requested {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+
+    <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Request approved automatically</value>
+    </data>
+    <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>{0} requested {1}, and it was approved automatically</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+
+    <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>Request failed</value>
+    </data>
+    <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>{1}, requested by {0}, could not be processed</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+
+    <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>Request approved</value>
+    </data>
+    <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>Your request for {1} was approved</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+
+    <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Request declined</value>
+    </data>
+    <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>Your request for {1} was declined</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+
+    <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>Ready to watch</value>
+    </data>
+    <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>{1} is available now</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+    <!-- endregion Seerr webhook -->
+
+    <!-- region Admin events -->
+    <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Scheduled task failed</value>
+    </data>
+    <data name="TaskFailed" xml:space="preserve">
+        <value>{0} failed</value>
+        <comment>0 = Task name</comment>
+    </data>
+    <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>{0} failed: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+    <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Plugin installed</value>
+    </data>
+    <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Plugin updated</value>
+    </data>
+    <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Plugin uninstalled</value>
+    </data>
+    <data name="PluginInstalled" xml:space="preserve">
+        <value>{0} was installed</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+    <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>{0} {1} was installed</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+    <data name="PluginUpdated" xml:space="preserve">
+        <value>{0} was updated</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+    <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>{0} was updated to {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+    <data name="PluginUninstalled" xml:space="preserve">
+        <value>{0} was uninstalled</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+    <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>{0} {1} was uninstalled</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+    <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Failed sign in</value>
+    </data>
+    <data name="SignInFailed" xml:space="preserve">
+        <value>{0} could not sign in</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+    <data name="SignInFailedFrom" xml:space="preserve">
+        <value>{0} could not sign in from {1}</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+    <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>A sign in was refused</value>
+    </data>
+    <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>A sign in from {0} was refused</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+    <!-- endregion Admin events -->
 </root>

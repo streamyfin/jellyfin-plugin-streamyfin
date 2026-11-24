@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
+  "timezone": "Europe/Paris",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Jellyfin's own packages pin the oldest server each target supports, which is a decision rather than a version to keep current. Directory.Build.props says why.",
+      "matchPackageNames": ["Jellyfin.Controller", "Jellyfin.Model"],
+      "enabled": false
+    },
+    {
+      "description": "EF Core follows the server's own pin, not the newest release: the host provides the runtime assembly, and a plugin ahead of it fails to load.",
+      "matchPackageNames": ["Microsoft.EntityFrameworkCore**"],
+      "enabled": false
+    },
+    {
+      "description": "Everything else that is only a build or test dependency can travel together.",
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "test and build tooling"
+    },
+    {
+      "description": "An action pinned by tag is updated in place; a major is a behaviour change and gets its own pull request, since a green job does not prove the job still does its work.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "groupName": null
+    }
+  ]
+}

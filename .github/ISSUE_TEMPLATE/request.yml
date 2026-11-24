@@ -1,0 +1,33 @@
+name: Something is missing
+description: A setting, a screen or a behaviour the plugin should have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: >
+        The situation rather than the solution. A setting is easy to add and hard to
+        remove, so what it is for decides its shape.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: Optional. If you already know how it should look, say so.
+
+  - type: dropdown
+    id: side
+    attributes:
+      label: Where it belongs
+      description: >
+        The plugin decides what a server offers. The app decides what a phone or a TV
+        does with it. A new app setting starts in the app.
+      options:
+        - The plugin, on the server
+        - The app
+        - I am not sure
+    validations:
+      required: true

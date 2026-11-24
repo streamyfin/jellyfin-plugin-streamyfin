@@ -106,6 +106,32 @@ public class SerializationTests(ITestOutputHelper output)
     }
 
     /// <summary>
+    /// A next episodes network locked without a value is Wi-Fi only, the app's default.
+    /// </summary>
+    /// <remarks>
+    /// A lock written with no value comes out with the enum's member numbered 0. Had that been
+    /// Any network, a value forgotten in the Yaml would have locked every device onto mobile
+    /// data, the most permissive choice, where the app itself starts at Wi-Fi only.
+    /// </remarks>
+    [Fact]
+    public void ANetworkLockedWithoutAValueIsWifiOnly()
+    {
+        var config = _serializationHelper.Deserialize<Config>(
+            """
+            settings:
+                nextEpisodesNetwork:
+                    locked: true
+            """);
+
+        Xunit.Assert.Equal(NextEpisodesNetwork.Wifi, config.settings?.nextEpisodesNetwork?.value);
+        // Stored by its name as well as served by it, so the numbers move nothing stored.
+        foreach (var written in new[] { _serializationHelper.SerializeForApp(config), _serializationHelper.SerializeToJson(config) })
+        {
+            Xunit.Assert.Contains("\"value\":\"wifi\"", written.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// Ensures all types of enums are json serialized correctly
     /// </summary>
     [Fact]
@@ -135,6 +161,65 @@ public class SerializationTests(ITestOutputHelper output)
         );
     }
     
+    /// <summary>
+    /// What the app receives carries the subtitle mode by name, the other enums as before.
+    /// </summary>
+    /// <remarks>
+    /// The app compares the SDK's strings for the subtitle mode, so the number never
+    /// matched and a mode an administrator locked did nothing.
+    /// </remarks>
+    [Fact]
+    public void ConfigJsonForTheAppTest()
+    {
+        SerializeConfig(
+            value: _serializationHelper.SerializeForApp(GetTestConfig()),
+            expected:
+            """
+            {
+              "settings": {
+                "subtitleMode": {
+                  "locked": false,
+                  "value": "Default"
+                },
+                "defaultVideoOrientation": {
+                  "locked": false,
+                  "value": 6
+                },
+                "defaultBitrate": {
+                  "locked": false,
+                  "value": 250000
+                }
+              }
+            }
+            """
+        );
+    }
+
+    /// <summary>
+    /// The subtitle mode is still stored as the number, which every earlier build reads.
+    /// </summary>
+    /// <remarks>
+    /// An earlier build reads the stored subtitle mode with a number converter only, and
+    /// throws on a name. Stored by name, a rollback would serve an empty configuration to
+    /// everyone and refuse every backup taken since. The app is the only one that gets the
+    /// name.
+    /// </remarks>
+    [Fact]
+    public void TheSubtitleModeIsStoredAsTheNumberEarlierBuildsRead()
+    {
+        var stored = _serializationHelper.SerializeToJson(new Settings
+        {
+            subtitleMode = new Lockable<SubtitlePlaybackMode> { locked = true, value = SubtitlePlaybackMode.Smart }
+        });
+
+        using var document = System.Text.Json.JsonDocument.Parse(stored);
+        var value = document.RootElement.GetProperty("subtitleMode").GetProperty("value");
+
+        Assert.Assrt(
+            $"SubtitlePlaybackMode stored as {value.GetRawText()}",
+            value.ValueKind == System.Text.Json.JsonValueKind.Number && value.GetInt32() == (int)SubtitlePlaybackMode.Smart);
+    }
+
     /// <summary>
     /// Ensures all types of enums are yaml serialized correctly
     /// </summary>

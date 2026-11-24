@@ -5,12 +5,56 @@ Our plugin can consume any event and forward them to your Streamyfin users
 There are currently a few Jellyfin events directly supported by our plugin
 
 Events:
-- Item Added (Everyone)
-- Session Started (Admin only)
-- User Locked Out (Admin + user who was locked out)
-- Playback Started (Admin only)
+- Item added (everyone who can open the library it went into)
+- Session started (admins)
+- User locked out (admins, and the user who was locked out)
+- Playback started (admins)
+- Scheduled task failed (admins), with the reason the task gave
+- Plugin changed (admins), when one is installed, updated or uninstalled
+- Failed sign in (admins), with the name that was tried and where it came from
 
-These can be enabled or disabled inside the plugin settings page
+These can be enabled or disabled inside the plugin settings page. Five of them wait between
+two of the same event, so a server that keeps failing does not keep notifying: a session
+started, a playback started, a failed task and a changed plugin wait five seconds unless you
+set another wait, and failed sign ins wait five minutes per address, since a server anyone can
+reach is tried by machines that never stop. The wait is set for the whole server, on the
+Notifications tab, which offers it only on those five. A new item, an awaited title and a
+locked account never wait, and a wait set on a group or a user is not read.
+
+A server that was already running when the last three events of the list arrived has them
+off, since its stored configuration does not mention them. A fresh install has them on.
+
+## Posters
+
+A notification about something that was added carries its poster, which Android shows
+beside the text. The app says where it reaches the server when it registers a device, and
+the image is fetched from that address: a server is reached at different addresses by
+different devices, at home and away, and the server's own idea of its address is often the
+one nobody outside can use. A device that says nothing gets a notification without an
+image.
+
+Jellyfin serves an item's images without a token, so nothing of yours travels to Expo or to
+a phone with the address. On iOS the image needs a notification service extension in the
+app, so it shows there once the app carries one.
+
+## A new title's name
+
+Until its metadata names it, Jellyfin names a new movie or show after its folder, with the year
+and the ids Radarr or Sonarr write there: "Nosferatu (1922) [tmdbid-653]". A new item message
+usually goes before that, so it leaves out the ids Jellyfin reads in a folder name, and gives a
+year the name carries in brackets once, in the year's place: "Nosferatu (1922)". The rest of the
+name stays as the folder has it.
+
+## Languages
+
+A notification is written in the language of the device it goes to. The app says which one
+it is in when it registers, as a BCP 47 tag such as `fr-FR`, and the server writes one
+message per language among the devices it is sending to rather than one per device. A
+device that says nothing, or something that is not a language tag, is written to in the
+server's language, which is what every device got before.
+
+The plugin carries English, French, Dutch and Spanish (Mexico). A device asking for
+anything else falls back to English, the same way the server does.
 
 
 ## Custom Webhook Notifications
@@ -18,7 +62,7 @@ If you want to start using the notification endpoint directly with other service
 
 Custom webhook examples:
 - [Jellyfin](#Jellyfin)
-- [Jellyseerr](#jellyseerr)
+- [Seerr](#seerr)
 
 ---
 
@@ -46,10 +90,17 @@ value: `MediaBrowser Token="{apiKey}"`
     "body": "string",     // Notification body (required)
     "userId": "string",   // Target Jellyfin user id this notification is for
     "username": "string", // Target Jellyfin username this notification is for
-    "isAdmin": false      // Boolean to determine if notification also targets admins.
+    "isAdmin": false,     // Boolean to determine if notification also targets admins.
+    "image": "string"     // Address of an image to show beside the text, such as a poster
   }
 ]
 ```
+
+The image is an address a phone can fetch without credentials. Jellyfin serves an item's
+images that way, so `http(s)://your-server/Items/<id>/Images/Primary?maxHeight=640` is the
+usual one. Anything that is not an http address is dropped rather than sent, since Expo
+refuses the whole message for a bad one. Android shows the image as it is; on iOS it needs
+a notification service extension in the app.
 
 ## Notifying All Users
 To do this, all you have to do is populate the title and body. Other fields are not required.
@@ -103,14 +154,92 @@ If we don't directly support an event, you'll want to create a separate webhook 
 
 ---
 
-## Jellyseerr
+## Seerr
 
-You can go to your Jellyseerr instance's notification settings to forward events
+Seerr is the project formerly called Jellyseerr. Two ways to connect it, and they can
+be used together.
+
+### Requests, without writing a template
+
+`http(s)://server.instance/Streamyfin/v1/notifications/seerr`
+
+This route takes Seerr's own webhook body, unchanged, and decides who each event is
+for. That routing is the reason it exists: an approval is addressed to the person who
+asked for the media and goes to nobody else, while what the server operator has to act
+on goes to administrators.
+
+| Seerr event | Who receives it |
+|---|---|
+| Request Pending | Administrators |
+| Request Automatically Approved | Administrators |
+| Request Processing Failed | Administrators |
+| Request Approved | The person who requested it |
+| Request Declined | The person who requested it |
+| Media Available | The person who requested it |
+| Anything with an issue | Nobody, see below |
+
+To set it up:
 
 - Go to Settings > Notifications > Webhook
 - Check "Enable Agent"
-- Enter notification endpoint as "Webhook URL"
-- Copy an example below
+- Webhook URL: the route above
+- Authorization Header: `MediaBrowser Token="{apiKey}"`, the same key as the generic
+  endpoint
+- Leave the JSON Payload at its default. It is Seerr's own payload that is expected
+  here, so editing it will stop this working
+- Select the notification types in the table above
+
+A user only receives their own notifications if their Seerr account signs in through
+Jellyfin, since the routing matches Seerr's requester against Jellyfin usernames. A
+Seerr account that is local to Seerr matches nothing and the notification goes nowhere.
+
+An event this route does not know about, one Seerr adds later, is passed through with
+Seerr's own subject and message rather than dropped.
+
+### Titles people wait for
+
+Seerr tells the person who requested a title when it is available, and nobody else. From
+the Seerr page of a movie or a show that is not on the server yet, anybody can ask the app
+to tell them when it arrives. The plugin keeps the title for them and, when it lands in
+Jellyfin, through Seerr or added by hand, notifies everyone who waited for it and can open
+it, then takes it off their list. It needs no webhook: it watches Jellyfin's own library.
+
+That is their one message about the title. The new item message about it, the movie added or
+the batches of episodes the show arrived with, leaves them out, and so does the message about a
+copy of the title in another library, a 4K one beside the main one, within the hour after they
+were told: "Copies of a title within" on the Item added card sets another window, up to a day,
+and 0 never leaves them out of a copy's message. Everyone else gets it as before, and a later
+batch of episodes reaches them like anyone.
+
+While the message may leave somebody out, a person waiting for a title of its kind, one a pause
+holds back, or one told about such a title within that window, a new movie's message waits until
+Jellyfin knows the movie's TMDB or TVDB id, which is what tells who waited for it, and a batch of
+episodes of a new show waits for the show's id the same way. It goes as soon as the id comes, or
+as soon as Jellyfin's metadata came without one, ten minutes at most: "Wait for the title's id" on
+the Item added card sets another wait, up to an hour, and 0 sends at once. Jellyfin brings a new
+title's metadata in a walk over its whole library, so on a large one that can take minutes, and a
+refresh a metadata provider failed waits the whole wait. Everywhere else the message goes at once,
+as it always did. A message still waiting, and a batch of episodes still gathering, go out as the
+server stops. A batch counts the episodes still in the library when it goes.
+
+If Expo turns an awaited title message away as too many, or the server cannot reach Expo, the
+scheduled task "Streamyfin awaited titles" sends it again at its next run, every 15 minutes. One
+Expo may have sent, an error or an answer lost on the way, is not sent again, like every other
+notification: Expo could not tell it from the first.
+
+A person who paused their notifications hears about it once the pause is over. The event is
+"Awaited title" on the Notifications tab, on by default.
+
+### Issues, and anything else, with a template
+
+Issue events are not handled by the route above. They are a conversation rather than a
+request, and the comment body is not something the plugin models, so they stay on the
+generic endpoint with a template you write.
+
+- Go to Settings > Notifications > Webhook
+- Check "Enable Agent"
+- Enter the generic notification endpoint as "Webhook URL"
+- Copy the example below
 
 [Template variable help](https://docs.overseerr.dev/using-overseerr/notifications/webhooks#template-variables)
 

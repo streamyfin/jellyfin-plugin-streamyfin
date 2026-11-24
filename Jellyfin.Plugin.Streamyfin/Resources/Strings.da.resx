@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Required headers -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral</value>
+  </resheader>
+  <!-- region MediaTypes -->
+  <data name="MovieMediaType" xml:space="preserve">
+        <value>Film</value>
+    </data>
+  <!-- endregion MediaTypes -->
+  <!-- region PlaybackStartEvent -->
+  <data name="PlaybackStartTitle" xml:space="preserve">
+        <value>Afspilning startet</value>
+    </data>
+  <data name="UserWatching" xml:space="preserve">
+        <value>{0} ser nu</value>
+        <comment>0 = Username</comment>
+    </data>
+  <data name="SeriesSeasonAndEpisode" xml:space="preserve">
+        <value>{0}, S{1}E{2}</value>
+        <comment>0 = Name, 1 = Season index number, 2 = Episode index number</comment>
+    </data>
+  <data name="SeriesSeason" xml:space="preserve">
+        <value>{0}, sæson {1}</value>
+        <comment>0 = Name, 1 = Season index number</comment>
+    </data>
+  <data name="Series Episode" xml:space="preserve">
+        <value>{0}, episode {1}</value>
+        <comment>0 = Name, 1 = Episode index number</comment>
+    </data>
+  <!-- endregion PlaybackStartEvent -->
+  <!-- region SessionStartEvent -->
+  <data name="SessionStartTitle" xml:space="preserve">
+        <value>Session startet</value>
+    </data>
+  <data name="UserNowOnline" xml:space="preserve">
+        <value>{0} er nu online</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion SessionStartEvent -->
+  <!-- region UserLockedOutEvent -->
+  <data name="UserLockedOutTitle" xml:space="preserve">
+        <value>Bruger er låst ude</value>
+    </data>
+  <data name="UserHasBeenLockedOut" xml:space="preserve">
+        <value>Brugeren {0} er blevet låst ude</value>
+        <comment>0 = Username</comment>
+    </data>
+  <!-- endregion UserLockedOutEvent -->
+  <!-- region ItemAddedEvent -->
+  <data name="ItemAddedTitle" xml:space="preserve">
+        <value>{0} tilføjet</value>
+        <comment>0 = Media type</comment>
+    </data>
+  <data name="EpisodeAddedTitle" xml:space="preserve">
+        <value>Episode tilføjet</value>
+    </data>
+  <data name="EpisodesAddedTitle" xml:space="preserve">
+        <value>Episoder tilføjet</value>
+    </data>
+  <data name="EpisodeNumberAddedForSeason" xml:space="preserve">
+        <value>{0} - Episode {1} tilføjet til sæson {2}</value>
+        <comment>0 = Series Name, 1 = Episode index, 2 = Season index</comment>
+    </data>
+  <data name="EpisodeAdded" xml:space="preserve">
+        <value>{0} - Episode {1} tilføjet</value>
+        <comment>0 = Series Name, 1 = Episode index</comment>
+    </data>
+  <data name="EpisodeAddedForSeason" xml:space="preserve">
+        <value>{0} - Episode tilføjet til sæson {1}</value>
+        <comment>0 = Series Name, 1 = Season index</comment>
+    </data>
+  <data name="TotalEpisodesAddedForSeason" xml:space="preserve">
+        <value>{0} - {1} episoder tilføjet til sæson {2}</value>
+        <comment>0 = Series Name, 1 = Episode count, 2 = Season index</comment>
+    </data>
+  <data name="EpisodesAddedToSeries" xml:space="preserve">
+        <value>{0} - {1} episoder tilføjet</value>
+        <comment>0 = Series Name, 1 = Episode count</comment>
+    </data>
+  <!-- endregion ItemAddedEvent -->
+  <data name="NameAndYear" xml:space="preserve">
+        <value>{0} ({1})</value>
+        <comment>0 = Name, 1 = Year</comment>
+    </data>
+  <!-- region Seerr webhook -->
+  <data name="SeerrUnknownMedia" xml:space="preserve">
+        <value>Ukendt titel</value>
+    </data>
+  <data name="SeerrUnknownRequester" xml:space="preserve">
+        <value>Nogen</value>
+    </data>
+  <data name="SeerrTestTitle" xml:space="preserve">
+        <value>Seerr er forbundet</value>
+    </data>
+  <data name="SeerrTestBody" xml:space="preserve">
+        <value>Dette er testnotifikationen fra din Seerr-server</value>
+    </data>
+  <data name="SeerrRequestPendingTitle" xml:space="preserve">
+        <value>Ny medieanmodning</value>
+    </data>
+  <data name="SeerrRequestPendingBody" xml:space="preserve">
+        <value>{0} anmodede om {1}</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAutoApprovedTitle" xml:space="preserve">
+        <value>Anmodning godkendt automatisk</value>
+    </data>
+  <data name="SeerrRequestAutoApprovedBody" xml:space="preserve">
+        <value>{0} anmodede om {1}, og den blev godkendt automatisk</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestFailedTitle" xml:space="preserve">
+        <value>Anmodning mislykkedes</value>
+    </data>
+  <data name="SeerrRequestFailedBody" xml:space="preserve">
+        <value>{1}, anmodet af {0}, kunne ikke behandles</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestApprovedTitle" xml:space="preserve">
+        <value>Anmodning godkendt</value>
+    </data>
+  <data name="SeerrRequestApprovedBody" xml:space="preserve">
+        <value>Din anmodning om {1} blev godkendt</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestDeclinedTitle" xml:space="preserve">
+        <value>Anmodning afvist</value>
+    </data>
+  <data name="SeerrRequestDeclinedBody" xml:space="preserve">
+        <value>Din anmodning om {1} blev afvist</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <data name="SeerrRequestAvailableTitle" xml:space="preserve">
+        <value>Klar til at se</value>
+    </data>
+  <data name="SeerrRequestAvailableBody" xml:space="preserve">
+        <value>{1} er tilgængelig nu</value>
+        <comment>0 = Requester, 1 = Media name</comment>
+    </data>
+  <!-- endregion Seerr webhook -->
+  <!-- region Admin events -->
+  <data name="TaskFailedTitle" xml:space="preserve">
+        <value>Planlagt opgave er fejlet</value>
+    </data>
+  <data name="TaskFailed" xml:space="preserve">
+        <value>{0} mislykkedes</value>
+        <comment>0 = Task name</comment>
+    </data>
+  <data name="TaskFailedWithReason" xml:space="preserve">
+        <value>{0} mislykkedes: {1}</value>
+        <comment>0 = Task name, 1 = What the task said went wrong</comment>
+    </data>
+  <data name="PluginInstalledTitle" xml:space="preserve">
+        <value>Plugin blev installeret</value>
+    </data>
+  <data name="PluginUpdatedTitle" xml:space="preserve">
+        <value>Opdatering til plugin blev installeret</value>
+    </data>
+  <data name="PluginUninstalledTitle" xml:space="preserve">
+        <value>Plugin blev afinstalleret</value>
+    </data>
+  <data name="PluginInstalled" xml:space="preserve">
+        <value>{0} blev installeret</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginInstalledVersion" xml:space="preserve">
+        <value>{0} {1} blev installeret</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUpdated" xml:space="preserve">
+        <value>{0} blev opdateret</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUpdatedVersion" xml:space="preserve">
+        <value>{0} blev opdateret til {1}</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="PluginUninstalled" xml:space="preserve">
+        <value>{0} blev afinstalleret</value>
+        <comment>0 = Plugin name</comment>
+    </data>
+  <data name="PluginUninstalledVersion" xml:space="preserve">
+        <value>{0} {1} blev afinstalleret</value>
+        <comment>0 = Plugin name, 1 = Version</comment>
+    </data>
+  <data name="SignInFailedTitle" xml:space="preserve">
+        <value>Mislykket login</value>
+    </data>
+  <data name="SignInFailed" xml:space="preserve">
+        <value>{0} kunne ikke logge ind</value>
+        <comment>0 = Username that was tried</comment>
+    </data>
+  <data name="SignInFailedFrom" xml:space="preserve">
+        <value>{0} kunne ikke logge ind fra {1}</value>
+        <comment>0 = Username that was tried, 1 = Address it came from</comment>
+    </data>
+  <data name="SignInFailedUnnamed" xml:space="preserve">
+        <value>Et loginforsøg blev afvist</value>
+    </data>
+  <data name="SignInFailedUnnamedFrom" xml:space="preserve">
+        <value>Et loginforsøg fra {0} blev afvist</value>
+        <comment>0 = Address it came from</comment>
+    </data>
+  <!-- endregion Admin events -->
+</root>

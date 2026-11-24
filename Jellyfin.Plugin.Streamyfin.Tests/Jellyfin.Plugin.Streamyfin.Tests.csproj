@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
@@ -11,6 +10,15 @@
         <PackageReference Include="xunit" Version="2.8.1" />
         <PackageReference Include="xunit.runner.console" Version="2.8.1" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Embedded rather than copied to the output directory: the parity test then
+             reads it through the assembly and does not depend on which directory
+             dotnet test was invoked from. -->
+        <EmbeddedResource Include="../Jellyfin.Plugin.Streamyfin/AppSettingsManifest.json" LogicalName="AppSettingsManifest.json" />
+        <!-- The examples the repository ships, checked against the Yaml editor's schema. -->
+        <EmbeddedResource Include="../examples/*" LogicalName="examples/%(Filename)%(Extension)" />
     </ItemGroup>
 
     <ItemGroup>

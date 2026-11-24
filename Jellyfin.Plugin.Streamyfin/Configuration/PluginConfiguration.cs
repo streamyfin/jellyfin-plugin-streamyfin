@@ -15,17 +15,7 @@ namespace Jellyfin.Plugin.Streamyfin.Configuration;
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
 {
-  //public string Yaml { get; set; }
   public Config Config { get; set; }
-  private readonly SerializationHelper _serializationHelper;
-
-  public PluginConfiguration(
-    SerializationHelper serializationHelper
-  )
-  {
-    _serializationHelper = serializationHelper;
-  }
-
 
   public PluginConfiguration()
   {
@@ -56,27 +46,82 @@ public class PluginConfiguration : BasePluginConfiguration
     {
       Enabled = true,
       EnabledLibraries = []
+    },
+    AwaitedTitle = new()
+    {
+      Enabled = true
+    },
+    TaskFailed = new()
+    {
+      Enabled = true
+    },
+    PluginChanged = new()
+    {
+      Enabled = true
+    },
+    SignInFailed = new()
+    {
+      Enabled = true
     }
   };
 
   public static Settings.Settings DefaultSettings() => new()
   {
     forwardSkipTime = new() { value = 30 },
-    rewindSkipTime = new() { value = 15 },
-    rememberAudioSelections = new() { value = false },
+    rewindSkipTime = new() { value = 10 },
+    rememberAudioSelections = new() { value = true },
     subtitleMode = new() { value = SubtitlePlaybackMode.Default },
-    rememberSubtitleSelections = new() { value = false },
-    subtitleSize = new() { value = 80 },
+    rememberSubtitleSelections = new() { value = true },
+    subtitlesOnMute = new() { value = true },
+    subtitlesOnMuteAllowRestart = new() { value = false },
+    subtitleSize = new() { value = 100 },
+    subtitleFont = new() { value = "System" },
+    subtitleColor = new() { value = "#FFFFFF" },
+    subtitleBackground = new() { value = false },
+    subtitleBackgroundOpacity = new() { value = 60 },
+    subtitleBackgroundPadding = new() { value = 8 },
+    subtitleMarginY = new() { value = 25 },
+    subtitleAlignX = new() { value = SubtitleAlignX.Center },
+    subtitleAlignY = new() { value = SubtitleAlignY.Bottom },
     defaultVideoOrientation = new() { value = OrientationLock.Default },
     safeAreaInControlsEnabled = new() { value = true },
     showCustomMenuLinks = new() { value = false },
-    hiddenLibraries = new() { value = new[] { "Enter library id(s)" } },
+    showHomeBackdrop = new() { value = true },
+    showHeroCarousel = new() { value = true },
+    hiddenHomeHeroSections = new() { value = [] },
+    hiddenHomeHeroMediaTypes = new() { value = [] },
+    mergeNextUpAndContinueWatching = new() { value = false },
+    useEpisodeImagesForNextUp = new() { value = false },
+    showSeriesPosterOnEpisode = new() { value = false },
+    wikidataAwardsEnabled = new() { value = true },
+    openSubtitlesEnabled = new() { value = true },
+    autoLoginJellyseerr = new() { value = true },
+    showDownloadLiveActivity = new() { value = true },
+    enableH265ForChromecast = new() { value = false },
+    mpvCacheEnabled = new() { value = MpvCacheMode.Auto },
+    mpvCacheSeconds = new() { value = 10 },
+    mpvVoDriver = new() { value = MpvVoDriver.GpuNext },
+    sentryEnabled = new() { value = true },
+    hiddenLibraries = new() { value = [] },
     disableHapticFeedback = new() { value = false },
+    enableDoubleTapToSeek = new() { value = false },
+    enableHoldToSpeed = new() { value = true },
+    holdToSpeedRate = new() { value = 2.0 },
+    enablePinchToZoom = new() { value = true },
+    showResumeDialog = new() { value = false },
+    playDefaultAudioTrack = new() { value = true },
+    audioTranscodeMode = new() { value = AudioTranscodeMode.Auto },
     defaultBitrate = new() { value = null },
-    jellyseerrServerUrl = new() { value = "Enter jellyseerr server url" },
+    // No address is seeded. An empty one is not a value, and suggesting it to every
+    // client says the server has an opinion about a Seerr it does not have.
     searchEngine = new() { value = SearchEngine.Jellyfin },
-    marlinServerUrl = new() { value = "Enter Marlin server URL" },
     libraryOptions = new() { value = new LibraryOptions() },
+    tvTypographyScale = new() { value = TVTypographyScale.Default },
+    tvThemeMusicEnabled = new() { value = true },
+    hideRemoteSessionButton = new() { value = false },
+    inactivityTimeout = new() { value = InactivityTimeout.Disabled },
+    nativeVideoPlayerTV = new() { value = true },
+    nativeVideoPlayerAndroidTV = new() { value = false },
     home = new()
     {
       value = new Home
@@ -93,7 +138,7 @@ public class PluginConfiguration : BasePluginConfiguration
               }
           },
             new() {
-            title = "Nextup",
+            title = "Next Up",
             orientation = SectionOrientation.horizontal,
             nextUp = new()
               {
