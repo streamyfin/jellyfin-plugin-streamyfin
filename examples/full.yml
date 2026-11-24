@@ -276,7 +276,7 @@ settings:
   
   enableH265ForChromecast:
     locked: false
-    value: false  # Only some Chromecast models decode HEVC
+    value: false  # Apps before 0.56: only some Chromecast models decode HEVC. 0.56 lets Jellyfin's receiver decide
 
   # ==================== Device-bound and consent ====================
   # The five mpv settings describe what a device can do rather
@@ -340,6 +340,10 @@ settings:
   nativeVideoPlayerAndroidTV:
     locked: false
     value: false
+  
+  confirmBeforeStoppingPlayback:
+    locked: false
+    value: false  # Apple TV and Android TV, app 0.56: ask "Stop playback?" before Back leaves the player
   
   # ==================== Playback & Audio ====================
   autoPlayNextEpisode:
