@@ -17,6 +17,10 @@ led to the mistake. `YamlWrongType` now finds what the reader stopped on: one se
 it takes, as the bounds checks do. A setting written under the name it also answers to, such as
 `autoLoginSeerr`, is named under that name. Anything else keeps the deserializer's words, a value
 with a tag the reader does not know included: `!unknown 10` has its tag to fix, not its type.
+A whole number too large for its type is told the range it takes, the setting's own bounds when
+it has them, `from 0 to 60` for `99999999999`, rather than that it is not a whole number. A choice
+lists the names a document is written with, `gpu-next` and not `GpuNext`, and the value shown
+stays on one line.
 
 It reads the document event by event with YamlDotNet's parser rather than as a tree. The first
 version loaded a `YamlStream` and walked its nodes, which overflowed the stack on the 200,000 lists

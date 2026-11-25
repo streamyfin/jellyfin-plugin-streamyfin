@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
+using System.Runtime.Serialization;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
@@ -47,7 +49,7 @@ public static class YamlWrongType
 
     private static string? Name(string yaml, Mark where)
     {
-        if (Locate(yaml, where) is not { Path: var path, Found: var found }
+        if (Locate(yaml, where) is not { Path: var path, Found: var found, Text: var text }
             || path.Length < 2 || path.Length > 3 || path[0] != "settings")
         {
             return null;
@@ -79,7 +81,7 @@ public static class YamlWrongType
         var takes = path[2] switch
         {
             "locked" when descriptor.IsLockable => "true or false",
-            "value" when descriptor.IsLockable => Takes(descriptor.ValueType),
+            "value" when descriptor.IsLockable => OutOfRange(descriptor, text) ?? Takes(descriptor.ValueType),
             _ => null,
         };
 
@@ -89,7 +91,7 @@ public static class YamlWrongType
     // The keys down to the node that starts where the reader stopped, and what that node is.
     // Read event by event rather than as a tree: a tree is walked by recursion, which a deep
     // document overflows, and an alias would be walked once for every place it is used.
-    private static (string[] Path, string Found)? Locate(string yaml, Mark where)
+    private static (string[] Path, string Found, string? Text)? Locate(string yaml, Mark where)
     {
         var parser = new Parser(new StringReader(yaml));
         var frames = new List<Frame>();
@@ -133,13 +135,13 @@ public static class YamlWrongType
 
                 var found = current switch
                 {
-                    Scalar { Value: var text } => $"'{(text.Length > LongestShown ? text[..LongestShown] + "…" : text)}'",
+                    Scalar { Value: var text } => $"'{Shown(text)}'",
                     SequenceStart => "a list",
                     MappingStart => "a block of keys",
                     _ => null,
                 };
 
-                return found is null ? null : ([.. frames.Select(frame => frame.Key ?? "[]")], found);
+                return found is null ? null : ([.. frames.Select(frame => frame.Key ?? "[]")], found, (current as Scalar)?.Value);
             }
 
             switch (current)
@@ -173,6 +175,41 @@ public static class YamlWrongType
         }
     }
 
+    // A whole number too large for its type is a whole number: what it takes is the range,
+    // the setting's own when it declares one.
+    private static string? OutOfRange(SettingDescriptor descriptor, string? text)
+    {
+        var plain = Nullable.GetUnderlyingType(descriptor.ValueType) ?? descriptor.ValueType;
+        if (text is null
+            || !(plain == typeof(int) || plain == typeof(long) || plain == typeof(short))
+            || !BigInteger.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _))
+        {
+            return null;
+        }
+
+        var (lowest, highest) = descriptor.Bounds is { } bounds
+            ? (bounds.Minimum.ToString(CultureInfo.InvariantCulture), bounds.Maximum.ToString(CultureInfo.InvariantCulture))
+            : plain == typeof(int) ? (int.MinValue.ToString(CultureInfo.InvariantCulture), int.MaxValue.ToString(CultureInfo.InvariantCulture))
+            : plain == typeof(long) ? (long.MinValue.ToString(CultureInfo.InvariantCulture), long.MaxValue.ToString(CultureInfo.InvariantCulture))
+            : (short.MinValue.ToString(CultureInfo.InvariantCulture), short.MaxValue.ToString(CultureInfo.InvariantCulture));
+
+        return $"a whole number from {lowest} to {highest}";
+    }
+
+    // On the one line of a banner: line breaks become spaces, and the cut never splits a
+    // character written as two UTF-16 units.
+    private static string Shown(string text)
+    {
+        var line = string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)).Trim();
+        if (line.Length <= LongestShown)
+        {
+            return line;
+        }
+
+        var cut = char.IsHighSurrogate(line[LongestShown - 1]) ? LongestShown - 1 : LongestShown;
+        return line[..cut] + "…";
+    }
+
     private static string Sentence(string title, string path, string takes, string found) =>
         string.Format(CultureInfo.InvariantCulture, "{0} ({1}) takes {2}, and this is {3}.", title, path, takes, found);
 
@@ -200,9 +237,12 @@ public static class YamlWrongType
             return "text";
         }
 
+        // Under the names a document is written with, which [EnumMember] gives when a C#
+        // name could not be one.
         if (plain.IsEnum)
         {
-            return "one of " + string.Join(", ", Enum.GetNames(plain));
+            return "one of " + string.Join(", ", plain.GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Select(field => field.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? field.Name));
         }
 
         return typeof(IEnumerable).IsAssignableFrom(plain) ? "a list" : null;

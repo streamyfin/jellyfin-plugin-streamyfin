@@ -20,6 +20,10 @@ public class YamlWrongTypeTests
     [InlineData("settings:\n  forwardSkipTime:\n    value: soon\n", "Line 3, column 12: Forward skip time (settings.forwardSkipTime.value) takes a whole number, and this is 'soon'.")]
     [InlineData("settings:\n  forwardSkipTime:\n    locked: maybe\n    value: 10\n", "Line 3, column 13: Forward skip time (settings.forwardSkipTime.locked) takes true or false, and this is 'maybe'.")]
     [InlineData("settings:\n  forwardSkipTime: 10\n", "Line 2, column 20: Forward skip time (settings.forwardSkipTime) takes a block with locked and value, and this is '10'.")]
+    [InlineData("settings:\n  forwardSkipTime:\n    value: 99999999999\n", "Line 3, column 12: Forward skip time (settings.forwardSkipTime.value) takes a whole number from 0 to 60, and this is '99999999999'.")]
+    [InlineData("settings:\n  stillWatchingPreset:\n    value: nope\n", "Line 3, column 12: Ask \"Are you still watching?\" (settings.stillWatchingPreset.value) takes one of disabled, short, default, long, veryLong, and this is 'nope'.")]
+    [InlineData("settings:\n  mpvVoDriver:\n    value: |\n      fast\n      faster\n", "Line 3, column 12: mpv video output driver (settings.mpvVoDriver.value) takes one of gpu-next, gpu, and this is 'fast faster'.")]
+    [InlineData("settings:\n  mpvVoDriver:\n    value: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\U0001F600b\n", "Line 3, column 12: mpv video output driver (settings.mpvVoDriver.value) takes one of gpu-next, gpu, and this is 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…'.")]
     [InlineData("settings:\n  autoLoginSeerr:\n    value: maybe\n", "Line 3, column 12: Sign in to Seerr automatically (settings.autoLoginSeerr.value) takes true or false, and this is 'maybe'.")]
     public void AWrongTypeNamesTheSettingAndWhatItTakes(string yaml, string expected)
     {
