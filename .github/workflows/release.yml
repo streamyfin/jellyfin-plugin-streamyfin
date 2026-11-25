@@ -12,6 +12,17 @@ permissions:
   pull-requests: write
   contents: write
 
+# Both workflows push to main, this one its release commit and both their manifest
+# commit, so they run one at a time: an unstable build dispatched during a release waits
+# for it rather than move main under it. A release dispatched during an unstable build
+# still waits and is refused when main moved meanwhile, as it is today: its release commit
+# is made on top of the commit it was dispatched on. queue: max keeps a waiting run from
+# being cancelled by the next one dispatched, which a group does by default.
+concurrency:
+  group: publish-to-main
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   # The version is computed once and handed to every other job. Computing it per
   # job would let two jobs disagree if a commit landed between them.
@@ -136,9 +147,10 @@ jobs:
           # Read once, and assigned, so that gh failing, or answering anything but a list,
           # fails the step instead of passing for no release. Drafts are listed: gh creates
           # a release as one, uploads, then publishes, and an attempt cancelled or killed in
-          # between leaves the draft.
-          releases=$(gh release list --json tagName,isDraft --limit 100)
-          count=$(jq -e --arg v "$VERSION" 'if type == "array" then map(select(.tagName == $v)) | length else error("gh release list did not answer a list") end' <<<"$releases")
+          # between leaves the draft. Every page, not the newest hundred `gh release list`
+          # stops at, beyond which an earlier attempt's draft would read as absent.
+          releases=$(gh api --paginate --slurp "repos/{owner}/{repo}/releases?per_page=100")
+          count=$(jq -e --arg v "$VERSION" 'if type == "array" and all(.[]; type == "array") then add // [] | map(select(.tag_name == $v)) | length else error("gh did not answer the list of releases") end' <<<"$releases")
 
           made_by="Release-Run: ${GITHUB_RUN_ID}"
           tagged=$(git rev-parse --quiet --verify "refs/tags/${VERSION}^{commit}" || true)

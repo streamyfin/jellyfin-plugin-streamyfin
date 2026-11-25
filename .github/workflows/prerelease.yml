@@ -23,10 +23,12 @@ on:
 permissions:
   contents: read
 
-# Two of these at once would race on the same tag and on the manifest commit to `main`.
+# Two of these at once would race on the same tag and on the manifest commit to `main`,
+# and release.yml shares the group for the same reason, where its comment says more.
 concurrency:
-  group: prerelease
+  group: publish-to-main
   cancel-in-progress: false
+  queue: max
 
 jobs:
   # Computed once and handed to every other job, the same reason as in release.yml: two
@@ -217,8 +219,9 @@ jobs:
           # fails the step instead of passing for no release. Drafts are listed: gh creates a
           # release as one, uploads, then publishes, and an attempt cancelled or killed in
           # between leaves the draft, which only a published release's download URL serves.
-          releases=$(gh release list --json tagName --limit 100)
-          count=$(jq -e --arg t "$tag" 'if type == "array" then map(select(.tagName == $t)) | length else error("gh release list did not answer a list") end' <<<"$releases")
+          # Every page, not the newest hundred `gh release list` stops at.
+          releases=$(gh api --paginate --slurp "repos/{owner}/{repo}/releases?per_page=100")
+          count=$(jq -e --arg t "$tag" 'if type == "array" and all(.[]; type == "array") then add // [] | map(select(.tag_name == $t)) | length else error("gh did not answer the list of releases") end' <<<"$releases")
 
           if [ -z "$existing" ]; then
             # Before anything is public. With no tag yet only a draft can carry it, one somebody

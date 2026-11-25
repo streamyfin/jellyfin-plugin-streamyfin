@@ -30,6 +30,22 @@ beta's Jellyfin 12.4.0 instance, the four documents of the issue and a quality n
 refused with the new sentences, where 0.70.0.0 said `No node deserializer was able to deserialize
 the node into type System.Int32` and `Requested value 'fast' was not found`.
 
+## 2026-11-25, the release workflows read every page of releases and wait for each other
+
+#250. Both workflows counted the releases on a tag from the newest hundred, `gh release list
+--limit 100`, so past a hundred releases a draft an earlier attempt left read as absent, and a
+rerun created a second release beside it. They now read every page with `gh api --paginate
+--slurp`. On the repository, with 20 to a page, the oldest release, `0.1`, is on page 4 of 4 and
+the first page alone does not see it; with 100 to a page the 67 releases are one page and
+`0.70.0.0` counts 1.
+
+They also share one concurrency group, `publish-to-main`, with `queue: max`: an unstable build
+dispatched during a release waits for it instead of moving main under it, and a waiting run is
+not cancelled by the next one dispatched. A release dispatched during an unstable build still
+waits and is refused when main moved, since its release commit is made on top of the commit it
+was dispatched on. One script for the resume logic of both workflows, with one gh stand-in for
+both tests, is left to #317.
+
 ## 2026-11-25, the second Home example lists new movies by date added too
 
 #311. "Libraries first" ended with Recently Added, a `latest` row with no type. On the beta, for an
