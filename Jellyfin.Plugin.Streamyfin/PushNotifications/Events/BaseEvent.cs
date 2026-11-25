@@ -115,7 +115,7 @@ public abstract class BaseEvent
     /// </remarks>
     protected void CleanupOldEntriesNowAndThen()
     {
-        if (ClaimCleanup(DateTime.UtcNow))
+        if (ClaimCleanup(ref _cleanupDue, DateTime.UtcNow))
         {
             CleanupOldEntries();
         }
@@ -124,14 +124,15 @@ public abstract class BaseEvent
     /// <summary>
     /// Claims the next cleanup, once a minute has passed since the last one claimed.
     /// </summary>
+    /// <param name="due">When the next cleanup may run, in UTC ticks, which a claim moves on.</param>
     /// <param name="now">The time it is, in UTC.</param>
     /// <returns>Whether this caller runs the cleanup.</returns>
-    internal static bool ClaimCleanup(DateTime now)
+    internal static bool ClaimCleanup(ref long due, DateTime now)
     {
-        var due = Interlocked.Read(ref _cleanupDue);
+        var seen = Interlocked.Read(ref due);
 
-        return now.Ticks >= due
-            && Interlocked.CompareExchange(ref _cleanupDue, (now + CleanupEvery).Ticks, due) == due;
+        return now.Ticks >= seen
+            && Interlocked.CompareExchange(ref due, (now + CleanupEvery).Ticks, seen) == seen;
     }
 
     /// <summary>

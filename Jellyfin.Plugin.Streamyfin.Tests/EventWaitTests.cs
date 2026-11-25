@@ -221,12 +221,13 @@ public class EventWaitTests
     [Fact]
     public void TheCleanupRunsAtMostOnceAMinute()
     {
-        // A year on, past whatever the events of the other tests claimed.
-        var start = DateTime.UtcNow.AddYears(1);
+        // Its own due time, so the plugin's, which every other test's events share, is left alone.
+        long due = 0;
+        var start = DateTime.UtcNow;
 
-        Assert.True(BaseEvent.ClaimCleanup(start));
-        Assert.False(BaseEvent.ClaimCleanup(start.AddSeconds(59)));
-        Assert.True(BaseEvent.ClaimCleanup(start.AddSeconds(60)));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(59)));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(60)));
     }
 
     private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(
