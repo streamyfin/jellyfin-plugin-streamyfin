@@ -93,6 +93,17 @@ describe.each(workflows)("%s", (name) => {
     });
 });
 
+// Both push to main, so they wait for each other in one group; a group cancels the run
+// waiting in it when another is dispatched, unless told to queue, and a waiting release
+// cancelled that way would have to be dispatched again by hand.
+test("the two workflows wait for each other, and a waiting run is never cancelled", () => {
+    const concurrencyOf = (name) => Bun.YAML.parse(readFileSync(resolve(".github/workflows", name), "utf8")).concurrency;
+
+    expect(workflows.map(concurrencyOf)).toEqual(
+        workflows.map(() => ({ group: "publish-to-main", "cancel-in-progress": false, queue: "max" })),
+    );
+});
+
 describe("the checks themselves", () => {
     const build = (step, job = {}) => ({ version: { steps: [] }, build: { needs: "version", ...job, steps: [step] } });
 
