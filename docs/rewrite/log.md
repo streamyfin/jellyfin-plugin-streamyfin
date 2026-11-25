@@ -8,6 +8,22 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-25, a Yaml value of the wrong type names its setting
+
+#283. A document that gave a setting a value of the wrong type was refused in the deserializer's
+words, which name a CLR type and not the setting, so on a long document only the line and column
+led to the mistake. `YamlWrongType` now finds what the reader stopped on: one setting's `value`, its
+`locked`, or the setting written as a bare value, and says the setting's title, its path and what
+it takes, as the bounds checks do. Anything else keeps the deserializer's words.
+
+It reads the document event by event with YamlDotNet's parser rather than as a tree. The first
+version loaded a `YamlStream` and walked its nodes, which overflowed the stack on the 200,000 lists
+deep document `HostileYamlTests` sends and would have walked the aliases of the expanding one once
+for every use; the event reader goes no deeper than 64 levels and never expands an alias. On the
+beta's Jellyfin 12.4.0 instance, the four documents of the issue and a quality named `fast` were
+refused with the new sentences, where 0.70.0.0 said `No node deserializer was able to deserialize
+the node into type System.Int32` and `Requested value 'fast' was not found`.
+
 ## 2026-11-25, the first Home example lists new movies by date added
 
 #310, for #307. The app asks for a `latest` row with `getLatestMedia`, the user, the types and the
