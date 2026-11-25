@@ -8,6 +8,23 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-25, the first Home example lists new movies by date added
+
+#310, for #307. The app asks for a `latest` row with `getLatestMedia`, the user, the types and the
+limit, and no library. On the beta, for an account that opens every library, Jellyfin 10.11.11
+answered it with 1 movie, 12.4.0 and 13.0.0 with none, so the app hid the row. The Latest Movies row
+of "Watching, then new" is now an `items` row, movies sorted by `DateCreated`, descending, which the
+app asks for with `getItems` and `recursive: true`: 20 movies, newest first, on all three. A server
+that loaded the example before keeps its row.
+
+The same pass found the "Recently Added" row of "Libraries first", a `latest` row with no type,
+filled with series, seasons and episodes only on 12.4.0 and 13.0.0, where 10.11.11 gives 18 movies
+of 20. An `items` row would list every episode on its own, so it stays, in #311.
+
+`release-notes-0.70.0.md` follows the release text again: on 2026-11-25 the release got shorter
+highlights and its pull requests in a folded list. #306, the master switch over the player's
+gestures, waits for streamyfin/streamyfin#2440 to land in the app before it is merged.
+
 ## 2026-11-25, the empty playback quality is the app's own default
 
 The app's Auto quality (streamyfin/streamyfin#2388) measures the connection to the server and
