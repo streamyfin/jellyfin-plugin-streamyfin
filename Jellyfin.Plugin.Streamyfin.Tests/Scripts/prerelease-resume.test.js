@@ -40,20 +40,34 @@ const git = (cwd, ...args) => {
 // --clobber, as gh 2.98 does; edit --draft=false publishes. Each change is written to $STATE/log.
 const GH = `#!/usr/bin/env bash
 set -eu
-verb="$2"
 mkdir -p "$STATE/releases"
-if [ "$verb" = list ]; then
-  [ ! -f "$STATE/fail-list" ] || { echo "HTTP 502: Bad Gateway" >&2; exit 1; }
-  [ ! -f "$STATE/odd-list" ] || { echo '{"message":"Bad credentials"}'; exit 0; }
-  printf '['; first=1
-  for r in "$STATE"/releases/*; do
-    [ -d "$r" ] || continue
-    [ $first = 1 ] || printf ','; first=0
-    draft=false; [ -f "$r/draft" ] && draft=true
-    printf '{"tagName":"%s","isDraft":%s}' "$(cat "$r/tag")" "$draft"
+# gh api lists the releases a page at a time, the newest first, per_page to a page (30
+# when it says nothing); --paginate reads every page and --slurp puts them in one array.
+if [ "$1" = api ]; then
+  if [ -f "$STATE/fail-list" ]; then echo "HTTP 502: Bad Gateway" >&2; exit 1; fi
+  if [ -f "$STATE/odd-list" ]; then echo '{"message":"Server Error"}'; exit 0; fi
+  paginate=0; slurp=0; per=30
+  for arg in "$@"; do
+    case "$arg" in
+      --paginate) paginate=1 ;;
+      --slurp) slurp=1 ;;
+      *per_page=*) per="\${arg##*per_page=}" ;;
+    esac
   done
-  printf ']\\n'; exit 0
+  pages=(); page=""; n=0
+  for name in $(ls -r "$STATE/releases"); do
+    r="$STATE/releases/$name"
+    [ -d "$r" ] || continue
+    draft=false; [ -f "$r/draft" ] && draft=true
+    page="$page\${page:+,}{\\"tag_name\\":\\"$(cat "$r/tag")\\",\\"draft\\":$draft}"; n=$((n + 1))
+    if [ $n -eq "$per" ]; then pages+=("[$page]"); page=""; n=0; fi
+  done
+  [ -z "$page" ] && [ \${#pages[@]} -gt 0 ] || pages+=("[$page]")
+  [ $paginate = 1 ] || pages=("\${pages[0]}")
+  if [ $slurp = 1 ]; then (IFS=,; printf '[%s]\\n' "\${pages[*]}"); else printf '%s\\n' "\${pages[@]}"; fi
+  exit 0
 fi
+verb="$2"
 tag="$3"; shift 3
 named() {
   local r first=""
@@ -163,13 +177,13 @@ const run = (box) =>
 // What an earlier attempt or a person left: the tag on origin, and a release made by `author`,
 // whose assets hold `contents`, by default bytes no build of this commit makes.
 const tagged = (box) => git(box.work, "push", "-q", "origin", `${box.sha}:refs/tags/${TAG}`);
-const leave = (box, { author, draft, prerelease = false, assets, contents = () => "an earlier upload" }) => {
+const leave = (box, { author, draft, prerelease = false, assets, contents = () => "an earlier upload", tag = TAG }) => {
     const root = join(box.state, "releases");
     mkdirSync(root, { recursive: true });
     const last = readdirSync(root).sort().at(-1);
     const dir = join(root, String((last ? Number(last) : 0) + 1).padStart(3, "0"));
     mkdirSync(join(dir, "assets"), { recursive: true });
-    writeFileSync(join(dir, "tag"), `${TAG}\n`);
+    writeFileSync(join(dir, "tag"), `${tag}\n`);
     writeFileSync(join(dir, "author"), `${author}\n`);
     if (draft) writeFileSync(join(dir, "draft"), "");
     if (prerelease) writeFileSync(join(dir, "prerelease"), "");
@@ -225,6 +239,17 @@ describe("an unstable build's release", () => {
         expect(changes(box)).toEqual([`upload ${BOTH[1]} to 001`, `publish ${TAG}`]);
     });
 
+    // gh lists the newest releases only, as many as --limit asks for.
+    test("the draft an attempt left is found behind a hundred newer releases", () => {
+        const box = sandbox();
+        tagged(box);
+        leave(box, { author: "github-actions[bot]", draft: true, prerelease: true, assets: [BOTH[0]], contents: built });
+        for (let i = 1; i <= 100; i++) leave(box, { author: "github-actions[bot]", draft: false, assets: [], tag: `unstable-0.0.0.${i}` });
+
+        expect(run(box).code).toBe(0);
+        expect(changes(box)).toEqual([`upload ${BOTH[1]} to 001`, `publish ${TAG}`]);
+    });
+
     // "Re-run all jobs" builds the zips again, and a zip is not built byte for byte the same
     // twice: the release keeps its names, so the assets are compared by their digest and
     // replaced, which gh does only with --clobber.
@@ -243,7 +268,7 @@ describe("an unstable build's release", () => {
     // Read as no release, a list gh failed to give left the tag pushed and a second release
     // created beside the workflow's own draft.
     for (const [reason, file] of [["gh cannot give", "fail-list"], ["that is not a list", "odd-list"]]) {
-        test(`a release list ${reason} stops the build before anything is pushed`, () => {
+        test(`a list of releases ${reason} stops the build before anything is pushed`, () => {
             const box = sandbox();
             writeFileSync(join(box.state, file), "");
 
