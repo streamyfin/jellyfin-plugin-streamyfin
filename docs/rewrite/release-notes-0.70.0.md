@@ -1,4 +1,4 @@
-<!-- The text of the 0.70.0.0 release as it was published on 2026-11-24, screenshots of the released build on Jellyfin 12.4 included. -->
+<!-- The text of the 0.70.0.0 release as it was published on 2026-11-24, with the shorter highlights and the folded list of pull requests it got on 2026-11-25, screenshots of the released build on Jellyfin 12.4 included. -->
 
 > [!CAUTION]
 > **Back up everything before you update.** Stop your Jellyfin server and take a full backup of its data and configuration folders first, as Jellyfin asks before every upgrade.
@@ -26,13 +26,21 @@ If you run the unstable build, 0.68.1.59, 0.70.0.0 is offered to you as an ordin
 
 ### Every setting of the app, from the dashboard
 
-The **Application** tab draws the 91 settings the app reads, grouped the way the app groups them, and three for the app's coming next episodes downloads, which say that no released app reads them yet. Each one is **Free**, **Suggested** or **Locked**: left to the user, pushed once as their starting point, or pinned so they cannot change it. Only what you set travels; everything else stays the app's own default. A legend at the top of each tab says what every state and every box means, **Reset** beside a value puts the app's own default back, and libraries are picked by name rather than typed as ids. The plugin also has its own entry in the dashboard's menu now, drawn like the menu's own icons where the File Transformation plugin is installed.
+The new **Application** tab lists every setting of the Streamyfin app. For each one, you choose:
+
+- **Free**: the user decides.
+- **Suggested**: the user starts with your value and can change it.
+- **Locked**: the user cannot change it.
+
+**Reset** puts the app's default back. Below, forward skip is suggested at 30 seconds and rewind is locked at 10.
 
 <p align="center"><img width="800" alt="The Application tab on Playback controls: the legend, then Forward skip time suggested at 30 and Rewind skip time locked at 10" src="https://github.com/user-attachments/assets/5090ee4f-2aae-46fc-873f-b802dd21959b"></p>
 
 ### Groups, and one user
 
-The **Targeting** tab aims the same settings, and the notifications, at a group of users or at one account. One user beats their groups, a group beats everyone, and between two groups the higher priority wins. The notifications aimed this way reach administrators as they reach anyone. The settings do not reach an administrator's own app yet. The app reads `/Streamyfin/config`, which gives an administrator the server-wide configuration untouched, as the dashboard needs it to edit; an administrator's app gets what is aimed at them once it reads the settings resolved for each account (streamyfin/streamyfin#2004).
+The new **Targeting** tab gives a group of users, or a single user, their own settings and notifications. A user's own settings win over their groups, and a group wins over everyone. Below, the Kids group has Skip intro and subtitles locked.
+
+An administrator's own app does not receive these settings yet. That comes with a later app release.
 
 <p align="center"><img width="800" alt="The Targeting tab with the Kids group open, its priority and its member" src="https://github.com/user-attachments/assets/e749aa8a-6dbd-443d-9ba7-32a1e5b4fc1d"></p>
 
@@ -40,41 +48,41 @@ The **Targeting** tab aims the same settings, and the notifications, at a group 
 
 ### The home screen as a list
 
-The **Home** tab edits the rows of the app's home screen as a list: what fills each row, in which order, and the shape of its cards. Sections are dragged into order, a home screen can start from one of three examples, and a preview beside the list draws the rows the way the app does. Emptying the list gives everyone the app's own home screen back. Two rows are new and built by the plugin: **My media**, the libraries somebody can open, paged properly where Jellyfin's own endpoint is not, and **For you**, recommendations from what somebody watched, for the servers that do not run Streamystats.
+The new **Home** tab builds the app's home screen. Add rows, drag them into order, and see a preview of how the app shows them. Two new rows are available: **My media**, your libraries, and **For you**, suggestions based on what you watched.
 
 <p align="center"><img width="800" alt="The Home tab: the rows in order beside a preview of how the app draws them" src="https://github.com/user-attachments/assets/a13484b9-a64e-445f-ab19-7c77482ebf86"></p>
 
 ### Notifications that know who they are for
 
-Three admin alerts join the existing events: a **scheduled task that failed**, with the reason it gave, a **plugin installed, updated or removed**, and a **refused sign in**, with the name tried and where it came from. Every event can be turned off, aimed at a group or at one user, and written differently in any language. Five events wait between two of the same, so a server that keeps failing does not keep notifying: a session started, a playback started, a failed task and a changed plugin wait 5 seconds unless you set another wait, and a refused sign in waits 5 minutes. The wait is set for the whole server on the Notifications tab, which offers it only on those five and shows each one's own when it is empty. A new item is announced only to the people who can open the library it went into, and a title Jellyfin has not named yet is announced without the ids Radarr or Sonarr write in its folder name, with its year once: "Nosferatu (1922)" rather than "Nosferatu  [tmdbid-653] (1922)".
+Three new alerts for admins: a scheduled task failed, a plugin was installed, updated or removed, and a sign in was refused. Every notification can be turned off, sent only to a group or a user, and reworded in any language. A new item is only announced to the people who can see its library, and repeated alerts are spaced out, so a failing server does not flood you. Below, Item added is on for the Movies and Shows libraries.
 
-Each person also chooses what reaches them: which events, which libraries new items come from, new episodes of the shows they favorited or started, a show they turn off, and a pause from an hour to a week, or until they lift it. The plugin keeps these choices, so they follow the account to every device; the app's screen for them comes with its next release (streamyfin/streamyfin#2216). From the Seerr page of a title that is not on the server yet, a person can also ask to be told when it arrives (streamyfin/streamyfin#2244, in the same app release). They then get one message, that one, and not the new item message too, which everyone else still gets: while somebody waits for a title, a new movie's message waits until Jellyfin knows the movie's TMDB or TVDB id, since the id is what tells who waited for it. It goes as soon as the id comes, ten minutes at most, a wait the Notifications tab sets, and a copy of the title in another library leaves them out too, within the hour.
+Each person will also choose what they receive: which events and libraries, new episodes of their shows, or a pause. They will also be able to ask to be told when a title they requested arrives. The app screens for this come with its next release.
 
 <p align="center"><img width="800" alt="The Notifications tab: Item added on, for the Movies and Shows libraries" src="https://github.com/user-attachments/assets/9e41b319-872c-4ab8-b774-b8c44eed9445"></p>
 
 ### 29 languages
 
-The notifications are translated on [Crowdin](https://translate.streamyfin.app) into 29 languages, and the admin alerts use the words of Jellyfin's own activity log in each of them. A device that tells the server its language gets its notifications in it; the others get the server's language, as before. The app side of that, and the posters a notification about a new item can carry on Android, are still to come in the app (streamyfin/streamyfin#2076), as is asking, from the Seerr page of a title that is not on the server yet, to be told when it arrives, whoever adds it (streamyfin/streamyfin#2244).
+Notifications are translated into 29 languages. Once the next app release is out, each device gets them in its own language. Until then, they come in the server's language, as before.
 
 ### The whole configuration as YAML
 
-The **Yaml Editor** holds the whole configuration as one file, checked against the plugin's schema as you type, with the library and collection ids suggested where a section needs one, and examples to load.
+The **Yaml Editor** shows the whole configuration as one file. It points out mistakes as you type and suggests library ids. Below, it holds the home screen's rows.
 
 <p align="center"><img width="800" alt="The Yaml Editor holding the home screen's sections" src="https://github.com/user-attachments/assets/a08b353b-cd36-4aaa-a715-015034e24066"></p>
 
 ### Backup and restore
 
-The **Other** tab downloads one file with the configuration, the groups and what is aimed at one user, settings and notifications alike, each person's own notification choices and the titles they wait for, which Jellyfin's own backup does not carry, and restores it after checking it. The file contains the Seerr API key, so keep it the way you keep that key.
+The **Other** tab saves everything in one file: settings, groups, and each person's notification choices. It also restores from that file. The file contains your Seerr API key, so keep it safe.
 
 <p align="center"><img width="600" alt="The Backup card of the Other tab: download a backup, or restore from a file" src="https://github.com/user-attachments/assets/56a983af-9190-4219-97ce-b1f08c82820e"></p>
 
 ### Jellyfin 12
 
-The plugin is built for Jellyfin 10.11 and for Jellyfin 12 from one tree, and one repository URL serves both: your server installs the build it can run. It was loaded on Jellyfin 12.0, 12.2 and 12.4. The build for 12 is also the one Jellyfin 13 unstable installs: it compiles against 13's prerelease and runs on it.
+One plugin repository serves both Jellyfin 10.11 and Jellyfin 12: your server installs the right build by itself. Below, Streamyfin 0.70.0.0 runs on Jellyfin 12.4.
 
 <p align="center"><img width="800" alt="Jellyfin 12.4's plugin page with Streamyfin 0.70.0.0 active, installed from the catalogue" src="https://github.com/user-attachments/assets/f5e54a5d-26b7-4012-a581-28cd44948ccf"></p>
 
-The app for Jellyfin 12 is 0.56 (streamyfin/streamyfin#2192), with the sign in, Top Shelf and hidden library fixes for 12. Jellyfin 12 removed the `/emby` and `/mediabrowser` route aliases, and 0.56 moves a server saved under one of them to its root address; it also keeps the views someone hid in the app hidden across the new ids Jellyfin 12 gives some of them. Both need 0.56 to have seen the server before the move: an account saved on a device but not signed in only moves while the old address still answers, and a hidden view is only followed if the app saw its old id. So put 0.56 on the devices, and open it, before moving a server to 12, and until 0.56 is out, wait before moving a server the apps reach under `/emby` or `/mediabrowser`.
+Before you move a server to Jellyfin 12, install the Streamyfin app 0.56 on your devices and open it once. It moves saved servers to the address Jellyfin 12 needs, and keeps hidden libraries hidden. Until 0.56 is out, wait before moving a server that the apps reach through `/emby` or `/mediabrowser`.
 
 ## Compatibility
 
@@ -114,6 +122,9 @@ Something wrong? Open an [issue](https://github.com/streamyfin/jellyfin-plugin-s
 ---
 
 ## What's Changed
+
+<details>
+<summary>144 pull requests</summary>
 
 ### 🚀 Features
 
@@ -279,6 +290,8 @@ Something wrong? Open an [issue](https://github.com/streamyfin/jellyfin-plugin-s
 * refactor(integrations): cut the two blocks that carried the defects by @Gauvino in https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/161
 * perf(admin): keep the page descriptions between tabs and ask for them together by @Gauvino in https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/222
 * chore(rewrite): integration branch for the plugin rewrite by @Gauvino in https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/121
+
+</details>
 
 ## New Contributors
 * @github-actions[bot] made their first contribution in https://github.com/streamyfin/jellyfin-plugin-streamyfin/pull/234
