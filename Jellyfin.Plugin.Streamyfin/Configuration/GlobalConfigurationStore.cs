@@ -147,13 +147,16 @@ public sealed class GlobalConfigurationStore
     }
 
     /// <summary>
-    /// Locks the playback quality at Max, once, where an earlier version locked it empty.
+    /// Sets the playback quality at Max, once, where an earlier version stored it empty by an
+    /// administrator's choice.
     /// </summary>
     /// <remarks>
     /// The earlier versions labelled the empty value Max, and the apps before Auto read it as no
     /// cap. This version names Max and leaves the empty value to the app's own default, Auto.
-    /// Unlocked, the empty value was the app's default then too, and stays. The marker keeps an
-    /// administrator who locks the app's default afterwards from being moved to Max.
+    /// The server's level ships an unlocked empty value, the app's default then too, so only a
+    /// locked one is carried there; a group or a person holds only what was picked for them, so
+    /// theirs is carried locked or not. The marker keeps an administrator who chooses the app's
+    /// default afterwards from being moved to Max.
     /// </remarks>
     public void KeepLockedMaxBitrate()
     {
@@ -177,33 +180,50 @@ public sealed class GlobalConfigurationStore
             }
 
             // A group or a person above the server's level wins over it: they are carried too.
+            // A row that cannot be saved is logged and passed over, so the marker is written: a
+            // second pass could not tell an old empty value from the app's default chosen since.
             foreach (var group in _database.GetSettingsGroups())
             {
                 var settings = ReadRow(group.SettingsJson, $"group {group.Id}");
-                if (LockedMaxBitrate.CarryOver(settings))
+                if (LockedMaxBitrate.CarryOver(settings, aboveServer: true))
                 {
-                    group.SettingsJson = _serialization.SerializeToJson(settings!);
-                    _database.SaveSettingsGroup(group);
-                    _logger?.LogInformation("Locked the playback quality of group {Group} at Max, which an earlier version stored as no value", group.Name);
+                    SaveRow($"group {group.Id}", () =>
+                    {
+                        group.SettingsJson = _serialization.SerializeToJson(settings!);
+                        _database.SaveSettingsGroup(group);
+                    });
                 }
             }
 
             foreach (var person in _database.GetAllUserSettingsOverrides())
             {
                 var settings = ReadRow(person.SettingsJson, $"user {person.UserId}");
-                if (LockedMaxBitrate.CarryOver(settings))
+                if (LockedMaxBitrate.CarryOver(settings, aboveServer: true))
                 {
-                    _database.SaveUserSettingsOverride(person.UserId, _serialization.SerializeToJson(settings!), person.NotificationsJson);
-                    _logger?.LogInformation("Locked the playback quality of user {User} at Max, which an earlier version stored as no value", person.UserId);
+                    SaveRow($"user {person.UserId}", () =>
+                        _database.SaveUserSettingsOverride(person.UserId, _serialization.SerializeToJson(settings!), person.NotificationsJson));
                 }
             }
 
-            // After the configuration: a failure in between runs this again.
+            // After the server's level: a failure there runs this again.
             _database.Mark(ImportMarker.LockedMaxBitrate);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Could not lock the playback quality at Max. This is tried again on the next start");
+        }
+    }
+
+    private void SaveRow(string what, Action save)
+    {
+        try
+        {
+            save();
+            _logger?.LogInformation("Set the playback quality of {Row} at Max, which an earlier version stored as no value", what);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not set the playback quality of {Row} at Max, which an earlier version stored as no value. Set it again in the Targeting tab", what);
         }
     }
 

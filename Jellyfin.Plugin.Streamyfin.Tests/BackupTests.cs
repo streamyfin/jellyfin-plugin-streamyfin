@@ -72,7 +72,7 @@ public class BackupTests
     [Fact]
     public void AnOlderBackupsLockedEmptyQualityIsRestoredAtMax()
     {
-        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(LockedEmptyEverywhere()));
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(EmptyEverywhere()));
 
         Assert.False(read!.EmptyBitrateIsAuto);
         read.CarryLockedMaxOver();
@@ -83,12 +83,32 @@ public class BackupTests
     }
 
     /// <summary>
+    /// Unlocked, an older file's empty quality was the app's default at the server's level, and
+    /// stays, but a group or a person holds only what was picked for them: Max, kept unlocked.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupsUnlockedEmptyQualityIsMaxAboveTheServer()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(EmptyEverywhere(locked: false)));
+
+        read!.CarryLockedMaxOver();
+
+        Assert.Null(read.Config?.settings?.defaultBitrate?.value);
+        var group = Assert.Single(read.Groups).Settings?.defaultBitrate;
+        var user = Assert.Single(read.Users).Settings?.defaultBitrate;
+        Assert.Equal(Configuration.Bitrate.Max, group?.value);
+        Assert.False(group?.locked);
+        Assert.Equal(Configuration.Bitrate.Max, user?.value);
+        Assert.False(user?.locked);
+    }
+
+    /// <summary>
     /// A file this version wrote says so, and its locked empty quality is the app's Auto.
     /// </summary>
     [Fact]
     public void ABackupOfThisVersionKeepsALockedAuto()
     {
-        var backup = LockedEmptyEverywhere();
+        var backup = EmptyEverywhere();
         backup.EmptyBitrateIsAuto = true;
         var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
 
@@ -100,13 +120,13 @@ public class BackupTests
         Assert.Null(Assert.Single(read.Users).Settings?.defaultBitrate?.value);
     }
 
-    private static ConfigurationBackup LockedEmptyEverywhere() => new()
+    private static ConfigurationBackup EmptyEverywhere(bool locked = true) => new()
     {
         Plugin = "0.70.0.5",
         TakenAt = DateTimeOffset.UtcNow,
         Config = new Configuration.Config
         {
-            settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+            settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
         },
         Groups =
         [
@@ -115,7 +135,7 @@ public class BackupTests
                 Name = "TVs",
                 Priority = 1,
                 UserIds = [Guid.NewGuid()],
-                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
             }
         ],
         Users =
@@ -123,7 +143,7 @@ public class BackupTests
             new UserBackup
             {
                 UserId = Guid.NewGuid(),
-                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = true, value = null } }
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
             }
         ]
     };

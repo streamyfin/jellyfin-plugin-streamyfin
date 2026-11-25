@@ -505,7 +505,8 @@ public class StreamyfinController : ControllerBase
     return new JsonStringResult(_serializationHelperService.SerializeToJson(new ConfigurationBackup
     {
       Plugin = StreamyfinPlugin.Instance!.Version.ToString(),
-      EmptyBitrateIsAuto = true,
+      // Not before the start-up carry-over is done: until then a stored empty quality may mean Max.
+      EmptyBitrateIsAuto = database.HasMarker(ImportMarker.LockedMaxBitrate),
       TakenAt = DateTimeOffset.UtcNow,
       Config = StreamyfinPlugin.Instance!.Settings.Current,
       Groups = [.. GroupsWithMembers()],

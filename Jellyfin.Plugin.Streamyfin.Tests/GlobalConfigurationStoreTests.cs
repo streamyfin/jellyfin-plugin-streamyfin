@@ -311,26 +311,58 @@ public class GlobalConfigurationStoreTests : IDisposable
     }
 
     /// <summary>
-    /// A group or a person can lock it empty too, and a level above the server's wins: both
-    /// are locked at Max with it.
+    /// A group or a person holds only what an administrator picked for them, and a level above
+    /// the server's wins: an empty quality there was picked as Max, locked or not, and is set at
+    /// Max, keeping its lock.
     /// </summary>
-    [Fact]
-    public void AQualityLockedEmptyInAGroupOrForAPersonIsLockedAtMaxToo()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnEmptyQualityInAGroupOrForAPersonIsSetAtMax(bool locked)
     {
-        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        var empty = _serialization.SerializeToJson(new Settings
         {
-            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+            defaultBitrate = new Lockable<Bitrate?> { locked = locked, value = null }
         });
-        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = empty });
         var person = Guid.NewGuid();
-        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+        _db.SaveUserSettingsOverride(person, empty, "{}");
 
         _store.KeepLockedMaxBitrate();
 
         var groupQuality = _serialization.DeserializeJson<Settings>(_db.GetSettingsGroup(group.Id)!.SettingsJson)?.defaultBitrate;
         var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
         Assert.Equal(Bitrate.Max, groupQuality?.value);
-        Assert.True(groupQuality?.locked);
+        Assert.Equal(locked, groupQuality?.locked);
+        Assert.Equal(Bitrate.Max, personQuality?.value);
+        Assert.Equal(locked, personQuality?.locked);
+    }
+
+    /// <summary>
+    /// A row that cannot be saved is passed over and the marker is written all the same: a
+    /// second pass could not tell the empty value left there from the app's default chosen since.
+    /// </summary>
+    [Fact]
+    public void ARowThatCannotBeSavedIsPassedOverAndTheMarkerWritten()
+    {
+        var lockedEmpty = _serialization.SerializeToJson(new Settings
+        {
+            defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
+        });
+        // A name SaveSettingsGroup refuses, written past it, stands in for any failed save.
+        using (var context = _db.CreateContext())
+        {
+            context.SettingsGroups.Add(new SettingsGroup { Id = Guid.NewGuid(), Name = "bad\nname", SettingsJson = lockedEmpty });
+            context.SaveChanges();
+        }
+
+        var person = Guid.NewGuid();
+        _db.SaveUserSettingsOverride(person, lockedEmpty, "{}");
+
+        _store.KeepLockedMaxBitrate();
+
+        Assert.True(_db.HasMarker(ImportMarker.LockedMaxBitrate));
+        var personQuality = _serialization.DeserializeJson<Settings>(_db.GetUserSettingsOverride(person)!.SettingsJson)?.defaultBitrate;
         Assert.Equal(Bitrate.Max, personQuality?.value);
     }
 
@@ -345,8 +377,9 @@ public class GlobalConfigurationStoreTests : IDisposable
         {
             defaultBitrate = new Lockable<Bitrate?> { locked = true, value = null }
         });
-        var broken = _db.SaveSettingsGroup(new SettingsGroup { Name = "Broken", SettingsJson = "{not json" });
-        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", SettingsJson = lockedEmpty });
+        // Groups go in priority order: the broken one first, so the one after it is what is checked.
+        var broken = _db.SaveSettingsGroup(new SettingsGroup { Name = "Broken", Priority = 0, SettingsJson = "{not json" });
+        var group = _db.SaveSettingsGroup(new SettingsGroup { Name = "TVs", Priority = 1, SettingsJson = lockedEmpty });
         var brokenPerson = Guid.NewGuid();
         _db.SaveUserSettingsOverride(brokenPerson, "{not json", "{}");
         var person = Guid.NewGuid();

@@ -38,8 +38,9 @@ public class ConfigurationBackup
     public bool EmptyBitrateIsAuto { get; set; }
 
     /// <summary>
-    /// Locks at Max, at every level, a quality an older file locked empty, which meant Max
-    /// when it was written. A file this version wrote is left as it is.
+    /// Sets at Max a quality an older file stored empty by an administrator's choice, which
+    /// meant Max when it was written: locked at the server's level, locked or not at a group's
+    /// or a person's. A file this version wrote is left as it is.
     /// </summary>
     public void CarryLockedMaxOver()
     {
@@ -51,12 +52,12 @@ public class ConfigurationBackup
         Configuration.Settings.LockedMaxBitrate.CarryOver(Config?.settings);
         foreach (var group in Groups)
         {
-            Configuration.Settings.LockedMaxBitrate.CarryOver(group.Settings);
+            Configuration.Settings.LockedMaxBitrate.CarryOver(group.Settings, aboveServer: true);
         }
 
         foreach (var user in Users)
         {
-            Configuration.Settings.LockedMaxBitrate.CarryOver(user.Settings);
+            Configuration.Settings.LockedMaxBitrate.CarryOver(user.Settings, aboveServer: true);
         }
 
         EmptyBitrateIsAuto = true;
