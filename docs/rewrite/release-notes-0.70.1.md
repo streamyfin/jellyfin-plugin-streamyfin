@@ -8,4 +8,4 @@
 
 ## Fixed
 
-- **The Latest Movies row of the Home tab's first example, "Watching, then new", fills on Jellyfin 12 and 13.** It lists movies by the date they were added, as Jellyfin answers no movie to Latest there without a library (#307). A server that already loaded the example keeps its own row: load the example again, or make the row an Items row of movies sorted by date added. The "Recently Added" row of "Libraries first" still shows no movie on 12 and 13 (#311).
+- **The Latest Movies row of the Home tab's first example, "Watching, then new", fills on Jellyfin 12 and 13.** It lists movies by the date they were added, as Jellyfin answers no movie to Latest there without a library (#307). A server that already loaded the example keeps its own row: make that row an Items row of movies sorted by date added, newest first. Loading the example again also does it, but it replaces every row of the Home tab. The "Recently Added" row of "Libraries first" stays a Latest row, which showed no movie on the test servers' Jellyfin 12 and 13 (#311).
