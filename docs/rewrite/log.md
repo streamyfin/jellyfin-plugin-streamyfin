@@ -23,6 +23,17 @@ its own time to its wait. On the beta's Jellyfin 12.4.0 instance with the build,
 passwords for a test account told the administrators once, and three sign ins of another, the
 second 0.16 s after the first and the third 6 s later, went through the session start twice.
 
+## 2026-11-25, the second Home example lists new movies by date added too
+
+#311. "Libraries first" ended with Recently Added, a `latest` row with no type. On the beta, for an
+account that opens every library, Jellyfin 10.11.11 filled it with 18 movies of 20, while 12.4.0
+gave 9 series and 13.0.0 3 series, 3 seasons and an episode: no movie. It is now two rows, as in
+"Watching, then new": Recently Added Movies, an `items` row of movies by `DateCreated`, descending
+(20, newest first, on all three), and Recently Added Episodes, a `latest` row of episodes (10, 9
+and 7). The test over the examples now asks every `latest` row to name its types and none to name
+movies. Music and the other types the row could show no longer have a row in this example; the
+Home tab can add one.
+
 ## 2026-11-25, the first Home example lists new movies by date added
 
 #310, for #307. The app asks for a `latest` row with `getLatestMedia`, the user, the types and the
