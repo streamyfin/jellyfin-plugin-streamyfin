@@ -85,26 +85,39 @@ esac
 // the draft lookups at once and keeping the first to answer; this one takes the published
 // release, else the oldest draft, and the workflow refuses a tag several releases carry, so
 // no test depends on the order. view prints only the fields --json asks for, as gh does,
-// and upload refuses an asset that is there already unless told --clobber. list includes
-// drafts, view gives each asset's digest, and each can be told to fail the way a call to
+// and upload refuses an asset that is there already unless told --clobber. The list of releases
+// includes drafts, view gives each asset's digest, and each can be told to fail the way a call to
 // GitHub can.
 const GH = `#!/usr/bin/env bash
 set -eu
-verb="$2"
 mkdir -p "$STATE/releases"
-case "$verb" in
-  list)
-    if [ -f "$STATE/fail-list" ]; then echo "HTTP 502: Bad Gateway" >&2; exit 1; fi
-    if [ -f "$STATE/odd-list" ]; then echo '{"message":"Server Error"}'; exit 0; fi
-    printf '['; first=1
-    for r in "$STATE"/releases/*; do
-      [ -d "$r" ] || continue
-      [ $first = 1 ] || printf ','; first=0
-      draft=false; [ -f "$r/draft" ] && draft=true
-      printf '{"tagName":"%s","isDraft":%s}' "$(cat "$r/tag")" "$draft"
-    done
-    printf ']\\n'; exit 0 ;;
-esac
+# gh api lists the releases a page at a time, the newest first, per_page to a page (30
+# when it says nothing); --paginate reads every page and --slurp puts them in one array.
+if [ "$1" = api ]; then
+  if [ -f "$STATE/fail-list" ]; then echo "HTTP 502: Bad Gateway" >&2; exit 1; fi
+  if [ -f "$STATE/odd-list" ]; then echo '{"message":"Server Error"}'; exit 0; fi
+  paginate=0; slurp=0; per=30
+  for arg in "$@"; do
+    case "$arg" in
+      --paginate) paginate=1 ;;
+      --slurp) slurp=1 ;;
+      *per_page=*) per="\${arg##*per_page=}" ;;
+    esac
+  done
+  pages=(); page=""; n=0
+  for name in $(ls -r "$STATE/releases"); do
+    r="$STATE/releases/$name"
+    [ -d "$r" ] || continue
+    draft=false; [ -f "$r/draft" ] && draft=true
+    page="$page\${page:+,}{\\"tag_name\\":\\"$(cat "$r/tag")\\",\\"draft\\":$draft}"; n=$((n + 1))
+    if [ $n -eq "$per" ]; then pages+=("[$page]"); page=""; n=0; fi
+  done
+  [ -z "$page" ] && [ \${#pages[@]} -gt 0 ] || pages+=("[$page]")
+  [ $paginate = 1 ] || pages=("\${pages[0]}")
+  if [ $slurp = 1 ]; then (IFS=,; printf '[%s]\\n' "\${pages[*]}"); else printf '%s\\n' "\${pages[@]}"; fi
+  exit 0
+fi
+verb="$2"
 tag="$3"; shift 3
 named() {
   local r first=""
@@ -291,6 +304,18 @@ const prepareDraft = (box) => {
     writeFileSync(join(dir, "notes"), NOTES);
 };
 const untouched = { author: "a-maintainer", draft: true, assets: [], notes: NOTES };
+// Releases of other versions made after everything there, published.
+const newer = (box, count) => {
+    const root = join(box.state, "releases");
+    mkdirSync(root, { recursive: true });
+    const last = Number(readdirSync(root).sort().at(-1) ?? 0);
+    for (let i = 1; i <= count; i++) {
+        const dir = join(root, String(last + i).padStart(3, "0"));
+        mkdirSync(join(dir, "assets"), { recursive: true });
+        writeFileSync(join(dir, "tag"), `0.69.0.${i}\n`);
+        writeFileSync(join(dir, "author"), "github-actions[bot]\n");
+    }
+};
 const asPrepared = ({ author, draft, assets, notes }) => ({ author, draft, assets, notes });
 const fail = (box, what) => writeFileSync(join(box.state, `fail-${what}`), "");
 const recover = (box, what) => rmSync(join(box.state, `fail-${what}`));
@@ -365,6 +390,21 @@ describe("a rerun of the same run", () => {
 
         expect(ghLog(box)).toEqual([`upload ${BOTH[1]}`, `publish ${VERSION}`]);
         expect(published(box)).toEqual({ draft: false, assets: BOTH });
+    });
+
+    // gh lists the newest releases only, as many as --limit asks for: the draft has to be
+    // found however many releases were made since, or the rerun makes a second one.
+    test("finds the draft a killed attempt left behind a hundred newer releases", () => {
+        const box = sandbox();
+        writeFileSync(join(box.state, "kill-upload"), "");
+        expect(run(box, attempt(box), TAG_STEP).code).not.toBe(0);
+        rmSync(join(box.state, "kill-upload"));
+        newer(box, 100);
+
+        expect(run(box, attempt(box), TAG_STEP).code).toBe(0);
+
+        expect(ghLog(box)).toEqual([`upload ${BOTH[1]}`, `publish ${VERSION}`]);
+        expect(releasesOf(box)).toHaveLength(1);
     });
 
     test("writes the manifest a first attempt could not write, without uploading the zips again", () => {
@@ -549,7 +589,7 @@ test("nothing is pushed when gh answers the list with something that is not one"
     const tag = run(box, attempt(box), TAG_STEP);
 
     expect(tag.code).not.toBe(0);
-    expect(tag.output).toContain("gh release list did not answer a list");
+    expect(tag.output).toContain("gh did not answer the list of releases");
     expect(onOrigin(box, `refs/tags/${VERSION}`)).toBeNull();
     expect(releaseCommits(box)).toHaveLength(0);
 });
