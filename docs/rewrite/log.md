@@ -8,6 +8,21 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-25, an event that waits says how long
+
+#293, the two leftovers the second full review of #292 found on the wait between two of the same
+event. `BaseEvent.GetRecentEventThreshold` fell back to 5 seconds, so an event that called
+`HasRecentlyProcessed` without saying its wait waited that long, with no field on the
+Notifications tab and nothing checking it. The fallback now throws, and a test holds the events
+that say their wait to the five whose block carries `[RecentEventWait]`.
+
+The cleanup each of those five runs first read every remembered event each time, and since #292
+each stays as long as the longest wait in force, 5 minutes by default for a refused sign in. It now
+runs at most once a minute. An entry kept a minute longer changes nothing, as an event compares
+its own time to its wait. On the beta's Jellyfin 12.4.0 instance with the build, two wrong
+passwords for a test account told the administrators once, and three sign ins of another, the
+second 0.16 s after the first and the third 6 s later, went through the session start twice.
+
 ## 2026-11-25, the first Home example lists new movies by date added
 
 #310, for #307. The app asks for a `latest` row with `getLatestMedia`, the user, the types and the

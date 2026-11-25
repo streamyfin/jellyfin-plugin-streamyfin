@@ -32,7 +32,7 @@ public class SessionStartEvent(
         }
 
         // Clean up old session entries when a new session event is triggered
-        CleanupOldEntries();
+        CleanupOldEntriesNowAndThen();
 
         // Prevent the same notification per device
         string sessionKey = eventArgs.Argument.DeviceId;

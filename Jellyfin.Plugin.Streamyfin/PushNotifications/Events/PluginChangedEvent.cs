@@ -93,7 +93,7 @@ public class PluginChangedEvent(
             return Task.CompletedTask;
         }
 
-        CleanupOldEntries();
+        CleanupOldEntriesNowAndThen();
 
         if (HasRecentlyProcessed($"plugin-changed:{change}:{name}:{version}"))
         {

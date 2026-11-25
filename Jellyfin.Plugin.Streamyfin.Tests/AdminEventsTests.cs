@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
 using MediaBrowser.Model.Tasks;
 using Xunit;
@@ -201,6 +202,9 @@ public class AdminEventsTests
         null!)
     {
         public bool Seen(string key) => HasRecentlyProcessed(key);
+
+        // An event that waits says how long.
+        protected override TimeSpan GetRecentEventThreshold() => TimeSpan.FromSeconds(RecentEventWaitAttribute.Usual);
     }
 
     private sealed class FakeTask(bool logged) : IScheduledTask, IConfigurableScheduledTask

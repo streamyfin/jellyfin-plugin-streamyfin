@@ -1,7 +1,10 @@
 using System;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -176,6 +179,54 @@ public class EventWaitTests
         new Probe(TimeSpan.FromSeconds(5)).Cleanup();
 
         Assert.False(BaseEvent.RecentEvents.ContainsKey(key));
+    }
+
+    /// <summary>
+    /// The events that say how long they wait are the five the Notifications tab offers a wait
+    /// on: a sixth would have no field there, and nothing would check its wait.
+    /// </summary>
+    [Fact]
+    public void TheEventsThatWaitAreTheOnesTheTabOffersAWaitOn()
+    {
+        var waiting = typeof(BaseEvent).Assembly.GetTypes()
+            .Where(type => type.IsSubclassOf(typeof(BaseEvent)) && !type.IsAbstract)
+            .Where(type => type.GetMethod("GetRecentEventThreshold", BindingFlags.Instance | BindingFlags.NonPublic)!.DeclaringType == type)
+            .Select(type => type.Name)
+            .Order();
+
+        Assert.Equal(
+            [nameof(PlaybackStartEvent), nameof(PluginChangedEvent), nameof(SessionStartEvent), nameof(SignInFailedEvent), nameof(TaskFailedService)],
+            waiting);
+        Assert.Equal(5, typeof(Notifications).GetProperties().Count(property => property.GetCustomAttribute<RecentEventWaitAttribute>() is not null));
+    }
+
+    /// <summary>
+    /// An event that does not say how long it waits has no wait to give: one that waited
+    /// anyway waited 5 seconds, with no field on the tab and nothing checked.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(UserLockedOutEvent))]
+    [InlineData(typeof(ItemAddedService))]
+    public void AnEventThatSaysNoWaitHasNone(Type eventType)
+    {
+        var built = (BaseEvent)RuntimeHelpers.GetUninitializedObject(eventType);
+
+        Assert.Throws<InvalidOperationException>(() => built.WaitNow);
+    }
+
+    /// <summary>
+    /// The five events run the cleanup first, and it reads every remembered event: it runs at
+    /// most once a minute, so a burst of refused sign ins does not pay for a full pass each.
+    /// </summary>
+    [Fact]
+    public void TheCleanupRunsAtMostOnceAMinute()
+    {
+        // A year on, past whatever the events of the other tests claimed.
+        var start = DateTime.UtcNow.AddYears(1);
+
+        Assert.True(BaseEvent.ClaimCleanup(start));
+        Assert.False(BaseEvent.ClaimCleanup(start.AddSeconds(59)));
+        Assert.True(BaseEvent.ClaimCleanup(start.AddSeconds(60)));
     }
 
     private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(
