@@ -14,12 +14,13 @@ lives only in a comment thread is a decision nobody will find.
 event. `BaseEvent.GetRecentEventThreshold` fell back to 5 seconds, so an event that called
 `HasRecentlyProcessed` without saying its wait waited that long, with no field on the
 Notifications tab and nothing checking it. The fallback now throws, and a test holds the events
-that say their wait to the five whose block carries `[RecentEventWait]`.
+that say their wait to the five whose block carries `[RecentEventWait]`, each reading its own.
 
 The cleanup each of those five runs first read every remembered event each time, and since #292
 each stays as long as the longest wait in force, 5 minutes by default for a refused sign in. It now
 runs at most once a minute. An entry kept a minute longer changes nothing, as an event compares
-its own time to its wait. On the beta's Jellyfin 12.4.0 instance with the build, two wrong
+its own time to its wait. A clock set back by more than that minute claims the next cleanup at
+once, or it would wait until the clock caught up while the entries piled up. On the beta's Jellyfin 12.4.0 instance with the build, two wrong
 passwords for a test account told the administrators once, and three sign ins of another, the
 second 0.16 s after the first and the third 6 s later, went through the session start twice.
 

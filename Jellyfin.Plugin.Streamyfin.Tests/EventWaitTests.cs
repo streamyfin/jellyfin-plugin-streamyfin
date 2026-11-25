@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -191,13 +192,39 @@ public class EventWaitTests
         var waiting = typeof(BaseEvent).Assembly.GetTypes()
             .Where(type => type.IsSubclassOf(typeof(BaseEvent)) && !type.IsAbstract)
             .Where(type => type.GetMethod("GetRecentEventThreshold", BindingFlags.Instance | BindingFlags.NonPublic)!.DeclaringType == type)
-            .Select(type => type.Name)
-            .Order();
+            .OrderBy(type => type.Name)
+            .ToList();
 
         Assert.Equal(
             [nameof(PlaybackStartEvent), nameof(PluginChangedEvent), nameof(SessionStartEvent), nameof(SignInFailedEvent), nameof(TaskFailedService)],
-            waiting);
-        Assert.Equal(5, typeof(Notifications).GetProperties().Count(property => property.GetCustomAttribute<RecentEventWaitAttribute>() is not null));
+            waiting.Select(type => type.Name));
+
+        // Each block gets a wait of its own, so the wait an event reads names the block it
+        // reads it from: every block that offers a wait is read, each by one event.
+        var blocks = typeof(Notifications).GetProperties()
+            .Where(property => property.GetCustomAttribute<RecentEventWaitAttribute>() is not null)
+            .ToList();
+        var notifications = new Notifications();
+        for (var i = 0; i < blocks.Count; i++)
+        {
+            blocks[i].SetValue(notifications, new NotificationConfiguration { RecentEventThreshold = 101 + i });
+        }
+
+        var read = waiting.ToDictionary(
+            type => type.Name,
+            type => blocks[(int)((TimeSpan)type.GetMethod("WaitIn", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [notifications])!).TotalSeconds - 101].Name);
+
+        Assert.Equal(
+            new Dictionary<string, string>
+            {
+                [nameof(PlaybackStartEvent)] = nameof(Notifications.PlaybackStarted),
+                [nameof(PluginChangedEvent)] = nameof(Notifications.PluginChanged),
+                [nameof(SessionStartEvent)] = nameof(Notifications.SessionStarted),
+                [nameof(SignInFailedEvent)] = nameof(Notifications.SignInFailed),
+                [nameof(TaskFailedService)] = nameof(Notifications.TaskFailed),
+            },
+            read);
+        Assert.Equal(blocks.Count, read.Values.Distinct().Count());
     }
 
     /// <summary>
@@ -228,6 +255,23 @@ public class EventWaitTests
         Assert.True(BaseEvent.ClaimCleanup(ref due, start));
         Assert.False(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(59)));
         Assert.True(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(60)));
+    }
+
+    /// <summary>
+    /// A clock set back, by NTP or by hand, does not hold the cleanup until it catches up:
+    /// the remembered events of a server open to the internet would pile up meanwhile.
+    /// </summary>
+    [Fact]
+    public void AClockSetBackDoesNotHoldTheCleanup()
+    {
+        long due = 0;
+        var wrong = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var corrected = wrong.AddYears(-1);
+
+        Assert.True(BaseEvent.ClaimCleanup(ref due, wrong));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, corrected));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, corrected.AddSeconds(59)));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, corrected.AddSeconds(60)));
     }
 
     private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(

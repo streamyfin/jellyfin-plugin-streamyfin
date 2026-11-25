@@ -131,8 +131,11 @@ public abstract class BaseEvent
     {
         var seen = Interlocked.Read(ref due);
 
-        return now.Ticks >= seen
-            && Interlocked.CompareExchange(ref due, (now + CleanupEvery).Ticks, seen) == seen;
+        // A clock set back by more than the interval would otherwise hold every cleanup until
+        // it caught up, while the remembered events piled up.
+        var passed = now.Ticks >= seen || now.Ticks < seen - CleanupEvery.Ticks;
+
+        return passed && Interlocked.CompareExchange(ref due, (now + CleanupEvery).Ticks, seen) == seen;
     }
 
     /// <summary>
