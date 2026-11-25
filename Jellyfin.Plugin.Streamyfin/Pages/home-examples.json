@@ -15,7 +15,8 @@
         "sections": [
             { "title": "My Media", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/streamyfin/v1/my-media" } },
             { "title": "Continue Watching", "kind": "custom", "orientation": "horizontal", "custom": { "endpoint": "/UserItems/Resume", "query": { "includeItemTypes": "Movie,Episode" } } },
-            { "title": "Recently Added", "kind": "latest", "orientation": "vertical", "latest": { "limit": 20 } }
+            { "title": "Recently Added Movies", "kind": "items", "orientation": "vertical", "items": { "includeItemTypes": ["Movie"], "sortBy": ["DateCreated"], "sortOrder": ["Descending"], "limit": 20 } },
+            { "title": "Recently Added Episodes", "kind": "latest", "orientation": "horizontal", "latest": { "includeItemTypes": ["Episode"], "limit": 20 } }
         ]
     },
     {

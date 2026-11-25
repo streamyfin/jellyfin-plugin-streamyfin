@@ -351,15 +351,19 @@ describe("the examples", () => {
         for (const section of resumes) expect(section.custom.query).toEqual({ includeItemTypes: "Movie,Episode" });
     });
 
-    // Without a library, Jellyfin 12 and 13 answer Latest for movies with none (#307), so a
-    // row of new films lists them by the date they were added.
-    test("a row of new movies asks for them by date added, not Latest", () => {
+    // Without a library, Jellyfin 12 and 13 answer Latest for movies with none (#307), and leave
+    // the movies out of a Latest row that names no type (#311). So a row of new films lists them
+    // by the date they were added, and every Latest row names its types.
+    test("new movies are asked for by date added, and every Latest row names its types", () => {
         const sections = EXAMPLES.flatMap((example) => example.sections);
-        const latestMovies = sections.filter((section) => section.latest?.includeItemTypes?.includes("Movie"));
-        const newMovies = sections.filter((section) => section.title === "Latest Movies");
+        const latest = sections.filter((section) => section.kind === "latest");
+        const newMovies = sections.filter((section) => /^(Latest|Recently Added) Movies$/.test(section.title));
 
-        expect(latestMovies).toEqual([]);
-        expect(newMovies.length).toBeGreaterThan(0);
+        for (const section of latest) {
+            expect(section.latest.includeItemTypes?.length).toBeGreaterThan(0);
+            expect(section.latest.includeItemTypes).not.toContain("Movie");
+        }
+        expect(newMovies.length).toBe(2);
         for (const section of newMovies) {
             expect(section.kind).toBe("items");
             expect(section.items).toMatchObject({ includeItemTypes: ["Movie"], sortBy: ["DateCreated"], sortOrder: ["Descending"] });
