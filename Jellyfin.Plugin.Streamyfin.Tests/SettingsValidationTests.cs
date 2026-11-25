@@ -146,7 +146,7 @@ public class SettingsValidationTests
 
     /// <summary>
     /// A null is not out of bounds. It is the app's own answer for a nullable setting,
-    /// the playback quality's "no cap", and refusing it here would refuse Max.
+    /// the playback quality's Auto, and refusing it here would refuse the app's default.
     /// </summary>
     [Fact]
     public void ANullIsNotOutOfBounds()

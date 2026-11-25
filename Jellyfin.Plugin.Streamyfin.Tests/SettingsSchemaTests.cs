@@ -199,7 +199,7 @@ public class SettingsSchemaTests
     /// </summary>
     /// <remarks>
     /// The form offers it as a choice whose value is null, and the store has to read that
-    /// back as no cap rather than as a missing setting or a zero.
+    /// back as the app's own default, Auto, rather than as a missing setting or a zero.
     /// </remarks>
     [Fact]
     public void NoPlaybackCapIsStoredAsNull()

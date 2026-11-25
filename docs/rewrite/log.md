@@ -13,23 +13,35 @@ lives only in a comment thread is a decision nobody will find.
 The app's Auto quality (streamyfin/streamyfin#2388) measures the connection to the server and
 becomes the app's default. It reads the plugin's empty `defaultBitrate`, which Jellyfin leaves out
 of the JSON, as that default. The plugin labelled the empty value Max, so the form now says Auto,
-and Max is a member of `Bitrate` of its own: stored as 0, which a build rolled back to still reads,
-and sent to the app by its key, `Max`, which the app finds in its qualities whatever its version.
+and Max is a member of `Bitrate` of its own, sent to the app by its key, `Max`, which the app finds
+in its qualities whatever its version. It is stored as the largest `int`: 0.70.0.0, rolled back to,
+sends a stored quality as its number, and the app takes that one as a cap no stream reaches, where 0
+was a cap of 0, which Jellyfin's transcoding raises to 64 kb/s.
 
 CodeRabbit's review of the app pull request found the case this leaves: an administrator who
 locked the empty value meant Max, the only meaning it had. At its first start 0.70.1 locks
 such a quality at Max, once, behind the `locked-max-bitrate` marker, so that an administrator who
-locks the app's default afterwards keeps it. An unlocked empty value was the app's default then
-too, and stays empty.
+locks the app's default afterwards keeps it. At the server's level an unlocked empty value was the
+app's default then too, and stays empty.
 
-A group or a person who locked it empty is locked at Max at that start too, as those levels win
-over the server's. A row that does not parse is left as it is and logged, so it holds back neither
-the rows after it nor the marker. A backup now says its empty quality is the app's Auto
-(`emptyBitrateIsAuto`): a file without it is older, and its restore locks at Max what it locked
-empty, at every level.
+A group or a person who held it empty is set at Max at that start too, locked or not, as those
+levels win over the server's and hold only what an administrator picked there: the released app
+pre-filled Max from an unlocked empty value. A row that does not parse is left as it is and
+logged, and so is one whose save fails, so neither holds back the rows after it nor the marker: a
+second pass could not tell an old empty value from the app's default chosen since. A backup says
+its empty quality is the app's Auto (`emptyBitrateIsAuto`) once the carry-over is done: a file
+without it is older, or was taken before, and its restore carries it the same way.
+
+The full review of #305 found the rollback, the unlocked rows above the server, the failed save and
+the backup taken too early. It also found what this leaves: an administrator who goes back to
+0.70.0.0 and chooses Max there stores it empty, and the marker keeps the next start from carrying
+it, which the 0.70.1 notes say. Its other points were wording, and two it left: the routes'
+wiring to the carry-over is reached by no test, and the app's reader of `Max` takes that key only,
+which only the plugin writes.
 
 This waited for 0.70.0.0 and goes out in 0.70.1. Its line moved from the 0.70.0 notes, kept as
 published, to `release-notes-0.70.1.md`.
+
 ## 2026-11-24, the generator reads the app's develop again
 
 The weekly App parity check had failed since 2026-11-02 on an error rather than on a difference, so

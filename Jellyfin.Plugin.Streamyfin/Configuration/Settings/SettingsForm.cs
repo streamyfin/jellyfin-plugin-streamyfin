@@ -57,7 +57,7 @@ public enum SettingsControl
 /// <summary>
 /// One choice in a dropdown.
 /// </summary>
-/// <param name="Value">What is stored. Null is a real choice, used for "no cap".</param>
+/// <param name="Value">What is stored. Null is a real choice, the app's own default, as the playback quality's Auto.</param>
 /// <param name="Label">What the administrator reads.</param>
 public sealed record SettingsChoice(
     [property: JsonPropertyName("value")] string? Value,

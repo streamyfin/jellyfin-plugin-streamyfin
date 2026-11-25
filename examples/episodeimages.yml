@@ -20,7 +20,7 @@ settings:
   
   defaultBitrate:
     locked: false
-    value: null  # null = Max quality, or specify bitrate (e.g., 250000, 500000, 1000000, 2000000)
+    value: null  # null = the app's default, Auto (Max in the apps before Auto); Max, or a bitrate (e.g., 250000, 500000, 1000000, 2000000)
   
   maxAutoPlayEpisodeCount:
     locked: false

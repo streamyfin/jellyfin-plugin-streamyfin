@@ -80,7 +80,7 @@ public class SerializationHelper
         var options = new JsonSerializerOptions(JsonDefaults.Options);
 
         // Jellyfin's options omit a null when writing, so a setting whose value is null,
-        // the playback quality's "no cap", left the document without its value key. Read
+        // the playback quality's Auto (Max until 0.70.1), left the document without its value key. Read
         // back, that tripped the required value on Lockable<T> and threw, the tolerant
         // read answered null, and a whole targeting level came back empty: a group set to
         // Max looked saved until the page was reopened and gave its members nothing.
@@ -116,9 +116,10 @@ public class SerializationHelper
     /// The options every JSON the app receives is written with.
     /// </summary>
     /// <remarks>
-    /// The stored form, except for two things. The subtitle mode goes out by name: the app
+    /// The stored form, except for three things. The subtitle mode goes out by name: the app
     /// compares the SDK's strings for it, so the number never matched, and a mode an
-    /// administrator locked did nothing. And Seerr goes out as its block only, without the
+    /// administrator locked did nothing. The playback quality's Max goes out by its key, as the
+    /// app's Max has no number of its own. And Seerr goes out as its block only, without the
     /// three flat keys it is stored under. Public because the parity test compares a
     /// declared default against what the app reads, and it has to compare the written form.
     /// Comparing CLR values would pass for an enum written as a number where the app
