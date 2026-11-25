@@ -14,7 +14,9 @@ lives only in a comment thread is a decision nobody will find.
 words, which name a CLR type and not the setting, so on a long document only the line and column
 led to the mistake. `YamlWrongType` now finds what the reader stopped on: one setting's `value`, its
 `locked`, or the setting written as a bare value, and says the setting's title, its path and what
-it takes, as the bounds checks do. Anything else keeps the deserializer's words.
+it takes, as the bounds checks do. A setting written under the name it also answers to, such as
+`autoLoginSeerr`, is named under that name. Anything else keeps the deserializer's words, a value
+with a tag the reader does not know included: `!unknown 10` has its tag to fix, not its type.
 
 It reads the document event by event with YamlDotNet's parser rather than as a tree. The first
 version loaded a `YamlStream` and walked its nodes, which overflowed the stack on the 200,000 lists

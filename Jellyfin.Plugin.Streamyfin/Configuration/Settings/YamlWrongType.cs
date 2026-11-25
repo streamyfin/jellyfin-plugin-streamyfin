@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
@@ -52,8 +53,10 @@ public static class YamlWrongType
             return null;
         }
 
+        // Found under the name it was written with, an alias included, which the path keeps.
         var key = path[1];
-        var descriptor = SettingsSchema.Descriptors.FirstOrDefault(d => d.Key == key);
+        var descriptor = SettingsSchema.Descriptors.FirstOrDefault(d => d.Key == key
+            || d.Property.GetCustomAttributes<AlsoKnownAsAttribute>().Any(alias => alias.Name == key));
         if (descriptor is null)
         {
             return null;
@@ -122,6 +125,12 @@ public static class YamlWrongType
 
             if (current.Start.Index == where.Index)
             {
+                // A tag the reader does not know is what has to change, not the value's type.
+                if (current is NodeEvent { Tag.IsEmpty: false })
+                {
+                    return null;
+                }
+
                 var found = current switch
                 {
                     Scalar { Value: var text } => $"'{(text.Length > LongestShown ? text[..LongestShown] + "…" : text)}'",
