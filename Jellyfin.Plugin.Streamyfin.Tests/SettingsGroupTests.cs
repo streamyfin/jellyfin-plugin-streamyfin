@@ -182,7 +182,7 @@ public class SettingsGroupTests : IDisposable
     /// A level that turns the playback quality off keeps every other setting it carries.
     /// </summary>
     /// <remarks>
-    /// The quality is the one setting whose "no cap" is a null, and the store writes
+    /// The quality is the one setting whose Auto is a null, and the store writes
     /// with Jellyfin's JSON options, which omit a null: the key left the document
     /// entirely. Reading it back then failed on <c>Lockable&lt;T&gt;.value</c> being
     /// required, the tolerant read answered null, and the whole level came back empty.

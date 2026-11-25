@@ -546,9 +546,9 @@ const problemOf = (row) => {
         }
     }
 
-    // A choice whose value is null is a real answer, the playback quality's "no cap".
-    // Jellyfin's JSON options omit a null, so that option arrives with no value key at
-    // all: compared strictly it looked absent, and Max was refused as an empty field.
+    // A choice whose value is null is a real answer, the playback quality's Auto, the app's
+    // own default. Jellyfin's JSON options omit a null, so that option arrives with no value
+    // key at all: compared strictly it looked absent, and it was refused as an empty field.
     if (field.control === "Select" && value === null && !(field.options ?? []).some((o) => (o.value ?? null) === null)) {
         return "Choose a value.";
     }
@@ -694,7 +694,7 @@ export const createForm = (mount, { fields = [], values = {}, defaults = {}, cul
 
     // What Reset puts back: the default the plugin declares, or else the app's own, which
     // the server reads from the app's source and sends with the field. A null the app sends
-    // is a default, as the bitrate's no cap is; a field sent without one has none.
+    // is a default, as the bitrate's Auto is; a field sent without one has none.
     const resetValue = (field) => {
         const declared = defaultValue(field);
         if (declared !== undefined) return declared;

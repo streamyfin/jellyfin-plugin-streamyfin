@@ -505,6 +505,8 @@ public class StreamyfinController : ControllerBase
     return new JsonStringResult(_serializationHelperService.SerializeToJson(new ConfigurationBackup
     {
       Plugin = StreamyfinPlugin.Instance!.Version.ToString(),
+      // Not before the start-up carry-over is done: until then a stored empty quality may mean Max.
+      EmptyBitrateIsAuto = database.HasMarker(ImportMarker.LockedMaxBitrate),
       TakenAt = DateTimeOffset.UtcNow,
       Config = StreamyfinPlugin.Instance!.Settings.Current,
       Groups = [.. GroupsWithMembers()],
@@ -568,6 +570,9 @@ public class StreamyfinController : ControllerBase
     {
       return BadRequest(new RestoreReport { Problem = targetingProblem });
     }
+
+    // A file older than the explicit Max meant Max by a quality it locked empty.
+    backup.CarryLockedMaxOver();
 
     // Everything it carries is checked before anything is written, so a file with one
     // bad level does not leave the server half restored.

@@ -38,10 +38,10 @@ const FIELDS = [
     field("defaultBitrate", "Select", {
         group: "Quality",
         title: "Default playback quality",
-        // The "no cap" choice as the server actually sends it: Jellyfin's JSON options
+        // The Auto choice, the app's own default, as the server actually sends it: Jellyfin's JSON options
         // omit a null, so the option arrives with no value key at all rather than with
         // a null one. A fixture that spelled it out would test a shape nothing sends.
-        options: [{ label: "Max" }, { value: "_1MB", label: "1 MB" }, { value: "_2MB", label: "2 MB" }],
+        options: [{ label: "Auto" }, { value: "Max", label: "Max" }, { value: "_1MB", label: "1 MB" }, { value: "_2MB", label: "2 MB" }],
     }),
     field("jellyseerrServerUrl", "Text", { category: "Plugins", group: "Jellyseerr", title: "Seerr server" }),
     field("jellyseerrApiKey", "Secret", { category: "Plugins", group: "Jellyseerr", title: "Seerr API key", description: "**Warning** every user can read it" }),
@@ -181,7 +181,7 @@ describe("createForm", () => {
         const { mount, form } = mountForm({ defaultBitrate: { value: "_2MB", locked: false } });
         const select = control(mount, "defaultBitrate");
 
-        expect([...select.options].map((option) => option.textContent)).toEqual(["Max", "1 MB", "2 MB"]);
+        expect([...select.options].map((option) => option.textContent)).toEqual(["Auto", "Max", "1 MB", "2 MB"]);
         expect(select.value).toBe("_2MB");
 
         change(select, (el) => { el.value = ""; });
@@ -476,10 +476,10 @@ describe("createForm", () => {
         expect(toggle.title).toBe("");
     });
 
-    // Jellyfin's JSON options omit a null, so the "no cap" choice arrives with no value
+    // Jellyfin's JSON options omit a null, so the Auto choice arrives with no value
     // key. Compared strictly against null it looked like no such choice existed, and a
     // quality set to Max was held invalid with "Choose a value".
-    test("the no cap choice is a real answer, not a missing one", () => {
+    test("the Auto choice is a real answer, not a missing one", () => {
         const { mount, form } = mountForm({ defaultBitrate: { value: "_2MB", locked: false } });
 
         change(control(mount, "defaultBitrate"), (el) => { el.value = ""; });
@@ -874,7 +874,7 @@ describe("putting a setting back to the app's default", () => {
         expect(reset(mount, "enableHorizontalSwipeSkip").hidden).toBe(true);
     });
 
-    // A null is a real default: the bitrate's is no cap.
+    // A null is a real default: the bitrate's is Auto.
     test("takes a null the app sends as the default it is", () => {
         const fields = [field("defaultBitrate", "Select", { title: "Bitrate", options: [{ value: null, label: "Max" }, { value: "_8MB", label: "8 Mb/s" }], appDefault: null })];
         const mount = document.createElement("div");

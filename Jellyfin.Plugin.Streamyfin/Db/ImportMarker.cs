@@ -27,6 +27,12 @@ public class ImportMarker
     public const string AwaitedTitlesOn = "awaited-titles-on";
 
     /// <summary>
+    /// The playback quality an earlier version locked empty, which it labelled Max, was locked
+    /// at Max, once.
+    /// </summary>
+    public const string LockedMaxBitrate = "locked-max-bitrate";
+
+    /// <summary>
     /// Gets or sets the name of the import.
     /// </summary>
     public string Name { get; set; } = string.Empty;

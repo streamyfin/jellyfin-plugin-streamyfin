@@ -30,6 +30,40 @@ public class ConfigurationBackup
     public string Plugin { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets a value indicating whether this file's empty playback quality is the app's
+    /// own default, Auto. Every version that names Max writes it; a file without it is older,
+    /// and there an empty quality meant Max.
+    /// </summary>
+    [JsonPropertyName("emptyBitrateIsAuto")]
+    public bool EmptyBitrateIsAuto { get; set; }
+
+    /// <summary>
+    /// Sets at Max a quality an older file stored empty by an administrator's choice, which
+    /// meant Max when it was written: locked at the server's level, locked or not at a group's
+    /// or a person's. A file this version wrote is left as it is.
+    /// </summary>
+    public void CarryLockedMaxOver()
+    {
+        if (EmptyBitrateIsAuto)
+        {
+            return;
+        }
+
+        Configuration.Settings.LockedMaxBitrate.CarryOver(Config?.settings);
+        foreach (var group in Groups)
+        {
+            Configuration.Settings.LockedMaxBitrate.CarryOver(group.Settings, aboveServer: true);
+        }
+
+        foreach (var user in Users)
+        {
+            Configuration.Settings.LockedMaxBitrate.CarryOver(user.Settings, aboveServer: true);
+        }
+
+        EmptyBitrateIsAuto = true;
+    }
+
+    /// <summary>
     /// Gets or sets when it was taken.
     /// </summary>
     [JsonPropertyName("takenAt")]

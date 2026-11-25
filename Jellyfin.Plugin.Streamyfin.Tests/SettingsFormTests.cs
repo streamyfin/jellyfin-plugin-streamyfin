@@ -200,7 +200,7 @@ public class SettingsFormTests
     [Theory]
     [InlineData("subtitleMode", "Default,Smart,OnlyForced,Always,None")]
     [InlineData("skipIntro", "auto,ask,none")]
-    [InlineData("defaultBitrate", ",_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
+    [InlineData("defaultBitrate", ",Max,_8MB,_4MB,_2MB,_1MB,_500KB,_250KB")]
     [InlineData("nextEpisodesNetwork", "any,wifi,home")]
     public void AChoiceListFollowsTheAppsOrder(string key, string expected)
     {
@@ -208,15 +208,18 @@ public class SettingsFormTests
     }
 
     /// <summary>
-    /// The playback quality keeps its "no cap" choice, which the app reads as null.
+    /// The playback quality's empty value leaves the app its own default, Auto, which
+    /// measures the connection; Max, no cap, is a choice of its own.
     /// </summary>
     [Fact]
-    public void ThePlaybackQualityOffersNoCap()
+    public void ThePlaybackQualityOffersTheAppsDefaultThenMax()
     {
         var options = Field("defaultBitrate").Options;
 
-        Assert.Equal("Max", options[0].Label);
+        Assert.Equal("Auto", options[0].Label);
         Assert.Null(options[0].Value);
+        Assert.Equal("Max", options[1].Label);
+        Assert.Equal("Max", options[1].Value);
     }
 
     /// <summary>

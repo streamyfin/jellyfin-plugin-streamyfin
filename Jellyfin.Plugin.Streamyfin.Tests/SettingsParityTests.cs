@@ -1046,6 +1046,22 @@ public class SettingsParityTests
     }
 
     /// <summary>
+    /// Max reaches the app by its key, as the app's Max has no number of its own, and the
+    /// apps without Auto read it the same way. Every other quality goes out as its number.
+    /// Stored, Max is the largest number, which a build rolled back to reads and sends on as a
+    /// cap no stream reaches, where 0 would be a cap Jellyfin raises to 64 kb/s.
+    /// </summary>
+    [Fact]
+    public void MaxGoesToTheAppByItsKeyAndIsStoredAsANumber()
+    {
+        var serialization = new SerializationHelper();
+
+        Assert.Equal("\"Max\"", JsonSerializer.Serialize(Bitrate.Max, serialization.GetAppJsonSerializerOptions()));
+        Assert.Equal("4000000", JsonSerializer.Serialize(Bitrate._4MB, serialization.GetAppJsonSerializerOptions()));
+        Assert.Equal("2147483647", JsonSerializer.Serialize(Bitrate.Max, serialization.GetJsonSerializerOptions()));
+    }
+
+    /// <summary>
     /// The inactivity timeout, which the app compares as a number, is written as one.
     /// </summary>
     /// <remarks>

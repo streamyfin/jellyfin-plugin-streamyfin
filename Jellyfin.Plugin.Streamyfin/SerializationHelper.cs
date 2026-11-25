@@ -80,7 +80,7 @@ public class SerializationHelper
         var options = new JsonSerializerOptions(JsonDefaults.Options);
 
         // Jellyfin's options omit a null when writing, so a setting whose value is null,
-        // the playback quality's "no cap", left the document without its value key. Read
+        // the playback quality's Auto (Max until 0.70.1), left the document without its value key. Read
         // back, that tripped the required value on Lockable<T> and threw, the tolerant
         // read answered null, and a whole targeting level came back empty: a group set to
         // Max looked saved until the page was reopened and gave its members nothing.
@@ -116,9 +116,10 @@ public class SerializationHelper
     /// The options every JSON the app receives is written with.
     /// </summary>
     /// <remarks>
-    /// The stored form, except for two things. The subtitle mode goes out by name: the app
+    /// The stored form, except for three things. The subtitle mode goes out by name: the app
     /// compares the SDK's strings for it, so the number never matched, and a mode an
-    /// administrator locked did nothing. And Seerr goes out as its block only, without the
+    /// administrator locked did nothing. The playback quality's Max goes out by its key, as the
+    /// app's Max has no number of its own. And Seerr goes out as its block only, without the
     /// three flat keys it is stored under. Public because the parity test compares a
     /// declared default against what the app reads, and it has to compare the written form.
     /// Comparing CLR values would pass for an enum written as a number where the app
@@ -128,6 +129,10 @@ public class SerializationHelper
     {
         var options = GetJsonSerializerOptions();
         options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<SubtitlePlaybackMode>>().Single());
+
+        // Max reaches the app by its key: the app's Max has no number of its own.
+        options.Converters.Remove(options.Converters.OfType<JsonNumberEnumConverter<Bitrate>>().Single());
+        options.Converters.Insert(0, new AppBitrateConverter());
 
         // Seerr reaches the app as its block only (P6.1). The flat keys stay in storage and in
         // the YAML, where an administrator may still write them, and Project builds the block
@@ -449,6 +454,33 @@ public class SerializationHelper
 
             InputAttrs = inputAttrs;
             ContainerAttrs = containerAttrs;
+        }
+    }
+
+    /// <summary>
+    /// Writes a playback quality the way the app reads it: by its number, as the app compares
+    /// its qualities by value, and Max by its key, as the app's Max has no number.
+    /// </summary>
+    private sealed class AppBitrateConverter : System.Text.Json.Serialization.JsonConverter<Bitrate>
+    {
+        private const string MaxKey = "Max";
+
+        /// <inheritdoc />
+        public override Bitrate Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options) =>
+            reader.TokenType == JsonTokenType.String && reader.GetString() == MaxKey
+                ? Bitrate.Max
+                : (Bitrate)reader.GetInt32();
+
+        /// <inheritdoc />
+        public override void Write(Utf8JsonWriter writer, Bitrate value, JsonSerializerOptions options)
+        {
+            if (value == Bitrate.Max)
+            {
+                writer.WriteStringValue(MaxKey);
+                return;
+            }
+
+            writer.WriteNumberValue((int)value);
         }
     }
 }

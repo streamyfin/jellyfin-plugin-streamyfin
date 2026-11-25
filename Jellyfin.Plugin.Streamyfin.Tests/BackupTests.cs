@@ -65,6 +65,90 @@ public class BackupTests
     }
 
     /// <summary>
+    /// A file from before this version, restored after its start carried the server's own
+    /// configuration over, locks at Max what it locked empty, at every level: the empty value
+    /// meant Max when it was written.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupsLockedEmptyQualityIsRestoredAtMax()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(EmptyEverywhere()));
+
+        Assert.False(read!.EmptyBitrateIsAuto);
+        read.CarryLockedMaxOver();
+
+        Assert.Equal(Configuration.Bitrate.Max, read.Config?.settings?.defaultBitrate?.value);
+        Assert.Equal(Configuration.Bitrate.Max, Assert.Single(read.Groups).Settings?.defaultBitrate?.value);
+        Assert.Equal(Configuration.Bitrate.Max, Assert.Single(read.Users).Settings?.defaultBitrate?.value);
+    }
+
+    /// <summary>
+    /// Unlocked, an older file's empty quality was the app's default at the server's level, and
+    /// stays, but a group or a person holds only what was picked for them: Max, kept unlocked.
+    /// </summary>
+    [Fact]
+    public void AnOlderBackupsUnlockedEmptyQualityIsMaxAboveTheServer()
+    {
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(EmptyEverywhere(locked: false)));
+
+        read!.CarryLockedMaxOver();
+
+        Assert.Null(read.Config?.settings?.defaultBitrate?.value);
+        var group = Assert.Single(read.Groups).Settings?.defaultBitrate;
+        var user = Assert.Single(read.Users).Settings?.defaultBitrate;
+        Assert.Equal(Configuration.Bitrate.Max, group?.value);
+        Assert.False(group?.locked);
+        Assert.Equal(Configuration.Bitrate.Max, user?.value);
+        Assert.False(user?.locked);
+    }
+
+    /// <summary>
+    /// A file this version wrote says so, and its locked empty quality is the app's Auto.
+    /// </summary>
+    [Fact]
+    public void ABackupOfThisVersionKeepsALockedAuto()
+    {
+        var backup = EmptyEverywhere();
+        backup.EmptyBitrateIsAuto = true;
+        var read = _serialization.DeserializeJson<ConfigurationBackup>(_serialization.SerializeToJson(backup));
+
+        read!.CarryLockedMaxOver();
+
+        Assert.True(read.EmptyBitrateIsAuto);
+        Assert.Null(read.Config?.settings?.defaultBitrate?.value);
+        Assert.Null(Assert.Single(read.Groups).Settings?.defaultBitrate?.value);
+        Assert.Null(Assert.Single(read.Users).Settings?.defaultBitrate?.value);
+    }
+
+    private static ConfigurationBackup EmptyEverywhere(bool locked = true) => new()
+    {
+        Plugin = "0.70.0.5",
+        TakenAt = DateTimeOffset.UtcNow,
+        Config = new Configuration.Config
+        {
+            settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
+        },
+        Groups =
+        [
+            new SettingsGroupDto
+            {
+                Name = "TVs",
+                Priority = 1,
+                UserIds = [Guid.NewGuid()],
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
+            }
+        ],
+        Users =
+        [
+            new UserBackup
+            {
+                UserId = Guid.NewGuid(),
+                Settings = new Settings { defaultBitrate = new Lockable<Configuration.Bitrate?> { locked = locked, value = null } }
+            }
+        ]
+    };
+
+    /// <summary>
     /// Every level in a file is checked the way a level written through the API is.
     /// </summary>
     /// <remarks>
