@@ -51,7 +51,7 @@ const APP_VALUES = {
 // normalizePluginValue and stops unless it comes back as the app's default.
 const RESHAPED = {
     defaultBitrate: {
-        note: 'the app looks the scalar up in BITRATES; null is the Max entry',
+        note: 'the plugin sends the bitrate, which the app looks up in PLAYBACK_BITRATES; null is Auto',
         wire: (value) => value.value ?? null,
     },
     subtitleSize: {
@@ -75,7 +75,7 @@ const CHOICES = {
         name: 'APP_LANGUAGES',
         offeredBy: [
             path.join('components', 'settings', 'AppLanguageSelector.tsx'),
-            path.join('app', '(auth)', '(tabs)', '(home)', 'settings.tv.tsx'),
+            path.join('app', '(auth)', '(tabs)', '(more)', 'settings.tv.tsx'),
         ],
     },
     hiddenHomeHeroSections: { file: HERO, name: 'SECTION_LABEL_KEYS', translated: true, offeredBy: [HERO] },
@@ -261,7 +261,8 @@ function plainJson(value, where = 'it') {
 
 /**
  * The app's normalizePluginValue, run here: its source from settings.ts, given the
- * defaults just read, BITRATES from the app's own module, and nothing else.
+ * defaults just read, the names settings.ts imports from the app's own modules, and
+ * nothing else.
  */
 function normalizer(scope, values) {
     const { module } = scope;
@@ -281,19 +282,25 @@ function normalizer(scope, values) {
         compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
     }).outputText;
 
-    // Only these three names exist for it, so anything else it reaches for fails here, by
-    // name, rather than quietly reading something else. BITRATES is read the first time
-    // it is asked for.
+    // Only these names exist for it, so anything else it reaches for fails here, by name,
+    // rather than quietly reading something else. An imported name is read from its
+    // source the first time it is asked for, the way a default is: the function only
+    // touches the few its RESHAPED keys go through, and most of the rest could not be read.
     const context = {
         defaultValues: Object.fromEntries([...values].map(([name, { value: held }]) =>
             [name, held === NONE || held === PLATFORM ? undefined : held])),
         t: (text) => text,
     };
-    let bitrates;
-    Object.defineProperty(context, 'BITRATES', {
-        enumerable: true,
-        get: () => (bitrates ??= imported('BITRATES', [], scope)),
-    });
+    // From the app's own modules only: a package's code is not run here, so the name is
+    // missing instead, and the error says which one.
+    for (const [name, { module: from, namespace }] of module.imports) {
+        if (Object.hasOwn(context, name) || !(from.startsWith('@/') || from.startsWith('.'))) continue;
+        let read;
+        Object.defineProperty(context, name, {
+            enumerable: true,
+            get: () => (read ??= { value: namespace ? members(name, scope) : imported(name, [], scope) }).value,
+        });
+    }
 
     let run;
     return (key, value) => {
@@ -301,10 +308,24 @@ function normalizer(scope, values) {
             run ??= vm.runInNewContext(`${javascript}\nnormalizePluginValue;`, context);
             return run(key, value);
         } catch (error) {
-            if (error instanceof Unreadable) throw error;
+            if (error instanceof Unreadable) {
+                throw new Unreadable(`normalizePluginValue, checking ${key}: ${error.message}`);
+            }
             throw new Unreadable(`normalizePluginValue could not be run here: ${error.message}`);
         }
     };
+}
+
+/** A module imported whole, each member read from its source the first time it is asked for. */
+function members(name, scope) {
+    const read = new Map();
+    return new Proxy({}, {
+        get: (_, member) => {
+            if (typeof member !== 'string') return undefined;
+            if (!read.has(member)) read.set(member, imported(name, [member], scope));
+            return read.get(member);
+        },
+    });
 }
 
 /**
@@ -356,6 +377,15 @@ function evaluate(node, scope) {
             throw new Unreadable(`cannot read "${node.getText(file)}"`);
         }
         return -operand;
+    }
+    // Each side is read on its own, so a constant from another module can take part.
+    // Anything else, a side that is no number or one this cannot read such as Math.PI,
+    // goes to runPure as before, which runs what names only built-ins and refuses the rest.
+    if (ts.isBinaryExpression(node) && Object.hasOwn(ARITHMETIC, node.operatorToken.kind)) {
+        const sides = readSides(node, scope);
+        if (sides) {
+            return ARITHMETIC[node.operatorToken.kind](...sides);
+        }
     }
     if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)
         || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
@@ -415,6 +445,26 @@ function evaluate(node, scope) {
 
     return runPure(node, scope);
 }
+
+/** Both sides of an arithmetic expression when each reads as a number, or null. */
+function readSides(node, scope) {
+    try {
+        const sides = [evaluate(node.left, scope), evaluate(node.right, scope)];
+        return sides.every((side) => typeof side === 'number') ? sides : null;
+    } catch (error) {
+        if (error instanceof Unreadable) return null;
+        throw error;
+    }
+}
+
+const ARITHMETIC = {
+    [ts.SyntaxKind.PlusToken]: (a, b) => a + b,
+    [ts.SyntaxKind.MinusToken]: (a, b) => a - b,
+    [ts.SyntaxKind.AsteriskToken]: (a, b) => a * b,
+    [ts.SyntaxKind.SlashToken]: (a, b) => a / b,
+    [ts.SyntaxKind.PercentToken]: (a, b) => a % b,
+    [ts.SyntaxKind.AsteriskAsteriskToken]: (a, b) => a ** b,
+};
 
 // What an expression built only from literals may call on. A call like BITRATES's
 // `[...].sort(...)` is run rather than read; anything reaching further is refused.

@@ -141,6 +141,35 @@ describe("a default", () => {
         expect(one(root, "maxBitrate").default).toBe(2000000);
     });
 
+    // The app's Auto quality keeps its detection time in milliseconds in one module and
+    // its setting in minutes, so the default is that constant divided.
+    test("arithmetic on numbers is worked out, wherever the numbers come from", () => {
+        const root = checkout(
+            settings(
+                "  autoBitrateTtlMinutes: number;",
+                "  autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,",
+                'import { BITRATE_DETECTION_TTL_MS } from "@/constants/Bitrate";'),
+            { "constants/Bitrate.ts": "export const BITRATE_DETECTION_TTL_MS = 60 * 60 * 1000;\n" });
+
+        expect(one(root, "autoBitrateTtlMinutes").default).toBe(60);
+    });
+
+    // Read by runPure before arithmetic was worked out side by side, and still.
+    test("arithmetic on a built-in is still run", () => {
+        const root = checkout(settings(
+            "  tau: number;\n  nearMax: number;",
+            "  tau: Math.PI * 2,\n  nearMax: Number.MAX_SAFE_INTEGER - 1,"));
+
+        expect(one(root, "tau").default).toBe(Math.PI * 2);
+        expect(one(root, "nearMax").default).toBe(Number.MAX_SAFE_INTEGER - 1);
+    });
+
+    test("arithmetic on something other than numbers stops the run, naming the setting", () => {
+        const root = checkout(settings("  odd: number;", "  odd: Opts * 2,", "const Opts = { a: 1 };"));
+
+        expect(() => read(root)).toThrow(/the default of odd: cannot read "Opts \* 2"/);
+    });
+
     test("a module of the app the script cannot find stops the run", () => {
         const root = checkout(settings("  maxBitrate: Bitrate;", "  maxBitrate: BITRATES[1],"));
 
@@ -216,6 +245,65 @@ describe("a value the plugin sends in another shape", () => {
         expect(one(root, "subtitleSize")).toMatchObject({ default: 1.1, wireDefault: 110 });
         expect(one(root, "defaultBitrate")).toMatchObject({ default: { key: "Max" }, wireDefault: null });
         expect(one(root, "defaultBitrate").wireNote).toContain("BITRATES");
+    });
+
+    // The app's own case since Auto: the empty value the plugin sends becomes a constant
+    // settings.ts imports, which the normalizer is given read from its source.
+    test("a name the normalizer imports is read from the app's source", () => {
+        const root = checkout(
+            settings(
+                "  defaultBitrate?: Bitrate;",
+                "  defaultBitrate: AUTO_BITRATE,",
+                'import { AUTO_BITRATE } from "@/utils/bitrate";\n'
+                    + normalize('  if (settingsKey === "defaultBitrate" && value == null) return AUTO_BITRATE;')),
+            { "utils/bitrate.ts": 'export const AUTO_BITRATE = { key: "Auto", value: undefined };\n' });
+
+        expect(one(root, "defaultBitrate")).toMatchObject({ default: { key: "Auto" }, wireDefault: null });
+        expect(one(root, "defaultBitrate").wireNote).toContain("null is Auto");
+    });
+
+    // settings.ts already imports one module of the app whole (ScreenOrientation).
+    test("a module the normalizer imports whole is read member by member", () => {
+        const root = checkout(
+            settings(
+                "  defaultBitrate?: Bitrate;",
+                "  defaultBitrate: Bitrates.AUTO_BITRATE,",
+                'import * as Bitrates from "@/utils/bitrate";\n'
+                    + normalize('  if (settingsKey === "defaultBitrate" && value == null) return Bitrates.AUTO_BITRATE;')),
+            { "utils/bitrate.ts": 'export const AUTO_BITRATE = { key: "Auto", value: undefined };\n' });
+
+        expect(one(root, "defaultBitrate")).toMatchObject({ default: { key: "Auto" }, wireDefault: null });
+    });
+
+    // A package's code is not run here: the name is missing, which says which one.
+    test("a package the normalizer imports is not loaded for it", () => {
+        const root = checkout(settings(
+            "  subtitleSize: number;",
+            "  subtitleSize: 1.0,",
+            normalize('  if (settingsKey === "subtitleSize") return PlaybackMode.Default;')));
+
+        expect(() => read(root)).toThrow(/PlaybackMode is not defined/);
+    });
+
+    test("a name the normalizer imports that cannot be read names the setting being checked", () => {
+        const root = checkout(
+            settings(
+                "  defaultBitrate?: Bitrate;",
+                "  defaultBitrate: AUTO_BITRATE,",
+                'import { AUTO_BITRATE, PLAYBACK_BITRATES } from "@/utils/bitrate";\n'
+                    + normalize('  if (settingsKey === "defaultBitrate") return PLAYBACK_BITRATES[0];')),
+            { "utils/bitrate.ts": 'export const AUTO_BITRATE = { key: "Auto", value: undefined };\n' });
+
+        expect(() => read(root)).toThrow(/normalizePluginValue, checking defaultBitrate: .*PLAYBACK_BITRATES/);
+    });
+
+    test("a name the normalizer reaches for that settings.ts does not have stops the run, by name", () => {
+        const root = checkout(settings(
+            "  subtitleSize: number;",
+            "  subtitleSize: 1.0,",
+            normalize("  if (settingsKey === \"subtitleSize\") return SCALE * value;")));
+
+        expect(() => read(root)).toThrow(/normalizePluginValue could not be run here: SCALE is not defined/);
     });
 
     test("a normalizer that no longer gives the default back stops the run", () => {
@@ -329,7 +417,7 @@ export const APP_LANGUAGES = _APP_LANGUAGES;
         {
             "i18n.ts": i18n(languages),
             "components/settings/AppLanguageSelector.tsx": phone,
-            "app/(auth)/(tabs)/(home)/settings.tv.tsx": tv,
+            "app/(auth)/(tabs)/(more)/settings.tv.tsx": tv,
         });
 
     test("are read from the list the app's pickers use, labelled as the app labels them, sorted by value", () => {
