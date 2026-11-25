@@ -125,8 +125,9 @@ treatment for the simpler reason that the app has no default for them either.
   whose member names are the strings the app compares against. `inactivityTimeout`
   is an enum too, but the app compares it as a number, so it joins `OrientationLock`
   and `Bitrate` in the number converters `SerializationHelper` registers. `Bitrate.Max`
-  is stored as 0 and reaches the app by its key, `Max`, since the app's Max has no number of
-  its own; the empty value leaves the app its default, Auto. `SubtitlePlaybackMode` keeps
+  is stored as the largest `int` and reaches the app by its key, `Max`, since the app's Max has
+  no number of its own. A build rolled back to sends that number, which the app takes as a cap
+  no stream reaches, where 0 would be a cap Jellyfin's transcoding raises to 64 kb/s; the empty value leaves the app its default, Auto. `SubtitlePlaybackMode` keeps
   one for storage only: the regenerated manifest showed the app compares the SDK's
   strings for it (below), so what the app receives carries the member name, while
   what the plugin stores keeps the number every earlier build reads.

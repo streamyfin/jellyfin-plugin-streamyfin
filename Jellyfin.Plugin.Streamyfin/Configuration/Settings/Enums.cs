@@ -78,10 +78,13 @@ public enum ImageStyle
 // Labelled and ordered as the app's quality picker, BITRATES in constants/Playback.ts: Max,
 // then the fastest first. The values are what travels, except Max, which the app reads by its
 // key. No value at all leaves the app its own default, Auto, which measures the connection.
+// Max is stored as the largest number: a build rolled back to sends it as a number, which the
+// app takes as a cap no stream reaches. 0 would be a cap of 0, which Jellyfin's transcoding
+// raises to 64 kb/s.
 public enum Bitrate
 {
     [Display(Name = "Max")]
-    Max = 0,
+    Max = int.MaxValue,
     [Display(Name = "8 Mb/s")]
     _8MB = 8000000,
     [Display(Name = "4 Mb/s")]
