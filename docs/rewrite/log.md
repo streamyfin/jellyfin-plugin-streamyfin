@@ -8,6 +8,28 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-25, a Yaml value of the wrong type names its setting
+
+#283. A document that gave a setting a value of the wrong type was refused in the deserializer's
+words, which name a CLR type and not the setting, so on a long document only the line and column
+led to the mistake. `YamlWrongType` now finds what the reader stopped on: one setting's `value`, its
+`locked`, or the setting written as a bare value, and says the setting's title, its path and what
+it takes, as the bounds checks do. A setting written under the name it also answers to, such as
+`autoLoginSeerr`, is named under that name. Anything else keeps the deserializer's words, a value
+with a tag the reader does not know included: `!unknown 10` has its tag to fix, not its type.
+A whole number too large for its type is told the range it takes, the setting's own bounds when
+it has them, `from 0 to 60` for `99999999999`, rather than that it is not a whole number. A choice
+lists the names a document is written with, `gpu-next` and not `GpuNext`, and the value shown
+stays on one line.
+
+It reads the document event by event with YamlDotNet's parser rather than as a tree. The first
+version loaded a `YamlStream` and walked its nodes, which overflowed the stack on the 200,000 lists
+deep document `HostileYamlTests` sends and would have walked the aliases of the expanding one once
+for every use; the event reader goes no deeper than 64 levels and never expands an alias. On the
+beta's Jellyfin 12.4.0 instance, the four documents of the issue and a quality named `fast` were
+refused with the new sentences, where 0.70.0.0 said `No node deserializer was able to deserialize
+the node into type System.Int32` and `Requested value 'fast' was not found`.
+
 ## 2026-11-25, the release workflows read every page of releases and wait for each other
 
 #250. Both workflows counted the releases on a tag from the newest hundred, `gh release list
