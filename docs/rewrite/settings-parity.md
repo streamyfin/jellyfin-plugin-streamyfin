@@ -185,6 +185,18 @@ moved to Jellyfin's own receiver (streamyfin#2075), which runs the playback nego
 `KeptForAppsInTheField`. Unlike that one it has a declared default, their `false`, which the manifest
 no longer checks, so a test holds it to the one `AppDefaults` keeps for them.
 
+**Auto's rows and the refresh rate, app 0.56.** `autoBitrateRatio`, `autoBitrateTtlMinutes`,
+`autoBitrateInNetworkMin` and `autoBitrateAdapt` came with Auto (streamyfin#2388, #2482), the four
+rows the app puts under the default quality, and `matchRefreshRate` with the refresh rate matching
+of the Android TV native player (streamyfin#2418). All five are declared without a default, like
+the other keys of the app 0.56, so the app keeps its own, 0.7, 60 minutes, 140 Mb/s, on and off,
+until an administrator sets one. The app offers a few values of the three numbers and takes any
+other, so the bounds are wider than its lists: a share from 0.1 to 1, 5 to 1440 minutes, and a
+floor up to 2000 Mb/s, in steps of 1 Mb/s. The app greys only `autoBitrateAdapt` when it is
+locked: its three lists stay open, and a value picked there changes nothing, as the app drops a
+write to a locked key. The same manifest says the app reads an empty `defaultBitrate` as Auto,
+which the plugin serves since #305.
+
 **Ahead of the app: next episodes.** `nextEpisodesDownloadCount`, `nextEpisodesNetwork` and
 `nextEpisodesDeleteAnyDownload` are declared for streamyfin#2275, before the app reads them, so
 the manifest leaves them out and `DeclaredAheadOfTheApp` names that pull request. They ship no

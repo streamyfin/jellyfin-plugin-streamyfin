@@ -8,6 +8,21 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-26, the plugin declares Auto's four rows and the refresh rate matching
+
+Five keys the app's develop reads had no plugin pull request yet, as streamyfin#2556, which adds
+the parity check to the app's pull requests, notes: Auto's `autoBitrateRatio`, `autoBitrateTtlMinutes`, `autoBitrateInNetworkMin` and
+`autoBitrateAdapt`, and Android TV's `matchRefreshRate`. They are declared without a default, as
+the app 0.56 that reads them is not out yet, in the order the app shows them, which a form test
+holds. The manifest is regenerated from the app's develop at 9c49bf0, which also records that the
+app reads an empty `defaultBitrate` as Auto.
+
+On the beta's Jellyfin 12.4.0 instance, its stored configuration gave the app nothing for the five,
+so the app keeps its own. Locked through the YAML tab, the app received `{"locked": true, "value":
+0.5}`, 15, 0, `false` and `true`, and a share of 1.5 was refused with `Share of the measured speed
+accepts 0.1 to 1, and this is 1.5.` Not seen on a device: the app applying them, read in its code,
+where a locked key wins over the person's value and a write to one is dropped.
+
 ## 2026-11-25, an event that waits says how long
 
 #293, the two leftovers the second full review of #292 found on the wait between two of the same

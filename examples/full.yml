@@ -21,6 +21,23 @@ settings:
   defaultBitrate:
     locked: false
     value: null  # null = the app's default, Auto (Max in the apps before Auto); Max, or a bitrate (e.g., 250000, 500000, 1000000, 2000000)
+
+  # How Auto measures, app 0.56. Only Auto reads these four.
+  autoBitrateRatio:
+    locked: false
+    value: 0.7  # the share of the measured speed a stream may take, 0.1 to 1
+
+  autoBitrateTtlMinutes:
+    locked: false
+    value: 60  # minutes before Auto measures again
+
+  autoBitrateInNetworkMin:
+    locked: false
+    value: 140000000  # the least a stream gets on the server's network, in bit/s; 0 for none
+
+  autoBitrateAdapt:
+    locked: false
+    value: true  # steps down when a stream stalls, and back up once the connection allows
   
   maxAutoPlayEpisodeCount:
     locked: false
@@ -340,6 +357,10 @@ settings:
   nativeVideoPlayerAndroidTV:
     locked: false
     value: false
+
+  matchRefreshRate:
+    locked: false
+    value: false  # Android TV with the native player: switch the display to the video's frame rate, app 0.56
   
   confirmBeforeStoppingPlayback:
     locked: false
