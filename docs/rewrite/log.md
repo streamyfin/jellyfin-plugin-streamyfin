@@ -10,8 +10,8 @@ lives only in a comment thread is a decision nobody will find.
 
 ## 2026-11-26, the plugin declares Auto's four rows and the refresh rate matching
 
-The App parity check of streamyfin#2556 found five keys the app's develop reads and the plugin did
-not declare: Auto's `autoBitrateRatio`, `autoBitrateTtlMinutes`, `autoBitrateInNetworkMin` and
+Five keys the app's develop reads had no plugin pull request yet, as streamyfin#2556, which adds
+the parity check to the app's pull requests, notes: Auto's `autoBitrateRatio`, `autoBitrateTtlMinutes`, `autoBitrateInNetworkMin` and
 `autoBitrateAdapt`, and Android TV's `matchRefreshRate`. They are declared without a default, as
 the app 0.56 that reads them is not out yet, in the order the app shows them, which a form test
 holds. The manifest is regenerated from the app's develop at 9c49bf0, which also records that the
