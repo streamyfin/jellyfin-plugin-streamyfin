@@ -8,6 +8,17 @@ three months can catch up without reading a pull request thread.
 Append an entry whenever something lands or a decision is taken. A decision that
 lives only in a comment thread is a decision nobody will find.
 
+## 2026-11-26, 0.70.1.0 released
+
+develop's head, 643692f, went to main as a fast-forward, with no merge commit, so main's tree was
+develop's. Create release, with 0.70.1.0 typed in since the computed number would have been 0.71.0.0,
+published both builds. The manifest's two entries carry the zips' checksums, `targetAbi` 10.11.9.0 and
+12.0.0.0, and a fresh Jellyfin 10.11.11 and 12.4 each installed its own build from the catalogue and
+loaded it, with Auto, Max and the five new settings in the form. The release commit came back to
+develop as a fast-forward too. `release-notes-0.70.1.md` now holds the text as published, with two
+screenshots of the released build. #306, the lock on the player's gestures, waits for the app's
+streamyfin#2440 and is not in it.
+
 ## 2026-11-26, the plugin declares Auto's four rows and the refresh rate matching
 
 Five keys the app's develop reads had no plugin pull request yet, as streamyfin#2556, which adds
