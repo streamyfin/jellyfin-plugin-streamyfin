@@ -522,6 +522,36 @@ public class Settings
     [SettingScope("Playback controls", Group = "Quality")]
     public Lockable<Bitrate?>? defaultBitrate { get; set; } // = null: the app's default, Auto;
 
+    // The four rows the app puts under the default quality, which only Auto reads. The app
+    // offers a few values of each and takes any other one, so the bounds are wider than its
+    // list and stop where a value stops making sense. No default, as for the other keys of the
+    // app 0.56: the app keeps its own until an administrator sets one.
+    [NotNull]
+    [Display(Name = "Share of the measured speed", Description = "Auto only. How much of the speed Auto measures to the server a stream may take, from 0.1 to 1. The app offers 0.5 to 0.9. Read by the app 0.56 and later")]
+    [SettingScope("Playback controls", Group = "Quality")]
+    [Bounds(0.1, 1)]
+    [Step(0.05)]
+    public Lockable<double>? autoBitrateRatio { get; set; } // = 0.7;
+
+    [NotNull]
+    [Display(Name = "Measure again after", Description = "Auto only. How long a measure is used before Auto measures again, in minutes. The app offers 15, 30, 60, 240 and 1440. Read by the app 0.56 and later")]
+    [SettingScope("Playback controls", Group = "Quality")]
+    [Bounds(5, 1440)]
+    [Step(5)]
+    public Lockable<int>? autoBitrateTtlMinutes { get; set; } // = 60;
+
+    [NotNull]
+    [Display(Name = "Minimum in the server's network", Description = "Auto only. The least a stream gets when the device is on the server's network, in bits per second: 140000000 is 140 Mb/s, 0 is none. A short measure ends before a local network is up to speed. Read by the app 0.56 and later")]
+    [SettingScope("Playback controls", Group = "Quality")]
+    [Bounds(0, 2_000_000_000)]
+    [Step(1_000_000)]
+    public Lockable<int>? autoBitrateInNetworkMin { get; set; } // = 140000000;
+
+    [NotNull]
+    [Display(Name = "Adapt during playback", Description = "Auto only. Steps the quality down when a stream stalls, and back up once the connection allows. Read by the app 0.56 and later")]
+    [SettingScope("Playback controls", Group = "Quality")]
+    public Lockable<bool>? autoBitrateAdapt { get; set; } // = true;
+
     [NotNull]
     [Display(Name = "Max auto play episode count", Description = "For the app before 0.56: how many episodes play one after another on their own, up to 7, and 0 or -1 for no limit. Auto play next episode is what turns auto play off. The app 0.56 reads this as the first still watching preset that allows at least as many episodes, 0 or -1 as Disabled, and a lock on this wins over a still watching preset left unlocked")]
     [SettingScope("Playback controls", Group = "Autoplay and resume")]
@@ -820,6 +850,17 @@ public class Settings
                       + "the engine each device is set to, MPV or ExoPlayer.")]
     [SettingScope("Playback controls", Group = "Video player")]
     public Lockable<bool>? nativeVideoPlayerAndroidTV { get; set; } // = false;
+
+    // The app reads it only on Android TV with the native player, which three settings and
+    // the platform decide together, so no single toggle can be named for [DependsOn]. No
+    // default, like the four Auto rows.
+    [NotNull]
+    [Display(
+        Name = "Match display refresh rate",
+        Description = "Android TV only, with the native player. Switches the display to the video's frame rate. Off by default: "
+                      + "most screens go black for a moment when the rate changes. Read by the app 0.56 and later")]
+    [SettingScope("Playback controls", Group = "Video player")]
+    public Lockable<bool>? matchRefreshRate { get; set; } // = false;
 
     [NotNull]
     [Display(Name = "Confirm before stopping playback", Description = "Apple TV and Android TV only. Ask \"Stop playback?\" before Back leaves the player, rather than stopping straight away. Read by the app 0.56 and later; the apps before it always ask")]

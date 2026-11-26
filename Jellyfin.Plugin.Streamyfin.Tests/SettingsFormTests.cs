@@ -66,6 +66,24 @@ public class SettingsFormTests
     }
 
     /// <summary>
+    /// Auto's four rows follow the default quality, in the order the app puts them under
+    /// it, as the form draws a group in declaration order.
+    /// </summary>
+    [Fact]
+    public void AutosRowsFollowTheDefaultQuality()
+    {
+        var quality = SettingsForm.Describe()
+            .Where(f => f.Category == "Playback controls" && f.Group == "Quality")
+            .Select(f => f.Key)
+            .SkipWhile(key => key != "defaultBitrate")
+            .Take(5);
+
+        Assert.Equal(
+            ["defaultBitrate", "autoBitrateRatio", "autoBitrateTtlMinutes", "autoBitrateInNetworkMin", "autoBitrateAdapt"],
+            quality);
+    }
+
+    /// <summary>
     /// The library's display options are drawn as the switches and choices of the app's
     /// own sheet, and the card style, which the app reads nowhere, is kept but not offered.
     /// </summary>
