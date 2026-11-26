@@ -85,6 +85,8 @@ public class SettingsParityTests
     /// </remarks>
     private static readonly Dictionary<string, string> DeclaredAheadOfTheApp = new(StringComparer.Ordinal)
     {
+        ["enablePlayerGestures"] =
+            "streamyfin/streamyfin#2440 adds the master switch over the player's gestures and reads it.",
         ["nextEpisodesDeleteAnyDownload"] = NextEpisodes,
         ["nextEpisodesDownloadCount"] = NextEpisodes,
         ["nextEpisodesNetwork"] = NextEpisodes,
