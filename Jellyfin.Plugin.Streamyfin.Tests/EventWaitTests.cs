@@ -250,28 +250,25 @@ public class EventWaitTests
     {
         // Its own due time, so the plugin's, which every other test's events share, is left alone.
         long due = 0;
-        var start = DateTime.UtcNow;
+        var start = Environment.TickCount64;
 
         Assert.True(BaseEvent.ClaimCleanup(ref due, start));
-        Assert.False(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(59)));
-        Assert.True(BaseEvent.ClaimCleanup(ref due, start.AddSeconds(60)));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, start + 59_000));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start + 60_000));
     }
 
     /// <summary>
-    /// A clock set back, by NTP or by hand, does not hold the cleanup until it catches up:
-    /// the remembered events of a server open to the internet would pile up meanwhile.
+    /// An event that read the clock just before another claimed the cleanup does not claim it
+    /// again in the same minute.
     /// </summary>
     [Fact]
-    public void AClockSetBackDoesNotHoldTheCleanup()
+    public void AStaleSampleDoesNotClaimTheCleanupAgain()
     {
         long due = 0;
-        var wrong = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-        var corrected = wrong.AddYears(-1);
+        var start = Environment.TickCount64;
 
-        Assert.True(BaseEvent.ClaimCleanup(ref due, wrong));
-        Assert.True(BaseEvent.ClaimCleanup(ref due, corrected));
-        Assert.False(BaseEvent.ClaimCleanup(ref due, corrected.AddSeconds(59)));
-        Assert.True(BaseEvent.ClaimCleanup(ref due, corrected.AddSeconds(60)));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, start - 1));
     }
 
     private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(

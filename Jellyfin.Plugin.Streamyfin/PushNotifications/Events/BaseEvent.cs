@@ -20,7 +20,9 @@ public abstract class BaseEvent
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan CleanupEvery = TimeSpan.FromMinutes(1);
 
-    // When the next cleanup may run, in UTC ticks.
+    // When the next cleanup may run, in milliseconds of Environment.TickCount64: a clock that
+    // never goes back, as the wall clock does when NTP or somebody sets it back, which would
+    // hold every cleanup until it caught up while the remembered events piled up.
     private static long _cleanupDue;
 
     protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;
@@ -115,7 +117,7 @@ public abstract class BaseEvent
     /// </remarks>
     protected void CleanupOldEntriesNowAndThen()
     {
-        if (ClaimCleanup(ref _cleanupDue, DateTime.UtcNow))
+        if (ClaimCleanup(ref _cleanupDue, Environment.TickCount64))
         {
             CleanupOldEntries();
         }
@@ -124,18 +126,19 @@ public abstract class BaseEvent
     /// <summary>
     /// Claims the next cleanup, once a minute has passed since the last one claimed.
     /// </summary>
-    /// <param name="due">When the next cleanup may run, in UTC ticks, which a claim moves on.</param>
-    /// <param name="now">The time it is, in UTC.</param>
+    /// <param name="due">When the next cleanup may run, in milliseconds, which a claim moves on.</param>
+    /// <param name="now">The time it is, in milliseconds of a clock that never goes back.</param>
     /// <returns>Whether this caller runs the cleanup.</returns>
-    internal static bool ClaimCleanup(ref long due, DateTime now)
+    /// <remarks>
+    /// A time read before another caller's claim is behind the due time that claim set, so it
+    /// does not claim the same minute again.
+    /// </remarks>
+    internal static bool ClaimCleanup(ref long due, long now)
     {
         var seen = Interlocked.Read(ref due);
 
-        // A clock set back by more than the interval would otherwise hold every cleanup until
-        // it caught up, while the remembered events piled up.
-        var passed = now.Ticks >= seen || now.Ticks < seen - CleanupEvery.Ticks;
-
-        return passed && Interlocked.CompareExchange(ref due, (now + CleanupEvery).Ticks, seen) == seen;
+        return now >= seen
+            && Interlocked.CompareExchange(ref due, now + (long)CleanupEvery.TotalMilliseconds, seen) == seen;
     }
 
     /// <summary>
