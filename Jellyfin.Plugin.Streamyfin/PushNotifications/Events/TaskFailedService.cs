@@ -107,7 +107,7 @@ public class TaskFailedService : BaseEvent, IHostedService
             return;
         }
 
-        CleanupOldEntries();
+        CleanupOldEntriesNowAndThen();
 
         // Per task, so a task that fails every time it runs does not notify on every run.
         if (HasRecentlyProcessed($"task-failed:{result.Key ?? result.Name}"))

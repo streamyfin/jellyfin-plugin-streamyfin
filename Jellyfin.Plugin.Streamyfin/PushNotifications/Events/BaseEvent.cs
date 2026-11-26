@@ -17,9 +17,13 @@ public abstract class BaseEvent
     /// one back. Shared by every event, so each entry carries its own wait for the cleanup.
     /// </summary>
     internal static readonly ConcurrentDictionary<string, (DateTime Last, TimeSpan Wait)> RecentEvents = new();
-    // The same length the tabs say, read from where they read it.
-    private static readonly TimeSpan RecentEventThreshold = TimeSpan.FromSeconds(RecentEventWaitAttribute.Usual);
     private static readonly TimeSpan CleanupThreshold = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CleanupEvery = TimeSpan.FromMinutes(1);
+
+    // When the next cleanup may run, in milliseconds of Environment.TickCount64: a clock that
+    // never goes back, as the wall clock does when NTP or somebody sets it back, which would
+    // hold every cleanup until it caught up while the remembered events piled up.
+    private static long _cleanupDue;
 
     protected static Config? Config => StreamyfinPlugin.Instance?.Settings.Current;
     
@@ -103,6 +107,41 @@ public abstract class BaseEvent
     }
     
     /// <summary>
+    /// Forgets the events nobody waits on any more, at most once a minute.
+    /// </summary>
+    /// <remarks>
+    /// Each of the events that wait runs it first, and it reads every remembered event, which
+    /// stay as long as the longest wait in force: on a server open to the internet, refused sign
+    /// ins from many addresses pile up, and every event paid for a full pass. An entry kept a
+    /// minute longer changes nothing, as an event compares its own time to its wait.
+    /// </remarks>
+    protected void CleanupOldEntriesNowAndThen()
+    {
+        if (ClaimCleanup(ref _cleanupDue, Environment.TickCount64))
+        {
+            CleanupOldEntries();
+        }
+    }
+
+    /// <summary>
+    /// Claims the next cleanup, once a minute has passed since the last one claimed.
+    /// </summary>
+    /// <param name="due">When the next cleanup may run, in milliseconds, which a claim moves on.</param>
+    /// <param name="now">The time it is, in milliseconds of a clock that never goes back.</param>
+    /// <returns>Whether this caller runs the cleanup.</returns>
+    /// <remarks>
+    /// A time read before another caller's claim is behind the due time that claim set, so it
+    /// does not claim the same minute again.
+    /// </remarks>
+    internal static bool ClaimCleanup(ref long due, long now)
+    {
+        var seen = Interlocked.Read(ref due);
+
+        return now >= seen
+            && Interlocked.CompareExchange(ref due, now + (long)CleanupEvery.TotalMilliseconds, seen) == seen;
+    }
+
+    /// <summary>
     /// Forgets the events nobody waits on any more.
     /// </summary>
     /// <remarks>
@@ -160,13 +199,16 @@ public abstract class BaseEvent
         : TimeSpan.FromSeconds(seconds);
 
     /// <summary>
-    /// How long we want to wait until allowing an event with a matching sessionKey to be processed
+    /// How long two of the same event wait. An event that waits says it, with a
+    /// <see cref="RecentEventWaitAttribute"/> on its block so the Notifications tab offers it.
     /// </summary>
-    /// <returns>TimeSpan for how long to wait</returns>
-    protected virtual TimeSpan GetRecentEventThreshold()
-    {
-        _logger.LogDebug("Getting default RecentEventsThreshold: {0}", RecentEventThreshold);
-        return RecentEventThreshold;
-    }
+    /// <returns>The wait.</returns>
+    /// <exception cref="InvalidOperationException">The event does not say how long it waits.</exception>
+    /// <remarks>
+    /// There was a 5 seconds fallback: an event that waited without saying so waited that long,
+    /// with no field on the tab and nothing checking it.
+    /// </remarks>
+    protected virtual TimeSpan GetRecentEventThreshold() =>
+        throw new InvalidOperationException($"{GetType().Name} waits between two of the same event without saying how long.");
 
 }

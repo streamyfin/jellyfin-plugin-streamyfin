@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Jellyfin.Plugin.Streamyfin.Configuration.Notifications;
 using Jellyfin.Plugin.Streamyfin.PushNotifications.Events;
+using Jellyfin.Plugin.Streamyfin.PushNotifications.Events.ItemAdded;
 using Xunit;
 
 namespace Jellyfin.Plugin.Streamyfin.Tests;
@@ -176,6 +180,95 @@ public class EventWaitTests
         new Probe(TimeSpan.FromSeconds(5)).Cleanup();
 
         Assert.False(BaseEvent.RecentEvents.ContainsKey(key));
+    }
+
+    /// <summary>
+    /// The events that say how long they wait are the five the Notifications tab offers a wait
+    /// on: a sixth would have no field there, and nothing would check its wait.
+    /// </summary>
+    [Fact]
+    public void TheEventsThatWaitAreTheOnesTheTabOffersAWaitOn()
+    {
+        var waiting = typeof(BaseEvent).Assembly.GetTypes()
+            .Where(type => type.IsSubclassOf(typeof(BaseEvent)) && !type.IsAbstract)
+            .Where(type => type.GetMethod("GetRecentEventThreshold", BindingFlags.Instance | BindingFlags.NonPublic)!.DeclaringType == type)
+            .OrderBy(type => type.Name)
+            .ToList();
+
+        Assert.Equal(
+            [nameof(PlaybackStartEvent), nameof(PluginChangedEvent), nameof(SessionStartEvent), nameof(SignInFailedEvent), nameof(TaskFailedService)],
+            waiting.Select(type => type.Name));
+
+        // Each block gets a wait of its own, so the wait an event reads names the block it
+        // reads it from: every block that offers a wait is read, each by one event.
+        var blocks = typeof(Notifications).GetProperties()
+            .Where(property => property.GetCustomAttribute<RecentEventWaitAttribute>() is not null)
+            .ToList();
+        var notifications = new Notifications();
+        for (var i = 0; i < blocks.Count; i++)
+        {
+            blocks[i].SetValue(notifications, new NotificationConfiguration { RecentEventThreshold = 101 + i });
+        }
+
+        var read = waiting.ToDictionary(
+            type => type.Name,
+            type => blocks[(int)((TimeSpan)type.GetMethod("WaitIn", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [notifications])!).TotalSeconds - 101].Name);
+
+        Assert.Equal(
+            new Dictionary<string, string>
+            {
+                [nameof(PlaybackStartEvent)] = nameof(Notifications.PlaybackStarted),
+                [nameof(PluginChangedEvent)] = nameof(Notifications.PluginChanged),
+                [nameof(SessionStartEvent)] = nameof(Notifications.SessionStarted),
+                [nameof(SignInFailedEvent)] = nameof(Notifications.SignInFailed),
+                [nameof(TaskFailedService)] = nameof(Notifications.TaskFailed),
+            },
+            read);
+        Assert.Equal(blocks.Count, read.Values.Distinct().Count());
+    }
+
+    /// <summary>
+    /// An event that does not say how long it waits has no wait to give: one that waited
+    /// anyway waited 5 seconds, with no field on the tab and nothing checked.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(UserLockedOutEvent))]
+    [InlineData(typeof(ItemAddedService))]
+    public void AnEventThatSaysNoWaitHasNone(Type eventType)
+    {
+        var built = (BaseEvent)RuntimeHelpers.GetUninitializedObject(eventType);
+
+        Assert.Throws<InvalidOperationException>(() => built.WaitNow);
+    }
+
+    /// <summary>
+    /// The five events run the cleanup first, and it reads every remembered event: it runs at
+    /// most once a minute, so a burst of refused sign ins does not pay for a full pass each.
+    /// </summary>
+    [Fact]
+    public void TheCleanupRunsAtMostOnceAMinute()
+    {
+        // Its own due time, so the plugin's, which every other test's events share, is left alone.
+        long due = 0;
+        var start = Environment.TickCount64;
+
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, start + 59_000));
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start + 60_000));
+    }
+
+    /// <summary>
+    /// An event that read the clock just before another claimed the cleanup does not claim it
+    /// again in the same minute.
+    /// </summary>
+    [Fact]
+    public void AStaleSampleDoesNotClaimTheCleanupAgain()
+    {
+        long due = 0;
+        var start = Environment.TickCount64;
+
+        Assert.True(BaseEvent.ClaimCleanup(ref due, start));
+        Assert.False(BaseEvent.ClaimCleanup(ref due, start - 1));
     }
 
     private sealed class Probe(TimeSpan wait, TimeSpan? longest = null) : BaseEvent(

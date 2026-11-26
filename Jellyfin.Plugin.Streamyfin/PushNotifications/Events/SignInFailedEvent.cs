@@ -39,7 +39,7 @@ public class SignInFailedEvent(
             return Task.CompletedTask;
         }
 
-        CleanupOldEntries();
+        CleanupOldEntriesNowAndThen();
 
         // Per address rather than per name: a machine working through a list of names is
         // one thing happening, and telling an administrator fifty times says no more than

@@ -55,7 +55,7 @@ public class PlaybackStartEvent(
         }
         _logger.LogInformation("PlaybackStartEvent received.");
 
-        CleanupOldEntries();
+        CleanupOldEntriesNowAndThen();
 
         // Who is watching, decided before anything is written: the same playback is one
         // event whatever language the message ends up in, and the wait is on the pair of
