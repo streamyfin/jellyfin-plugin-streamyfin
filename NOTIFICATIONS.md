@@ -40,10 +40,16 @@ app, so it shows there once the app carries one.
 ## A new title's name
 
 Until its metadata names it, Jellyfin names a new movie or show after its folder, with the year
-and the ids Radarr or Sonarr write there: "Nosferatu (1922) [tmdbid-653]". A new item message
-usually goes before that, so it leaves out the ids Jellyfin reads in a folder name, and gives a
-year the name carries in brackets once, in the year's place: "Nosferatu (1922)". The rest of the
-name stays as the folder has it.
+and the ids Radarr or Sonarr write there: "Nosferatu (1922) [tmdbid-653]". A new movie's
+message, and a new show's batch of episodes, wait for Jellyfin to name the title, so they say
+what the library shows, in its metadata language, with the poster it fetched. A title added on
+its own is named within seconds. The wait is two minutes at most: "Wait for the title's name" on
+the Item added card sets another, up to ten, and 0 sends at once. A scan that adds many titles
+names them in a walk over the whole library, so on a large one their messages go at the end of
+the wait.
+
+A message that goes before Jellyfin named its title leaves the ids out, and gives the year a name
+carries in brackets in the year's place: "Nosferatu (1922)".
 
 ## Languages
 
@@ -218,9 +224,10 @@ episodes of a new show waits for the show's id the same way. It goes as soon as 
 as soon as Jellyfin's metadata came without one, ten minutes at most: "Wait for the title's id" on
 the Item added card sets another wait, up to an hour, and 0 sends at once. Jellyfin brings a new
 title's metadata in a walk over its whole library, so on a large one that can take minutes, and a
-refresh a metadata provider failed waits the whole wait. Everywhere else the message goes at once,
-as it always did. A message still waiting, and a batch of episodes still gathering, go out as the
-server stops. A batch counts the episodes still in the library when it goes.
+refresh a metadata provider failed waits the whole wait. Everywhere else the message waits only
+for the title's name (see "A new title's name" above). A message still waiting, and a batch of
+episodes still gathering, go out as the server stops. A batch counts the episodes still in the
+library when it goes.
 
 If Expo turns an awaited title message away as too many, or the server cannot reach Expo, the
 scheduled task "Streamyfin awaited titles" sends it again at its next run, every 15 minutes. One

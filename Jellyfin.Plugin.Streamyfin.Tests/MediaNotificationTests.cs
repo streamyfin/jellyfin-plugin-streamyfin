@@ -52,9 +52,10 @@ public class MediaNotificationTests
     /// the file. Nothing else in the name changes.
     /// </summary>
     /// <remarks>
-    /// Until its metadata names it, Jellyfin names a new movie after its folder, and the movie's
-    /// message usually goes before that. These are such names, and names a metadata gave. Seen on
-    /// the beta: "Nosferatu  [tmdbid-653] (1922)".
+    /// Until its metadata names it, Jellyfin names a new movie after its folder. Its message
+    /// waits for that name, two minutes at most; these are the names it goes with when Jellyfin
+    /// did not name it in time, a title no provider knows or a scan's walk, and names a metadata
+    /// gave. Seen on the beta: "Nosferatu  [tmdbid-653] (1922)".
     /// </remarks>
     /// <param name="name">The movie's name.</param>
     /// <param name="year">Its year, as Jellyfin has it.</param>
