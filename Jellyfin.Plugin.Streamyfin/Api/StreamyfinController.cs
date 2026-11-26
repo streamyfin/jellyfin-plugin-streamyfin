@@ -1418,9 +1418,12 @@ public class StreamyfinController : ControllerBase
   {
     var said = thrown.Message;
     Mark? where = null;
+    var overflowed = false;
 
     for (var one = thrown; one is not null; one = one.InnerException)
     {
+      overflowed |= one is OverflowException;
+
       if (!ReferenceEquals(one, thrown))
       {
         said += " " + one.Message;
@@ -1438,7 +1441,7 @@ public class StreamyfinController : ControllerBase
 
     // The deserializer names the CLR type it could not make, not the setting: where the place
     // is one setting's value or lock, the sentence names the setting and what it takes.
-    if (where is { } stopped && yaml is not null && YamlWrongType.Describe(yaml, stopped) is { } named)
+    if (where is { } stopped && yaml is not null && YamlWrongType.Describe(yaml, stopped, overflowed) is { } named)
     {
       said = named;
     }

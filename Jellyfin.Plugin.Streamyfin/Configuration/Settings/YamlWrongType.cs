@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Reflection;
 using System.Runtime.Serialization;
 using YamlDotNet.Core;
@@ -30,16 +29,17 @@ public static class YamlWrongType
     /// </summary>
     /// <param name="yaml">The document.</param>
     /// <param name="where">Where the reader stopped.</param>
+    /// <param name="overflowed">Whether the reader read a whole number too large for the setting's type.</param>
     /// <returns>The sentence, or <c>null</c> when the place is not one setting's value or lock.</returns>
     /// <remarks>
     /// It only rewords a refusal, so it never throws: a document it cannot read, or one deeper
     /// than any configuration, keeps the deserializer's words.
     /// </remarks>
-    public static string? Describe(string yaml, Mark where)
+    public static string? Describe(string yaml, Mark where, bool overflowed = false)
     {
         try
         {
-            return Name(yaml, where);
+            return Name(yaml, where, overflowed);
         }
         catch (Exception)
         {
@@ -47,9 +47,9 @@ public static class YamlWrongType
         }
     }
 
-    private static string? Name(string yaml, Mark where)
+    private static string? Name(string yaml, Mark where, bool overflowed)
     {
-        if (Locate(yaml, where) is not { Path: var path, Found: var found, Text: var text }
+        if (Locate(yaml, where) is not { Path: var path, Found: var found }
             || path.Length < 2 || path.Length > 3 || path[0] != "settings")
         {
             return null;
@@ -81,7 +81,7 @@ public static class YamlWrongType
         var takes = path[2] switch
         {
             "locked" when descriptor.IsLockable => "true or false",
-            "value" when descriptor.IsLockable => OutOfRange(descriptor, text) ?? Takes(descriptor.ValueType),
+            "value" when descriptor.IsLockable => (overflowed ? Range(descriptor) : null) ?? Takes(descriptor.ValueType),
             _ => null,
         };
 
@@ -91,7 +91,7 @@ public static class YamlWrongType
     // The keys down to the node that starts where the reader stopped, and what that node is.
     // Read event by event rather than as a tree: a tree is walked by recursion, which a deep
     // document overflows, and an alias would be walked once for every place it is used.
-    private static (string[] Path, string Found, string? Text)? Locate(string yaml, Mark where)
+    private static (string[] Path, string Found)? Locate(string yaml, Mark where)
     {
         var parser = new Parser(new StringReader(yaml));
         var frames = new List<Frame>();
@@ -141,7 +141,7 @@ public static class YamlWrongType
                     _ => null,
                 };
 
-                return found is null ? null : ([.. frames.Select(frame => frame.Key ?? "[]")], found, (current as Scalar)?.Value);
+                return found is null ? null : ([.. frames.Select(frame => frame.Key ?? "[]")], found);
             }
 
             switch (current)
@@ -176,13 +176,12 @@ public static class YamlWrongType
     }
 
     // A whole number too large for its type is a whole number: what it takes is the range,
-    // the setting's own when it declares one.
-    private static string? OutOfRange(SettingDescriptor descriptor, string? text)
+    // the setting's own when it declares one. Told by the reader, which knows every way YAML
+    // writes one (2_147_483_648, 0x80000000), and not by reading the text again.
+    private static string? Range(SettingDescriptor descriptor)
     {
         var plain = Nullable.GetUnderlyingType(descriptor.ValueType) ?? descriptor.ValueType;
-        if (text is null
-            || !(plain == typeof(int) || plain == typeof(long) || plain == typeof(short))
-            || !BigInteger.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _))
+        if (!(plain == typeof(int) || plain == typeof(long) || plain == typeof(short)))
         {
             return null;
         }
